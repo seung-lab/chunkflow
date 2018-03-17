@@ -1,0 +1,3 @@
+*.pyc
+*.chkpt
+*__pycache__/*
