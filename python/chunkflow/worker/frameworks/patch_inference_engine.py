@@ -1,5 +1,5 @@
 
-class InferenceEngine(object):
+class PatchInferenceEngine(object):
     def __init__(self):
         pass
 

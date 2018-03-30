@@ -3,9 +3,11 @@
 import torch
 import numpy as np
 from .rsunet import RSUNet
+from .patch_inference_engine import PatchInferenceEngine
 
-# class PyTorchEngine(InferenceEngine):
-class PyTorchEngine(object):
+
+class PyTorchEngine(PatchInferenceEngine):
+#class PyTorchEngine(object):
     def __init__(self, model_file_name, net_file_name,
                  use_bn = True,
                  is_static_batch_norm=False):

@@ -3,56 +3,52 @@ import argparse
 import numpy as np
 import re
 import os
+import math
 
 
 re_local = re.compile('^file://')
 
 
-class InferenceOptions(object):
+class BaseOptions(object):
     """
     Inference options.
     """
     def __init__(self):
-        self.parser = argparse.ArgumentParser()
-        self._initialize()
+        self._add_base_arguments()
 
     def parse(self):
-        opt = self.parser.parse_args()
+        self.opt = self.parser.parse_args()
+        self._setup_base_options()
+        self._setup()
+        self.print_args()
+        return self.opt
 
-        # Model spec.
-        opt.patch_size = tuple(opt.patch_size)
-        opt.in_spec = dict(input=(1,) + opt.patch_size)
-        opt.out_spec = {opt.output_key:
-                        (opt.output_channels,) + opt.patch_size}
-
-        # Scan spec.
-        opt.scan_spec = dict(affinity=(3,) + opt.patch_size)
-        assert len(opt.overlap) == 3
-        assert np.all(opt.overlap >= 0.0) and np.all(opt.overlap <= 1.0)
-        stride = 1.0 - opt.overlap
-        opt.scan_params = dict(stride=tuple(stride), blend='bump')
-
-        args = vars(opt)
-
+    def print_args(self):
         print('------------ Options -------------')
-        for k, v in sorted(args.items()):
+        for k, v in sorted(vars(self.opt).items()):
             print('%s: %s' % (str(k), str(v)))
         print('-------------- End ----------------')
 
-        self.opt = opt
-        self._prepare_dirs()
+    def _setup_base_options(self):
+        self._make_dir(self.opt.input_dir)
+        self._make_dir(self.opt.output_dir)
+        self._make_dir(self.opt.exchange_dir)
+        self.opt.output_block_slices = (slice(start, size) for start, size in
+                                        zip(self.opt.output_block_start,
+                                            self.opt.output_block_size))
 
-        return self.opt
+    def _setup(self):
+        """
+        virtual function for configuration of parameters
+        """
+        raise NotImplementedError()
 
-    def _prepare_dirs(self):
-        def make_dir(path):
-            if re_local.match(path) and (not os.path.isdir(path)):
-                os.makedirs(path)
-        make_dir(self.input_dir)
-        make_dir(self.output_dir)
-        make_dir(self.exchange_dir)
+    def _make_dir(path):
+        if re_local.match(path) and (not os.path.isdir(path)):
+            os.makedirs(path.replace('file://', ''))
 
-    def _initialize(self):
+    def _add_base_arguments(self):
+        self.parser = argparse.ArgumentParser()
         # input and output
         self.parser.add_argument('--input_dir', type=str, required=True,
                                  help="input directory path, \
@@ -63,14 +59,55 @@ class InferenceOptions(object):
         self.parser.add_argument('--exchange_dir', type=str, required=True,
                                  help="chunk exchange place, \
                                  support file://, gs://, s3:// protocols.")
-
-        # task scheduler
         self.parser.add_argument('--roles_mask', type=int,
                                  help="output block face role, \
                                  [zs, ze, ys, ye, xs, xe], \
                                  1 means donor, -1 means receiver.",
-                                 default=[1, 1, 1, 1, 1, 1], nargs='+')
+                                 default=[-1, 1, -1, 1, -1, 1], nargs='+')
+        self.parser.add_argument('--output_block_start', type=int,
+                                 help="the start coordinate of output block",
+                                 default=[0, 0, 0], nargs='+')
+        self.parser.add_argument('--output_block_size', type=int,
+                                 help="the size of output block",
+                                 default=[128, 1024, 1024], nargs='+')
+        self.parser.add_argument('--output_channels', type=int, default=3,
+                                 help="number of convnet output channels")
+        self.parser.add_argument('--overlap', type=int,
+                                 default=[4, 64, 64], nargs='+',
+                                 help="overlap by number of voxels")
 
+
+class InferenceDonateOptions(BaseOptions):
+    """
+    Inference options.
+    """
+    def __init__(self):
+        super().__init__()
+        self._add_inference_donate_arguments()
+
+    def _setup(self):
+        # Model spec.
+        self.opt.patch_size = tuple(opt.patch_size)
+        self.opt.in_spec = dict(input=(1,) + opt.patch_size)
+        self.opt.out_spec = {self.opt.output_key:
+                             (self.opt.output_channels,) + self.opt.patch_size}
+
+        # Scan spec.
+        self.opt.scan_spec = {self.opt.output_key:
+                              (self.opt.output_channels,) +
+                              self.opt.patch_size}
+        assert len(self.opt.overlap) == 3
+        assert np.all(self.opt.overlap >= 1)
+        self.opt.patch_stride_percentile = \
+            tuple(1.0 - o/p for o, p in
+                  zip(self.opt.overlap, self.opt.patch_size))
+        self.opt.scan_params = dict(stride=self.patch_stride_percentile,
+                                    blend='alignedbump')
+
+        self.print_args()
+        return self.opt
+
+    def _add_inference_donate_arguments(self):
         # Model spec.
         self.parser.add_argument('--model_path', type=str, required=True,
                                  help="the path of convnet model")
@@ -79,8 +116,6 @@ class InferenceOptions(object):
         self.parser.add_argument('--patch_size', type=int,
                                  default=[18, 256, 256], nargs='+',
                                  help="convnet input patch size")
-        self.parser.add_argument('--output_channels', type=int, default=3,
-                                 help="number of convnet output channels")
         self.parser.add_argument('--no_eval', action='store_true',
                                  help="this is on then using dynamic \
                                  batchnorm, otherwise static.")
@@ -91,12 +126,17 @@ class InferenceOptions(object):
         self.parser.add_argument('--gpu_ids', type=str, default=['0'],
                                  nargs='*')
 
-        # Scan spec.
-        self.parser.add_argument('--overlap', type=float,
-                                 default=[0.5, 0.5, 0.5], nargs='+',
-                                 help="overlap percentile, \
-                                 such as [0.5, 0.5, 0.5]")
+
+class ReceiveBlendOptions(BaseOptions):
+    """
+    receive and blend options.
+    """
+    def __init__(self):
+        self._add_receive_blend_arguments()
+
+    def _add_receive_blend_arguments(self):
+        pass
 
 
 if __name__ == '__main__':
-    opt = InferenceOptions().parse()
+    opt = InferenceDonateOptions().parse()
