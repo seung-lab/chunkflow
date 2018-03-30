@@ -35,8 +35,10 @@ class PyTorchEngine(PatchInferenceEngine):
         in_v = torch.autograd.Variable(torch.from_numpy(patch),
                                        volatile=True).cuda()
         output_v = self.net(in_v)[0] #this net returns a list, but has one output
-        return torch.nn.functional.sigmoid(output_v).data.cpu().numpy()
-        #return output_v.data.cpu().numpy()
+        output_patch = torch.nn.functional.sigmoid(output_v).data.cpu().numpy()
+        # remove the batch number dimension
+        output_patch = np.squeeze(output_patch, axis=0)
+        return output_patch
 
 if __name__ == "__main__":
     # model_file_name = '/import/w4_wt_focused_760k_pytorch/w4_wt_focused_760k.py'
