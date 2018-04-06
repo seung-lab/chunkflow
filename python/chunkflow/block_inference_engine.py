@@ -7,9 +7,8 @@ from frameworks.pytorch import PyTorchEngine
 import time
 import numpy as np
 
-from chunkflow.worker.patch_mask import PatchMask
-#from .patch_mask import PatchMask
-from chunkflow.worker.offset_array import OffsetArray
+from patch_mask import PatchMask
+from offset_array import OffsetArray
 
 
 class BlockInferenceEngine(object):
@@ -33,7 +32,9 @@ class BlockInferenceEngine(object):
 
         self.patch_mask = PatchMask(patch_size, overlap)
 
-    def __call__(self, input_chunk):
+    def __call__(self, input_chunk, output_buffer=None):
+        if output_buffer == None:
+            output_buffer=self._create_output_buffer(input_chunk)
         """
         args:
             input_chunk (OffsetArray): input chunk with global offset
@@ -42,10 +43,6 @@ class BlockInferenceEngine(object):
         # patches should be aligned within input chunk
         for i, s, o in zip(input_chunk.shape, self.stride, self.overlap):
             assert i%s == o
-        output_buffer = np.zeros((self.output_channels,)+input_chunk.shape,
-                                 dtype=input_chunk.dtype)
-        output_buffer = OffsetArray(output_buffer,
-                                    (0,)+input_chunk.global_offset)
 
         start = time.time()
         input_size = input_chunk.shape
@@ -64,10 +61,16 @@ class BlockInferenceEngine(object):
                         slice(oy, oy + self.patch_size[1]),
                         slice(ox, ox + self.patch_size[2])))
 
-                    # the output is a 4d numpy array with datatype of float32
+                    # the input and output patch is a 5d numpy array with
+                    # datatype of float32d, the dimensions are
+                    # batch/channel/z/y/x.
                     # the input image should be normalized to [0,1]
                     print('shape of input: {}'.format(input_patch.shape))
                     output_patch = self.patch_inference_engine(input_patch)
+
+                    # remove the batch number dimension
+                    output_patch = np.squeeze(output_patch, axis=0)
+
                     output_patch = output_patch[:self.output_channels, :, :, :]
                     output_patch = OffsetArray(output_patch,
                                                (0,)+input_patch.global_offset)
@@ -82,6 +85,11 @@ class BlockInferenceEngine(object):
                     start = end
         return output_buffer
 
+    def _create_output_buffer(self, input_chunk):
+        output_buffer = np.zeros((self.output_channels,)+input_chunk.shape,
+                                 dtype=input_chunk.dtype)
+        return OffsetArray(output_buffer,
+                           global_offset=(0,)+input_chunk.global_offset)
 
 if __name__ == '__main__':
     model_file_name = '/usr/people/jingpeng/seungmount/research/kisuklee/Workbench/torms3/pinky-pytorch/code/rsunet.py'

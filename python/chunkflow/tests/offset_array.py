@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-from chunkflow.worker.offset_array import OffsetArray
+from chunkflow.offset_array import OffsetArray
 
 
 class TestOffsetArray(unittest.TestCase):

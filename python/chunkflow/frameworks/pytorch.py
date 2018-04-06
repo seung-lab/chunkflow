@@ -7,11 +7,10 @@ from .patch_inference_engine import PatchInferenceEngine
 
 
 class PyTorchEngine(PatchInferenceEngine):
-#class PyTorchEngine(object):
     def __init__(self, model_file_name, net_file_name,
-                 use_bn = True,
+                 use_bn=True,
                  is_static_batch_norm=False):
-        super(PyTorchEngine, self).__init__()
+        super().__init__()
 
         # self.net = torch.nn.DataParallel(imp.load_source(
         #            "Model", model_file_name).InstantiatedModel).cuda()
@@ -36,9 +35,8 @@ class PyTorchEngine(PatchInferenceEngine):
                                        volatile=True).cuda()
         output_v = self.net(in_v)[0] #this net returns a list, but has one output
         output_patch = torch.nn.functional.sigmoid(output_v).data.cpu().numpy()
-        # remove the batch number dimension
-        output_patch = np.squeeze(output_patch, axis=0)
         return output_patch
+
 
 if __name__ == "__main__":
     # model_file_name = '/import/w4_wt_focused_760k_pytorch/w4_wt_focused_760k.py'
@@ -57,5 +55,3 @@ if __name__ == "__main__":
         output = engine(patch)
         print('shape of output: {}'.format(output.shape))
         imsave(output, '/tmp/patch.h5')
-
-

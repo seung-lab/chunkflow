@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-
+import torch
+import numpy as np
 import os
-from dataprovider.offset_array import OffsetArray
+from offset_array import OffsetArray
 from cloudvolume.cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
-from .block_inference_engine import BlockInferenceEngine
-from .frameworks.patch_inference_engine import PatchInferenceEngine
-from .frameworks.pytorch import PyTorchEngine
-from .chunk_manager import ChunkManager, Role
-from .options import InferenceBlendOptions
+from block_inference_engine import BlockInferenceEngine
+from frameworks.patch_inference_engine import PatchInferenceEngine
+from frameworks.pytorch import PyTorchEngine
+from chunk_manager import ChunkManager
+from options import InferenceAndDonateOptions
 
 
 class InferenceAndDonate(object):
@@ -38,6 +39,14 @@ class InferenceAndDonate(object):
         self.overlap = overlap
         self.inference_engine = inference_engine
 
+        output_buffer_size = (s.stop-s.start+o for s, o in
+                              zip(output_block_slices, overlap))
+        output_buffer_offset = (s.start for s in output_block_slices)
+        self.output_buffer = OffsetArray(np.zeros(output_buffer_size),
+                                         global_offset=output_buffer_offset)
+
+        self.chunk_manager = ChunkManager(self.output_buffer, exchange_storage,
+                                          output_block_slices, overlap)
         self._check_params()
 
     def _check_params(self):
@@ -64,20 +73,18 @@ class InferenceAndDonate(object):
         args:
             input_image (OffsetArray): input image chunk with global offset
         """
-        self.output = self.inference_engine(input_image)
-        self._save_valid()
-        self._donate()
-        return self.output
-
-    def _donate(self):
-        NotImplementedError()
-
-    def _save_valid(self):
-        NotImplementedError()
+        for i, o, v in zip(input_image.shape, self.output_buffer.shape,
+                           self.overlap):
+            assert i+v == o
+        self.output_buffer = \
+            self.inference_engine(input_image,
+                                  output_buffer=self.output_buffer)
+        self.chunk_manager.donate()
+        self.chunk_manager.save_valid()
 
 
 if __name__ == '__main__':
-    params = InferenceBlendOptions().parse()
+    params = InferenceAndDonateOptions().parse()
 
     # GPUs
     os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(params.gpu_ids)
@@ -93,10 +100,19 @@ if __name__ == '__main__':
         patch_inference_engine, params.patch_size, params.output_key,
         params.patch_stride_percentile)
 
-    # run inference
-    print('running inference ...')
     executor = InferenceAndDonate(input_volume, output_volume,
                                   exchange_storage,
                                   params.output_block_slices,
                                   params.overlap,
                                   block_inference_engine)
+
+    # read input image
+    input_slices = (slice(o.start, o.stop+v) for o, v in
+                    zip(params.output_block_slices, params.overlap))
+    input_offset = (o.start for o in params.output_block_slices)
+    input_image = input_volume(input_slices)
+    input_image = OffsetArray(input_image, global_offset=input_offset)
+
+    # run inference
+    print('running inference ...')
+    executor(input_image)

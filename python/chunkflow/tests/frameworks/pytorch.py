@@ -1,5 +1,5 @@
 import unittest
 
-from chunkflow.worker.frameworks.pytorch import PyTorchEngine
+from chunkflow.frameworks.pytorch import PyTorchEngine
 
 engine = PyTorchEngine()

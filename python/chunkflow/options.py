@@ -48,25 +48,18 @@ class BaseOptions(object):
             os.makedirs(path.replace('file://', ''))
 
     def _add_base_arguments(self):
-        self.parser = argparse.ArgumentParser()
+        self.parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         # input and output
-        self.parser.add_argument('--input_dir', type=str, required=True,
-                                 help="input directory path, \
-                                 support file://, gs:// and s3:// protocols")
         self.parser.add_argument('--output_dir', type=str, required=True,
                                  help="output directory path, \
                                  support file://, gs://, s3:// protocols.")
         self.parser.add_argument('--exchange_dir', type=str, required=True,
                                  help="chunk exchange place, \
                                  support file://, gs://, s3:// protocols.")
-        self.parser.add_argument('--roles_mask', type=int,
-                                 help="output block face role, \
-                                 [zs, ze, ys, ye, xs, xe], \
-                                 1 means donor, -1 means receiver.",
-                                 default=[-1, 1, -1, 1, -1, 1], nargs='+')
         self.parser.add_argument('--output_block_start', type=int,
                                  help="the start coordinate of output block",
-                                 default=[0, 0, 0], nargs='+')
+                                 required=True, nargs='+')
         self.parser.add_argument('--output_block_size', type=int,
                                  help="the size of output block",
                                  default=[128, 1024, 1024], nargs='+')
@@ -77,7 +70,7 @@ class BaseOptions(object):
                                  help="overlap by number of voxels")
 
 
-class InferenceDonateOptions(BaseOptions):
+class InferenceAndDonateOptions(BaseOptions):
     """
     Inference options.
     """
@@ -108,6 +101,11 @@ class InferenceDonateOptions(BaseOptions):
         return self.opt
 
     def _add_inference_donate_arguments(self):
+        # receive and blend step do not need to input image chunks
+        self.parser.add_argument('--input_dir', type=str, required=True,
+                                 help="input directory path, \
+                                 support file://, gs:// and s3:// protocols")
+
         # Model spec.
         self.parser.add_argument('--model_path', type=str, required=True,
                                  help="the path of convnet model")
@@ -127,12 +125,12 @@ class InferenceDonateOptions(BaseOptions):
                                  nargs='*')
 
 
-class ReceiveBlendOptions(BaseOptions):
+class ReceiveAndBlendOptions(BaseOptions):
     """
     receive and blend options.
     """
     def __init__(self):
-        self._add_receive_blend_arguments()
+        super().__init__()
 
     def _add_receive_blend_arguments(self):
         pass
