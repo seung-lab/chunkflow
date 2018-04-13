@@ -14,7 +14,6 @@ class OffsetArray(np.ndarray):
     """
     def __new__(cls, array, global_offset=(0, 0, 0)):
         isinstance(array, np.ndarray)
-        assert isinstance(global_offset, tuple)
         assert array.ndim == len(global_offset)
         obj = np.asarray(array).view(cls)
         obj.global_offset = global_offset
@@ -50,6 +49,8 @@ class OffsetArray(np.ndarray):
         self[overlap_slices] += other[overlap_slices]
 
     def cutout(self, slices):
+        if len(slices) == self.ndim-1:
+            slices = (slice(0, self.shape[0]),)+slices
         internalSlices = self._get_internal_slices(slices)
         arr = self[internalSlices]
         global_offset = tuple(s.start for s in slices)
@@ -65,9 +66,8 @@ class OffsetArray(np.ndarray):
 
     def _get_overlap_slices(self, other_slices):
         return tuple(slice(max(s1.start, s2.start), min(s1.stop, s2.stop))
-                for s1, s2 in zip(self.ranges, other_slices))
+                     for s1, s2 in zip(self.ranges, other_slices))
 
     def _get_internal_slices(self, slices):
         return tuple(slice(s.start-o, s.stop-o)
-                for s, o in zip(slices, self.global_offset))
-
+                     for s, o in zip(slices, self.global_offset))

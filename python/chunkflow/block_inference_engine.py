@@ -23,6 +23,8 @@ class BlockInferenceEngine(object):
         params:
             inference_engine, patch_size, input_chunk, output_key, patch_stride
         """
+        assert len(overlap) == 3
+        assert len(patch_size) == 3
         self.patch_inference_engine = patch_inference_engine
         self.patch_size = patch_size
         self.overlap = overlap
@@ -33,8 +35,8 @@ class BlockInferenceEngine(object):
         self.patch_mask = PatchMask(patch_size, overlap)
 
     def __call__(self, input_chunk, output_buffer=None):
-        if output_buffer == None:
-            output_buffer=self._create_output_buffer(input_chunk)
+        if output_buffer is None:
+            output_buffer = self._create_output_buffer(input_chunk)
         """
         args:
             input_chunk (OffsetArray): input chunk with global offset
@@ -42,7 +44,7 @@ class BlockInferenceEngine(object):
         assert isinstance(input_chunk, OffsetArray)
         # patches should be aligned within input chunk
         for i, s, o in zip(input_chunk.shape, self.stride, self.overlap):
-            assert i%s == o
+            assert i % s == o
 
         start = time.time()
         input_size = input_chunk.shape
@@ -91,27 +93,27 @@ class BlockInferenceEngine(object):
         return OffsetArray(output_buffer,
                            global_offset=(0,)+input_chunk.global_offset)
 
+
 if __name__ == '__main__':
-    model_file_name = '/usr/people/jingpeng/seungmount/research/kisuklee/Workbench/torms3/pinky-pytorch/code/rsunet.py'
+    model_file_name = '/usr/people/jingpeng/seungmount/research/kisuklee/\
+        Workbench/torms3/pinky-pytorch/code/rsunet.py'
     net_file_name = './frameworks/model200000.chkpt'
     engine = PyTorchEngine(model_file_name, net_file_name)
 
-    from dataprovider.emio import imsave
+    from emirt.emio import imsave
     import h5py
-    #fimg = '/usr/people/jingpeng/seungmount/research/kisuklee/Workbench/deep_learning/kaffe/datasets/pinky/ground_truth/stitched/img.h5'
     fimg = '/tmp/img.h5'
     with h5py.File(fimg, 'r') as f:
-
-        img = f['main'][:18+14*1, :256+204*1, :256+204*1]
+        img = f['main'][:32+28*0, :256+192*1, :256+192*1]
         imsave(img, '/tmp/img.tif')
         img = np.asarray(img, dtype='float32') / 255.0
         img = OffsetArray(img)
         inference = BlockInferenceEngine(
             patch_inference_engine=engine,
-            patch_size=(18, 256, 256),
-            overlap = (4, 52, 52),
+            patch_size=(32, 256, 256),
+            overlap=(4, 64, 64),
             output_key='affinity',
-            output_channels = 3)
+            output_channels=3)
 
         output = inference(img)
         print('shape of output: {}'.format(output.shape))

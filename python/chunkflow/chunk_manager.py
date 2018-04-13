@@ -9,6 +9,7 @@ from offset_array import OffsetArray
 from cloudvolume.storage import Storage
 from cloudvolume.cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
+import itertools
 
 
 class Role(IntEnum):
@@ -28,7 +29,8 @@ class RoleMask(object):
         self._universal_setup()
 
     def _universal_setup(self):
-        for z, y, x in zip(range(-1, 2), range(-1, 2), range(-1, 2)):
+        for z, y, x in itertools.product(range(-1, 2), range(-1, 2),
+                                         range(-1, 2)):
             if x+y+z > 0:
                 self.role_mask[z, y, x] = Role.Donor
             elif x+y+z < 0:
@@ -50,6 +52,7 @@ class RoleMask(object):
     def get_donation_chunk_bbox_list(self, output_block_slices, overlap):
         slices_list, _, _, _ = self._get_chunk_bbox_list_with_role(
             output_block_slices, overlap, Role.Donor)
+        return slices_list
 
     def get_receiving_slices_dict(self, output_block_slices, overlap):
         def _get_slice_list(coordinate, block_slice, size):
@@ -105,8 +108,7 @@ class RoleMask(object):
                                            overlap[1])
             xslice = self._get_chunk_slice(x, output_block_slices[2],
                                            overlap[2])
-            bbox = Bbox.from_slices((zslice, yslice, xslice))
-            slices_list.append(bbox)
+            slices_list.append((zslice, yslice, xslice))
         return slices_list, Z, Y, X
 
     def _get_chunk_slice(self, coordinate, block_slice, margin):
@@ -124,11 +126,11 @@ class RoleMask(object):
 
 
 class ChunkManager(object):
-    def __init__(self, buffer_volume, output_volume, exchange_storage,
+    def __init__(self, buffer_array, output_volume, exchange_storage,
                  output_block_slices, overlap, role_mask=RoleMask()):
         """
         Args:
-            buffer_volume (OffsetArray): the source of donation and \
+            buffer_array (OffsetArray): the source of donation and \
                 destination of receiving, which should be in memory or \
                 local disk.
             output_volume (CloudVolume): remote cloud storage or on local \
@@ -142,7 +144,7 @@ class ChunkManager(object):
                 output block
             overlap (tuple of int): the margin size of blending region.
         """
-        self.buffer_volume = buffer_volume
+        self.buffer_array = buffer_array
         self.output_volume = output_volume
         self.exchange_storage = exchange_storage
         self.role_mask = role_mask
@@ -150,8 +152,8 @@ class ChunkManager(object):
         self.overlap = overlap
 
     def _check(self):
-        assert isinstance(self.buffer_volume, CloudVolume) or \
-            isinstance(self.buffer_volume, OffsetArray)
+        assert isinstance(self.buffer_array, CloudVolume) or \
+            isinstance(self.buffer_array, OffsetArray)
         assert isinstance(self.exchange_storage, dict) or \
             isinstance(self.exchange_storage, Storage)
 
@@ -166,7 +168,7 @@ class ChunkManager(object):
         for slices, filename_list in slices_dict:
             chunks = self.exchange_storage.get_files(filename_list)
             for chunk in chunks:
-                self.output_buffer[slices] += chunk
+                self.buffer_array[slices] += chunk
 
         # write blended results, note that this is not aligned
         for slices, filename_list in slices_dict:
@@ -176,13 +178,16 @@ class ChunkManager(object):
         """
         donate overlapping chunks to exchanging storage for future blending.
         """
+        print("start donating...")
         donor_chunk_slices_list = self.role_mask.get_donation_chunk_bbox_list(
-                self.output_block_bbox, self.overlap)
+                self.output_block_bbox.to_slices(), self.overlap)
         for chunk_slices in donor_chunk_slices_list:
             bbox = Bbox.from_slices(chunk_slices)
-            self.exchange_storage[self.output_block_bbox.to_filename() + '%' +
-                                  bbox.to_filename()] = \
-                self.buffer_volume[chunk_slices]
+            key = self.output_block_bbox.to_filename() + \
+                '%' + bbox.to_filename()
+            assert np.any(self.buffer_array.cutout(chunk_slices) > 0)
+            self.exchange_storage.put_file(
+                key, self.buffer_array.cutout(chunk_slices))
 
     def save_valid(self):
         """
@@ -190,11 +195,13 @@ class ChunkManager(object):
             surrounding blocks anymore. The data should be saved to \
             output_volume, which is cloud storage or local bucket.
         """
-        valid_slices = (slice(o.start+v, o.stop) for o, v in
-                        zip(self.output_block_bbox.to_slices(), self.overlap))
+        print("start saving valid...")
+        valid_slices = tuple(slice(o.start+v, o.stop) for o, v in
+                             zip(self.output_block_bbox.to_slices(),
+                                 self.overlap))
         # this is non-aligned writting, will enhance it for alignment
         self.output_volume[valid_slices] = \
-            self.output_buffer.cutout(valid_slices)
+            self.buffer_array.cutout(valid_slices)
 
 
 if __name__ == '__main__':

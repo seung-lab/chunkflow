@@ -33,9 +33,10 @@ class BaseOptions(object):
         self._make_dir(self.opt.input_dir)
         self._make_dir(self.opt.output_dir)
         self._make_dir(self.opt.exchange_dir)
-        self.opt.output_block_slices = (slice(start, size) for start, size in
-                                        zip(self.opt.output_block_start,
-                                            self.opt.output_block_size))
+        self.opt.output_block_slices = tuple(slice(start, start+size)
+                                             for start, size in
+                                             zip(self.opt.output_block_start,
+                                                 self.opt.output_block_size))
 
     def _setup(self):
         """
@@ -43,7 +44,7 @@ class BaseOptions(object):
         """
         raise NotImplementedError()
 
-    def _make_dir(path):
+    def _make_dir(self, path):
         if re_local.match(path) and (not os.path.isdir(path)):
             os.makedirs(path.replace('file://', ''))
 
@@ -62,7 +63,7 @@ class BaseOptions(object):
                                  required=True, nargs='+')
         self.parser.add_argument('--output_block_size', type=int,
                                  help="the size of output block",
-                                 default=[128, 1024, 1024], nargs='+')
+                                 default=[112, 1152, 1152], nargs='+')
         self.parser.add_argument('--output_channels', type=int, default=3,
                                  help="number of convnet output channels")
         self.parser.add_argument('--overlap', type=int,
@@ -80,24 +81,11 @@ class InferenceAndDonateOptions(BaseOptions):
 
     def _setup(self):
         # Model spec.
-        self.opt.patch_size = tuple(opt.patch_size)
-        self.opt.in_spec = dict(input=(1,) + opt.patch_size)
-        self.opt.out_spec = {self.opt.output_key:
-                             (self.opt.output_channels,) + self.opt.patch_size}
+        self.opt.patch_size = tuple(self.opt.patch_size)
 
-        # Scan spec.
-        self.opt.scan_spec = {self.opt.output_key:
-                              (self.opt.output_channels,) +
-                              self.opt.patch_size}
         assert len(self.opt.overlap) == 3
-        assert np.all(self.opt.overlap >= 1)
-        self.opt.patch_stride_percentile = \
-            tuple(1.0 - o/p for o, p in
-                  zip(self.opt.overlap, self.opt.patch_size))
-        self.opt.scan_params = dict(stride=self.patch_stride_percentile,
-                                    blend='alignedbump')
-
-        self.print_args()
+        for o in self.opt.overlap:
+            assert o >= 1
         return self.opt
 
     def _add_inference_donate_arguments(self):
@@ -112,7 +100,7 @@ class InferenceAndDonateOptions(BaseOptions):
         self.parser.add_argument('--net_path', type=str, required=True,
                                  help="the path of convnet weights")
         self.parser.add_argument('--patch_size', type=int,
-                                 default=[18, 256, 256], nargs='+',
+                                 default=[32, 256, 256], nargs='+',
                                  help="convnet input patch size")
         self.parser.add_argument('--no_eval', action='store_true',
                                  help="this is on then using dynamic \
@@ -121,7 +109,10 @@ class InferenceAndDonateOptions(BaseOptions):
                                  help="the name of the final output layer")
 
         # resources
-        self.parser.add_argument('--gpu_ids', type=str, default=['0'],
+        self.parser.add_argument('--framework', type=str, default='pytorch',
+                                 help="backend of deep learning framework, \
+                                 such as pytorch and pznet.")
+        self.parser.add_argument('--gpu_ids', type=int, default=[0],
                                  nargs='*')
 
 
@@ -137,4 +128,5 @@ class ReceiveAndBlendOptions(BaseOptions):
 
 
 if __name__ == '__main__':
-    opt = InferenceDonateOptions().parse()
+    print('show inference and donate script options:')
+    opt = InferenceAndDonateOptions().parse()

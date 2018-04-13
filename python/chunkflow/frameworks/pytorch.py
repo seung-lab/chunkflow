@@ -8,16 +8,18 @@ from .patch_inference_engine import PatchInferenceEngine
 
 class PyTorchEngine(PatchInferenceEngine):
     def __init__(self, model_file_name, net_file_name,
-                 use_bn=True,
-                 is_static_batch_norm=False):
+                 use_bn=True, is_static_batch_norm=False,
+                 patch_size=(32, 256, 256), output_key='affinity'):
         super().__init__()
 
         # self.net = torch.nn.DataParallel(imp.load_source(
         #            "Model", model_file_name).InstantiatedModel).cuda()
         # self.net = InferenceNet({'input':(1,18,256,256)},
-        #                        {'affinity':(16,18,256,256)},5, use_bn=True).cuda()
-        self.net = RSUNet({'input':(1, 18, 256, 256)},
-                          {'affinity':(16, 18, 256, 256)}, 5, use_bn=use_bn).cuda()
+        #                         {'affinity':(16,18,256,256)},5,
+        # use_bn=True).cuda()
+        self.net = RSUNet({'input': (1,) + patch_size},
+                          {output_key: (16,) + patch_size}, 5,
+                          use_bn=use_bn).cuda()
         # self.net = imp.load_source("RSUNet",model_file_name).RSUNet(
         #    {'input':(1,18,256,256)},{'affinity':(16,18,256,256)},5).cuda()
         self.net.load_state_dict(torch.load(net_file_name))
@@ -27,13 +29,15 @@ class PyTorchEngine(PatchInferenceEngine):
 
     def __call__(self, patch):
         # patch should be a 5d np array
+        assert isinstance(patch, np.ndarray)
         if patch.ndim == 3:
             patch = patch.reshape((1, 1)+patch.shape)
         elif patch.ndim == 4:
             patch = patch.reshape((1, )+patch.shape)
         in_v = torch.autograd.Variable(torch.from_numpy(patch),
                                        volatile=True).cuda()
-        output_v = self.net(in_v)[0] #this net returns a list, but has one output
+        # this net returns a list, but has one output
+        output_v = self.net(in_v)[0]
         output_patch = torch.nn.functional.sigmoid(output_v).data.cpu().numpy()
         return output_patch
 
