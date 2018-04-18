@@ -1,0 +1,6 @@
+.cache
+.git
+.ropeproject
+tests
+docker
+.env
