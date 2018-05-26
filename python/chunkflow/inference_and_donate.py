@@ -102,9 +102,8 @@ if __name__ == '__main__':
         patch_inference_engine = PyTorchEngine(params.model_path,
                                                params.net_path)
     elif params.framework == 'pznet':
-        from frameworks.pznet import PZNetEngine
-        patch_inference_engine = PZNetEngine(params.model_file_name,
-                                             params.net_file_name)
+        from frameworks.pznet_patch_inference_engine import PZNetPatchInferenceEngine
+        patch_inference_engine = PZNetPatchInferenceEngine(params.model_file_name)
     else:
         raise NotImplementedError('unknow framework backend of {}' %
                                   params.framework)

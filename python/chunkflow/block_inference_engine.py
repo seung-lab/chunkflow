@@ -3,12 +3,12 @@ __doc__ = """
 Inference a chunk of image
 """
 
-from frameworks.pytorch import PyTorchEngine
 import time
 import numpy as np
+from tqdm import tqdm
 
-from patch_mask import PatchMask
-from offset_array import OffsetArray
+from .patch_mask import PatchMask
+from .offset_array import OffsetArray
 
 
 class BlockInferenceEngine(object):
@@ -49,12 +49,12 @@ class BlockInferenceEngine(object):
         start = time.time()
         input_size = input_chunk.shape
         input_offset = input_chunk.global_offset
-        for oz in range(input_offset[0],
-                        input_offset[0]+input_size[0]-self.overlap[0],
-                        self.stride[0]):
-            for oy in range(input_offset[1],
-                            input_offset[1]+input_size[1]-self.overlap[1],
-                            self.stride[1]):
+        for oz in tqdm(range(input_offset[0],
+                             input_offset[0]+input_size[0]-self.overlap[0],
+                             self.stride[0])):
+            for oy in tqdm(range(input_offset[1],
+                           input_offset[1]+input_size[1]-self.overlap[1],
+                           self.stride[1])):
                 for ox in range(input_offset[2],
                                 input_offset[2]+input_size[2]-self.overlap[2],
                                 self.stride[2]):
@@ -67,7 +67,6 @@ class BlockInferenceEngine(object):
                     # datatype of float32d, the dimensions are
                     # batch/channel/z/y/x.
                     # the input image should be normalized to [0,1]
-                    print('shape of input: {}'.format(input_patch.shape))
                     output_patch = self.patch_inference_engine(input_patch)
 
                     # remove the batch number dimension
@@ -83,18 +82,19 @@ class BlockInferenceEngine(object):
                     # blend to output buffer
                     output_buffer.blend(output_patch)
                     end = time.time()
-                    print("Elapsed: %3f sec" % (end-start))
+                    # print("Elapsed: %3f sec" % (end-start))
                     start = end
         return output_buffer
 
     def _create_output_buffer(self, input_chunk):
         output_buffer = np.zeros((self.output_channels,)+input_chunk.shape,
-                                 dtype=input_chunk.dtype)
+                                 dtype=np.float32)
         return OffsetArray(output_buffer,
                            global_offset=(0,)+input_chunk.global_offset)
 
 
 if __name__ == '__main__':
+    from frameworks.pytorch import PyTorchEngine
     model_file_name = '/usr/people/jingpeng/seungmount/research/kisuklee/\
         Workbench/torms3/pinky-pytorch/code/rsunet.py'
     net_file_name = './frameworks/model200000.chkpt'
