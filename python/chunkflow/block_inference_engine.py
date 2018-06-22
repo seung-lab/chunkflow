@@ -44,7 +44,7 @@ class BlockInferenceEngine(object):
         assert isinstance(input_chunk, OffsetArray)
         # patches should be aligned within input chunk
         for i, s, o in zip(input_chunk.shape, self.stride, self.overlap):
-            assert i % s == o
+            assert (i-o) % s == 0
 
         start = time.time()
         input_size = input_chunk.shape
