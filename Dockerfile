@@ -10,6 +10,11 @@ WORKDIR /root
 RUN mkdir chunkflow
 ADD . chunkflow/ 
 
+RUN git clone https://github.com/seung-lab/emirt.git 
+ENV PYTHONPATH /root:$PATHONPATH
+ENV PYTHONPATH /opt/znnphi_interface/code/znet/src/python:$PYTHONPATH
+ENV PYTHONPATH /root/chunkflow/python:$PYTHONPATH
+
 WORKDIR ./chunkflow 
 
 RUN pip3 install --upgrade pip
