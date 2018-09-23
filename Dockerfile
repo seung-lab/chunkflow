@@ -1,6 +1,6 @@
 ARG BACKEND=pznet
 
-FROM jingpengw/chunkflow:backend-${BACKEND}
+FROM seunglab/chunkflow:${BACKEND}
 
 
 LABEL maintainer = "Jingpeng Wu" \
