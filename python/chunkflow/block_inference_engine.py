@@ -35,12 +35,22 @@ class BlockInferenceEngine(object):
         self.patch_mask = PatchMask(patch_size, overlap)
 
     def __call__(self, input_chunk, output_buffer=None):
-        if output_buffer is None:
-            output_buffer = self._create_output_buffer(input_chunk)
         """
         args:
             input_chunk (OffsetArray): input chunk with global offset
         """
+        if output_buffer is None:
+            output_buffer = self._create_output_buffer(input_chunk)
+    
+        if np.all(input_chunk==0):
+            print('input is all zero, return zero buffer directly')
+            return output_buffer 
+
+        if input_chunk.dtype == 'uint8':
+            global_offset = input_chunk.global_offset 
+            input_chunk = np.asarray(input_chunk, dtype='float32') / 255.0
+            input_chunk = OffsetArray(input_chunk, global_offset)
+
         assert isinstance(input_chunk, OffsetArray)
         # patches should be aligned within input chunk
         for i, s, o in zip(input_chunk.shape, self.stride, self.overlap):
@@ -52,9 +62,9 @@ class BlockInferenceEngine(object):
         for oz in tqdm(range(input_offset[0],
                              input_offset[0]+input_size[0]-self.overlap[0],
                              self.stride[0])):
-            for oy in tqdm(range(input_offset[1],
+            for oy in range(input_offset[1],
                            input_offset[1]+input_size[1]-self.overlap[1],
-                           self.stride[1])):
+                           self.stride[1]):
                 for ox in range(input_offset[2],
                                 input_offset[2]+input_size[2]-self.overlap[2],
                                 self.stride[2]):
@@ -64,8 +74,7 @@ class BlockInferenceEngine(object):
                         slice(ox, ox + self.patch_size[2])))
 
                     # the input and output patch is a 5d numpy array with
-                    # datatype of float32d, the dimensions are
-                    # batch/channel/z/y/x.
+                    # datatype of float32, the dimensions are batch/channel/z/y/x.
                     # the input image should be normalized to [0,1]
                     output_patch = self.patch_inference_engine(input_patch)
 
@@ -73,6 +82,7 @@ class BlockInferenceEngine(object):
                     output_patch = np.squeeze(output_patch, axis=0)
 
                     output_patch = output_patch[:self.output_channels, :, :, :]
+                    
                     output_patch = OffsetArray(output_patch,
                                                (0,)+input_patch.global_offset)
 
@@ -82,7 +92,7 @@ class BlockInferenceEngine(object):
                     # blend to output buffer
                     output_buffer.blend(output_patch)
                     end = time.time()
-                    # print("Elapsed: %3f sec" % (end-start))
+                    #print("Elapsed: %3f sec" % (end-start))
                     start = end
         return output_buffer
 

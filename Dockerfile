@@ -1,4 +1,4 @@
-ARG BACKEND=pznet
+ARG BACKEND=pytorch
 
 FROM seunglab/chunkflow:${BACKEND}
 
