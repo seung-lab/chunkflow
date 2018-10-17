@@ -23,11 +23,10 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
         self.net = load_source(model_file_name).InstantiatedModel 
         self.net.load_state_dict(torch.load(weight_file_name))
         self.net.cuda()
-        #net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
+        self.net = torch.nn.DataParallel(self.net, device_ids=range(torch.cuda.device_count()))
         
         if use_bn and is_static_batch_norm:
             self.net.eval()
-        # self.net.load(net_file_name)
 
     def __call__(self, patch):
         # patch should be a 5d np array

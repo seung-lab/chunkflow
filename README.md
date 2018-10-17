@@ -37,5 +37,11 @@ receive shared chunks and blend them together
 checkout the options with:
 `python receive_and_blend.py -h`
 
-# Compile PZNet
+### Use with backend of PZNet 
+
+#### Compile PZNet
+
+### Use with backend of PyTorch 
+- required pytorch version 0.4.x
+
 
