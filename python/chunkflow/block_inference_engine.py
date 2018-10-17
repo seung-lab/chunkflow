@@ -3,7 +3,7 @@ __doc__ = """
 Inference a chunk of image
 """
 
-import time
+#import time
 import numpy as np
 from tqdm import tqdm
 
@@ -56,7 +56,7 @@ class BlockInferenceEngine(object):
         for i, s, o in zip(input_chunk.shape, self.stride, self.overlap):
             assert (i-o) % s == 0
 
-        start = time.time()
+        #start = time.time()
         input_size = input_chunk.shape
         input_offset = input_chunk.global_offset
         for oz in tqdm(range(input_offset[0],
@@ -91,9 +91,9 @@ class BlockInferenceEngine(object):
 
                     # blend to output buffer
                     output_buffer.blend(output_patch)
-                    end = time.time()
+                    #end = time.time()
                     #print("Elapsed: %3f sec" % (end-start))
-                    start = end
+                    #start = end
         return output_buffer
 
     def _create_output_buffer(self, input_chunk):
