@@ -40,8 +40,8 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
             in_v = torch.from_numpy(patch).cuda()
             # this net returns a list, but has one output
             output_v = self.net(in_v)[0]
-            #output_patch = torch.nn.functional.sigmoid(output_v).data.cpu().numpy()
-            output_patch = output_v.data.cpu().numpy()
+            # the network output do not have sigmoid function 
+            output_patch = torch.sigmoid(output_v).data.cpu().numpy()
             return output_patch
 
 
