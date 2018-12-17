@@ -10,8 +10,13 @@ def main():
     parser.add_argument("-o", "--outputfile",
                         default = "/tmp/output.h5",
                         help = "output file path")
-    parser.add_argument("-n", "--convnetfile",
-                        help = "convnet directory path compiled by sergification")
+    parser.add_argument("-b", "--backend",
+                        default = "pytorch",
+                        help="inference engine in the backend: {pytorch, pznet}.")
+    parser.add_argument("-m", "--modelfile",
+                        help="convnet model file path")
+    parser.add_argument("-w", "--weightfile",
+                        help = "convnet directory path")
     parser.add_argument("-p", "--patchsize",
                         type = int, nargs = "+",
                         help = "input patch size")
@@ -27,7 +32,13 @@ def main():
 
     from chunkflow.block_inference_engine import BlockInferenceEngine
     from chunkflow.frameworks.pznet_patch_inference_engine import PZNetPatchInferenceEngine
-    patch_engine = PZNetPatchInferenceEngine( args.convnetfile )
+    if args.backend == "pytorch":
+        patch_engine = PytorchPatchInferenceEngine( args.modelfile, args.weightfile )
+    elif args.backend == "pznet":
+        patch_engine = PZNetPatchInferenceEngine( args.modelfile )
+    else:
+        raise "invalid inference backend, only support pytorch and pznet for now."
+
     block_inference_engine = BlockInferenceEngine(
         patch_inference_engine=patch_engine,
         patch_size = tuple( p for p in args.patchsize ),

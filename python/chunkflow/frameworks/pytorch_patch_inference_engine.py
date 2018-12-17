@@ -46,16 +46,17 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
 
 
 if __name__ == "__main__":
+
     from .rsunet import RSUNet
-    model_file_name = './rsunet.py'
-    net_file_name = './model200000.chkpt'
+    model_file_name = '/seungmount/research/Jingpeng/21_chunkflow/pytorch-model/pytorch_model/rsunet.py'
+    net_file_name = '/seungmount/research/kisuklee/Sharing/basilnet/round2/pretrain/lost_no-random/basil100/mip1/basil100_220K.chkpt'
     engine = PyTorchEngine(model_file_name, net_file_name)
 
     import h5py
     from dataprovider.emio import imsave
-    fimg = '/usr/people/jingpeng/seungmount/research/kisuklee/Workbench/deep_learning/kaffe/datasets/pinky/ground_truth/stitched/img.h5'
+    fimg = '/seungmount/research/kisuklee/Workbench/deep_learning/kaffe/datasets/pinky/ground_truth/stitched/img.h5'
     with h5py.File(fimg) as f:
-        patch = f['main'][:18,:256,:256]
+        patch = f['main'][:20,:256,:256]
         patch = np.asarray(patch, dtype='float32') / 255.0
         output = engine(patch)
         print('shape of output: {}'.format(output.shape))
