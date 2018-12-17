@@ -17,22 +17,22 @@ class BlockInferenceEngine(object):
     convnet inference for a whole block. the patches should aligned with the \
         block size.
     """
-    def __init__(self, patch_inference_engine, patch_size, overlap,
-                 output_key='affinity', output_channels=3):
+    def __init__(self, patch_inference_engine, patch_size, patch_overlap,
+                 output_key='affinity', num_output_channels=3):
         """
         params:
             inference_engine, patch_size, input_chunk, output_key, patch_stride
         """
-        assert len(overlap) == 3
+        assert len(patch_overlap) == 3
         assert len(patch_size) == 3
         self.patch_inference_engine = patch_inference_engine
         self.patch_size = patch_size
-        self.overlap = overlap
-        self.stride = tuple(p-o for p, o in zip(patch_size, overlap))
+        self.patch_overlap = patch_overlap
+        self.stride = tuple(p-o for p, o in zip(patch_size, patch_overlap))
         self.output_key = output_key
-        self.output_channels = output_channels
+        self.num_output_channels = num_output_channels
 
-        self.patch_mask = PatchMask(patch_size, overlap)
+        self.patch_mask = PatchMask(patch_size, patch_overlap)
 
     def __call__(self, input_chunk, output_buffer=None):
         """
@@ -53,20 +53,20 @@ class BlockInferenceEngine(object):
 
         assert isinstance(input_chunk, OffsetArray)
         # patches should be aligned within input chunk
-        for i, s, o in zip(input_chunk.shape, self.stride, self.overlap):
+        for i, s, o in zip(input_chunk.shape, self.stride, self.patch_overlap):
             assert (i-o) % s == 0
 
         #start = time.time()
         input_size = input_chunk.shape
         input_offset = input_chunk.global_offset
         for oz in tqdm(range(input_offset[0],
-                             input_offset[0]+input_size[0]-self.overlap[0],
+                             input_offset[0]+input_size[0]-self.patch_overlap[0],
                              self.stride[0])):
             for oy in range(input_offset[1],
-                           input_offset[1]+input_size[1]-self.overlap[1],
+                           input_offset[1]+input_size[1]-self.patch_overlap[1],
                            self.stride[1]):
                 for ox in range(input_offset[2],
-                                input_offset[2]+input_size[2]-self.overlap[2],
+                                input_offset[2]+input_size[2]-self.patch_overlap[2],
                                 self.stride[2]):
                     input_patch = input_chunk.cutout((
                         slice(oz, oz + self.patch_size[0]),
@@ -81,7 +81,7 @@ class BlockInferenceEngine(object):
                     # remove the batch number dimension
                     output_patch = np.squeeze(output_patch, axis=0)
 
-                    output_patch = output_patch[:self.output_channels, :, :, :]
+                    output_patch = output_patch[:self.num_output_channels, :, :, :]
                     
                     output_patch = OffsetArray(output_patch,
                                                (0,)+input_patch.global_offset)
@@ -97,7 +97,7 @@ class BlockInferenceEngine(object):
         return output_buffer
 
     def _create_output_buffer(self, input_chunk):
-        output_buffer = np.zeros((self.output_channels,)+input_chunk.shape,
+        output_buffer = np.zeros((self.num_output_channels,)+input_chunk.shape,
                                  dtype=np.float32)
         return OffsetArray(output_buffer,
                            global_offset=(0,)+input_chunk.global_offset)
@@ -121,9 +121,9 @@ if __name__ == '__main__':
         inference = BlockInferenceEngine(
             patch_inference_engine=engine,
             patch_size=(32, 256, 256),
-            overlap=(4, 64, 64),
+            patch_overlap=(4, 64, 64),
             output_key='affinity',
-            output_channels=3)
+            num_output_channels=3)
 
         output = inference(img)
         print('shape of output: {}'.format(output.shape))
