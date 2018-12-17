@@ -1,7 +1,7 @@
 # backend: pytorch | pznet
-ARG BACKEND=pznet
+ARG BACKEND=pytorch
 
-FROM seunglab/chunkflow:${BACKEND}
+FROM seunglab/chunkflow:${BACKEND}-backend
 
 
 LABEL maintainer = "Jingpeng Wu" \

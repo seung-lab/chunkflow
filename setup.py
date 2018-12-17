@@ -1,21 +1,28 @@
-import setuptools
-
-with open("README.md", "r") as fh:
-    long_description = fh.read()
-
-setuptools.setup(
-    name="chunkflow",
-    version="0.0.1",
-    author="Jingpeng Wu",
-    author_email="jingpeng.wu@gmail.com",
-    description="convnet inference of 3D image stacks",
-    long_description=long_description,
-    long_description_type="text/markdown",
-    url="https://github.com/seung-lab/chunkflow",
-    packages=setuptools.find_packages(),
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: OS Independent",
-    ],
+version = '0.0.1'
+from setuptools import setup, find_packages, Command
+setup(
+    name='chunkflow',
+    description='Large Scale 3d Convolution Net Inference',
+    license='Apache License 2.0',
+    version=version,
+    packages=find_packages(exclude=['tests*']),
+    package_data={'': ['data/*' ]},
+    include_package_data=True,
+    zip_safe=False,
+    entry_points="""
+        [console_scripts]
+        chunkflow=chunkflow.bin.cli:main
+    """,
+    install_requires=[
+        'cloud-volume >= 0.17.0',
+        'numpy',
+        'Click'
+        ],
+    extras_require={
+    },
+    author='Seung Lab',
+    url='https://github.com/seung-lab/chunkflow',
+    download_url=(
+        'https://github.com/seung-lab/chunkflow'
+    )
 )

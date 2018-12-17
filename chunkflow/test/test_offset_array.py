@@ -4,7 +4,9 @@ from chunkflow.offset_array import OffsetArray
 
 
 class TestOffsetArray(unittest.TestCase):
+
     def test_normalize(self):
+        print('test offset array normalization...')
         arr = np.ones((3, 3, 3), dtype='float32')
         chunk = OffsetArray(arr, (-1, -1, -1))
         mask = np.ones((3, 3, 3), dtype='float32')*0.5
@@ -12,11 +14,11 @@ class TestOffsetArray(unittest.TestCase):
         self.assertTrue(np.all(chunk ==
                                np.ones((3, 3, 3), dtype='float32')*0.5))
 
-    def test_ranges(self):
+    def test_slices(self):
         arr = np.ones((3, 3, 3), dtype='float32')
         chunk = OffsetArray(arr, (-1, -1, -1))
-        self.assertEqual(chunk.ranges,
-                         (range(-1, 2), range(-1, 2), range(-1, 2)))
+        self.assertEqual(chunk.slices,
+                         (slice(-1, 2), slice(-1, 2), slice(-1, 2)))
 
     def test_where(self):
         arr = np.asarray([0.1, 0.7])

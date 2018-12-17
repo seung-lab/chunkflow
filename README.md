@@ -1,3 +1,8 @@
+chunkflow 
+----------------------
+[![Build Status](https://travis-ci.org/seung-lab/chunkflow.svg?branch=master)](https://travis-ci.org/seung-lab/chunkflow)
+patch by patch convolutional network inference with difference frameworks including pytorch and pznet. 
+
 # Introduction
 3D convnet becomes more and more popular to segment 3D images. Since single machine and limited memory including GPU memory, a large dataset can not fit in for one-time convnet forwardpass especially for large complex networks. Hence, convnet inference should be decomposed to multiple patches and then stitch the patches together. The patches could be well distributed across machines utilizing the data level parallelism. However, there normally exist boundary effect of each patch since there just no enough context information for the boundary voxels. To reduce the boundary effect, the patches could be blended with some overlap. Overlap and blending could be easily handled in a single shared-memory machine, but not for distributed computation for terabyte or petabyte scale inference. Naive cropping of chunk boundary produced in each machine will make the output globally inconsistent unless the cropping size is half of the patch size which has too much overhead. This package was made to solve this problem.
 

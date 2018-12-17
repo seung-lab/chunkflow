@@ -45,7 +45,7 @@ class OffsetArray(np.ndarray):
 
     def add_overlap(self, other):
         assert isinstance(other, OffsetArray)
-        overlap_slices = self._get_overlap_slices(other.ranges)
+        overlap_slices = self._get_overlap_slices(other.slices)
         self[overlap_slices] += other[overlap_slices]
 
     def cutout(self, slices):
@@ -66,7 +66,7 @@ class OffsetArray(np.ndarray):
 
     def _get_overlap_slices(self, other_slices):
         return tuple(slice(max(s1.start, s2.start), min(s1.stop, s2.stop))
-                     for s1, s2 in zip(self.ranges, other_slices))
+                     for s1, s2 in zip(self.slices, other_slices))
 
     def _get_internal_slices(self, slices):
         return tuple(slice(s.start-o, s.stop-o)
