@@ -1,4 +1,5 @@
-ARG BACKEND=pytorch
+# backend: pytorch | pznet
+ARG BACKEND=pznet
 
 FROM seunglab/chunkflow:${BACKEND}
 
@@ -17,8 +18,9 @@ ENV PYTHONPATH /root/chunkflow/python:$PYTHONPATH
 
 WORKDIR ./chunkflow 
 
-RUN apt-get update && apt-get install -y python3-pip
+RUN apt-get update && apt-get install -y python3-pip curl wget
 RUN pip3 install --upgrade pip
 RUN pip3 install --upgrade setuptools
+RUN pip3 install numpy
 RUN pip3 install -r requirements.txt 
 

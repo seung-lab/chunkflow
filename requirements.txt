@@ -1,2 +1,2 @@
-cloud-volume
 numpy
+cloud-volume
