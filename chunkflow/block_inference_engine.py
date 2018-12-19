@@ -15,10 +15,14 @@ class BlockInferenceEngine(object):
     """
         BlockInference
     convnet inference for a whole block. the patches should aligned with the \
-        block size.
+        block size. 
+
+    Parameters:
+        is_masked_in_device: the patch was already masked/normalized in the device, 
+                such as gpu, for speed up. 
     """
     def __init__(self, patch_inference_engine, patch_size, patch_overlap,
-                 output_key='affinity', num_output_channels=3):
+                 output_key='affinity', num_output_channels=3, is_masked_in_device=False):
         """
         params:
             inference_engine, patch_size, input_chunk, output_key, patch_stride
@@ -33,6 +37,7 @@ class BlockInferenceEngine(object):
         self.num_output_channels = num_output_channels
 
         self.patch_mask = PatchMask(patch_size, patch_overlap)
+        self.is_masked_in_device = is_masked_in_device
 
     def __call__(self, input_chunk, output_buffer=None):
         """
@@ -54,7 +59,7 @@ class BlockInferenceEngine(object):
         assert isinstance(input_chunk, OffsetArray)
         # patches should be aligned within input chunk
         for i, s, o in zip(input_chunk.shape, self.stride, self.patch_overlap):
-            assert (i-o) % s == 0
+            assert (i-o) % s == 0, ('the patche stride {} and overlap {} do not align with the input chunk size {}' % s, o, i)
 
         #start = time.time()
         input_size = input_chunk.shape
@@ -87,7 +92,8 @@ class BlockInferenceEngine(object):
                                                (0,)+input_patch.global_offset)
 
                     # normalized by patch mask
-                    output_patch *= self.patch_mask
+                    if not self.is_masked_in_device:
+                        output_patch *= self.patch_mask
 
                     # blend to output buffer
                     output_buffer.blend(output_patch)
@@ -102,29 +108,3 @@ class BlockInferenceEngine(object):
         return OffsetArray(output_buffer,
                            global_offset=(0,)+input_chunk.global_offset)
 
-
-if __name__ == '__main__':
-    from frameworks.pytorch import PyTorchEngine
-    model_file_name = '/usr/people/jingpeng/seungmount/research/kisuklee/\
-        Workbench/torms3/pinky-pytorch/code/rsunet.py'
-    net_file_name = './frameworks/model200000.chkpt'
-    engine = PyTorchEngine(model_file_name, net_file_name)
-
-    from emirt.emio import imsave
-    import h5py
-    fimg = '/tmp/img.h5'
-    with h5py.File(fimg, 'r') as f:
-        img = f['main'][:32+28*0, :256+192*1, :256+192*1]
-        imsave(img, '/tmp/img.tif')
-        img = np.asarray(img, dtype='float32') / 255.0
-        img = OffsetArray(img)
-        inference = BlockInferenceEngine(
-            patch_inference_engine=engine,
-            patch_size=(32, 256, 256),
-            patch_overlap=(4, 64, 64),
-            output_key='affinity',
-            num_output_channels=3)
-
-        output = inference(img)
-        print('shape of output: {}'.format(output.shape))
-        imsave(output[0, :, :, :], '/tmp/out.tif')

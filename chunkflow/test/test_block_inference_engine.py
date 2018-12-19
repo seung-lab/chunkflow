@@ -5,7 +5,8 @@ from chunkflow.frameworks.identity_patch_inference_engine import IdentityPatchIn
 from chunkflow.offset_array import OffsetArray 
 
 class TestBlockInferenceEngine(unittest.TestCase):
-    def test_block_inference(self):
+    def test_block_inference_engine(self):
+        print('\ntest block inference engine...')
         patch_engine = IdentityPatchInferenceEngine()
         block_inference_engine = BlockInferenceEngine(
             patch_inference_engine=patch_engine, 

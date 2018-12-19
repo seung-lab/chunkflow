@@ -6,7 +6,7 @@ from chunkflow.offset_array import OffsetArray
 class TestOffsetArray(unittest.TestCase):
 
     def test_normalize(self):
-        print('test offset array normalization...')
+        print('\ntest offset array normalization...')
         arr = np.ones((3, 3, 3), dtype='float32')
         chunk = OffsetArray(arr, (-1, -1, -1))
         mask = np.ones((3, 3, 3), dtype='float32')*0.5
