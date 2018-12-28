@@ -22,7 +22,8 @@ class BlockInferenceEngine(object):
                 such as gpu, for speed up. 
     """
     def __init__(self, patch_inference_engine, patch_size, patch_overlap,
-                 output_key='affinity', num_output_channels=3, is_masked_in_device=False):
+                 output_key='affinity', num_output_channels=3, 
+                 is_masked_in_device=False):
         """
         params:
             inference_engine, patch_size, input_chunk, output_key, patch_stride
