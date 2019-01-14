@@ -4,3 +4,8 @@
 tests
 docker
 .env
+jwu
+dist 
+build
+*.egg-info
+kubernetes
