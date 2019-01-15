@@ -25,7 +25,7 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
         d = dict()
         d['width'] = list(width)
         d['in_spec'] = {'input': (1, *patch_size)}
-        d['out_spec'] = {output_key: (16,*patch_size)}
+        d['out_spec'] = {output_key: (3,*patch_size)}
         d['scan_spec'] = {output_key: (num_output_channels, *patch_size)}
         d['pretrain'] = True 
         d['precomputed'] = True
