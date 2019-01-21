@@ -26,4 +26,10 @@ class TestBlockInferenceEngine(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    # setup debug mode 
+    # https://docs.python.org/3.5/library/asyncio-dev.html#debug-mode-of-asyncio
+    #import os 
+    #os.environ['PYTHONASYNCIODEBUG'] = '1'
+    #import logging
+    #logging.basicConfig(level=logging.DEBUG)
     unittest.main()
