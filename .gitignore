@@ -2,3 +2,4 @@
 *.chkpt
 *__pycache__/*
 *.swp
+*.dat

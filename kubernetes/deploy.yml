@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference 
+  labels: 
+    app: chunkflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chunkflow
+  template:
+    metadata:
+      labels:
+        app: chunkflow
+    spec:
+      hostNetwork: true
+      containers:
+      - name: chunkflow
+        image: my/image/path
+        imagePullPolicy: Always
+        command: ["/bin/bash", "-c", "--"]
+        args: ["source /root/.bashrc; python3 /igneous/igneous/task_execution.py -m --np=3 --interval=200",]
+        #args: ["nvidia-smi; sleep 30"]
+        volumeMounts:
+        - name: dshm
+          mountPath: /dev/shm 
+        - name: secrets 
+          mountPath: /secrets 
+          readOnly: true
+        env:
+        - name: PIPELINE_USER_QUEUE  
+          value: my-queue-name
+        - name: PYTHONPATH
+          value: /igneous:/root/chunkflow:/root/pytorch-model:/root/pytorch-emvision:/root/cloud-volume:$PYTHONPATH
+        - name: QUEUE_TYPE
+          value: sqs 
+        - name: SQS_URL
+          value: my-queue-url
+        - name: LEASE_SECONDS
+          value: "1200" 
+        - name: LC_ALL 
+          value: C.UTF-8 
+        - name: LANG 
+          value: C.UTF-8 
+        resources:
+          limits:
+            cpu: "3"
+            memory: 24G
+            nvidia.com/gpu: 1
+      volumes:
+      - name: dshm 
+        emptyDir:
+          medium: Memory 
+      - name: secrets 
+        secret: 
+          secretName: secrets
+
