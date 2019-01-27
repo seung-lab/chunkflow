@@ -5,7 +5,6 @@ import re
 import os
 import math
 
-
 re_local = re.compile('^file://')
 
 
@@ -13,6 +12,7 @@ class BaseOptions(object):
     """
     Inference options.
     """
+
     def __init__(self):
         self._add_base_arguments()
 
@@ -33,10 +33,9 @@ class BaseOptions(object):
         self._make_dir(self.opt.input_dir)
         self._make_dir(self.opt.output_dir)
         self._make_dir(self.opt.exchange_dir)
-        self.opt.output_block_slices = tuple(slice(start, start+size)
-                                             for start, size in
-                                             zip(self.opt.output_block_start,
-                                                 self.opt.output_block_size))
+        self.opt.output_block_slices = tuple(
+            slice(start, start + size) for start, size in zip(
+                self.opt.output_block_start, self.opt.output_block_size))
 
     def _setup(self):
         """
@@ -52,29 +51,48 @@ class BaseOptions(object):
         self.parser = argparse.ArgumentParser(
             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         # input and output
-        self.parser.add_argument('--output_dir', type=str, required=True,
-                                 help="output directory path, \
+        self.parser.add_argument(
+            '--output_dir',
+            type=str,
+            required=True,
+            help="output directory path, \
                                  support file://, gs://, s3:// protocols.")
-        self.parser.add_argument('--exchange_dir', type=str, required=True,
-                                 help="chunk exchange place, \
+        self.parser.add_argument(
+            '--exchange_dir',
+            type=str,
+            required=True,
+            help="chunk exchange place, \
                                  support file://, gs://, s3:// protocols.")
-        self.parser.add_argument('--output_block_start', type=int,
-                                 help="the start coordinate of output block",
-                                 required=True, nargs='+')
-        self.parser.add_argument('--output_block_size', type=int,
-                                 help="the size of output block",
-                                 default=[112, 1152, 1152], nargs='+')
-        self.parser.add_argument('--output_channels', type=int, default=3,
-                                 help="number of convnet output channels")
-        self.parser.add_argument('--overlap', type=int,
-                                 default=[4, 64, 64], nargs='+',
-                                 help="overlap by number of voxels")
+        self.parser.add_argument(
+            '--output_block_start',
+            type=int,
+            help="the start coordinate of output block",
+            required=True,
+            nargs='+')
+        self.parser.add_argument(
+            '--output_block_size',
+            type=int,
+            help="the size of output block",
+            default=[112, 1152, 1152],
+            nargs='+')
+        self.parser.add_argument(
+            '--output_channels',
+            type=int,
+            default=3,
+            help="number of convnet output channels")
+        self.parser.add_argument(
+            '--overlap',
+            type=int,
+            default=[4, 64, 64],
+            nargs='+',
+            help="overlap by number of voxels")
 
 
 class InferenceAndDonateOptions(BaseOptions):
     """
     Inference options.
     """
+
     def __init__(self):
         super().__init__()
         self._add_inference_donate_arguments()
@@ -90,36 +108,56 @@ class InferenceAndDonateOptions(BaseOptions):
 
     def _add_inference_donate_arguments(self):
         # receive and blend step do not need to input image chunks
-        self.parser.add_argument('--input_dir', type=str, required=True,
-                                 help="input directory path, \
+        self.parser.add_argument(
+            '--input_dir',
+            type=str,
+            required=True,
+            help="input directory path, \
                                  support file://, gs:// and s3:// protocols")
 
         # Model spec.
-        self.parser.add_argument('--model_path', type=str, required=True,
-                                 help="the path of convnet model")
-        self.parser.add_argument('--net_path', type=str, required=True,
-                                 help="the path of convnet weights")
-        self.parser.add_argument('--patch_size', type=int,
-                                 default=[32, 256, 256], nargs='+',
-                                 help="convnet input patch size")
-        self.parser.add_argument('--no_eval', action='store_true',
-                                 help="this is on then using dynamic \
+        self.parser.add_argument(
+            '--model_path',
+            type=str,
+            required=True,
+            help="the path of convnet model")
+        self.parser.add_argument(
+            '--net_path',
+            type=str,
+            required=True,
+            help="the path of convnet weights")
+        self.parser.add_argument(
+            '--patch_size',
+            type=int,
+            default=[32, 256, 256],
+            nargs='+',
+            help="convnet input patch size")
+        self.parser.add_argument(
+            '--no_eval',
+            action='store_true',
+            help="this is on then using dynamic \
                                  batchnorm, otherwise static.")
-        self.parser.add_argument('--output_key', type=str, default='affinity',
-                                 help="the name of the final output layer")
+        self.parser.add_argument(
+            '--output_key',
+            type=str,
+            default='affinity',
+            help="the name of the final output layer")
 
         # resources
-        self.parser.add_argument('--framework', type=str, default='pytorch',
-                                 help="backend of deep learning framework, \
+        self.parser.add_argument(
+            '--framework',
+            type=str,
+            default='pytorch',
+            help="backend of deep learning framework, \
                                  such as pytorch and pznet.")
-        self.parser.add_argument('--gpu_ids', type=int, default=[0],
-                                 nargs='*')
+        self.parser.add_argument('--gpu_ids', type=int, default=[0], nargs='*')
 
 
 class ReceiveAndBlendOptions(BaseOptions):
     """
     receive and blend options.
     """
+
     def __init__(self):
         super().__init__()
 

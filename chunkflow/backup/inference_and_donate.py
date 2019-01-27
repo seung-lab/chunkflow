@@ -29,8 +29,14 @@ class InferenceAndDonate(object):
             callable class to transform image to convnet output, \
             such as affinitymap or psd map.
     """
-    def __init__(self, input_volume, output_volume, exchange_storage,
-                 output_block_slices, overlap, inference_engine,
+
+    def __init__(self,
+                 input_volume,
+                 output_volume,
+                 exchange_storage,
+                 output_block_slices,
+                 overlap,
+                 inference_engine,
                  output_channels=3):
         self.input_volume = input_volume
         self.output_volume = output_volume
@@ -39,12 +45,12 @@ class InferenceAndDonate(object):
         self.overlap = overlap
         self.inference_engine = inference_engine
 
-        output_buffer_size = (output_channels,) + tuple(
-            s.stop-s.start+o for s, o in zip(output_block_slices, overlap))
-        output_buffer_offset = (0, ) + tuple(
-            s.start for s in output_block_slices)
-        self.output_buffer = OffsetArray(np.zeros(output_buffer_size),
-                                         global_offset=output_buffer_offset)
+        output_buffer_size = (output_channels, ) + tuple(
+            s.stop - s.start + o for s, o in zip(output_block_slices, overlap))
+        output_buffer_offset = (0, ) + tuple(s.start
+                                             for s in output_block_slices)
+        self.output_buffer = OffsetArray(
+            np.zeros(output_buffer_size), global_offset=output_buffer_offset)
 
         self.chunk_manager = ChunkManager(self.output_buffer,
                                           self.output_volume, exchange_storage,
@@ -65,8 +71,7 @@ class InferenceAndDonate(object):
         if isinstance(self.output_volume, CloudVolume):
             for c, s, o in zip(
                     self.output_volume.info['scales'][0]['chunk_sizes'][0],
-                    self.output_block_slices,
-                    self.output_volume.voxel_offset):
+                    self.output_block_slices, self.output_volume.voxel_offset):
                 assert (s.start - o) % c == 0
                 assert (s.stop - s.start) % c == 0
 
@@ -103,25 +108,32 @@ if __name__ == '__main__':
                                                params.net_path)
     elif params.framework == 'pznet':
         from frameworks.pznet_patch_inference_engine import PZNetPatchInferenceEngine
-        patch_inference_engine = PZNetPatchInferenceEngine(params.model_file_name)
+        patch_inference_engine = PZNetPatchInferenceEngine(
+            params.model_file_name)
     else:
-        raise NotImplementedError('unknow framework backend of {}' %
-                                  params.framework)
+        raise NotImplementedError(
+            'unknow framework backend of {}' % params.framework)
 
     block_inference_engine = BlockInferenceEngine(
-        patch_inference_engine, params.patch_size, params.overlap,
-        output_key=params.output_key, output_channels=params.output_channels)
+        patch_inference_engine,
+        params.patch_size,
+        params.overlap,
+        output_key=params.output_key,
+        output_channels=params.output_channels)
 
-    executor = InferenceAndDonate(input_volume, output_volume,
-                                  exchange_storage,
-                                  params.output_block_slices,
-                                  params.overlap,
-                                  block_inference_engine,
-                                  output_channels=params.output_channels)
+    executor = InferenceAndDonate(
+        input_volume,
+        output_volume,
+        exchange_storage,
+        params.output_block_slices,
+        params.overlap,
+        block_inference_engine,
+        output_channels=params.output_channels)
 
     # read input image
-    input_slices = (slice(o.start, o.stop+v) for o, v in
-                    zip(params.output_block_slices, params.overlap))
+    input_slices = (
+        slice(o.start, o.stop + v)
+        for o, v in zip(params.output_block_slices, params.overlap))
     input_offset = tuple(o.start for o in params.output_block_slices)
     input_image = input_volume[list(input_slices)[::-1]]
     input_image = np.transpose(input_image)

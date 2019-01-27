@@ -15,7 +15,7 @@ import itertools
 class Role(IntEnum):
     # PoorGuy = -2    # not receiving anything
     Receiver = -1
-    NULL = 0        # used for central voxel
+    NULL = 0  # used for central voxel
     Donor = 1
     # Waster = 2
 
@@ -24,16 +24,16 @@ class RoleMask(object):
     def __init__(self):
         # setup template, which is a 3x3x3 chunk, each voxel except the central
         # one represent a donation/receiving/waster role
-        self.role_mask = OffsetArray(np.zeros((3, 3, 3), dtype=np.int),
-                                     global_offset=(-1, -1, -1))
+        self.role_mask = OffsetArray(
+            np.zeros((3, 3, 3), dtype=np.int), global_offset=(-1, -1, -1))
         self._universal_setup()
 
     def _universal_setup(self):
-        for z, y, x in itertools.product(range(-1, 2), range(-1, 2),
-                                         range(-1, 2)):
-            if x+y+z > 0:
+        for z, y, x in itertools.product(
+                range(-1, 2), range(-1, 2), range(-1, 2)):
+            if x + y + z > 0:
                 self.role_mask[z, y, x] = Role.Donor
-            elif x+y+z < 0:
+            elif x + y + z < 0:
                 self.role_mask[z, y, x] = Role.Receiver
             elif x == 0 and y == 0 and z == 0:
                 pass
@@ -59,9 +59,9 @@ class RoleMask(object):
             slice_list = [block_slice]
             if coordinate != 0:
                 # an edge or corner
-                neighboring_slice = slice(block_slice.start +
-                                          coordinate * size,
-                                          block_slice.stop + coordinate * size)
+                neighboring_slice = slice(
+                    block_slice.start + coordinate * size,
+                    block_slice.stop + coordinate * size)
                 slice_list.append(neighboring_slice)
             return slice_list
 
@@ -89,8 +89,8 @@ class RoleMask(object):
             ret[chunk_slices] = filename_list
         return ret
 
-    def _get_chunk_bbox_list_with_role(self, output_block_slices,
-                                       overlap, role):
+    def _get_chunk_bbox_list_with_role(self, output_block_slices, overlap,
+                                       role):
         """
         get list of donated chunk slices
         args:
@@ -113,21 +113,23 @@ class RoleMask(object):
 
     def _get_chunk_slice(self, coordinate, block_slice, margin):
         if coordinate == -1:
-            return slice(block_slice.start,
-                         block_slice.start + margin)
+            return slice(block_slice.start, block_slice.start + margin)
         elif coordinate == 0:
-            return slice(block_slice.start + margin,
-                         block_slice.stop)
+            return slice(block_slice.start + margin, block_slice.stop)
         elif coordinate == 1:
-            return slice(block_slice.stop,
-                         block_slice.stop + margin)
+            return slice(block_slice.stop, block_slice.stop + margin)
         else:
             raise ValueError()
 
 
 class ChunkManager(object):
-    def __init__(self, buffer_array, output_volume, exchange_storage,
-                 output_block_slices, overlap, role_mask=RoleMask()):
+    def __init__(self,
+                 buffer_array,
+                 output_volume,
+                 exchange_storage,
+                 output_block_slices,
+                 overlap,
+                 role_mask=RoleMask()):
         """
         Args:
             buffer_array (OffsetArray): the source of donation and \
@@ -180,7 +182,7 @@ class ChunkManager(object):
         """
         print("start donating...")
         donor_chunk_slices_list = self.role_mask.get_donation_chunk_bbox_list(
-                self.output_block_bbox.to_slices(), self.overlap)
+            self.output_block_bbox.to_slices(), self.overlap)
         for chunk_slices in donor_chunk_slices_list:
             bbox = Bbox.from_slices(chunk_slices)
             key = self.output_block_bbox.to_filename() + \
@@ -196,9 +198,9 @@ class ChunkManager(object):
             output_volume, which is cloud storage or local bucket.
         """
         print("start saving valid...")
-        valid_slices = tuple(slice(o.start+v, o.stop) for o, v in
-                             zip(self.output_block_bbox.to_slices(),
-                                 self.overlap))
+        valid_slices = tuple(
+            slice(o.start + v, o.stop)
+            for o, v in zip(self.output_block_bbox.to_slices(), self.overlap))
         # this is non-aligned writting, will enhance it for alignment
         self.output_volume[valid_slices] = \
             self.buffer_array.cutout(valid_slices)
