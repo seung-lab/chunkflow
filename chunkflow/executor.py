@@ -434,9 +434,8 @@ class Executor(object):
 
         vol = CloudVolume(
             self.output_layer_path,
-            compress='gzip',
             fill_missing=True,
-            bounded=False,
+            bounded=True,
             autocrop=True,
             mip=self.image_mip,
             progress=True)
@@ -456,7 +455,7 @@ class Executor(object):
             thumbnail_path,
             compress='gzip',
             fill_missing=True,
-            bounded=False,
+            bounded=True,
             autocrop=True,
             mip=self.image_mip,
             progress=True)

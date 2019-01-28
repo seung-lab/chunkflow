@@ -23,5 +23,5 @@ class IdentityPatchInferenceEngine(PatchInferenceEngine):
         output = np.reshape(patch, (1, 1, *patch.shape))
         if self.num_output_channels > 1:
             output = np.repeat(output, 3, axis=1)
-
+        
         return output
