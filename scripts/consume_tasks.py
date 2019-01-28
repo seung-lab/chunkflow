@@ -24,7 +24,7 @@ from chunkflow.executor import Executor
 @click.option('--framework', type=click.Choice(['pznet', 'pytorch', 'pytorch-multitask']), 
               default='pytorch-multitask', help='inference framework')
 @click.option('--missing-section_ids_file_name', type=str, default=None, 
-              help='black out the missing sections recorded in a txt file.' +\ 
+              help='black out the missing sections recorded in a txt file.' +  
               'the section id is simply a list of z coordinates of missing sections')
 @click.option('--image-validate-mip', type=int, default=5, help='validate image using mip level')
 @click.option('--visibility-timeout', type=int, default=1800, help='visibility timeout of sqs queue')
@@ -36,15 +36,20 @@ def command(image_layer_path, output_layer_path, convnet_model_path, convnet_wei
             output_mask_mip, framework, missing_section_ids_file_name, image_validate_mip, 
             visibility_timeout):
     executor = Executor(image_layer_path, output_layer_path, convnet_model_path, convnet_weight_path, 
-                        image_mask_layer_path, output_mask_layer_path, queue_name, patch_size, 
-                        patch_overlap, cropping_margin_size, output_key, num_output_channels, mip, 
-                        output_mask_mip, framework, missing_section_ids_file_name, image_validate_mip) 
+                        image_mask_layer_path, output_mask_layer_path, patch_size, 
+                        patch_overlap, cropping_margin_size, output_key=output_key, 
+                        num_output_channels=num_output_channels, mip=mip, 
+                        output_mask_mip=output_mask_mip, framework=framework, 
+                        missing_section_ids_file_name=missing_section_ids_file_name, 
+                        image_validate_mip=image_validate_mip) 
     if queue_name: 
         # read from sqs queue 
-        sqs_queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
-        for task in sqs_queue:
+        queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
+        for task_handle, task in queue:
+            print('get task: ', task)
             output_bbox = Bbox.from_filename(task)
             executor(output_bbox)
+            queue.delete(task_handle)
     else:
         output_stop = np.asarray(output_offset) + np.asarray(output_shape)
         output_bbox = Bbox.from_list([*output_offset, *output_stop])
