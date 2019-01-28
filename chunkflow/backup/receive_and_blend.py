@@ -19,6 +19,7 @@ class ReceiveAndBlend(object):
         overlap (tuple of int): the margin size blending with neighboring \
             patches/blocks.
     """
+
     def __init__(self, output_volume, exchange_storage, output_block_slices,
                  overlap):
         self.output_volume = output_volume
@@ -26,11 +27,11 @@ class ReceiveAndBlend(object):
         self.output_block_slices = output_block_slices
         self.overlap = overlap
 
-        output_buffer_size = (s.stop-s.start+o for s, o in
-                              zip(output_block_slices, overlap))
+        output_buffer_size = (s.stop - s.start + o
+                              for s, o in zip(output_block_slices, overlap))
         output_buffer_offset = (s.start for s in output_block_slices)
-        self.output_buffer = OffsetArray(np.zeros(output_buffer_size),
-                                         global_offset=output_buffer_offset)
+        self.output_buffer = OffsetArray(
+            np.zeros(output_buffer_size), global_offset=output_buffer_offset)
 
         self.chunk_manager = ChunkManager(self.output_buffer, exchange_storage,
                                           output_block_slices, overlap)
@@ -54,7 +55,6 @@ class ReceiveAndBlend(object):
                 assert (s.start - o) % c == 0
                 assert (s.stop - s.start) % c == 0
 
-
     def __call__(self):
         self.chunk_manager.receive_and_blend()
 
@@ -67,13 +67,13 @@ if __name__ == '__main__':
     exchange_storage = Storage(params.exchange_dir)
     output_block_slices = params.output_block_slices
 
-    output_buffer_size = (s.stop-s.start+o for s, o in
-                            zip(output_block_slices, overlap))
+    output_buffer_size = (s.stop - s.start + o
+                          for s, o in zip(output_block_slices, overlap))
     output_buffer_offset = (s.start for s in output_block_slices)
-    output_buffer = OffsetArray(np.zeros(output_buffer_size),
-                                global_offset=output_buffer_offset)
+    output_buffer = OffsetArray(
+        np.zeros(output_buffer_size), global_offset=output_buffer_offset)
 
-    chunk_manager = ChunkManager(output_buffer, exchange_storage, output_block_slices,
-                                 overlap)
+    chunk_manager = ChunkManager(output_buffer, exchange_storage,
+                                 output_block_slices, overlap)
 
     chunk_manager.receive_and_blend()

@@ -1,4 +1,4 @@
-from chunkflow.sqs_queue import SQSQueue 
+from chunkflow.sqs_queue import SQSQueue
 import unittest
 
 
@@ -14,13 +14,12 @@ class TestSQSQueue(unittest.TestCase):
 
     def test_iteration(self):
         i = 0
-        for message in self.queue:
-            if not message:
-                # get None, there is no more messages
-                break
-            self.assertTrue( int(message) in range(23)) 
-            i+=1
-       
+        for receipt_handle, message in self.queue:
+            print(i)
+            self.assertTrue(int(message) in range(23))
+            i += 1
+            self.queue.delete(receipt_handle)
+
 
 if __name__ == '__main__':
     unittest.main()

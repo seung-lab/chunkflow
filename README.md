@@ -9,6 +9,10 @@ patch by patch convolutional network inference with multiple frameworks includin
 
 The boundary effect due to the cropping depends on the cropping size. If the cropping size is half of the patch size, there will be no boundary effect, but there is a lot of waste. In practise, we found that about 20%-25% of patch size is reasonably good enough. 
 
+## Supported backends 
+- [x] pytorch 
+- [x] pznet 
+
 ## Terminology
 - patch: the input/output 3D/4D array for convnet with typical size like 32x256x256.
 - chunk: the input/output 3D/4D array after blending in each machine with typical size like 116x1216x1216.
@@ -17,21 +21,12 @@ The boundary effect due to the cropping depends on the cropping size. If the cro
 # Usage
 
 ## Produce tasks
-run convnet inference and donate the extra chunks
-check out the options with:
-`python inference_and_donate.py -h`
+in `scripts`, 
+`python produce_tasks.py -help`
 
-## Receive and Blend 
-receive shared chunks and blend them together
+## launch worker to consume tasks  
+in the `scripts` folder,
 
-checkout the options with:
-`python receive_and_blend.py -h`
-
-### Use with backend of PZNet 
-
-#### Compile PZNet
-
-### Use with backend of PyTorch 
-- required pytorch version 0.4.x
+`python consume_tasks.py --help`
 
 
