@@ -22,7 +22,8 @@ The boundary effect due to the cropping depends on the cropping size. If the cro
 
 ## Produce tasks
 in `scripts`, 
-`python produce_tasks.py -help`
+
+`python produce_tasks.py --help`
 
 ## launch worker to consume tasks  
 in the `scripts` folder,
