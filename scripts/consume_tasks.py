@@ -75,8 +75,8 @@ def command(image_layer_path, output_layer_path, convnet_model_path, convnet_wei
                         # this function was used for debugging
                         # pool.apply(process_queue, args=(executor, queue_name, 
                         #                                visibility_timeout))
-                    #pool.close()
-                    #pool.join()
+                    pool.close()
+                    pool.join()
                 except KeyboardInterrupt:
                     print('Interrupted. Exiting.')
                     pool.terminate()
