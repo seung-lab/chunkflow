@@ -30,4 +30,8 @@ in the `scripts` folder,
 
 `python consume_tasks.py --help`
 
+### use specific GPU device
+we can simply set an environment variable to use specific GPU device.
+
+`CUDA_VISIBLE_DEVICES=2 python consume_tasks.py `
 
