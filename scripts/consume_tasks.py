@@ -60,7 +60,7 @@ def command(image_layer_path, output_layer_path, convnet_model_path, convnet_wei
             # use all the cores!
             proc_num = mp.cpu_count()
 
-        if proc_num > 10000:
+        if proc_num == 1:
             process_queue(executor, queue_name, visibility_timeout)
         else:
             print('launching {} processes.'.format(proc_num))
