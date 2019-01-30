@@ -3,7 +3,7 @@ import hashlib
 
 
 class SQSQueue(object):
-    def __init__(self, queue_name, visibility_timeout=1800):
+    def __init__(self, queue_name, visibility_timeout=None):
         self.client = boto3.client('sqs')
         resp = self.client.get_queue_url(QueueName=queue_name)
         self.queue_url = resp['QueueUrl']
@@ -13,15 +13,27 @@ class SQSQueue(object):
         return self
 
     def __next__(self):
-        resp = self.client.receive_message(
-            QueueUrl=self.queue_url,
-            MaxNumberOfMessages=1,
-            MessageAttributeNames=['All'],
-            VisibilityTimeout=self.visibility_timeout,
-            # we should set this wait time to use long poll
-            # checkout the AWS documentation here:
-            # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html#sqs-short-long-polling-differences
-            WaitTimeSeconds=20)
+        if self.visibility_timeout:
+            resp = self.client.receive_message(
+                QueueUrl=self.queue_url,
+                MaxNumberOfMessages=1,
+                MessageAttributeNames=['All'],
+                VisibilityTimeout=self.visibility_timeout,
+                # we should set this wait time to use long poll
+                # checkout the AWS documentation here:
+                # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html#sqs-short-long-polling-differences
+                WaitTimeSeconds=20)
+        else:
+            # use the visibility timeout in the queue
+            resp = self.client.receive_message(
+                QueueUrl=self.queue_url,
+                MaxNumberOfMessages=1,
+                MessageAttributeNames=['All'],
+                # we should set this wait time to use long poll
+                # checkout the AWS documentation here:
+                # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html#sqs-short-long-polling-differences
+                WaitTimeSeconds=20)
+
         if 'Messages' not in resp:
             raise StopIteration
         else:

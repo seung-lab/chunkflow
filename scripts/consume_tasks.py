@@ -31,7 +31,7 @@ from igneous import EmptyVolumeException
               help='black out the missing sections recorded in a txt file.' +  
               'the section id is simply a list of z coordinates of missing sections')
 @click.option('--image-validate-mip', type=int, default=5, help='validate image using mip level')
-@click.option('--visibility-timeout', type=int, default=1800, help='visibility timeout of sqs queue')
+@click.option('--visibility-timeout', type=int, default=None, help='visibility timeout of sqs queue')
 @click.option('--proc-num', type=int, default=1, 
               help='number of processes. if set <=0, will equal to the number of cores.')
 @click.option('--interval', type=int, default=0, help='interval of processes start time (sec)')
@@ -61,7 +61,7 @@ def command(image_layer_path, output_layer_path, convnet_model_path, convnet_wei
             proc_num = mp.cpu_count()
 
         if proc_num == 1:
-            process_queue(executor, queue_name, visibility_timeout)
+            process_queue(executor, queue_name, visibility_timeout=visibility_timeout)
         else:
             print('launching {} processes.'.format(proc_num))
             with mp.Pool(proc_num) as pool:
@@ -69,9 +69,8 @@ def command(image_layer_path, output_layer_path, convnet_model_path, convnet_wei
                     for i in range(proc_num):
                         time.sleep(i*interval)
                         print('starting process {}'.format(i))
-                        pool.apply_async(process_queue, args=(executor, 
-                                                              queue_name, 
-                                                              visibility_timeout))
+                        pool.apply_async(process_queue, args=(executor, queue_name),
+                                         kwds={'visibility_timeout': visibility_timeout})
                         # this function was used for debugging
                         # pool.apply(process_queue, args=(executor, queue_name, 
                         #                                visibility_timeout))
@@ -82,7 +81,7 @@ def command(image_layer_path, output_layer_path, convnet_model_path, convnet_wei
                     pool.terminate()
                     pool.join()
 
-def process_queue(executor, queue_name, visibility_timeout):
+def process_queue(executor, queue_name, visibility_timeout=None):
     assert isinstance(executor, Executor)
     # queue name was defined, read from sqs queue 
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
