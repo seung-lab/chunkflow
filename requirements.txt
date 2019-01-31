@@ -1,7 +1,5 @@
 numpy>=1.14.2
 cloud-volume>=0.38.0
 click 
-igneous
+#igneous
 scikit-image>=0.14.1
-hashlib
-json

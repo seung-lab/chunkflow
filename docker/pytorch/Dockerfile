@@ -1,3 +1,2 @@
-FROM pytorch/pytorch:0.4_cuda9_cudnn7
-
-RUN conda install -y pip
+#FROM pytorch/pytorch:0.4_cuda9_cudnn7
+FROM pytorch/pytorch:1.0-cuda10.0-cudnn7-runtime
