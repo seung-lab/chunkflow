@@ -1,10 +1,16 @@
 import boto3
 import hashlib
 
+from cloudvolume.secrets import aws_credentials
 
 class SQSQueue(object):
-    def __init__(self, queue_name, visibility_timeout=None):
-        self.client = boto3.client('sqs')
+    def __init__(self, queue_name, visibility_timeout=None, region_name=None):
+        credentials = aws_credentials()
+        self.client = boto3.client('sqs',
+                region_name=region_name,
+                aws_secret_access_key=credentials['AWS_SECRET_ACCESS_KEY'],
+                aws_access_key_id=credentials['AWS_ACCESS_KEY_ID'])
+
         resp = self.client.get_queue_url(QueueName=queue_name)
         self.queue_url = resp['QueueUrl']
         self.visibility_timeout = visibility_timeout

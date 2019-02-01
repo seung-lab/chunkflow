@@ -6,7 +6,7 @@ from chunkflow.executor import Executor
 import multiprocessing as mp
 import time 
 import traceback 
-from igneous import EmptyVolumeException
+from cloudvolume import EmptyVolumeException
 
 @click.command()
 @click.option('--image-layer-path', type=str, required=True, help='image layer path')
