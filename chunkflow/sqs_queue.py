@@ -4,10 +4,10 @@ import hashlib
 from cloudvolume.secrets import aws_credentials
 
 class SQSQueue(object):
-    def __init__(self, queue_name, visibility_timeout=None, region_name=None):
+    def __init__(self, queue_name, visibility_timeout=None):
         credentials = aws_credentials()
         self.client = boto3.client('sqs',
-                region_name=region_name,
+                region_name=credentials['AWS_DEFAULT_REGION'],
                 aws_secret_access_key=credentials['AWS_SECRET_ACCESS_KEY'],
                 aws_access_key_id=credentials['AWS_ACCESS_KEY_ID'])
 
