@@ -4,8 +4,6 @@
 
 import numpy as np
 from chunkflow.offset_array import OffsetArray
-from igneous.tasks import downsample_and_upload
-from igneous.downsample import downsample_with_averaging
 
 from cloudvolume import CloudVolume, Storage
 from cloudvolume.lib import Vec, Bbox
@@ -13,6 +11,8 @@ import time
 import os
 import json 
 from .validate import validate_by_template_matching
+from .igneous.tasks import downsample_and_upload
+from .igneous.downsample import downsample_with_averaging
 
 
 class Executor(object):
