@@ -1,10 +1,17 @@
 import boto3
 import hashlib
-
+from time import sleep
 from cloudvolume.secrets import aws_credentials
 
 class SQSQueue(object):
-    def __init__(self, queue_name, visibility_timeout=None):
+    def __init__(self, queue_name, visibility_timeout=None, 
+                 wait_if_empty=40):
+        """
+        Parameters:
+        visibility_timeout: (int) make the task invisible for a while (seconds)
+        wait_if_empty: (int) wait for a while and continue fetching task 
+            if the queue is empty.
+        """
         credentials = aws_credentials()
         self.client = boto3.client('sqs',
                 region_name=credentials['AWS_DEFAULT_REGION'],
@@ -14,11 +21,12 @@ class SQSQueue(object):
         resp = self.client.get_queue_url(QueueName=queue_name)
         self.queue_url = resp['QueueUrl']
         self.visibility_timeout = visibility_timeout
+        self.wait_if_empty = wait_if_empty
 
     def __iter__(self):
         return self
-
-    def __next__(self):
+    
+    def _receive_message(self):
         if self.visibility_timeout:
             resp = self.client.receive_message(
                 QueueUrl=self.queue_url,
@@ -39,9 +47,20 @@ class SQSQueue(object):
                 # checkout the AWS documentation here:
                 # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html#sqs-short-long-polling-differences
                 WaitTimeSeconds=20)
+        return resp
 
+    def __next__(self):
+        resp = self._receive_message()
         if 'Messages' not in resp:
-            raise StopIteration
+            # the queue is empty
+            if self.wait_if_empty:
+                # the 20 seconds additional waiting time is from the receiving
+                print('the queue is empty, wait for {} seconds'.format(
+                    self.wait_if_empty + 20))
+                sleep(self.wait_if_empty)
+                self.__next__()
+            else:
+                raise StopIteration
         else:
             receipt_handle = resp['Messages'][0]['ReceiptHandle']
             body = resp['Messages'][0]['Body']
