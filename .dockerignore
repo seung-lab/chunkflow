@@ -8,4 +8,3 @@ jwu
 dist 
 build
 *.egg-info
-kubernetes

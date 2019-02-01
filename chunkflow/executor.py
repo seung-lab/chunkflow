@@ -8,7 +8,7 @@ from igneous.tasks import downsample_and_upload
 from igneous.downsample import downsample_with_averaging
 
 from cloudvolume import CloudVolume, Storage
-from cloudvolume.lib import min2, Vec, Bbox
+from cloudvolume.lib import Vec, Bbox
 import time
 import os
 import json 
@@ -404,8 +404,8 @@ class Executor(object):
         # the output was already transposed to xyz/fortran order in previous step while uploading the output
         # self.output = np.transpose(self.output)
 
-        # only use the first channel, it is the x affinity if this is affinitymap
-        output = self.output[:, :, :, :1]
+        # only use the last channel, it is the Z affinity if this is affinitymap
+        output = self.output[:, :, :, -1]
         image = (output * 255.0).astype(np.uint8)
 
         # transform zyx to xyz
