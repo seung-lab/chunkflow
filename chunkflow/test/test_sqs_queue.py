@@ -4,7 +4,9 @@ import unittest
 
 class TestSQSQueue(unittest.TestCase):
     def setUp(self):
-        self.queue = SQSQueue('chunkflow-test')
+        queue_name = 'chunkflow-test'
+        print('test sqs queue using queue of {}'.format(queue_name))
+        self.queue = SQSQueue(queue_name)
 
     def test_send_message_list(self):
         message_list = []
