@@ -1,11 +1,17 @@
 #!/bin/sh
+
+
+gcloud container clusters get-credentials $1 --region us-central1 --project iarpa-microns-seunglab
+
 # install NVIDIA GPU device drivers
 kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/stable/nvidia-driver-installer/cos/daemonset-preloaded.yaml
 
 #create secrets for AWS and Google cloud
 kubectl create secret generic secrets \
-  --from-file=google-secret.json=/home/jingpeng/.cloudvolume/secrets/google-secret.json \
-  --from-file=aws-secret.json=/home/jingpeng/.cloudvolume/secrets/aws-secret.json 
-#  --from-file=matrix-secret.json=/home/jingpeng/.cloudvolume/secrets/matrix-secret.json \
+  --from-file=$HOME/.cloudvolume/secrets/google-secret.json \
+  --from-file=$HOME/.cloudvolume/secrets/aws-secret.json \
+  --from-file=$HOME/.cloudvolume/secrets/microns-seunglab-google-secret.json  
+#  --from-file=$HOME/.cloudvolume/secrets/matrix-secret.json \
 
-kubectl create -f deploy.yaml
+#kubectl apply -f deploy.yaml
+kubectl apply -f $2

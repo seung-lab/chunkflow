@@ -8,9 +8,9 @@ kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container
 ## build secret pod for mounting
 ```
 kubectl create secret generic secrets \
---from-file=google-secret.json=/secrets/google-secret.json \
---from-file=aws-secret.json=/secrets/aws-secret.json \
---from-file=boss-secret.json=/secrets/boss-secret.json
+--from-file=/secrets/google-secret.json \
+--from-file=/secrets/aws-secret.json \
+--from-file=/secrets/boss-secret.json
 ```
 
 ## reconfig cluster
@@ -22,8 +22,15 @@ kubectl edit configmap kube-dns-autoscaler --namespace=kube-system
 ## reconnect
 `gcloud container clusters get-credentials my-cluster`
 
+## watch
+get the pod id
+    kubectl get pods
+
+watch the logs
+    watch kubectl logs pod-id
+
 ## deployment
-- create: `kubectl create -f deploy.yml --record`
+- create: `kubectl apply -f deploy.yml --record`
 - check:  `kubectl get deployments`
 - delete: `kubectl delete deployment inference`
 - sclae: `kubectl scale --replicas=85 -f deploy.yml`

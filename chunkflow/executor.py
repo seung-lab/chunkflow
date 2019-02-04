@@ -71,7 +71,7 @@ class Executor(object):
             self.is_masked_in_device = False
 
         self.image_validate_mip = image_validate_mip
-
+    
     def __call__(self, output_bbox):
         self.output_bbox = output_bbox
 
@@ -307,14 +307,19 @@ class Executor(object):
 
         # use the validate image to check the downloaded image
         assert np.alltrue(validate_image == clamped_image)
-
+    
     def _prepare_inference_engine(self):
+        def _log_device():
+            import torch 
+            self.log['device'] = torch.cuda.get_device_name(0)
+
         # prepare for inference
         from chunkflow.block_inference_engine import BlockInferenceEngine
         if self.framework == 'pznet':
             from chunkflow.frameworks.pznet_patch_inference_engine import PZNetPatchInferenceEngine
             patch_engine = PZNetPatchInferenceEngine(self.convnet_model_path, self.convnet_weight_path)
         elif self.framework == 'pytorch':
+            _log_device()
             from chunkflow.frameworks.pytorch_patch_inference_engine import PytorchPatchInferenceEngine
             patch_engine = PytorchPatchInferenceEngine(
                 self.convnet_model_path,
@@ -323,6 +328,7 @@ class Executor(object):
                 output_key=self.output_key,
                 num_output_channels=self.num_output_channels)
         elif self.framework == 'pytorch-multitask':
+            _log_device()
             from chunkflow.frameworks.pytorch_multitask_patch_inference import PytorchMultitaskPatchInferenceEngine
             patch_engine = PytorchMultitaskPatchInferenceEngine(
                 self.convnet_model_path,

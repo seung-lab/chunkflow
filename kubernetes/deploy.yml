@@ -9,6 +9,11 @@ spec:
   selector:
     matchLabels:
       app: chunkflow
+  strategy:
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailabe: 100%
+    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -20,25 +25,22 @@ spec:
         image: my/image/path
         imagePullPolicy: Always
         command: ["/bin/bash", "-c", "--"]
-        args: ["source /root/.bashrc; python3 /igneous/igneous/task_execution.py -m --np=3 --interval=200",]
-        #args: ["nvidia-smi; sleep 30"]
+        args: ["source /root/.bashrc; ",
+                "mkdir /nets; cd /nets; ",
+                "wget https://storage.googleapis.com/microns-seunglab/minnie_v0/minnie10/affinitymap/test/model230000.chkpt",
+                "export PYTHONPATH=/root/chunkflow:/root/pytorch-model:/root/pytorch-emvision:/root/cloud-volume:$PYTHONPATH",
+                "python3 /root/chunkflow/scripts/consume_tasks.py --image-layer-path='gs://microns-seunglab/minnie_v0/minnie10/image' --output-layer-path='gs://microns-seunglab/minnie_v0/minnie10/affinitymap/test-kempression' --convnet-model-path='/nets/model230000.chkpt' --convnet-weight-path='/nets/model230000.chkpt' --queue-name chunkflow --patch-size 20 256 256 --patch-overlap 4 64 64 --cropping-margin-size 4 64 64 --output-key affinity --num-output-channels 3 --mip 1 --framework pytorch-multitask --image-validate-mip 5 --visibility-timeout 1800 --proc-num 2 --interval 300",]
+        # this is very helpful for debuging
+        # we can run kubectl exec pod-it -it /bin/bash 
+        # to login the pod and try different commands
+        #args: ["sleep infinity"]
         volumeMounts:
-        - name: dshm
-          mountPath: /dev/shm 
         - name: secrets 
-          mountPath: /secrets 
+          mountPath: /root/.cloudvolume/secrets 
           readOnly: true
         env:
-        - name: PIPELINE_USER_QUEUE  
-          value: my-queue-name
         - name: PYTHONPATH
-          value: /igneous:/root/chunkflow:/root/pytorch-model:/root/pytorch-emvision:/root/cloud-volume:$PYTHONPATH
-        - name: QUEUE_TYPE
-          value: sqs 
-        - name: SQS_URL
-          value: my-queue-url
-        - name: LEASE_SECONDS
-          value: "1200" 
+          value: /root/chunkflow:/root/pytorch-model:/root/pytorch-emvision:/root/cloud-volume:$PYTHONPATH
         - name: LC_ALL 
           value: C.UTF-8 
         - name: LANG 
@@ -46,12 +48,9 @@ spec:
         resources:
           limits:
             cpu: "3"
-            memory: 24G
+            memory: 23G
             nvidia.com/gpu: 1
       volumes:
-      - name: dshm 
-        emptyDir:
-          medium: Memory 
       - name: secrets 
         secret: 
           secretName: secrets
