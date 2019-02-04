@@ -29,7 +29,7 @@ spec:
                 "mkdir /nets; cd /nets; ",
                 "wget https://storage.googleapis.com/microns-seunglab/minnie_v0/minnie10/affinitymap/test/model230000.chkpt",
                 "export PYTHONPATH=/root/chunkflow:/root/pytorch-model:/root/pytorch-emvision:/root/cloud-volume:$PYTHONPATH",
-                "python3 /root/chunkflow/scripts/consume_tasks.py --image-layer-path='gs://microns-seunglab/minnie_v0/minnie10/image' --output-layer-path='gs://microns-seunglab/minnie_v0/minnie10/affinitymap/test-kempression' --convnet-model-path='/nets/model230000.chkpt' --convnet-weight-path='/nets/model230000.chkpt' --queue-name chunkflow --patch-size 20 256 256 --patch-overlap 4 64 64 --cropping-margin-size 4 64 64 --output-key affinity --num-output-channels 3 --mip 1 --framework pytorch-multitask --image-validate-mip 5 --visibility-timeout 1800 --proc-num 2 --interval 300",]
+                "python3 /root/chunkflow/scripts/consume_tasks.py --image-layer-path='path/of/image' --output-layer-path='path/of/output' --convnet-model-path='path/of/net' --convnet-weight-path='path/of/net' --queue-name chunkflow --patch-size 20 256 256 --patch-overlap 4 64 64 --cropping-margin-size 4 64 64 --output-key affinity --num-output-channels 3 --mip 1 --framework pytorch-multitask --image-validate-mip 5 --visibility-timeout 1800 --proc-num 2 --interval 300",]
         # this is very helpful for debuging
         # we can run kubectl exec pod-it -it /bin/bash 
         # to login the pod and try different commands

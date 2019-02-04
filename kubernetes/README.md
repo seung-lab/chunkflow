@@ -30,7 +30,7 @@ watch the logs
     watch kubectl logs pod-id
 
 ## deployment
-- create: `kubectl apply -f deploy.yml --record`
+- create: `kubectl apply -f deploy.yml`
 - check:  `kubectl get deployments`
 - delete: `kubectl delete deployment inference`
 - sclae: `kubectl scale --replicas=85 -f deploy.yml`
