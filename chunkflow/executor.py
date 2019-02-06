@@ -3,17 +3,18 @@
 """
 
 import numpy as np
-from chunkflow.offset_array import OffsetArray
-
-from cloudvolume import CloudVolume, Storage
-from cloudvolume.lib import Vec, Bbox
 import time
 import os
 import json 
+from google.cloud import logging
+from cloudvolume import CloudVolume, Storage
+from cloudvolume.lib import Vec, Bbox
+from cloudvolume.secrets import google_credentials_path, PROJECT_NAME 
+
 from .validate import validate_by_template_matching
 from .igneous.tasks import downsample_and_upload
 from .igneous.downsample import downsample_with_averaging
-
+from .offset_array import OffsetArray
 
 class Executor(object):
     """
@@ -71,11 +72,40 @@ class Executor(object):
             self.is_masked_in_device = False
 
         self.image_validate_mip = image_validate_mip
-    
+
+        logging_client = logging.Client.from_service_account_json(
+            google_credentials_path, project=PROJECT_NAME)
+        self.logger = logging_client.logger('chunkflow')
+         
+        self.log = dict()
+        self.log['parameters']={
+            'image_layer_path':         image_layer_path,
+            'output_layer_path':        output_layer_path,
+            'convnet_model_path':       convnet_model_path,
+            'convnet_weight_path':      convnet_weight_path,
+            'output_mask_layer_path':   output_mask_layer_path,
+            'patch_size':               (*patch_size,),
+            'patch_overlap':            (*patch_overlap,),
+            'cropping_margin_size':     (*cropping_margin_size,),
+            'output_key':               output_key,
+            'num_output_channels':      num_output_channels,
+            'mip':                      mip,
+            'output_mask_mip':          output_mask_mip,
+            'framework':                framework,
+            'image_validate_mip':       image_validate_mip
+        }
+
     def __call__(self, output_bbox):
+        if isinstance(output_bbox, str):
+            output_bbox = Bbox.from_filename(output_bbox)
+        elif isinstance(output_bbox, tuple):
+            output_bbox = Bbox.from_slices(output_bbox)
+        else:
+            assert isinstance(output_bbox, Bbox)
+
+        self.log['output_bbox'] = output_bbox.to_filename()
         self.output_bbox = output_bbox
 
-        self.log = dict()
         total_start = time.time()
 
         start = time.time()
@@ -90,13 +120,13 @@ class Executor(object):
         start = time.time()
         self._read_image()
         elapsed = time.time() - start
-        self.log['read_image'] = elapsed
+        self.log['read_image_time'] = elapsed
         print("Read image takes %3f sec" % (elapsed))
 
         start = time.time()
         self._validate_image()
         elapsed = time.time() - start
-        self.log['validate_image'] = elapsed
+        self.log['validate_image_time'] = elapsed
         print("Validate image takes %3f sec" % (elapsed))
 
         start = time.time()
@@ -108,32 +138,32 @@ class Executor(object):
         start = time.time()
         self._inference()
         elapsed = time.time() - start
-        self.log['_inference'] = elapsed
+        self.log['inference_time'] = elapsed
         print("Inference takes %3f min" % (elapsed / 60))
 
         start = time.time()
         self._crop()
         elapsed = time.time() - start
-        self.log['crop_output'] = elapsed
+        self.log['crop_output_time'] = elapsed
         print("Cropping takes %3f sec" % (elapsed))
 
         if self.output_mask:
             start = time.time()
             self._mask_output()
             elapsed = time.time() - start
-            self.log['mask_output'] = elapsed
+            self.log['mask_output_time'] = elapsed
             print("Mask output takes %3f sec" % (elapsed))
 
         start = time.time()
         self._upload_output()
         elapsed = time.time() - start
-        self.log['upload_output'] = elapsed
+        self.log['upload_output_time'] = elapsed
         print("Upload output takes %3f min" % (elapsed / 60))
 
         start = time.time()
         self._create_output_thumbnail()
         elapsed = time.time() - start
-        self.log['create_output_thumbnail'] = elapsed
+        self.log['create_output_thumbnail_time'] = elapsed
         print("create output thumbnail takes %3f min" % (elapsed / 60))
 
         total_time = time.time() - total_start
@@ -151,9 +181,9 @@ class Executor(object):
         print("download mask chunk...")
         vol = CloudVolume(
             self.output_mask_layer_path,
-            bounded=False,
+            bounded=True,
             fill_missing=False,
-            progress=True,
+            progress=False,
             mip=self.output_mask_mip)
         self.xyfactor = 2**(self.output_mask_mip - self.output_mip)
         # only scale the indices in XY plane
@@ -219,9 +249,9 @@ class Executor(object):
     def _read_image(self):
         self.image_vol = CloudVolume(
             self.image_layer_path,
-            bounded=False,
+            bounded=True,
             fill_missing=False,
-            progress=True,
+            progress=False,
             mip=self.image_mip,
             parallel=False)
         output_slices = self.output_bbox.to_slices()
@@ -290,15 +320,16 @@ class Executor(object):
         # validation by template matching
         result = validate_by_template_matching(clamped_image)
         if result is False:
+            # there is an error
             # save the log to error directory
             log_path = os.path.join(self.output_layer_path, 'error')
             self._upload_log(log_path)
 
         validate_vol = CloudVolume(
             self.image_layer_path,
-            bounded=False,
+            bounded=True,
             fill_missing=False,
-            progress=True,
+            progress=False,
             mip=self.image_validate_mip,
             parallel=False)
         validate_image = validate_vol[validate_bbox.to_slices()]
@@ -386,7 +417,7 @@ class Executor(object):
             bounded=True,
             autocrop=True,
             mip=self.image_mip,
-            progress=True)
+            progress=False)
         output_slices = self.output_bbox.to_slices()
         # transpose czyx to xyzc order
         self.output = np.transpose(self.output)
@@ -433,9 +464,14 @@ class Executor(object):
         upload internal log as a file to the same place of output 
         the file name is the output range 
         """
+        log_text = json.dumps(self.log)
+        
+        # write to google cloud stack driver
+        self.logger.log_text(log_text)
 
+        # write to google cloud storage 
         with Storage(log_path) as storage:
             storage.put_file(
                 file_path=self.output_bbox.to_filename(),
-                content=json.dumps(self.log),
+                content=log_text,
                 content_type='application/json')

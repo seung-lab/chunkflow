@@ -17,11 +17,17 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
         wget \
         git \
     && cd /root \
-    && git clone --single-branch --depth 1 -b jwu-numpy-io https://github.com/seung-lab/cloud-volume.git \
+    && git clone --single-branch --depth 1 https://github.com/seung-lab/cloud-volume.git \
     && pip install --user --upgrade pip \
     && pip install --no-cache-dir -r /root/cloud-volume/requirements.txt \
-    && apt-get autoremove --purge -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \ 
     && pip install -r /root/chunkflow/requirements.txt --no-cache-dir \
-    && rm -rf /var/lib/apt/lists/*
+    # clean up apt install
+    && apt-get clean \
+    && apt-get autoremove --purge -y \
+    && rm -rf /var/lib/apt/lists/* \
+    # setup environment variables
+    && echo "export LC_ALL=C.UTF-8" >> /root/.bashrc \
+    && echo "export LANG=C.UTF-8" >> /root/.bashrc \
+    && echo "export PYTHONPATH=/root/chunkflow:/root/cloud-volume:\$PYTHONPATH" >> /root/.bashrc
+
+WORKDIR /root/chunkflow/scripts

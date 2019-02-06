@@ -3,4 +3,4 @@ cloud-volume>=0.38.0
 click 
 scikit-image>=0.14.1
 six
-
+google-cloud-logging
