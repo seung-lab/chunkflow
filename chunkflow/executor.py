@@ -132,7 +132,7 @@ class Executor(object):
         start = time.time()
         self._mask_missing_sections()
         elapsed = time.time() - start
-        self.log['mask_missing_sections'] = elapsed
+        self.log['mask_missing_sections_time'] = elapsed
         print("Mask missing sections in image takes %3f sec" % (elapsed))
 
         start = time.time()
@@ -472,6 +472,6 @@ class Executor(object):
         # write to google cloud storage 
         with Storage(log_path) as storage:
             storage.put_file(
-                file_path=self.output_bbox.to_filename(),
+                file_path=self.output_bbox.to_filename() + '.json',
                 content=log_text,
                 content_type='application/json')
