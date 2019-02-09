@@ -12,7 +12,7 @@ class TestExecutor(unittest.TestCase):
         self.image_size = (36, 448, 448)
         # create dataset using cloud-volume 
         img = np.random.randint(0, 255+1, size=self.image_size)
-        self.img = np.asarray(img, dtype='uint8') 
+        self.img = img.astype(np.uint8) 
         
         # create temporal directories and info file
         # save the image to disk 

@@ -65,6 +65,11 @@ class Executor(object):
         self.framework = framework
         self.missing_section_ids_file_name = missing_section_ids_file_name
 
+        # if the patch overlap is larger than the cropping size 
+        # the patch mask will make the block value around margin incorrect
+        for c,o in zip(cropping_margin_size, patch_overlap):
+            assert c>=o
+
         if framework == 'pytorch-multitask':
             # currently only pytorch-multitask support in device masking.
             self.is_masked_in_device = True

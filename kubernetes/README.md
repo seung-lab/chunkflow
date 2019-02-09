@@ -15,7 +15,7 @@ kubectl create secret generic secrets \
 
 ## reconfig cluster
 ```
-gcloud container clusters resize my-cluster --size 5 --zone us-east1-b
+gcloud container clusters resize my-cluster --region us-central1 --node-pool gpu-pool-1 --size 1
 
 kubectl edit configmap kube-dns-autoscaler --namespace=kube-system
 ```
