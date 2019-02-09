@@ -75,7 +75,6 @@ class BlockInferenceEngine(object):
         if output_buffer is None:
             output_buffer = self._create_output_buffer(input_chunk)
         
-        print('input_chunk: {}'.format(input_chunk))
         #start = time.time()
         input_size = input_chunk.shape
         input_offset = input_chunk.global_offset
@@ -116,8 +115,6 @@ class BlockInferenceEngine(object):
                     #print("Elapsed: %3f sec" % (end-start))
                     #start = end
         
-        print('input chunk after inference: {}'.format(input_chunk))
-        import pdb; pdb.set_trace()
         if self.is_padding:
             output_buffer = output_buffer[:, :-self.pad_size[0], 
                                              :-self.pad_size[1],

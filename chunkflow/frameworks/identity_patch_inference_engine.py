@@ -20,7 +20,7 @@ class IdentityPatchInferenceEngine(PatchInferenceEngine):
         reshape the size to 5 dimension:
         batch, channel, z, y, x 
         """
-        output = np.reshape(patch, (1, 1, *patch.shape))
+        output = np.reshape(np.copy(patch), (1, 1, *patch.shape))
         if self.num_output_channels > 1:
             output = np.repeat(output, 3, axis=1)
         
