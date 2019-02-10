@@ -13,8 +13,6 @@ from cloudvolume import EmptyVolumeException
 @click.option('--output-layer-path', type=str, required=True, help='output layer path')
 @click.option('--convnet-model-path', type=str, required=True, help='convnet model path')
 @click.option('--convnet-weight-path', type=str, required=True, help='convnet weight path')
-@click.option('--image-mask-layer-path', type=str, default=None, help='image mask layer path')
-@click.option('--output-mask-layer-path', type=str, default=None, help='output mask layer path')
 @click.option('--output-offset', type=int, nargs=3, default=(0,0,0), help='output offset')
 @click.option('--output-shape', type=int, nargs=3, default=(0,0,0), help='output shape')
 @click.option('--queue-name', type=str, default=None, help='sqs queue name')
@@ -24,6 +22,9 @@ from cloudvolume import EmptyVolumeException
 @click.option('--output-key', type=str, default='affinity', help='key name of output dict')
 @click.option('--num-output-channels', type=int, default=3, help='number of output channels')
 @click.option('--mip', type=int, default=1, help='mip level of image and output')
+@click.option('--image-mask-layer-path', type=str, default=None, help='image mask layer path')
+@click.option('--output-mask-layer-path', type=str, default=None, help='output mask layer path')
+@click.option('--image-mask-mip', type=int, default=None, help='mip level of output mask')
 @click.option('--output-mask-mip', type=int, default=None, help='mip level of output mask')
 @click.option('--framework', type=click.Choice(['pznet', 'pytorch', 'pytorch-multitask']), 
               default='pytorch-multitask', help='inference framework')
@@ -38,15 +39,19 @@ from cloudvolume import EmptyVolumeException
 
 
 def command(image_layer_path, output_layer_path, convnet_model_path, convnet_weight_path, 
-            image_mask_layer_path, output_mask_layer_path, output_offset, output_shape, queue_name, 
+            output_offset, output_shape, queue_name, 
             patch_size, patch_overlap, cropping_margin_size, output_key, num_output_channels, mip, 
-            output_mask_mip, framework, missing_section_ids_file_name, image_validate_mip, 
+            image_mask_layer_path, output_mask_layer_path, image_mask_mip, output_mask_mip, 
+            framework, missing_section_ids_file_name, image_validate_mip, 
             visibility_timeout, proc_num, interval):
     executor = Executor(image_layer_path, output_layer_path, convnet_model_path, convnet_weight_path, 
-                        image_mask_layer_path, output_mask_layer_path, patch_size, 
+                        patch_size, 
                         patch_overlap, cropping_margin_size, output_key=output_key, 
                         num_output_channels=num_output_channels, mip=mip, 
-                        output_mask_mip=output_mask_mip, framework=framework, 
+                        image_mask_layer_path=image_mask_layer_path, 
+                        output_mask_layer_path=output_mask_layer_path, 
+                        image_mask_mip=image_mask_mip, output_mask_mip=output_mask_mip, 
+                        framework=framework, 
                         missing_section_ids_file_name=missing_section_ids_file_name, 
                         image_validate_mip=image_validate_mip) 
     if not queue_name:

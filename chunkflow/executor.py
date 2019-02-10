@@ -37,14 +37,15 @@ class Executor(object):
                  output_layer_path,
                  convnet_model_path,
                  convnet_weight_path,
-                 image_mask_layer_path,
-                 output_mask_layer_path,
                  patch_size,
                  patch_overlap,
                  cropping_margin_size,
                  output_key='affinity',
                  num_output_channels=3,
                  mip=1,
+                 image_mask_layer_path=None,
+                 output_mask_layer_path=None,
+                 image_mask_mip=3,
                  output_mask_mip=3,
                  framework='pytorch-multitask',
                  missing_section_ids_file_name=None,
@@ -52,7 +53,6 @@ class Executor(object):
         self.image_layer_path = image_layer_path
         self.convnet_model_path = convnet_model_path
         self.convnet_weight_path = convnet_weight_path
-        self.output_mask_layer_path = output_mask_layer_path
         self.output_layer_path = output_layer_path
         self.patch_size = patch_size
         self.patch_overlap = patch_overlap
@@ -61,14 +61,17 @@ class Executor(object):
         self.num_output_channels = num_output_channels
         self.image_mip = mip
         self.output_mip = mip
+        self.image_mask_layer_path = image_mask_layer_path
+        self.output_mask_layer_path = output_mask_layer_path
+        self.image_mask_mip = image_mask_mip
         self.output_mask_mip = output_mask_mip
         self.framework = framework
         self.missing_section_ids_file_name = missing_section_ids_file_name
 
         # if the patch overlap is larger than the cropping size 
         # the patch mask will make the block value around margin incorrect
-        for c,o in zip(cropping_margin_size, patch_overlap):
-            assert c>=o
+        for cs, ov in zip(cropping_margin_size, patch_overlap):
+            assert cs >= ov
 
         if framework == 'pytorch-multitask':
             # currently only pytorch-multitask support in device masking.
@@ -110,24 +113,16 @@ class Executor(object):
 
         self.log['output_bbox'] = output_bbox.to_filename()
         self.output_bbox = output_bbox
+        self.image_bbox = output_bbox
 
         total_start = time.time()
-
-        start = time.time()
-        self._read_output_mask()
-        elapsed = time.time() - start
-        self.log['read_output_mask'] = elapsed
-        print("Read output mask takes %3f sec" % (elapsed))
-        # if the mask is black, no need to run inference
-        if np.all(self.output_mask == 0):
-            return
 
         start = time.time()
         self._read_image()
         elapsed = time.time() - start
         self.log['read_image_time'] = elapsed
         print("Read image takes %3f sec" % (elapsed))
-
+        
         start = time.time()
         self._validate_image()
         elapsed = time.time() - start
@@ -139,6 +134,13 @@ class Executor(object):
         elapsed = time.time() - start
         self.log['mask_missing_sections_time'] = elapsed
         print("Mask missing sections in image takes %3f sec" % (elapsed))
+        
+        if self.image_mask_layer_path:
+            start = time.time()
+            self._mask_image()
+            elapsed = time.time() - start
+            self.log['mask_image_time'] = elapsed
+            print("Mask image takes %3f sec" % (elapsed))
 
         start = time.time()
         self._inference()
@@ -152,7 +154,7 @@ class Executor(object):
         self.log['crop_output_time'] = elapsed
         print("Cropping takes %3f sec" % (elapsed))
 
-        if self.output_mask:
+        if self.output_mask_layer_path:
             start = time.time()
             self._mask_output()
             elapsed = time.time() - start
@@ -177,34 +179,35 @@ class Executor(object):
 
         log_path = os.path.join(self.output_layer_path, 'log')
         self._upload_log(log_path)
-
-    def _read_output_mask(self):
-        if self.output_mask_layer_path is None or not self.output_mask_layer_path:
+    
+    def _read_mask(self, mask_layer_path, mask_mip, bbox):
+        if not mask_layer_path:
             print('no mask layer path defined')
-            self.output_mask = None
-            return
+            return None
+        
         print("download mask chunk...")
         vol = CloudVolume(
-            self.output_mask_layer_path,
+            mask_layer_path,
             bounded=True,
             fill_missing=False,
             progress=False,
-            mip=self.output_mask_mip)
-        self.xyfactor = 2**(self.output_mask_mip - self.output_mip)
+            mip=mask_mip)
+        # assume that image mip is the same with output mip
+        xyfactor = 2**(mask_mip - self.image_mip)
         # only scale the indices in XY plane
-        self.output_mask_slices = tuple(
-            slice(a.start // self.xyfactor, a.stop // self.xyfactor)
-            for a in self.output_bbox.to_slices()[1:3])
-        self.output_mask_slices = (
-            self.output_bbox.to_slices()[0], ) + self.output_mask_slices
+        mask_slices = tuple(
+            slice(a.start // xyfactor, a.stop // xyfactor)
+            for a in self.image_bbox.to_slices()[1:3])
+        mask_slices = (bbox.to_slices()[0], ) + mask_slices
 
         # the slices did not contain the channel dimension
-        print("mask slices: {}".format(self.output_mask_slices))
-        self.output_mask = vol[self.output_mask_slices[::-1]]
-        self.output_mask = np.transpose(self.output_mask)
-        print("shape of output mask: {}".format(self.output_mask.shape))
-        self.output_mask = np.squeeze(self.output_mask, axis=0)
-
+        print("mask slices: {}".format(mask_slices))
+        mask = vol[mask_slices[::-1]]
+        mask = np.transpose(mask)
+        print("shape of mask: {}".format(mask.shape))
+        mask = np.squeeze(mask, axis=0)
+        return mask
+    
     def _mask_missing_sections(self):
         """
         mask some missing sections if the section id was provided 
@@ -222,9 +225,45 @@ class Executor(object):
                     break
                 elif z >= start and z <= stop:
                     self.image[z - self.image.global_offset[0], :, :] = 0
+    
+    def _mask_image(self):
+        image_mask = self._read_mask(self.image_mask_layer_path, 
+                                      self.image_mask_mip, self.image_bbox)
+        # if the mask is black, no need to run inference
+        if np.all(image_mask == 0):
+            return
+
+        if np.all(image_mask):
+            print("mask elements are all positive, return directly")
+            return
+        if not np.any(self.image):
+            print("output volume is all black, return directly")
+            return
+
+        print("perform masking ...")
+        assert np.any(image_mask)
+        print("upsampling mask ...")
+        # upsampling factor in XY plane
+        mask = np.zeros(self.output.shape[1:], dtype=image_mask.dtype)
+        xyfactor = 2**(self.image_mask_mip - self.image_mip)
+        for offset in np.ndindex((xyfactor, xyfactor)):
+            mask[:, np.s_[offset[0]::xyfactor], np.
+                 s_[offset[1]::xyfactor]] = image_mask
+
+        assert mask.shape == self.image.shape[1:]
+        assert np.any(image_mask)
+        np.multiply(self.image[0, :, :, :], mask, out=self.image[0, :, :, :])
+        np.multiply(self.image[1, :, :, :], mask, out=self.image[1, :, :, :])
+        np.multiply(self.image[2, :, :, :], mask, out=self.image[2, :, :, :])
 
     def _mask_output(self):
-        if np.all(self.output_mask):
+        output_mask = self._read_mask(self.output_mask_layer_path, 
+                                      self.output_mask_mip, self.output_bbox)
+        # if the mask is black, no need to run inference
+        if np.all(output_mask == 0):
+            return
+
+        if np.all(output_mask):
             print("mask elements are all positive, return directly")
             return
         if not np.any(self.output):
@@ -236,16 +275,17 @@ class Executor(object):
         # from datatools import mask_affiniy_map
         # mask_affinity_map(self.aff, self.output_mask)
 
-        assert np.any(self.output_mask)
+        assert np.any(output_mask)
         print("upsampling mask ...")
         # upsampling factor in XY plane
-        mask = np.zeros(self.output.shape[1:], dtype=self.output_mask.dtype)
-        for offset in np.ndindex((self.xyfactor, self.xyfactor)):
-            mask[:, np.s_[offset[0]::self.xyfactor], np.
-                 s_[offset[1]::self.xyfactor]] = self.output_mask
+        mask = np.zeros(self.output.shape[1:], dtype=output_mask.dtype)
+        xyfactor = 2**(self.output_mask_mip - self.image_mip)
+        for offset in np.ndindex((xyfactor, xyfactor)):
+            mask[:, np.s_[offset[0]::xyfactor], np.
+                 s_[offset[1]::xyfactor]] = output_mask
 
         assert mask.shape == self.output.shape[1:]
-        assert np.any(self.output_mask)
+        assert np.any(output_mask)
         np.multiply(self.output[0, :, :, :], mask, out=self.output[0, :, :, :])
         np.multiply(self.output[1, :, :, :], mask, out=self.output[1, :, :, :])
         np.multiply(self.output[2, :, :, :], mask, out=self.output[2, :, :, :])
