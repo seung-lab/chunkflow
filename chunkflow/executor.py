@@ -113,7 +113,10 @@ class Executor(object):
 
         self.log['output_bbox'] = output_bbox.to_filename()
         self.output_bbox = output_bbox
-        self.image_bbox = output_bbox
+        output_slices = output_bbox.to_slices()
+        image_slices = tuple(slice(s.start-c, s.stop+c) for s,c in 
+                             zip(output_slices, self.cropping_margin_size))
+        self.image_bbox = Bbox.from_slices(image_slices)
 
         total_start = time.time()
 
@@ -180,7 +183,10 @@ class Executor(object):
         log_path = os.path.join(self.output_layer_path, 'log')
         self._upload_log(log_path)
     
-    def _read_mask(self, mask_layer_path, mask_mip, bbox):
+    def _read_mask(self, mask_layer_path, mask_mip, mip, bbox):
+        """
+        bbox: the bounding box in image mip
+        """
         if not mask_layer_path:
             print('no mask layer path defined')
             return None
@@ -193,14 +199,14 @@ class Executor(object):
             progress=False,
             mip=mask_mip)
         # assume that image mip is the same with output mip
-        xyfactor = 2**(mask_mip - self.image_mip)
+        xyfactor = 2**(mask_mip - mip)
         # only scale the indices in XY plane
         mask_slices = tuple(
             slice(a.start // xyfactor, a.stop // xyfactor)
-            for a in self.image_bbox.to_slices()[1:3])
+            for a in bbox.to_slices()[1:3])
         mask_slices = (bbox.to_slices()[0], ) + mask_slices
 
-        # the slices did not contain the channel dimension
+        # the slices did not contain the channel dimension 
         print("mask slices: {}".format(mask_slices))
         mask = vol[mask_slices[::-1]]
         mask = np.transpose(mask)
@@ -228,37 +234,39 @@ class Executor(object):
     
     def _mask_image(self):
         image_mask = self._read_mask(self.image_mask_layer_path, 
-                                      self.image_mask_mip, self.image_bbox)
-        # if the mask is black, no need to run inference
-        if np.all(image_mask == 0):
+                                     self.image_mask_mip, self.image_mip,
+                                     self.image_bbox)
+        if np.alltrue(image_mask == 0):
+            print('the mask is all black, mask all the voxels directly')
+            self.image = 0
             return
-
         if np.all(image_mask):
             print("mask elements are all positive, return directly")
             return
-        if not np.any(self.image):
-            print("output volume is all black, return directly")
+        if np.alltrue(self.image==0):
+            print("image volume is all black, return directly")
             return
 
         print("perform masking ...")
         assert np.any(image_mask)
+        
+        # make it the same type with image 
+        image_mask = image_mask.astype(self.image.dtype)
+
         print("upsampling mask ...")
         # upsampling factor in XY plane
-        mask = np.zeros(self.output.shape[1:], dtype=image_mask.dtype)
+        mask = np.zeros(self.image.shape, dtype=self.image.dtype)
         xyfactor = 2**(self.image_mask_mip - self.image_mip)
         for offset in np.ndindex((xyfactor, xyfactor)):
-            mask[:, np.s_[offset[0]::xyfactor], np.
-                 s_[offset[1]::xyfactor]] = image_mask
+            mask[:, np.s_[offset[0]::xyfactor], 
+                 np.s_[offset[1]::xyfactor]] = image_mask
 
-        assert mask.shape == self.image.shape[1:]
-        assert np.any(image_mask)
-        np.multiply(self.image[0, :, :, :], mask, out=self.image[0, :, :, :])
-        np.multiply(self.image[1, :, :, :], mask, out=self.image[1, :, :, :])
-        np.multiply(self.image[2, :, :, :], mask, out=self.image[2, :, :, :])
+        np.multiply(self.image, mask, out=self.image)
 
     def _mask_output(self):
         output_mask = self._read_mask(self.output_mask_layer_path, 
-                                      self.output_mask_mip, self.output_bbox)
+                                      self.output_mask_mip, self.output_mip, 
+                                      self.output_bbox)
         # if the mask is black, no need to run inference
         if np.all(output_mask == 0):
             return
@@ -271,24 +279,23 @@ class Executor(object):
             return
 
         print("perform masking ...")
-        # use c++ backend
-        # from datatools import mask_affiniy_map
-        # mask_affinity_map(self.aff, self.output_mask)
-
         assert np.any(output_mask)
+        
+        # make it the same type with output  
+        output_mask = output_mask.astype(self.output.dtype)
+
         print("upsampling mask ...")
         # upsampling factor in XY plane
-        mask = np.zeros(self.output.shape[1:], dtype=output_mask.dtype)
+        mask = np.zeros(self.output.shape[1:], dtype=self.output.dtype)
         xyfactor = 2**(self.output_mask_mip - self.image_mip)
         for offset in np.ndindex((xyfactor, xyfactor)):
             mask[:, np.s_[offset[0]::xyfactor], np.
                  s_[offset[1]::xyfactor]] = output_mask
 
         assert mask.shape == self.output.shape[1:]
-        assert np.any(output_mask)
-        np.multiply(self.output[0, :, :, :], mask, out=self.output[0, :, :, :])
-        np.multiply(self.output[1, :, :, :], mask, out=self.output[1, :, :, :])
-        np.multiply(self.output[2, :, :, :], mask, out=self.output[2, :, :, :])
+        for channel in range(self.output.shape[0]):
+            np.multiply(self.output[channel, :, :, :], mask, 
+                        out=self.output[channel, :, :, :])
         assert np.any(self.output)
 
     def _read_image(self):
@@ -429,10 +436,6 @@ class Executor(object):
             is_masked_in_device=self.is_masked_in_device)
 
     def _inference(self):
-        # this is for fast tests
-        # self.output = np.random.randn(3, *self.image.shape).astype('float32')
-        # return
-
         # inference engine input is a OffsetArray rather than normal numpy array
         # it is actually a numpy array with global offset
 

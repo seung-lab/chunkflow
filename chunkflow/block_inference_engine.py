@@ -263,7 +263,7 @@ class AsyncBlockInferenceEngine(object):
             print('input is all zero, return zero buffer directly')
             return self.output_buffer
 
-        if self.input_chunk.dtype == 'uint8':
+        if self.input_chunk.dtype == np.uint8:
             global_offset = self.input_chunk.global_offset
             self.input_chunk = np.asarray(
                 self.input_chunk, dtype='float32') / 255.0
