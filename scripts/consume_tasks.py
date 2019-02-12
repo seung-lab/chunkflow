@@ -1,12 +1,14 @@
 import click 
 import numpy as np
-from cloudvolume import CloudVolume, Bbox 
-from chunkflow.sqs_queue import SQSQueue 
-from chunkflow.executor import Executor
-import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor
+import os
+import signal
 import time 
 import traceback 
-from cloudvolume import EmptyVolumeException
+
+from cloudvolume import Bbox, EmptyVolumeException
+from chunkflow.sqs_queue import SQSQueue 
+from chunkflow.executor import Executor
 
 @click.command()
 @click.option('--image-layer-path', type=str, required=True, help='image layer path')
@@ -67,30 +69,23 @@ def command(image_layer_path, output_layer_path, convnet_model_path, convnet_wei
     else:
         if proc_num <= 0:
             # use all the cores!
-            proc_num = mp.cpu_count()
-
+            proc_num = os.cpu_count()
         if proc_num == 1:
             process_queue(executor, queue_name, visibility_timeout=visibility_timeout)
         else:
             print('launching {} processes.'.format(proc_num))
-            with mp.Pool(proc_num) as pool:
-                try:
-                    for i in range(proc_num):
-                        time.sleep(i*interval)
-                        print('starting process {}'.format(i))
-                        pool.apply_async(process_queue, args=(executor, queue_name),
-                                         kwds={'visibility_timeout': visibility_timeout})
-                        # this function was used for debugging
-                        # pool.apply(process_queue, args=(executor, queue_name, 
-                        #                                visibility_timeout))
-                    pool.close()
-                    pool.join()
-                except KeyboardInterrupt:
-                    print('Interrupted. Exiting.')
-                    pool.terminate()
-                    pool.join()
+            prevsigint = signal.getsignal(signal.SIGINT)
+            prevsigterm = signal.getsignal(signal.SIGTERM)
+            with ProcessPoolExecutor(max_workers=proc_num) as executor:
+                for i in range(proc_num):
+                    executor.submit(process_queue, args=(executor, queue_name, i*interval),
+                                    kwargs={'visibility_timeout': visibility_timeout})
+            signal.signal(signal.SIGINT, prevsigint)
+            signal.signal(signal.SIGTERM, prevsigterm) 
 
-def process_queue(executor, queue_name, visibility_timeout=None):
+def process_queue(executor, queue_name, sleep_time, visibility_timeout=None):
+    print('sleep for {} seconds and then start working...'.format(sleep_time))
+    time.sleep(sleep_time)
     assert isinstance(executor, Executor)
     # queue name was defined, read from sqs queue 
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
