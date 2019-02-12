@@ -26,6 +26,8 @@ from cloudvolume import EmptyVolumeException
 @click.option('--output-mask-layer-path', type=str, default=None, help='output mask layer path')
 @click.option('--image-mask-mip', type=int, default=None, help='mip level of output mask')
 @click.option('--output-mask-mip', type=int, default=None, help='mip level of output mask')
+@click.option('--inverse-image-mask/--not-inverse-image-mask', is_flag=True, help='inverse the image mask or not.')
+@click.option('--inverse-output-mask/--not-inverse-output-mask', is_flag=True, help='inverse the output mask or not.')
 @click.option('--framework', type=click.Choice(['pznet', 'pytorch', 'pytorch-multitask']), 
               default='pytorch-multitask', help='inference framework')
 @click.option('--missing-section_ids_file_name', type=str, default=None, 
@@ -41,7 +43,8 @@ from cloudvolume import EmptyVolumeException
 def command(image_layer_path, output_layer_path, convnet_model_path, convnet_weight_path, 
             output_offset, output_shape, queue_name, 
             patch_size, patch_overlap, cropping_margin_size, output_key, num_output_channels, mip, 
-            image_mask_layer_path, output_mask_layer_path, image_mask_mip, output_mask_mip, 
+            image_mask_layer_path, output_mask_layer_path, image_mask_mip, output_mask_mip,
+            inverse_image_mask, inverse_output_mask,
             framework, missing_section_ids_file_name, image_validate_mip, 
             visibility_timeout, proc_num, interval):
     executor = Executor(image_layer_path, output_layer_path, convnet_model_path, convnet_weight_path, 
@@ -50,7 +53,8 @@ def command(image_layer_path, output_layer_path, convnet_model_path, convnet_wei
                         num_output_channels=num_output_channels, mip=mip, 
                         image_mask_layer_path=image_mask_layer_path, 
                         output_mask_layer_path=output_mask_layer_path, 
-                        image_mask_mip=image_mask_mip, output_mask_mip=output_mask_mip, 
+                        image_mask_mip=image_mask_mip, output_mask_mip=output_mask_mip,
+                        inverse_image_mask=inverse_image_mask, inverse_output_mask=inverse_output_mask,
                         framework=framework, 
                         missing_section_ids_file_name=missing_section_ids_file_name, 
                         image_validate_mip=image_validate_mip) 

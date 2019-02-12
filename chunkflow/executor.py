@@ -30,6 +30,12 @@ class Executor(object):
             boundary, so we only need to do summation in CPU end.
         image_validate_mip: the mip level of image used for checking whether all of 
             the nonzero voxels were downloaded or not.
+        inverse_image_mask: (bool) whether need to inverse the image mask or not.
+            if the image region need to be black out is non-zero in mask, then the 
+            mask need to be inversed.
+        inverse_output_mask: (bool) whether need to inverse the output mask or not.
+            if the output region need to be black out is non-zero in mask, then the 
+            mask need to be inversed.
     """
 
     def __init__(self,
@@ -47,6 +53,8 @@ class Executor(object):
                  output_mask_layer_path=None,
                  image_mask_mip=3,
                  output_mask_mip=3,
+                 inverse_image_mask=True,
+                 inverse_output_mask=True,
                  framework='pytorch-multitask',
                  missing_section_ids_file_name=None,
                  image_validate_mip=None):
@@ -65,6 +73,8 @@ class Executor(object):
         self.output_mask_layer_path = output_mask_layer_path
         self.image_mask_mip = image_mask_mip
         self.output_mask_mip = output_mask_mip
+        self.inverse_image_mask = inverse_image_mask
+        self.inverse_output_mask = inverse_output_mask 
         self.framework = framework
         self.missing_section_ids_file_name = missing_section_ids_file_name
 
@@ -183,9 +193,11 @@ class Executor(object):
         log_path = os.path.join(self.output_layer_path, 'log')
         self._upload_log(log_path)
     
-    def _read_mask(self, mask_layer_path, mask_mip, mip, bbox):
+    def _read_mask(self, mask_layer_path, mask_mip, mip, bbox, 
+                   inverse_mask=True):
         """
         bbox: the bounding box in image mip
+        inverse_mask: (bool) whether inverse the mask or not
         """
         if not mask_layer_path:
             print('no mask layer path defined')
@@ -212,6 +224,9 @@ class Executor(object):
         mask = np.transpose(mask)
         print("shape of mask: {}".format(mask.shape))
         mask = np.squeeze(mask, axis=0)
+        
+        if inverse_mask:
+            mask = (mask==0)
         return mask
     
     def _mask_missing_sections(self):
@@ -235,7 +250,8 @@ class Executor(object):
     def _mask_image(self):
         image_mask = self._read_mask(self.image_mask_layer_path, 
                                      self.image_mask_mip, self.image_mip,
-                                     self.image_bbox)
+                                     self.image_bbox, 
+                                     inverse_mask=self.inverse_image_mask)
         if np.alltrue(image_mask == 0):
             print('the mask is all black, mask all the voxels directly')
             self.image = 0
@@ -266,7 +282,8 @@ class Executor(object):
     def _mask_output(self):
         output_mask = self._read_mask(self.output_mask_layer_path, 
                                       self.output_mask_mip, self.output_mip, 
-                                      self.output_bbox)
+                                      self.output_bbox,
+                                      inverse_mask=self.inverse_output_mask)
         # if the mask is black, no need to run inference
         if np.all(output_mask == 0):
             return

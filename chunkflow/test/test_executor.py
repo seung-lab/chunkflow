@@ -81,6 +81,8 @@ class TestExecutor(unittest.TestCase):
                             output_mask_layer_path=self.output_mask_layer_path,
                             image_mask_mip=self.image_mask_mip, 
                             output_mask_mip=self.output_mask_mip,
+                            inverse_image_mask=False,
+                            inverse_output_mask=False,
                             framework='identity', mip=0, num_output_channels=1)
         output_size = np.asarray(self.output_size)
         output_start = np.asarray((4,64,64))
