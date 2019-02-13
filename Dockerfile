@@ -17,8 +17,10 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
         wget \
         git \
     && cd /root \
-    && git clone --single-branch --depth 1 -b jwu-add-dtype https://github.com/seung-lab/cloud-volume.git \
     && pip install --user --upgrade pip \
+    && pip install numpy --no-cache-dir \ 
+    && pip install fpzip --no-binary :all: --no-cache-dir \
+    && git clone --single-branch --depth 1 https://github.com/seung-lab/cloud-volume.git \
     && pip install --no-cache-dir -r /root/cloud-volume/requirements.txt \
     && pip install -r /root/chunkflow/requirements.txt --no-cache-dir \
     # clean up apt install
