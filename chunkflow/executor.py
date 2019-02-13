@@ -504,7 +504,7 @@ class Executor(object):
             bounded=True,
             autocrop=True,
             mip=self.image_mip,
-            progress=True)
+            progress=False)
         # the output was already transposed to xyz/fortran order in previous step while uploading the output
         # self.output = np.transpose(self.output)
 
