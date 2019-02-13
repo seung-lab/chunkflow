@@ -1,8 +1,7 @@
 import click 
 import numpy as np
-from concurrent.futures import ProcessPoolExecutor
+import concurrent.futures as futures
 import os
-import signal
 import time 
 import traceback 
 
@@ -74,16 +73,18 @@ def command(image_layer_path, output_layer_path, convnet_model_path, convnet_wei
             process_queue(executor, queue_name, visibility_timeout=visibility_timeout)
         else:
             print('launching {} processes.'.format(proc_num))
-            prevsigint = signal.getsignal(signal.SIGINT)
-            prevsigterm = signal.getsignal(signal.SIGTERM)
-            with ProcessPoolExecutor(max_workers=proc_num) as executor:
+            with futures.ProcessPoolExecutor(max_workers=proc_num) as pool_executor:
+                to_do = []
                 for i in range(proc_num):
-                    executor.submit(process_queue, args=(executor, queue_name, i*interval),
-                                    kwargs={'visibility_timeout': visibility_timeout})
-            signal.signal(signal.SIGINT, prevsigint)
-            signal.signal(signal.SIGTERM, prevsigterm) 
+                    future = pool_executor.submit(process_queue, executor, queue_name, 
+                                                  sleep_time=i*interval,
+                                                  visibility_timeout=visibility_timeout)
+                    to_do.append(future)
+                # keep all the processes running untile finishing
+                for future in futures.as_completed(to_do):
+                    future.result()
 
-def process_queue(executor, queue_name, sleep_time, visibility_timeout=None):
+def process_queue(executor, queue_name, sleep_time=0, visibility_timeout=None):
     print('sleep for {} seconds and then start working...'.format(sleep_time))
     time.sleep(sleep_time)
     assert isinstance(executor, Executor)

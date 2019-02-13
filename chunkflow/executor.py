@@ -91,10 +91,7 @@ class Executor(object):
 
         self.image_validate_mip = image_validate_mip
 
-        logging_client = logging.Client.from_service_account_json(
-            google_credentials_path, project=PROJECT_NAME)
-        self.logger = logging_client.logger('chunkflow')
-         
+        
         self.log = dict()
         self.log['parameters']={
             'image_layer_path':         image_layer_path,
@@ -114,6 +111,11 @@ class Executor(object):
         }
 
     def __call__(self, output_bbox):
+        # the logger can not be pickled, so put it here
+        logging_client = logging.Client.from_service_account_json(
+            google_credentials_path, project=PROJECT_NAME)
+        self.logger = logging_client.logger('chunkflow')
+ 
         if isinstance(output_bbox, str):
             output_bbox = Bbox.from_filename(output_bbox)
         elif isinstance(output_bbox, tuple):
