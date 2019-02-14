@@ -58,6 +58,7 @@ class SQSQueue(object):
                 print('the queue is empty, wait for {} seconds'.format(
                     self.wait_if_empty + 20))
                 sleep(self.wait_if_empty)
+                # contine trying to receive message
                 self.__next__()
             else:
                 raise StopIteration
