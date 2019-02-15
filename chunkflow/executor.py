@@ -41,7 +41,7 @@ class Executor(object):
     def __init__(self,
                  image_layer_path,
                  output_layer_path,
-                 convnet_model_path,
+                 convnet_model,
                  convnet_weight_path,
                  patch_size,
                  patch_overlap,
@@ -59,7 +59,7 @@ class Executor(object):
                  missing_section_ids_file_name=None,
                  image_validate_mip=None):
         self.image_layer_path = image_layer_path
-        self.convnet_model_path = convnet_model_path
+        self.convnet_model = convnet_model
         self.convnet_weight_path = convnet_weight_path
         self.output_layer_path = output_layer_path
         self.patch_size = patch_size
@@ -96,7 +96,7 @@ class Executor(object):
         self.log['parameters']={
             'image_layer_path':         image_layer_path,
             'output_layer_path':        output_layer_path,
-            'convnet_model_path':       convnet_model_path,
+            'convnet_model':       convnet_model,
             'convnet_weight_path':      convnet_weight_path,
             'output_mask_layer_path':   output_mask_layer_path,
             'patch_size':               (*patch_size,),
@@ -419,12 +419,12 @@ class Executor(object):
         from chunkflow.block_inference_engine import BlockInferenceEngine
         if self.framework == 'pznet':
             from chunkflow.frameworks.pznet_patch_inference_engine import PZNetPatchInferenceEngine
-            patch_engine = PZNetPatchInferenceEngine(self.convnet_model_path, self.convnet_weight_path)
+            patch_engine = PZNetPatchInferenceEngine(self.convnet_model, self.convnet_weight_path)
         elif self.framework == 'pytorch':
             _log_device()
             from chunkflow.frameworks.pytorch_patch_inference_engine import PytorchPatchInferenceEngine
             patch_engine = PytorchPatchInferenceEngine(
-                self.convnet_model_path,
+                self.convnet_model,
                 self.convnet_weight_path,
                 patch_size=self.patch_size,
                 output_key=self.output_key,
@@ -433,7 +433,7 @@ class Executor(object):
             _log_device()
             from chunkflow.frameworks.pytorch_multitask_patch_inference import PytorchMultitaskPatchInferenceEngine
             patch_engine = PytorchMultitaskPatchInferenceEngine(
-                self.convnet_model_path,
+                self.convnet_model,
                 self.convnet_weight_path,
                 patch_size=self.patch_size,
                 output_key=self.output_key,

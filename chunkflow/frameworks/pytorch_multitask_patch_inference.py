@@ -1,6 +1,4 @@
-# from .inference_engine import InferenceEngine
-# import imp
-
+import os
 import torch
 import numpy as np
 import importlib, types
@@ -12,8 +10,8 @@ from .patch_inference_engine import PatchInferenceEngine
 
 class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
     def __init__(self,
-                 model_file_name,
-                 weight_file_name,
+                 convnet_model,
+                 convnet_weight_path,
                  use_bn=True,
                  is_static_batch_norm=False,
                  patch_size=(20, 256, 256),
@@ -26,21 +24,28 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
         so we need the patch_overlap information.
         """
         super().__init__()
+        
+        # we currently only support two types of model 
+        assert convnet_model in ('rsunet', 'rsunet_act')
+
         self.output_key = output_key
 
-        d = dict()
-        d['width'] = list(width)
-        d['in_spec'] = {'input': (1, *patch_size)}
-        d['out_spec'] = {output_key: (3, *patch_size)}
-        d['scan_spec'] = {output_key: (num_output_channels, *patch_size)}
-        d['pretrain'] = True
-        d['precomputed'] = True
-        d['edges'] = [(0, 0, 1), (0, 1, 0), (1, 0, 0)]
-        d['overlap'] = tuple(patch_overlap)
-        d['bump'] = 'wu'
+        d = {
+            'model': convnet_model,
+            'width': width,
+            'in_spec': {'input': (1, *patch_size)},
+            'out_spec': {'output_key': (num_output_channels, *patch_size)},
+            'scan_spec': {'output_key': (num_output_channels, *patch_size)},
+            'pretrain': True,
+            'precomputed': True,
+            'edges': [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
+            'overlap': patch_overlap,
+            'bump': 'wu'
+        }
 
         self.opt = SimpleNamespace(**d)
-        self.net = load_model(self.opt, model_file_name)
+        assert os.path.isfile(convnet_weight_path)
+        self.net = load_model(self.opt, convnet_weight_path)
         assert len(self.opt.in_spec) == 1
 
     def __call__(self, patch):

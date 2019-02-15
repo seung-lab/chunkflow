@@ -12,7 +12,7 @@ from chunkflow.executor import Executor
 @click.command()
 @click.option('--image-layer-path', type=str, required=True, help='image layer path')
 @click.option('--output-layer-path', type=str, required=True, help='output layer path')
-@click.option('--convnet-model-path', type=str, required=True, help='convnet model path')
+@click.option('--convnet-model', type=str, required=True, help='convnet model path or type.')
 @click.option('--convnet-weight-path', type=str, required=True, help='convnet weight path')
 @click.option('--output-offset', type=int, nargs=3, default=(0,0,0), help='output offset')
 @click.option('--output-shape', type=int, nargs=3, default=(0,0,0), help='output shape')
@@ -41,14 +41,15 @@ from chunkflow.executor import Executor
 @click.option('--interval', type=int, default=0, help='interval of processes start time (sec)')
 
 
-def command(image_layer_path, output_layer_path, convnet_model_path, convnet_weight_path, 
+def command(image_layer_path, output_layer_path, convnet_model, convnet_weight_path, 
             output_offset, output_shape, queue_name, 
             patch_size, patch_overlap, cropping_margin_size, output_key, num_output_channels, mip, 
             image_mask_layer_path, output_mask_layer_path, image_mask_mip, output_mask_mip,
             inverse_image_mask, inverse_output_mask,
             framework, missing_section_ids_file_name, image_validate_mip, 
             visibility_timeout, proc_num, interval):
-    executor = Executor(image_layer_path, output_layer_path, convnet_model_path, convnet_weight_path, 
+
+    executor = Executor(image_layer_path, output_layer_path, convnet_model, convnet_weight_path, 
                         patch_size, 
                         patch_overlap, cropping_margin_size, output_key=output_key, 
                         num_output_channels=num_output_channels, mip=mip, 
