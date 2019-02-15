@@ -75,15 +75,10 @@ def command(image_layer_path, output_layer_path, convnet_model, convnet_weight_p
         else:
             print('launching {} processes.'.format(proc_num))
             with futures.ProcessPoolExecutor(max_workers=proc_num) as pool_executor:
-                to_do = []
                 for i in range(proc_num):
-                    future = pool_executor.submit(process_queue, executor, queue_name, 
-                                                  sleep_time=i*interval,
-                                                  visibility_timeout=visibility_timeout)
-                    to_do.append(future)
-                # keep all the processes running untile finishing
-                for future in futures.as_completed(to_do):
-                    future.result()
+                    pool_executor.submit(process_queue, executor, queue_name, 
+                                         sleep_time=i*interval,
+                                         visibility_timeout=visibility_timeout)
 
 def process_queue(executor, queue_name, sleep_time=0, visibility_timeout=None):
     print('sleep for {} seconds and then start working...'.format(sleep_time))

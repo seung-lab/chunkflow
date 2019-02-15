@@ -205,7 +205,7 @@ class Executor(object):
             print('no mask layer path defined')
             return None
         
-        print("download mask chunk...")
+        # print("download mask chunk...")
         vol = CloudVolume(
             mask_layer_path,
             bounded=True,
@@ -221,10 +221,8 @@ class Executor(object):
         mask_slices = (bbox.to_slices()[0], ) + mask_slices
 
         # the slices did not contain the channel dimension 
-        print("mask slices: {}".format(mask_slices))
         mask = vol[mask_slices[::-1]]
         mask = np.transpose(mask)
-        print("shape of mask: {}".format(mask.shape))
         mask = np.squeeze(mask, axis=0)
         
         if inverse_mask:
@@ -265,13 +263,13 @@ class Executor(object):
             print("image volume is all black, return directly")
             return
 
-        print("perform masking ...")
+        # print("perform masking ...")
         assert np.any(image_mask)
         
         # make it the same type with image 
         image_mask = image_mask.astype(self.image.dtype)
 
-        print("upsampling mask ...")
+        # print("upsampling mask ...")
         # upsampling factor in XY plane
         mask = np.zeros(self.image.shape, dtype=self.image.dtype)
         xyfactor = 2**(self.image_mask_mip - self.image_mip)

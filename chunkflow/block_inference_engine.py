@@ -5,7 +5,6 @@ Inference a chunk of image
 
 #import time
 import numpy as np
-from tqdm import tqdm
 
 from .patch_mask import PatchMask
 from .offset_array import OffsetArray
@@ -77,9 +76,9 @@ class BlockInferenceEngine(object):
         #start = time.time()
         input_size = input_chunk.shape
         input_offset = input_chunk.global_offset
-        for oz in tqdm(range(input_offset[0],
+        for oz in range(input_offset[0],
                              input_offset[0]+input_size[0]-self.patch_overlap[0],
-                             self.stride[0])):
+                             self.stride[0]):
             for oy in range(input_offset[1],
                            input_offset[1]+input_size[1]-self.patch_overlap[1],
                            self.stride[1]):
