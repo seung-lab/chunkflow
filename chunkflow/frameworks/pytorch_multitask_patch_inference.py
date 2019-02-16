@@ -1,7 +1,6 @@
 import os
 import torch
 import numpy as np
-import importlib, types
 from pytorch_model.model import load_model
 from types import SimpleNamespace
 
@@ -34,8 +33,8 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
             'model': convnet_model,
             'width': width,
             'in_spec': {'input': (1, *patch_size)},
-            'out_spec': {'output_key': (num_output_channels, *patch_size)},
-            'scan_spec': {'output_key': (num_output_channels, *patch_size)},
+            'out_spec': {output_key: (num_output_channels, *patch_size)},
+            'scan_spec': {output_key: (num_output_channels, *patch_size)},
             'pretrain': True,
             'precomputed': True,
             'edges': [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
