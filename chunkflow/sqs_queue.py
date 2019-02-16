@@ -5,7 +5,7 @@ from cloudvolume.secrets import aws_credentials
 
 class SQSQueue(object):
     def __init__(self, queue_name, visibility_timeout=None, 
-                 wait_if_empty=40):
+                 wait_if_empty=100):
         """
         Parameters:
         visibility_timeout: (int) make the task invisible for a while (seconds)
