@@ -396,7 +396,7 @@ class Executor(object):
 
         validate_vol = CloudVolume(
             self.image_layer_path,
-            bounded=True,
+            bounded=False,
             fill_missing=False,
             progress=False,
             mip=self.image_validate_mip,
@@ -479,7 +479,7 @@ class Executor(object):
         vol = CloudVolume(
             self.output_layer_path,
             fill_missing=True,
-            bounded=True,
+            bounded=False,
             autocrop=True,
             mip=self.image_mip,
             progress=False)
@@ -499,7 +499,7 @@ class Executor(object):
             thumbnail_path,
             compress='gzip',
             fill_missing=True,
-            bounded=True,
+            bounded=False,
             autocrop=True,
             mip=self.image_mip,
             progress=False)

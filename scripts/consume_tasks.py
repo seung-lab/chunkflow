@@ -86,19 +86,26 @@ def process_queue(executor, queue_name, sleep_time=0, visibility_timeout=None):
     assert isinstance(executor, Executor)
     # queue name was defined, read from sqs queue 
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
-
-    for task_handle, task in queue:
-        print('get task: ', task)
-        output_bbox = Bbox.from_filename(task)
-        try:
+    
+    try: 
+        for task_handle, task in queue:
+            print('get task: ', task)
+            output_bbox = Bbox.from_filename(task)
             executor(output_bbox)
-        except EmptyVolumeException:
-            print("raised an EmptyVolumeException, please check the bounds of volume.")
-            raise
-        except Exception as err:
-            print(task, ' raised {}\n {}'.format(err, traceback.format_exc()))
-            raise
-        queue.delete(task_handle)
+            queue.delete(task_handle)
+    except EmptyVolumeException:
+        print('raised an EmptyVolumeException, please check the ' + 
+              'volume whether there is some chunk file missing.')
+        raise
+    except TypeError as err:
+        print('get TypeError: {}'.format(err))
+        print('probably because the queue becomes None somehow.')
+        print('continue working...')
+        process_queue(executor, queue_name, sleep_time=sleep_time, 
+                      visibility_timeout=visibility_timeout)
+    except Exception as err:
+        print(task, ' raised {}\n {}'.format(err, traceback.format_exc()))
+        raise
 
 
 if __name__ == '__main__':
