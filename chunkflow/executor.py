@@ -208,7 +208,7 @@ class Executor(object):
         # print("download mask chunk...")
         vol = CloudVolume(
             mask_layer_path,
-            bounded=True,
+            bounded=False,
             fill_missing=False,
             progress=False,
             mip=mask_mip)
@@ -318,7 +318,7 @@ class Executor(object):
     def _read_image(self):
         self.image_vol = CloudVolume(
             self.image_layer_path,
-            bounded=True,
+            bounded=False,
             fill_missing=False,
             progress=False,
             mip=self.image_mip,
