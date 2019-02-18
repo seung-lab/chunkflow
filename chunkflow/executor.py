@@ -53,6 +53,7 @@ class Executor(object):
                  output_mask_layer_path=None,
                  image_mask_mip=3,
                  output_mask_mip=3,
+                 fill_image_missing=False,
                  inverse_image_mask=True,
                  inverse_output_mask=True,
                  framework='pytorch-multitask',
@@ -73,6 +74,7 @@ class Executor(object):
         self.output_mask_layer_path = output_mask_layer_path
         self.image_mask_mip = image_mask_mip
         self.output_mask_mip = output_mask_mip
+        self.fill_image_missing=fill_image_missing
         self.inverse_image_mask = inverse_image_mask
         self.inverse_output_mask = inverse_output_mask 
         self.framework = framework
@@ -209,7 +211,7 @@ class Executor(object):
         vol = CloudVolume(
             mask_layer_path,
             bounded=False,
-            fill_missing=False,
+            fill_missing=self.fill_image_missing,
             progress=False,
             mip=mask_mip)
         # assume that image mip is the same with output mip
@@ -319,7 +321,7 @@ class Executor(object):
         self.image_vol = CloudVolume(
             self.image_layer_path,
             bounded=False,
-            fill_missing=False,
+            fill_missing=self.fill_image_missing,
             progress=False,
             mip=self.image_mip,
             parallel=False)
