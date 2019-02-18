@@ -1,6 +1,5 @@
 import os
 import torch
-import numpy as np
 from pytorch_model.model import load_model
 from types import SimpleNamespace
 
@@ -11,11 +10,10 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
     def __init__(self,
                  convnet_model,
                  convnet_weight_path,
-                 use_bn=True,
-                 is_static_batch_norm=False,
                  patch_size=(20, 256, 256),
                  width=(16, 32, 64, 128),
                  output_key='affinity',
+                 original_num_output_channels=3,
                  num_output_channels=3,
                  patch_overlap=(4, 64, 64)):
         """
@@ -33,7 +31,7 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
             'model': convnet_model,
             'width': width,
             'in_spec': {'input': (1, *patch_size)},
-            'out_spec': {output_key: (num_output_channels, *patch_size)},
+            'out_spec': {output_key: (original_num_output_channels, *patch_size)},
             'scan_spec': {output_key: (num_output_channels, *patch_size)},
             'pretrain': True,
             'precomputed': True,

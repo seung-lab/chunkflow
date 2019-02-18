@@ -21,6 +21,10 @@ from chunkflow.executor import Executor
 @click.option('--patch-overlap', type=int, nargs=3, default=(4,64,64), help='patch overlap')
 @click.option('--cropping-margin-size', type=int, nargs=3, default=(4,64,64), help='cropping size')
 @click.option('--output-key', type=str, default='affinity', help='key name of output dict')
+@click.option('--original-num-output-channels', type=int, default=3, 
+              help='number of original output channels. The net could be trained with more than' + 
+              ' final output channels, such as other neighboring edges in affinity map to enhance ' + 
+              'net generalization capability.')
 @click.option('--num-output-channels', type=int, default=3, help='number of output channels')
 @click.option('--mip', type=int, default=1, help='mip level of image and output')
 @click.option('--image-mask-layer-path', type=str, default=None, help='image mask layer path')
@@ -36,7 +40,7 @@ from chunkflow.executor import Executor
 @click.option('--missing-section_ids_file_name', type=str, default=None, 
               help='black out the missing sections recorded in a txt file.' +  
               'the section id is simply a list of z coordinates of missing sections')
-@click.option('--image-validate-mip', type=int, default=5, help='validate image using mip level')
+@click.option('--image-validate-mip', type=int, default=None, help='validate image using mip level')
 @click.option('--visibility-timeout', type=int, default=None, help='visibility timeout of sqs queue')
 @click.option('--proc-num', type=int, default=1, 
               help='number of processes. if set <=0, will equal to the number of cores.')
@@ -45,7 +49,8 @@ from chunkflow.executor import Executor
 
 def command(image_layer_path, output_layer_path, convnet_model, convnet_weight_path, 
             output_offset, output_shape, queue_name, 
-            patch_size, patch_overlap, cropping_margin_size, output_key, num_output_channels, mip, 
+            patch_size, patch_overlap, cropping_margin_size, output_key, 
+            original_num_output_channels, num_output_channels, mip, 
             image_mask_layer_path, output_mask_layer_path, image_mask_mip, output_mask_mip,
             fill_image_missing, inverse_image_mask, inverse_output_mask,
             framework, missing_section_ids_file_name, image_validate_mip, 

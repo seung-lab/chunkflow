@@ -47,6 +47,7 @@ class Executor(object):
                  patch_overlap,
                  cropping_margin_size,
                  output_key='affinity',
+                 original_num_output_channels=3,
                  num_output_channels=3,
                  mip=1,
                  image_mask_layer_path=None,
@@ -438,6 +439,7 @@ class Executor(object):
                 patch_size=self.patch_size,
                 output_key=self.output_key,
                 patch_overlap=self.patch_overlap,
+                original_num_output_channels=self.original_num_output_channels,
                 num_output_channels=self.num_output_channels)
         elif self.framework == 'identity':
             from chunkflow.frameworks.identity_patch_inference_engine import IdentityPatchInferenceEngine
