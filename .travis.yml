@@ -2,7 +2,7 @@ language: python
 python:
 - '3.5'
 - '3.6'
-- '3.7'
+- '3.7-dev'
 
 install:
 - pip install --upgrade pip 
@@ -15,4 +15,4 @@ script:
 
 matrix:
   allow_failures:
-  - python: '3.7'
+  - python: '3.7-dev'
