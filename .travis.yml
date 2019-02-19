@@ -6,8 +6,8 @@ python:
 
 install:
 - pip install --upgrade pip 
-- pip install numpy --no-cache-dir  
-- pip install fpzip --no-binary :all: --no-cache-dir 
+- pip install numpy 
+- pip install fpzip
 - pip install -r requirements.txt; 
 
 script:
