@@ -3,8 +3,9 @@ from cloudvolume import CloudVolume
 import numpy as np
 from cloudvolume.volumecutout import VolumeCutout
 from cloudvolume.lib import generate_random_string, Bbox
-from chunkflow.executor import Executor
 import os, shutil
+
+from chunkflow.executor import Executor
 
 
 class TestExecutor(unittest.TestCase):

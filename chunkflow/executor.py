@@ -9,11 +9,11 @@ import json
 from cloudvolume import CloudVolume, Storage
 from cloudvolume.lib import Vec, Bbox
 
-from .validate import validate_by_template_matching
+from .lib.validate import validate_by_template_matching
 from .igneous.tasks import downsample_and_upload
 from .igneous.downsample import downsample_with_averaging
-from .offset_array import OffsetArray
-from .aws_cloud_watch import AWSCloudWatch
+from .lib.offset_array import OffsetArray
+from .aws.cloud_watch import CloudWatch
 
 
 class Executor(object):
@@ -117,7 +117,7 @@ class Executor(object):
         }
 
     def __call__(self, output_bbox):
-        self.aws_cloud_watch = AWSCloudWatch('inference')
+        self.aws_cloud_watch = CloudWatch('inference')
  
         if isinstance(output_bbox, str):
             output_bbox = Bbox.from_filename(output_bbox)
@@ -417,17 +417,23 @@ class Executor(object):
         def _log_gpu_device():
             import torch 
             self.log['compute_device'] = torch.cuda.get_device_name(0)
-
-        # prepare for inference
-        from chunkflow.block_inference_engine import BlockInferenceEngine
-        if self.framework == 'pznet':
+        
+        def _log_cpu_device():
             import platform
             self.log['compute_device'] = platform.processor() 
-            from .frameworks.pznet_patch_inference_engine import PZNetPatchInferenceEngine
+
+        # prepare for inference
+        from .convnet_inference.block_inference_engine \
+            import BlockInferenceEngine
+        if self.framework == 'pznet':
+            _log_cpu_device()
+            from .convnet_inference.frameworks.pznet_patch_inference_engine \
+                import PZNetPatchInferenceEngine
             patch_engine = PZNetPatchInferenceEngine(self.convnet_model, self.convnet_weight_path)
         elif self.framework == 'pytorch':
             _log_gpu_device()
-            from .frameworks.pytorch_patch_inference_engine import PytorchPatchInferenceEngine
+            from .convnet_inference.frameworks.pytorch_patch_inference_engine \
+                import PytorchPatchInferenceEngine
             patch_engine = PytorchPatchInferenceEngine(
                 self.convnet_model,
                 self.convnet_weight_path,
@@ -436,7 +442,8 @@ class Executor(object):
                 num_output_channels=self.num_output_channels)
         elif self.framework == 'pytorch-multitask':
             _log_gpu_device()
-            from .frameworks.pytorch_multitask_patch_inference import PytorchMultitaskPatchInferenceEngine
+            from .convnet_inference.frameworks.pytorch_multitask_patch_inference \
+                import PytorchMultitaskPatchInferenceEngine
             patch_engine = PytorchMultitaskPatchInferenceEngine(
                 self.convnet_model,
                 self.convnet_weight_path,
@@ -446,7 +453,9 @@ class Executor(object):
                 original_num_output_channels=self.original_num_output_channels,
                 num_output_channels=self.num_output_channels)
         elif self.framework == 'identity':
-            from chunkflow.frameworks.identity_patch_inference_engine import IdentityPatchInferenceEngine
+            _log_cpu_device()
+            from .convnet_inference.frameworks.identity_patch_inference_engine \
+                import IdentityPatchInferenceEngine
             patch_engine = IdentityPatchInferenceEngine(num_output_channels=3)
         else:
             raise Exception('invalid inference backend: {}'.format(
@@ -537,6 +546,11 @@ class Executor(object):
         upload internal log as a file to the same place of output 
         the file name is the output range 
         """
+        print('log: ', self.log)
+        if not self.log:
+            print('no log found, will not do anything')
+            return 
+
         # write to aws cloud watch 
         self.aws_cloud_watch.put_metric_data(self.log)
 

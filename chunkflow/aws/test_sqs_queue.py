@@ -1,4 +1,4 @@
-from chunkflow.sqs_queue import SQSQueue
+from .sqs_queue import SQSQueue
 import unittest
 
 

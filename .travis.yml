@@ -13,3 +13,6 @@ install:
 script:
 - python3 -m unittest 
 
+matrix:
+  allow_failures:
+  - python: '3.7'
