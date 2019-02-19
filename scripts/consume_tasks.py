@@ -45,6 +45,9 @@ from chunkflow.executor import Executor
 @click.option('--proc-num', type=int, default=1, 
               help='number of processes. if set <=0, will equal to the number of cores.')
 @click.option('--interval', type=int, default=0, help='interval of processes start time (sec)')
+@click.option('--show-progress/--not-show-progress', default=False, 
+              help='show progress bar or not. default is not. The progress bar should be disabled ' + 
+              'since google cloud logging will pop out a lot of messages.')
 
 
 def command(image_layer_path, output_layer_path, convnet_model, convnet_weight_path, 
@@ -54,11 +57,12 @@ def command(image_layer_path, output_layer_path, convnet_model, convnet_weight_p
             image_mask_layer_path, output_mask_layer_path, image_mask_mip, output_mask_mip,
             fill_image_missing, inverse_image_mask, inverse_output_mask,
             framework, missing_section_ids_file_name, image_validate_mip, 
-            visibility_timeout, proc_num, interval):
+            visibility_timeout, proc_num, interval, show_progress):
 
     executor = Executor(image_layer_path, output_layer_path, convnet_model, convnet_weight_path, 
                         patch_size, 
                         patch_overlap, cropping_margin_size, output_key=output_key, 
+                        original_num_output_channels=original_num_output_channels,
                         num_output_channels=num_output_channels, mip=mip, 
                         image_mask_layer_path=image_mask_layer_path, 
                         output_mask_layer_path=output_mask_layer_path, 
@@ -67,7 +71,8 @@ def command(image_layer_path, output_layer_path, convnet_model, convnet_weight_p
                         inverse_image_mask=inverse_image_mask, inverse_output_mask=inverse_output_mask,
                         framework=framework, 
                         missing_section_ids_file_name=missing_section_ids_file_name, 
-                        image_validate_mip=image_validate_mip) 
+                        image_validate_mip=image_validate_mip,
+                        show_progress=show_progress) 
     if not queue_name:
         # no queue name specified
         # will only run one task
@@ -109,8 +114,9 @@ def process_queue(executor, queue_name, sleep_time=0, visibility_timeout=None):
         print('get TypeError: {}'.format(err))
         print('probably because the queue becomes None somehow.')
         print('continue working...')
-        process_queue(executor, queue_name, sleep_time=sleep_time, 
-                      visibility_timeout=visibility_timeout)
+        raise
+        #process_queue(executor, queue_name, sleep_time=sleep_time, 
+        #              visibility_timeout=visibility_timeout)
     except Exception as err:
         print(task, ' raised {}\n {}'.format(err, traceback.format_exc()))
         raise

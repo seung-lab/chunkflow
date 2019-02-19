@@ -5,6 +5,7 @@ Inference a chunk of image
 
 #import time
 import numpy as np
+from tqdm import tqdm 
 
 from .patch_mask import PatchMask
 from .offset_array import OffsetArray
@@ -22,7 +23,7 @@ class BlockInferenceEngine(object):
     """
     def __init__(self, patch_inference_engine, patch_size, patch_overlap,
                  output_key='affinity', num_output_channels=3, 
-                 is_masked_in_device=False, is_padding=False):
+                 is_masked_in_device=False, is_padding=False, show_progress=False):
         """
         params:
             inference_engine, patch_size, input_chunk, output_key, patch_stride
@@ -39,6 +40,7 @@ class BlockInferenceEngine(object):
         self.patch_mask = PatchMask(patch_size, patch_overlap)
         self.is_masked_in_device = is_masked_in_device
         self.is_padding = is_padding 
+        self.show_progress = show_progress
 
     def __call__(self, input_chunk, output_buffer=None):
         """
@@ -76,9 +78,9 @@ class BlockInferenceEngine(object):
         #start = time.time()
         input_size = input_chunk.shape
         input_offset = input_chunk.global_offset
-        for oz in range(input_offset[0],
+        for oz in tqdm(range(input_offset[0],
                              input_offset[0]+input_size[0]-self.patch_overlap[0],
-                             self.stride[0]):
+                             self.stride[0]), disable=not self.show_progress):
             for oy in range(input_offset[1],
                            input_offset[1]+input_size[1]-self.patch_overlap[1],
                            self.stride[1]):

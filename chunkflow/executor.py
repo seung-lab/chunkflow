@@ -6,15 +6,15 @@ import numpy as np
 import time
 import os
 import json 
-from google.cloud import logging
 from cloudvolume import CloudVolume, Storage
 from cloudvolume.lib import Vec, Bbox
-from cloudvolume.secrets import google_credentials_path, PROJECT_NAME 
 
 from .validate import validate_by_template_matching
 from .igneous.tasks import downsample_and_upload
 from .igneous.downsample import downsample_with_averaging
 from .offset_array import OffsetArray
+from .aws_cloud_watch import AWSCloudWatch
+
 
 class Executor(object):
     """
@@ -59,7 +59,8 @@ class Executor(object):
                  inverse_output_mask=True,
                  framework='pytorch-multitask',
                  missing_section_ids_file_name=None,
-                 image_validate_mip=None):
+                 image_validate_mip=None,
+                 show_progress=False):
         self.image_layer_path = image_layer_path
         self.convnet_model = convnet_model
         self.convnet_weight_path = convnet_weight_path
@@ -68,6 +69,7 @@ class Executor(object):
         self.patch_overlap = patch_overlap
         self.cropping_margin_size = cropping_margin_size
         self.output_key = output_key
+        self.original_num_output_channels = original_num_output_channels
         self.num_output_channels = num_output_channels
         self.image_mip = mip
         self.output_mip = mip
@@ -80,6 +82,7 @@ class Executor(object):
         self.inverse_output_mask = inverse_output_mask 
         self.framework = framework
         self.missing_section_ids_file_name = missing_section_ids_file_name
+        self.show_progress = show_progress
 
         # if the patch overlap is larger than the cropping size 
         # the patch mask will make the block value around margin incorrect
@@ -114,10 +117,7 @@ class Executor(object):
         }
 
     def __call__(self, output_bbox):
-        # the logger can not be pickled, so put it here
-        logging_client = logging.Client.from_service_account_json(
-            google_credentials_path, project=PROJECT_NAME)
-        self.logger = logging_client.logger('chunkflow')
+        self.aws_cloud_watch = AWSCloudWatch('inference')
  
         if isinstance(output_bbox, str):
             output_bbox = Bbox.from_filename(output_bbox)
@@ -134,65 +134,67 @@ class Executor(object):
         self.image_bbox = Bbox.from_slices(image_slices)
 
         total_start = time.time()
+        self.log['time_elapsed'] = {}
+        time_log = self.log['time_elapsed']
 
         start = time.time()
         self._read_image()
         elapsed = time.time() - start
-        self.log['read_image_time'] = elapsed
+        time_log['read_image'] = elapsed
         print("Read image takes %3f sec" % (elapsed))
         
         start = time.time()
         self._validate_image()
         elapsed = time.time() - start
-        self.log['validate_image_time'] = elapsed
+        time_log['validate_image'] = elapsed
         print("Validate image takes %3f sec" % (elapsed))
 
         start = time.time()
         self._mask_missing_sections()
         elapsed = time.time() - start
-        self.log['mask_missing_sections_time'] = elapsed
+        time_log['mask_missing_sections'] = elapsed
         print("Mask missing sections in image takes %3f sec" % (elapsed))
         
         if self.image_mask_layer_path:
             start = time.time()
             self._mask_image()
             elapsed = time.time() - start
-            self.log['mask_image_time'] = elapsed
+            time_log['mask_image'] = elapsed
             print("Mask image takes %3f sec" % (elapsed))
 
         start = time.time()
         self._inference()
         elapsed = time.time() - start
-        self.log['inference_time'] = elapsed
+        time_log['convnet_inference'] = elapsed
         print("Inference takes %3f min" % (elapsed / 60))
 
         start = time.time()
         self._crop()
         elapsed = time.time() - start
-        self.log['crop_output_time'] = elapsed
+        time_log['crop_output'] = elapsed
         print("Cropping takes %3f sec" % (elapsed))
 
         if self.output_mask_layer_path:
             start = time.time()
             self._mask_output()
             elapsed = time.time() - start
-            self.log['mask_output_time'] = elapsed
+            time_log['mask_output'] = elapsed
             print("Mask output takes %3f sec" % (elapsed))
 
         start = time.time()
         self._upload_output()
         elapsed = time.time() - start
-        self.log['upload_output_time'] = elapsed
+        time_log['upload_output'] = elapsed
         print("Upload output takes %3f min" % (elapsed / 60))
 
         start = time.time()
         self._create_output_thumbnail()
         elapsed = time.time() - start
-        self.log['create_output_thumbnail_time'] = elapsed
+        time_log['create_output_thumbnail_time'] = elapsed
         print("create output thumbnail takes %3f min" % (elapsed / 60))
 
         total_time = time.time() - total_start
-        self.log['total_time'] = total_time
+        time_log['complete_task'] = total_time
         print("Whole task takes %3f min" % (total_time / 60))
 
         log_path = os.path.join(self.output_layer_path, 'log')
@@ -213,7 +215,7 @@ class Executor(object):
             mask_layer_path,
             bounded=False,
             fill_missing=self.fill_image_missing,
-            progress=False,
+            progress=self.show_progress,
             mip=mask_mip)
         # assume that image mip is the same with output mip
         xyfactor = 2**(mask_mip - mip)
@@ -323,7 +325,7 @@ class Executor(object):
             self.image_layer_path,
             bounded=False,
             fill_missing=self.fill_image_missing,
-            progress=False,
+            progress=self.show_progress,
             mip=self.image_mip,
             parallel=False)
         output_slices = self.output_bbox.to_slices()
@@ -401,7 +403,7 @@ class Executor(object):
             self.image_layer_path,
             bounded=False,
             fill_missing=False,
-            progress=False,
+            progress=self.show_progress,
             mip=self.image_validate_mip,
             parallel=False)
         validate_image = validate_vol[validate_bbox.to_slices()]
@@ -412,18 +414,20 @@ class Executor(object):
         assert np.alltrue(validate_image == clamped_image)
     
     def _prepare_inference_engine(self):
-        def _log_device():
+        def _log_gpu_device():
             import torch 
-            self.log['device'] = torch.cuda.get_device_name(0)
+            self.log['compute_device'] = torch.cuda.get_device_name(0)
 
         # prepare for inference
         from chunkflow.block_inference_engine import BlockInferenceEngine
         if self.framework == 'pznet':
-            from chunkflow.frameworks.pznet_patch_inference_engine import PZNetPatchInferenceEngine
+            import platform
+            self.log['compute_device'] = platform.processor() 
+            from .frameworks.pznet_patch_inference_engine import PZNetPatchInferenceEngine
             patch_engine = PZNetPatchInferenceEngine(self.convnet_model, self.convnet_weight_path)
         elif self.framework == 'pytorch':
-            _log_device()
-            from chunkflow.frameworks.pytorch_patch_inference_engine import PytorchPatchInferenceEngine
+            _log_gpu_device()
+            from .frameworks.pytorch_patch_inference_engine import PytorchPatchInferenceEngine
             patch_engine = PytorchPatchInferenceEngine(
                 self.convnet_model,
                 self.convnet_weight_path,
@@ -431,8 +435,8 @@ class Executor(object):
                 output_key=self.output_key,
                 num_output_channels=self.num_output_channels)
         elif self.framework == 'pytorch-multitask':
-            _log_device()
-            from chunkflow.frameworks.pytorch_multitask_patch_inference import PytorchMultitaskPatchInferenceEngine
+            _log_gpu_device()
+            from .frameworks.pytorch_multitask_patch_inference import PytorchMultitaskPatchInferenceEngine
             patch_engine = PytorchMultitaskPatchInferenceEngine(
                 self.convnet_model,
                 self.convnet_weight_path,
@@ -486,7 +490,7 @@ class Executor(object):
             bounded=False,
             autocrop=True,
             mip=self.image_mip,
-            progress=False)
+            progress=self.show_progress)
         output_slices = self.output_bbox.to_slices()
         # transpose czyx to xyzc order
         self.output = np.transpose(self.output)
@@ -506,7 +510,7 @@ class Executor(object):
             bounded=False,
             autocrop=True,
             mip=self.image_mip,
-            progress=False)
+            progress=self.show_progress)
         # the output was already transposed to xyz/fortran order in previous step while uploading the output
         # self.output = np.transpose(self.output)
 
@@ -533,11 +537,11 @@ class Executor(object):
         upload internal log as a file to the same place of output 
         the file name is the output range 
         """
+        # write to aws cloud watch 
+        self.aws_cloud_watch.put_metric_data(self.log)
+
         log_text = json.dumps(self.log)
         
-        # write to google cloud stack driver
-        self.logger.log_text(log_text)
-
         # write to google cloud storage 
         with Storage(log_path) as storage:
             storage.put_file(

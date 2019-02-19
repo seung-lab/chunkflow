@@ -1,9 +1,9 @@
 FROM seunglab/chunkflow:latest
 
-COPY pytorch-emvision /root/chunkflow/kubernetes/pytorch-emvision/ 
-COPY pytorch-model /root/chunkflow/kubernetes/pytorch-model/
+COPY pytorch-emvision $HOME/workspace/chunkflow/kubernetes/pytorch-emvision/ 
+COPY pytorch-model $HOME/workspace/chunkflow/kubernetes/pytorch-model/
 
-RUN echo "export PYTHONPATH=/root/chunkflow/kubernetes/pytorch-model:/root/chunkflow/kubernetes/pytorch-emvision:\$PYTHONPATH" >> /root/.bashrc;
+RUN echo "export PYTHONPATH=$HOME/workspace/chunkflow/kubernetes/pytorch-model:$HOME/workspace/chunkflow/kubernetes/pytorch-emvision:\$PYTHONPATH" >> $HOME/.bashrc;
 
-WORKDIR /root/chunkflow/scripts
+WORKDIR $HOME/workspace/chunkflow/scripts
 

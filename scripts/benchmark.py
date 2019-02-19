@@ -9,7 +9,6 @@ import json
 import pandas as pd
 from tqdm import tqdm
 
-
 dfs = []
 
 for file_name in tqdm(os.listdir('log'), desc='loading log files'):
@@ -17,29 +16,25 @@ for file_name in tqdm(os.listdir('log'), desc='loading log files'):
 #     print('file name: {}'.format(complete_file_name))
     with open(complete_file_name) as f:
         d = json.load(f)
-        
-    if 'device' in d:
-        item = pd.DataFrame({
-            #'output_bbox': file_name,
-            'device': d['device'],
-            'inference_time': d['inference_time'],
-            'upload_output_time': d['upload_output_time'],
-            'read_image_time': d['read_image_time'],
-#             'create_output_thumbnail_time': d['create_output_thumbnail'],
-            'time_per_task': d['total_time']
-        }, index=[0])
-    item
+    timing = d['time_elapsed']
+
+    item = pd.DataFrame({
+        'compute_device': d['compute_device'],
+        'convnet_inference': timing['convnet_inference'],
+        'upload_output': timing['upload_output'],
+        'read_image': timing['read_image'],
+        'complete_task': timing['complete_task']
+    }, index=[0])
     dfs.append(item)
 
 df = pd.concat(dfs)
 
+grouped_df = df.groupby('compute_device')
+
 
 print('\n\nmax time:')
-df_max = df.groupby('device').max()
-print(df_max) 
+print(grouped_df.max()) 
 
 print('\n\nmean time:')
-df_mean = df.groupby('device').mean()
-print(df_mean)
-
+print(grouped_df.mean())
 

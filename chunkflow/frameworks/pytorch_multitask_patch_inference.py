@@ -39,7 +39,7 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
             'overlap': patch_overlap,
             'bump': 'wu'
         }
-
+        
         self.opt = SimpleNamespace(**d)
         assert os.path.isfile(convnet_weight_path)
         self.net = load_model(self.opt, convnet_weight_path)
