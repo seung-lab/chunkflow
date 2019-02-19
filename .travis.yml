@@ -6,7 +6,7 @@ python:
 
 install:
 - pip install --upgrade pip 
-- pip install numpy 
+- pip install numpy==1.16
 - pip install fpzip
 - pip install -r requirements.txt; 
 
