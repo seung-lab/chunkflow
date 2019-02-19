@@ -1,8 +1,8 @@
 import numpy as np
 import unittest
-from chunkflow.block_inference_engine import BlockInferenceEngine
-from chunkflow.frameworks.identity_patch_inference_engine import IdentityPatchInferenceEngine
-from chunkflow.offset_array import OffsetArray
+from .block_inference_engine import BlockInferenceEngine
+from .frameworks.identity_patch_inference_engine import IdentityPatchInferenceEngine
+from chunkflow.lib.offset_array import OffsetArray
 
 
 class TestBlockInferenceEngine(unittest.TestCase):

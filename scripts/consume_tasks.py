@@ -6,7 +6,7 @@ import time
 import traceback 
 
 from cloudvolume import Bbox, EmptyVolumeException
-from chunkflow.sqs_queue import SQSQueue 
+from chunkflow.aws.sqs_queue import SQSQueue 
 from chunkflow.executor import Executor
 
 @click.command()

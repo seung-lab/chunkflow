@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm 
 
 from .patch_mask import PatchMask
-from .offset_array import OffsetArray
+from chunkflow.lib.offset_array import OffsetArray
 
 
 class BlockInferenceEngine(object):
