@@ -10,5 +10,5 @@ build
 *.egg-info
 __pycache__
 kubernetes
-scripts/*.sh
-scripts/*.yml
+bin/*.sh
+bin/*.yml
