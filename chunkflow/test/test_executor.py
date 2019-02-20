@@ -5,10 +5,10 @@ from cloudvolume.volumecutout import VolumeCutout
 from cloudvolume.lib import generate_random_string, Bbox
 import os, shutil
 
-from chunkflow.executor import Executor
+from chunkflow.flow import InferenceExecutor
 
 
-class TestExecutor(unittest.TestCase):
+class TestInferenceExecutor(unittest.TestCase):
     def setUp(self):
         # compute parameters 
         self.image_size = (36, 448, 448)
@@ -76,7 +76,7 @@ class TestExecutor(unittest.TestCase):
                                                       voxel_offset=(64,64,4), max_mip=4)
 
     def test_executor(self):
-        executor = Executor(self.image_layer_path, self.output_layer_path, 
+        executor = InferenceExecutor(self.image_layer_path, self.output_layer_path, 
                             None, None, (20,256,256), (4,64,64), (4,64,64),
                             image_mask_layer_path=self.image_mask_layer_path, 
                             output_mask_layer_path=self.output_mask_layer_path,
