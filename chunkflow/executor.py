@@ -423,16 +423,16 @@ class Executor(object):
             self.log['compute_device'] = platform.processor() 
 
         # prepare for inference
-        from .convnet_inference.block_inference_engine \
+        from .inference.block_inference_engine \
             import BlockInferenceEngine
         if self.framework == 'pznet':
             _log_cpu_device()
-            from .convnet_inference.frameworks.pznet_patch_inference_engine \
+            from .inference.frameworks.pznet_patch_inference_engine \
                 import PZNetPatchInferenceEngine
             patch_engine = PZNetPatchInferenceEngine(self.convnet_model, self.convnet_weight_path)
         elif self.framework == 'pytorch':
             _log_gpu_device()
-            from .convnet_inference.frameworks.pytorch_patch_inference_engine \
+            from .inference.frameworks.pytorch_patch_inference_engine \
                 import PytorchPatchInferenceEngine
             patch_engine = PytorchPatchInferenceEngine(
                 self.convnet_model,
@@ -442,7 +442,7 @@ class Executor(object):
                 num_output_channels=self.num_output_channels)
         elif self.framework == 'pytorch-multitask':
             _log_gpu_device()
-            from .convnet_inference.frameworks.pytorch_multitask_patch_inference \
+            from .inference.frameworks.pytorch_multitask_patch_inference \
                 import PytorchMultitaskPatchInferenceEngine
             patch_engine = PytorchMultitaskPatchInferenceEngine(
                 self.convnet_model,
@@ -454,7 +454,7 @@ class Executor(object):
                 num_output_channels=self.num_output_channels)
         elif self.framework == 'identity':
             _log_cpu_device()
-            from .convnet_inference.frameworks.identity_patch_inference_engine \
+            from .inference.frameworks.identity_patch_inference_engine \
                 import IdentityPatchInferenceEngine
             patch_engine = IdentityPatchInferenceEngine(num_output_channels=3)
         else:
