@@ -1,4 +1,4 @@
-version = '0.0.1'
+version = '0.0.2'
 from setuptools import setup, find_packages, Command 
 
 with open("README.md", "r") as fh:
@@ -20,4 +20,11 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
+    install_requires=[
+        'click',
+    ],
+    entry_points='''
+        [console_scripts]
+        chunkflow=bin/chunkflow:cli
+    ''',
 )
