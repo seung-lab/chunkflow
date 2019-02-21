@@ -161,7 +161,7 @@ def process_queue(executor, queue_name, sleep_time=0, visibility_timeout=None):
     'show progress bar or not. default is not. The progress bar should be disabled '
     + 'since google cloud logging will pop out a lot of messages.')
 @click.pass_context
-def chunkflow(ctx, input_layer_path, output_layer_path, output_offset,
+def cli(ctx, input_layer_path, output_layer_path, output_offset,
               output_shape, queue_name, cropping_margin_size, mip,
               input_mask_layer_path, output_mask_layer_path, input_mask_mip,
               output_mask_mip, fill_input_missing, inverse_input_mask,
@@ -191,7 +191,7 @@ def chunkflow(ctx, input_layer_path, output_layer_path, output_offset,
     ctx.obj['show_progress'] = show_progress
 
 
-@chunkflow.command()
+@cli.command()
 @click.option(
     '--convnet-model',
     type=str,
@@ -270,7 +270,7 @@ def inference(ctx, convnet_model, convnet_weight_path, patch_size,
             ctx.obj['proc_num'], ctx.obj['interval'])
 
 
-@chunkflow.command()
+@cli.command()
 def do_nothing():
     """
     do nothing and just pass, used for masking images
@@ -278,4 +278,4 @@ def do_nothing():
     pass
 
 if __name__ == '__main__':
-    chunkflow(obj={})
+    cli(obj={})
