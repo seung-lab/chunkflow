@@ -11,14 +11,14 @@ from chunkflow.flow import InferenceExecutor
 class TestInferenceExecutor(unittest.TestCase):
     def setUp(self):
         # compute parameters 
-        self.image_size = (36, 448, 448)
+        self.input_size = (36, 448, 448)
         self.cropping_margin_size = (4, 64, 64)
         self.patch_overlap = (4, 64, 64)
-        self.image_mask_mip = 1
-        self.image_mask_size = (self.image_size[0], 
-                                self.image_size[1]//(2**self.image_mask_mip), 
-                                self.image_size[2]//(2**self.image_mask_mip),)
-        self.output_size = tuple(i-2*c for i,c in zip(self.image_size, 
+        self.input_mask_mip = 1
+        self.input_mask_size = (self.input_size[0], 
+                                self.input_size[1]//(2**self.input_mask_mip), 
+                                self.input_size[2]//(2**self.input_mask_mip),)
+        self.output_size = tuple(i-2*c for i,c in zip(self.input_size, 
                                                       self.cropping_margin_size))
         self.output_mask_mip = 2 
         self.output_mask_size = (self.output_size[0],
@@ -26,23 +26,23 @@ class TestInferenceExecutor(unittest.TestCase):
                                  self.output_size[2]//(2**self.output_mask_mip),)
 
         # create dataset using cloud-volume 
-        img = np.random.randint(0, 255+1, size=self.image_size)
+        img = np.random.randint(0, 255+1, size=self.input_size)
         self.img = img.astype(np.uint8) 
-        # save the image to disk 
-        self.image_layer_path = 'file:///tmp/image/' + generate_random_string()
-        CloudVolume.from_numpy(np.transpose(self.img), vol_path=self.image_layer_path)
+        # save the input to disk 
+        self.input_layer_path = 'file:///tmp/input/' + generate_random_string()
+        CloudVolume.from_numpy(np.transpose(self.img), vol_path=self.input_layer_path)
         
-        # create image mask volume
-        image_mask = np.ones(self.image_size, dtype=np.bool)
-        self.image_mask_layer_path = 'file:///tmp/image-mask/' + generate_random_string()
-        CloudVolume.from_numpy(np.transpose(image_mask), 
-                               vol_path=self.image_mask_layer_path,
-                               max_mip=self.image_mask_mip)
-        image_mask = np.ones(self.image_mask_size, dtype=np.bool)
+        # create input mask volume
+        input_mask = np.ones(self.input_size, dtype=np.bool)
+        self.input_mask_layer_path = 'file:///tmp/input-mask/' + generate_random_string()
+        CloudVolume.from_numpy(np.transpose(input_mask), 
+                               vol_path=self.input_mask_layer_path,
+                               max_mip=self.input_mask_mip)
+        input_mask = np.ones(self.input_mask_size, dtype=np.bool)
         # will mask out the [:2, :8, :8] since it is in mip 1
-        image_mask[:(4+2), :(64//2+8//2), :(64//2+8//2)] = False 
-        image_mask_vol = CloudVolume(self.image_mask_layer_path, mip=self.image_mask_mip)
-        image_mask_vol[:,:,:] = np.transpose(image_mask) 
+        input_mask[:(4+2), :(64//2+8//2), :(64//2+8//2)] = False 
+        input_mask_vol = CloudVolume(self.input_mask_layer_path, mip=self.input_mask_mip)
+        input_mask_vol[:,:,:] = np.transpose(input_mask) 
 
         # create output layer 
         out = np.random.rand(*self.output_size)
@@ -76,14 +76,15 @@ class TestInferenceExecutor(unittest.TestCase):
                                                       voxel_offset=(64,64,4), max_mip=4)
 
     def test_executor(self):
-        executor = InferenceExecutor(self.image_layer_path, self.output_layer_path, 
+        executor = InferenceExecutor(self.input_layer_path, self.output_layer_path, 
                             None, None, (20,256,256), (4,64,64), (4,64,64),
-                            image_mask_layer_path=self.image_mask_layer_path, 
+                            input_mask_layer_path=self.input_mask_layer_path, 
                             output_mask_layer_path=self.output_mask_layer_path,
-                            image_mask_mip=self.image_mask_mip, 
+                            input_mask_mip=self.input_mask_mip, 
                             output_mask_mip=self.output_mask_mip,
-                            inverse_image_mask=False,
+                            inverse_input_mask=False,
                             inverse_output_mask=False,
+                            cropping_margin_size=self.cropping_margin_size,
                             framework='identity', mip=0, num_output_channels=1)
         output_size = np.asarray(self.output_size)
         output_start = np.asarray((4,64,64))
@@ -91,7 +92,7 @@ class TestInferenceExecutor(unittest.TestCase):
         output_bbox = Bbox.from_list([*output_start, *output_stop])
         executor(output_bbox)
         out = self.output_vol[(slice(c, s-c) for c,s in 
-                               zip(self.cropping_margin_size[::-1], self.image_size[::-1]))]
+                               zip(self.cropping_margin_size[::-1], self.input_size[::-1]))]
         out = np.transpose(out)
         out = out * 255
         out = np.ascontiguousarray(out, dtype=np.uint8)
@@ -101,7 +102,7 @@ class TestInferenceExecutor(unittest.TestCase):
         img = self.img[4:-4, 64:-64, 64:-64]
         
         # check that the masked region are all zero
-        # image mask validation
+        # input mask validation
         assert np.alltrue(out[:2, :8, :8]==0)
         # output mask validation 
         assert np.alltrue(out[-2: -8:, -8:]==0)
@@ -113,8 +114,8 @@ class TestInferenceExecutor(unittest.TestCase):
         assert np.alltrue(np.isclose(img, out, atol=1))
         
         # clean up 
-        shutil.rmtree('/tmp/image')
-        shutil.rmtree('/tmp/image-mask')
+        shutil.rmtree('/tmp/input')
+        shutil.rmtree('/tmp/input-mask')
         shutil.rmtree('/tmp/output-mask')
         shutil.rmtree('/tmp/output')
 
