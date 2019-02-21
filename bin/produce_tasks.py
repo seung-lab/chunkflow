@@ -6,13 +6,11 @@ import numpy as np
 import itertools
 
 @click.command()
-@click.option('--start', '-s',type=int, default=(0,0,0), nargs=3, help='start of the output')
-@click.option('--block-size', '-b', type=int, required=True, nargs=3, help='size/shape of output blocks')
-@click.option('--grid-size', '-g', type=int, default=(1,1,1), nargs=3, help='grid size of output blocks')
+@click.option('--start', '-s',type=int, default=(0,0,0), nargs=3, help='(z y x), start of the output')
+@click.option('--block-size', '-b', type=int, required=True, nargs=3, help='(z y x), size/shape of output blocks')
+@click.option('--grid-size', '-g', type=int, default=(1,1,1), nargs=3, help='(z y x), grid size of output blocks')
 @click.option('--queue-name', '-q', type=str, default='chunkflow', help='sqs queue name')
-
-
-def command(start, block_size, grid_size, queue_name):
+def produce_tasks(start, block_size, grid_size, queue_name):
     start = np.asarray(start)
     block_size = np.asarray(block_size)
 
@@ -47,5 +45,5 @@ def command(start, block_size, grid_size, queue_name):
 
 
 if __name__ == '__main__':
-    command()
+    produce_tasks()
 

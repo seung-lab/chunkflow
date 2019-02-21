@@ -99,13 +99,15 @@ class FlowBase(object):
             start = time.time()
             self._mask_input()
             elapsed = time.time() - start
-            time_log['mask_input'] = elapsed
+            time_log['mask_input'] = elapsed 
             print("Mask input takes %3f sec" % (elapsed))
     
     def _finish_output(self):
         """
         process and upload the output chunk
         """
+        time_log = self.log['time_elapsed']
+        
         start = time.time()
         self._crop()
         elapsed = time.time() - start
@@ -130,10 +132,6 @@ class FlowBase(object):
         elapsed = time.time() - start
         time_log['create_output_thumbnail_time'] = elapsed
         print("create output thumbnail takes %3f min" % (elapsed / 60))
-
-        total_time = time.time() - total_start
-        time_log['complete_task'] = total_time
-        print("Whole task takes %3f min" % (total_time / 60))
 
     def _process_chunk(self):
         """
@@ -165,6 +163,11 @@ class FlowBase(object):
         self._prepare_input()
         self._process_chunk()
         self._finish_output()
+        
+        time_log = self.log['time_elapsed']
+        total_time = time.time() - total_start
+        time_log['complete_task'] = total_time
+        print("Whole task takes %3f min" % (total_time / 60))
 
         log_path = os.path.join(self.output_layer_path, 'log')
         self._upload_log(log_path)
@@ -382,13 +385,13 @@ class FlowBase(object):
         # use the validate input to check the downloaded input
         assert np.alltrue(validate_input == clamped_input)
     
-        def _crop(self):
-            self.output = self.output[:, self.cropping_margin_size[0]:self.output.
-                                  shape[1] - self.cropping_margin_size[0], self
-                                  .cropping_margin_size[1]:self.output.
-                                  shape[2] - self.cropping_margin_size[1], self
-                                  .cropping_margin_size[2]:self.output.
-                                  shape[3] - self.cropping_margin_size[2]]
+    def _crop(self):
+        self.output = self.output[:, self.cropping_margin_size[0]:self.output.
+                              shape[1] - self.cropping_margin_size[0], self
+                              .cropping_margin_size[1]:self.output.
+                              shape[2] - self.cropping_margin_size[1], self
+                              .cropping_margin_size[2]:self.output.
+                              shape[3] - self.cropping_margin_size[2]]
 
     def _upload_output(self):
         # this is for fast test
