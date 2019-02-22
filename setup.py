@@ -25,6 +25,6 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        chunkflow=bin/chunkflow:cli
+        chunkflow=chunkflow.consume_tasks:cli
     ''',
 )

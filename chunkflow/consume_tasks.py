@@ -46,40 +46,44 @@ def process_commands(processors):
     As in this example each subcommand returns a function we can chain them together to 
     feed one into the other, similar to how a pipe on unix works.
     """
-    # Start with an empty iterable 
+    # Start with an empty iterable
+    ctx = ()
     stream = ()
 
     # Pipe it through all stream processors.
     for processor in processors:
-        stream = processor(stream)
+        ctx, stream = processor(ctx, stream)
 
     # Evaluate the stream and throw away the items.
+    for _ in ctx:
+        pass
     for _ in stream:
-        pass 
+        pass
+
 
 def processor(f):
     """Help decorator to rewrite a function so that it returns another function from it."""
     def new_func(*args, **kwargs):
-        def processor(stream):
-            return f(stream, *args, **kwargs)
+        def processor(ctx, stream):
+            return f(ctx, stream, *args, **kwargs)
         return processor
     return update_wrapper(new_func, f)
+
 
 def generator(f):
     """Similar to the :func:`processor` but passes through old values unchanged and does not pass 
     through the values as parameter.
     """
-    @processor 
-    def new_func(stream, *args, **kwargs):
+    @processor
+    def new_func(ctx, stream, *args, **kwargs):
+        for item in ctx:
+            yield ctx
         for item in stream:
             yield item
         for item in f(*args, **kwargs):
             yield item 
     return update_wrapper(new_func, f)
 
-def copy_filename(new, old):
-    new.filename = old.filename 
-    return new
 
 @cli.command('create-task')
 @click.option('--queue-name', type=str, default=None, help='sqs queue name')
@@ -87,8 +91,8 @@ def copy_filename(new, old):
 @click.option('--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
 @click.option('--visibility-timeout', type=int, default=None,
               help='visibility timeout of sqs queue; default is using the timeout of the queue.')
-@click.pass_context 
 @generator 
+@click.pass_context 
 def create_task_cmd(ctx, queue_name, offset, shape, visibility_timeout):
     """Create task or fetch task from queue."""
     if not queue_name:
@@ -132,9 +136,10 @@ def delete_task_cmd(ctx):
 @processor
 def cutout_cmd(ctx, output_bbox, volume_path, expand_margin_size, fill_missing, validate_mip):
     """Cutout chunk from volume."""
-    chunk = cutout(chunk_slices, volume_path, output_bbox, mip=ctx.obj['mip'], 
-                   show_progress=ctx.obj['show_progress'],
+    chunk = cutout(output_bbox, volume_path, 
+                   mip=ctx.obj['mip'],
                    expand_margin_size=expand_margin_size,
+                   show_progress=ctx.obj['show_progress'], 
                    fill_missing=fill_missing, validate_mip=validate_mip)
     yield chunk
 
@@ -202,7 +207,7 @@ def mask_cmd(ctx, chunk, volume_path, mask_mip, inverse, fill_missing):
     """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
-    yield mask(chunk, volume_path, mask_mip, inverse, 
+    yield mask(chunk, volume_path, mask_mip, inverse,
                ctx.obj['chunk_mip'],
                fill_missing=fill_missing, 
                show_progress=ctx.obj['show_progress']) 
@@ -237,20 +242,19 @@ def crop_margin_cmd(ctx, chunk, margin_size):
 @processor 
 def save_cmd(ctx, chunk, volume_path):
     """Save chunk to volume."""
-    if 'output_volume' not in ctx.obj['output_volume']:
-        ctx.obj['output_volume'] = CloudVolume(
-            volume_path,
-            fill_missing=True,
-            bounded=False,
-            autocrop=True,
-            mip=ctx.obj['mip'],
-            progress=ctx.obj['show_progress'])
-    
+    output_volume = CloudVolume(
+        volume_path,
+        fill_missing=True,
+        bounded=False,
+        autocrop=True,
+        mip=ctx.obj['mip'],
+        progress=ctx.obj['show_progress'])
+
     # transpose czyx to xyzc order
     chunk = np.transpose(chunk)
-    ctx.obj['output_volume'][chunk.slices] = chunk
+    output_volume[chunk.slices] = chunk
     chunk = np.transpose(chunk)
-    yield chunk 
+    yield chunk
 
 
 if __name__ == '__main__':

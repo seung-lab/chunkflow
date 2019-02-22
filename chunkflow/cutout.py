@@ -7,8 +7,8 @@ from .igneous.downsample import downsample_with_averaging
 from .lib.offset_array import OffsetArray
 
 
-def cutout(chunk_slices, volume_path, output_bbox, 
-           mip=0, 
+def cutout(output_bbox, volume_path,  
+           mip=0,
            expand_margin_size=(0,0,0),
            show_progress=True, 
            fill_missing=False, validate_mip=None):
