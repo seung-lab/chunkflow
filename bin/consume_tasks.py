@@ -8,23 +8,20 @@ import json
 from cloudvolume import CloudVolume, Storage
 from cloudvolume.lib import Vec, Bbox
 
-from .lib.validate import validate_by_template_matching
-from .igneous.tasks import downsample_and_upload
-from .igneous.downsample import downsample_with_averaging
-from .lib.offset_array import OffsetArray
-from .aws.cloud_watch import CloudWatch
-
-
-from chunkflow.flow import InferenceExecutor
-from chunkflow.execute import execute
+from chunkflow.lib.validate import validate_by_template_matching
+from chunkflow.igneous.tasks import downsample_and_upload
+from chunkflow.igneous.downsample import downsample_with_averaging
+from chunkflow.lib.offset_array import OffsetArray
+from chunkflow.aws.cloud_watch import CloudWatch
 from chunkflow.aws.sqs_queue import SQSQueue
 
 # import processor functions
 from chunkflow.cutout import cutout
-from chunkflow.inference import prepare_inference_engine, inference
+from chunkflow.inference import prepare_block_inference_engine, inference
+from chunkflow.create_thumbnail import create_thumbnail
+from chunkflow.mask import mask
 
-
-@click.group(chain=True, invoke_without_command=True)
+@click.group(chain=True)
 @click.option('--mip', type=int, default=0, help='default mip level for all operations.')
 @click.option('--show-progress/--not-show-progress', default=False,
               help='show progress bar or not. default is not. ' + 
@@ -100,7 +97,7 @@ def copy_filename(new, old):
 @click.pass_context 
 @generator 
 def create_task_cmd(cxt, queue_name, offset, shape, visibility_timeout):
-    """Create task or fetch task from queue"""
+    """Create task or fetch task from queue."""
     if not queue_name:
         # no queue name specified
         # will only run one task
@@ -121,7 +118,7 @@ def create_task_cmd(cxt, queue_name, offset, shape, visibility_timeout):
 @click.pass_context
 @processor
 def delete_task_cmd(cxt):
-    """Delete the task in queue"""
+    """Delete the task in queue."""
     queue = cxt.obj['queue']
     task_handle = cxt.obj['task_handle']
     queue.delete(task_handle)
@@ -134,7 +131,7 @@ def delete_task_cmd(cxt):
 @click.pass_context
 @processor
 def cutout_cmd(cxt, bbox, volume_path, fill_missing, validate_mip):
-    """Cutout chunk from volume"""
+    """Cutout chunk from volume."""
     cutout(bbox, volume_path, mip=ctx.obj['mip'], show_progress=cxt.obj['show_progress'], 
            fill_missing=cxt.obj['fill_missing'], validate_mip=validate_mip)
 
@@ -157,9 +154,7 @@ def cutout_cmd(cxt, bbox, volume_path, fill_missing, validate_mip):
 def inference_cmd(ctx, chunk, convnet_model, convnet_weight_path, patch_size,
               patch_overlap, output_key, original_num_output_channels,
               num_output_channels, framework):
-    """
-    perform convolutional network inference for chunks
-    """
+    """Perform convolutional network inference for chunks."""
     if 'block_inference_engine' not in ctx.obj:
         ctx.obj['block_inference_engine'] = prepare_inference_engine(
             convnet_model, convnet_weight_path, 
@@ -175,6 +170,7 @@ def inference_cmd(ctx, chunk, convnet_model, convnet_weight_path, patch_size,
 @click.pass_context 
 @processor 
 def save_cmd(ctx, chunk, volume_path):
+    """Save chunk to volume."""
     if 'output_volume' not in ctx.obj['output_volume']:
         ctx.obj['output_volume'] = CloudVolume(
             volume_path,
@@ -183,6 +179,53 @@ def save_cmd(ctx, chunk, volume_path):
             autocrop=True,
             mip=ctx.obj['mip'],
             progress=ctx.obj['show_progress'])
+    
+    # transpose czyx to xyzc order
+    chunk = np.transpose(chunk)
+    ctx.obj['output_volume'][chunk.slices] = chunk
+    chunk = np.transpose(chunk)
+    yield chunk 
+
+
+@cli.command('create-thumbnail')
+@click.option('--volume-path', type=str, required=True, help='thumbnail volume path')
+@click.pass_context 
+@processor 
+def create_thumbnail_cmd(ctx, chunk, volume_path):
+    """create quantized thumbnail layer for visualization."""
+    chunk_mip = ctx.obj['mip']
+    if 'thumbnail_volume' not in ctx.obj['thumbnail_volume']:
+        ctx.obj['thumbnail_volume'] = CloudVolume(
+            volume_path,
+            compress='gzip',
+            fill_missing=True,
+            bounded=False,
+            autocrop=True,
+            mip=chunk_mip,
+            progress=ctx.obj['show_progress'])
+    create_thumbnail(chunk, ctx.obj['thumbnail_volume'], chunk_mip)
+
+
+@cli.command('mask')
+@click.option('--volume-path', type=str, required=True, help='mask volume path')
+@click.option('--mask-mip', type=int, default=5, help='mip level of mask')
+@click.option('--inverse/--no-inverse', default=True, 
+              help='inverse the mask or not. default is True. ' + 
+              'the mask will be multiplied to chunk.')
+@click.option('--fill_missing/--no-fill_missing', default=False, 
+              help='fill missing blocks with black or not. ' + 
+              'default is False.')
+@click.pass_context
+@processor
+def mask_cmd(ctx, chunk, volume_path, mask_mip, inverse, fill_missing):
+    """Mask the chunk. The mask could be in higher mip level and we
+    will automatically upsample it to the same mip level with chunk.
+    """
+    yield mask(chunk, volume_path, mask_mip, inverse, 
+               ctx.obj['chunk_mip'],
+               fill_missing=fill_missing, 
+               show_progress=ctx.obj['show_progress']) 
+
 
 if __name__ == '__main__':
     cli(obj={})

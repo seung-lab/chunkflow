@@ -1,6 +1,6 @@
 
 
-def prepare_inference_engine(convnet_model, convnet_weight_path, 
+def prepare_block_inference_engine(convnet_model, convnet_weight_path, 
                              patch_size=(20, 256, 256), output_key='affinity',
                              num_output_channels=3,
                              original_num_output_channels=3,
@@ -16,16 +16,16 @@ def prepare_inference_engine(convnet_model, convnet_weight_path,
         log['compute_device'] = platform.processor() 
 
     # prepare for inference
-    from .inference.block_inference_engine \
+    from .block_inference.block_inference_engine \
         import BlockInferenceEngine
     if framework == 'pznet':
         _log_cpu_device()
-        from .inference.frameworks.pznet_patch_inference_engine \
+        from .block_inference.frameworks.pznet_patch_inference_engine \
             import PZNetPatchInferenceEngine
         patch_engine = PZNetPatchInferenceEngine(convnet_model, convnet_weight_path)
     elif framework == 'pytorch':
         _log_gpu_device()
-        from .inference.frameworks.pytorch_patch_inference_engine \
+        from .block_inference.frameworks.pytorch_patch_inference_engine \
             import PytorchPatchInferenceEngine
         patch_engine = PytorchPatchInferenceEngine(
             convnet_model,
@@ -35,7 +35,7 @@ def prepare_inference_engine(convnet_model, convnet_weight_path,
             num_output_channels=num_output_channels)
     elif framework == 'pytorch-multitask':
         _log_gpu_device()
-        from .inference.frameworks.pytorch_multitask_patch_inference \
+        from .block_inference.frameworks.pytorch_multitask_patch_inference \
             import PytorchMultitaskPatchInferenceEngine
         patch_engine = PytorchMultitaskPatchInferenceEngine(
             convnet_model,
@@ -47,7 +47,7 @@ def prepare_inference_engine(convnet_model, convnet_weight_path,
             num_output_channels=num_output_channels)
     elif framework == 'identity':
         _log_cpu_device()
-        from .inference.frameworks.identity_patch_inference_engine \
+        from .block_inference.frameworks.identity_patch_inference_engine \
             import IdentityPatchInferenceEngine
         patch_engine = IdentityPatchInferenceEngine(num_output_channels=3)
     else:
