@@ -1,12 +1,14 @@
 
 
-def prepare_block_inference_engine(convnet_model, convnet_weight_path, 
-                             patch_size=(20, 256, 256), output_key='affinity',
-                             num_output_channels=3,
-                             original_num_output_channels=3,
-                             patch_overlap=(4, 64, 64),
-                             is_masked_in_device=False,
-                             framework='identity', log={}):
+def inference(
+        chunk, convnet_model, convnet_weight_path, 
+        patch_size=(20, 256, 256), output_key='affinity',
+        num_output_channels=3,
+        original_num_output_channels=3,
+        patch_overlap=(4, 64, 64),
+        is_masked_in_device=False,
+        framework='identity', log={},
+        show_progress=False):
     def _log_gpu_device():
         import torch 
         log['compute_device'] = torch.cuda.get_device_name(0)
@@ -59,9 +61,7 @@ def prepare_block_inference_engine(convnet_model, convnet_weight_path,
         patch_overlap=patch_overlap,
         output_key=output_key,
         num_output_channels=num_output_channels,
-        is_masked_in_device=is_masked_in_device)
-    return block_inference_engine
+        is_masked_in_device=is_masked_in_device,
+        show_progress=show_progress)
 
-
-def inference(chunk, block_inference_engine):
     return block_inference_engine(chunk)

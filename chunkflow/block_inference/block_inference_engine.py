@@ -23,7 +23,8 @@ class BlockInferenceEngine(object):
     """
     def __init__(self, patch_inference_engine, patch_size, patch_overlap,
                  output_key='affinity', num_output_channels=3, 
-                 is_masked_in_device=False, is_padding=False, show_progress=False):
+                 is_masked_in_device=False, is_padding=False, 
+                 show_progress=False):
         """
         params:
             inference_engine, patch_size, input_chunk, output_key, patch_stride

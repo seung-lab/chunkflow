@@ -15,7 +15,7 @@ class OffsetArray(np.ndarray):
     """
 
     def __new__(cls, array, global_offset=None):
-        if not global_offset:
+        if global_offset is None:
             global_offset = np.zeros(array.ndim, dtype=np.int)
         assert isinstance(array, np.ndarray)
         assert array.ndim == len(global_offset)
@@ -34,8 +34,8 @@ class OffsetArray(np.ndarray):
 
     @property
     def slices(self):
-        return tuple(
-            slice(o, o + s) for o, s in zip(self.global_offset, self.shape))
+        return tuple(slice(o, o + s) for o, s in 
+                     zip(self.global_offset, self.shape))
 
     def where(self, mask):
         """
@@ -45,7 +45,8 @@ class OffsetArray(np.ndarray):
         """
         isinstance(mask, np.ndarray)
         assert mask.shape == self.shape
-        return tuple(i + o for i, o in zip(np.where(mask), self.global_offset))
+        return tuple(i + o for i, o in 
+                     zip(np.where(mask), self.global_offset))
 
     def add_overlap(self, other):
         assert isinstance(other, OffsetArray)
