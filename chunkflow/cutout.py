@@ -7,8 +7,14 @@ from .igneous.downsample import downsample_with_averaging
 from .lib.offset_array import OffsetArray
 
 
-def cutout(bbox, volume_path, mip=0, show_progress=True, 
+def cutout(chunk_slices, volume_path, output_bbox, 
+           mip=0, 
+           expand_margin_size=(0,0,0),
+           show_progress=True, 
            fill_missing=False, validate_mip=None):
+    
+    chunk_slices = tuple(slice(s.start - m, s.stop + m) 
+                         for s, m in zip(output_bbox.to_slices(), expand_margin_size))
     vol = CloudVolume(
         volume_path,
         bounded=False,
@@ -16,9 +22,8 @@ def cutout(bbox, volume_path, mip=0, show_progress=True,
         progress=show_progress,
         mip=mip,
         parallel=False)
-    chunk_slices = bbox.to_slices()
     # always reverse the indexes since cloudvolume use x,y,z indexing
-    chunk = vol[bbox.to_slices[::-1]]
+    chunk = vol[chunk_slices[::-1]]
     # the cutout is fortran ordered, so need to transpose and make it C order
     chunk = np.transpose(chunk)
     chunk = np.ascontiguousarray(chunk)
