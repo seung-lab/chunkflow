@@ -27,19 +27,13 @@ from chunkflow.mask import mask
               help='show progress bar or not. default is not. ' + 
               'The progress bar should be disabled since google cloud' + 
               'logging will pop out a lot of messages.')
-@click.option('--fill-missing/--no-fill-missing', default=False,
-              help='fill the missing chunks in input volume with zeros ' + 
-              'or not, default is false')
 @click.pass_context
 def cli(ctx, mip, show_progress, fill_missing):
     """This script processes a chunk in a pipe. 
     One command feeds into the next.
+    
     The design is mimicking the click example here:
     https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
-
-    Example:
-    \b
-        chunkflow create-task -q chunkflow cutout --volume-path path/of/image inference --convnet-model name/of/model --convnent-weight-path path/of/weight/file save --volume-path delete-task
     """
     ctx.ensure_object(dict)
     ctx.obj['mip'] = mip
@@ -96,7 +90,7 @@ def copy_filename(new, old):
               help='visibility timeout of sqs queue; default is using the timeout of the queue.')
 @click.pass_context 
 @generator 
-def create_task_cmd(cxt, queue_name, offset, shape, visibility_timeout):
+def create_task_cmd(ctx, queue_name, offset, shape, visibility_timeout):
     """Create task or fetch task from queue."""
     if not queue_name:
         # no queue name specified
@@ -105,35 +99,38 @@ def create_task_cmd(cxt, queue_name, offset, shape, visibility_timeout):
         yield Bbox.from_list([*offset, *stop])
     else:
         queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
-        cxt.obj['queue'] = queue
+        ctx.obj['queue'] = queue
         for task_handle, task in queue:
             print('get task: ', task)
             bbox = Bbox.from_filename(task)
             # record the task handle to delete after the processing
-            cxt.obj['task_handle'] = task_handle
+            ctx.obj['task_handle'] = task_handle
             yield bbox
 
 
 @cli.command('delete-task')
 @click.pass_context
 @processor
-def delete_task_cmd(cxt):
+def delete_task_cmd(ctx):
     """Delete the task in queue."""
-    queue = cxt.obj['queue']
-    task_handle = cxt.obj['task_handle']
+    queue = ctx.obj['queue']
+    task_handle = ctx.obj['task_handle']
     queue.delete(task_handle)
 
 
 @cli.command('cutout')
 @click.option(
     '--volume-path', type=str, required=True, help='volume path')
+@click.option('--fill-missing/--no-fill-missing', default=False,
+              help='fill the missing chunks in input volume with zeros ' + 
+              'or not, default is false')
 @click.option('--validate-mip', type=int, default=None, help='validate chunk using higher mip level')
 @click.pass_context
 @processor
-def cutout_cmd(cxt, bbox, volume_path, fill_missing, validate_mip):
+def cutout_cmd(ctx, bbox, volume_path, fill_missing, validate_mip):
     """Cutout chunk from volume."""
-    cutout(bbox, volume_path, mip=ctx.obj['mip'], show_progress=cxt.obj['show_progress'], 
-           fill_missing=cxt.obj['fill_missing'], validate_mip=validate_mip)
+    cutout(bbox, volume_path, mip=ctx.obj['mip'], show_progress=ctx.obj['show_progress'], 
+           fill_missing=fill_missing, validate_mip=validate_mip)
 
 
 @cli.command('inference')
