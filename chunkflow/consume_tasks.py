@@ -146,7 +146,7 @@ def cutout_cmd(tasks, volume_path, expand_margin_size, fill_missing, validate_mi
               ' final output channels, such as other neighboring edges in affinity map to enhance ' +
               'net generalization capability.')
 @click.option('--num-output-channels', type=int, default=3, help='number of output channels')
-@click.option('--framework', type=click.Choice(['pznet', 'pytorch', 'pytorch-multitask']), 
+@click.option('--framework', type=click.Choice(['identity', 'pznet', 'pytorch', 'pytorch-multitask']), 
               default='pytorch-multitask', help='inference framework')
 @processor
 def inference_cmd(tasks, convnet_model, convnet_weight_path, patch_size,
