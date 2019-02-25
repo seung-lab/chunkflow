@@ -16,7 +16,7 @@ before_script:
 
 script:
 - cd chunkflow
-- coverage run -m unittest 
+- coverage run --source=chunkflow -m unittest 
 
 after_success:
 - coveralls 
