@@ -14,10 +14,10 @@ class TestOffsetArray(unittest.TestCase):
             np.all(chunk == np.ones((3, 3, 3), dtype='float32') * 0.5))
 
     def test_slices(self):
-        arr = np.ones((3, 3, 3), dtype='float32')
-        chunk = OffsetArray(arr, (-1, -1, -1))
+        arr = np.ones((1, 3, 3, 3), dtype='float32')
+        chunk = OffsetArray(arr, (0, -1, -1, -1))
         self.assertEqual(chunk.slices,
-                         (slice(-1, 2), slice(-1, 2), slice(-1, 2)))
+                         (slice(0,1), slice(-1, 2), slice(-1, 2), slice(-1, 2)))
 
     def test_where(self):
         arr = np.asarray([0.1, 0.7])

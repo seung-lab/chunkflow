@@ -14,8 +14,10 @@ class OffsetArray(np.ndarray):
     [https://docs.scipy.org/doc/numpy/user/basics.subclassing.html]
     """
 
-    def __new__(cls, array, global_offset=(0, 0, 0)):
-        isinstance(array, np.ndarray)
+    def __new__(cls, array, global_offset=None):
+        if global_offset is None:
+            global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
+        assert isinstance(array, np.ndarray)
         assert array.ndim == len(global_offset)
         obj = np.asarray(array).view(cls)
         obj.global_offset = global_offset
@@ -32,8 +34,8 @@ class OffsetArray(np.ndarray):
 
     @property
     def slices(self):
-        return tuple(
-            slice(o, o + s) for o, s in zip(self.global_offset, self.shape))
+        return tuple(slice(o, o + s) for o, s in 
+                     zip(self.global_offset, self.shape))
 
     def where(self, mask):
         """
@@ -43,7 +45,8 @@ class OffsetArray(np.ndarray):
         """
         isinstance(mask, np.ndarray)
         assert mask.shape == self.shape
-        return tuple(i + o for i, o in zip(np.where(mask), self.global_offset))
+        return tuple(i + o for i, o in 
+                     zip(np.where(mask), self.global_offset))
 
     def add_overlap(self, other):
         assert isinstance(other, OffsetArray)
