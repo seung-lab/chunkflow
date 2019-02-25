@@ -1,26 +1,38 @@
 import numpy as np
+from warnings import warn
+
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
+from .lib.offset_array import OffsetArray
 
 
-def mask(chunk, volume_path, mask_mip, inverse, chunk_mip, 
-         fill_missing=False, verbose=True):
-    chunk_bbox = Bbox.from_slices(chunk.slices)
+def mask(chunk, volume_path, mask_mip, chunk_mip, 
+         inverse=False, fill_missing=False, verbose=True):
+    global_offset = chunk.global_offset
+    chunk_bbox = Bbox.from_slices(chunk.slices[-3:])
     mask_in_high_mip = _read_mask(volume_path, mask_mip, chunk_mip,
-                                 chunk_bbox, inverse=inverse, 
+                                 chunk_bbox,  
                                  fill_missing=fill_missing, verbose=verbose)
+    # this is a cloudvolume VolumeCutout rather than a normal numpy array
+    # which will make np.alltrue(mask_in_high_mip == 0) to be VolumeCutout(False) 
+    # rather than False
+    mask_in_high_mip = np.asarray(mask_in_high_mip)
+    if inverse:
+        mask_in_high_mip = (mask_in_high_mip==0)
+
     if np.alltrue(mask_in_high_mip == 0):
-        print('the mask is all black, mask all the voxels directly')
-        chunk = 0
-        return chunk 
+        warn('the mask is all black, mask all the voxels directly')
+        np.multiply(chunk, 0, out=chunk)
+        return OffsetArray(chunk, global_offset=global_offset)
     if np.all(mask_in_high_mip):
-        print("mask elements are all positive, return directly")
+        warn("mask elements are all positive, return directly")
         return chunk
     if np.alltrue(chunk==0):
-        print("chunk is all black, return directly")
+        warn("chunk is all black, return directly")
         return chunk
-
-    # print("perform masking ...")
+    
+    if verbose:
+        print("mask chunk using {} at mip {}".format(volume_path, mask_mip))
     assert np.any(mask_in_high_mip)
     
     # make it the same type with input 
@@ -44,19 +56,20 @@ def mask(chunk, volume_path, mask_mip, inverse, chunk_mip,
                         out=chunk[channel, :, :, :])
     else:
         raise ValueError('invalid chunk or mask dimension.')
-    return chunk
+    return OffsetArray(chunk, global_offset=global_offset)
 
 def _read_mask(mask_volume_path, mask_mip, chunk_mip, chunk_bbox, 
-               inverse=True, fill_missing=False, verbose=True):
+               fill_missing=False, verbose=True):
     """
     chunk_bbox: the bounding box of the chunk in lower mip level
-    inverse_mask: (bool) whether inverse the mask or not
     """
     if not mask_volume_path:
         print('no mask layer path defined')
         return None
     
     # print("download mask chunk...")
+    # make sure that the slices only contains zyx without channel
+    chunk_slices = chunk_bbox.to_slices()[-3:]
     vol = CloudVolume(
         mask_volume_path,
         bounded=False,
@@ -68,15 +81,13 @@ def _read_mask(mask_volume_path, mask_mip, chunk_mip, chunk_bbox,
     # only scale the indices in XY plane
     mask_slices = tuple(
         slice(a.start // xyfactor, a.stop // xyfactor)
-        for a in chunk_bbox.to_slices()[1:3])
-    mask_slices = (chunk_bbox.to_slices()[0], ) + mask_slices
+        for a in chunk_slices[1:3])
+    mask_slices = (chunk_slices[0], ) + mask_slices
 
     # the slices did not contain the channel dimension 
     mask = vol[mask_slices[::-1]]
     mask = np.transpose(mask)
     mask = np.squeeze(mask, axis=0)
     
-    if inverse:
-        mask = (mask==0)
     return mask
 

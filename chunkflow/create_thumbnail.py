@@ -23,13 +23,13 @@ def create_thumbnail(chunk, thumbnail_volume_path, chunk_mip,
     # only use the last channel, it is the Z affinity
     # if this is affinitymap
     image = chunk[-1, :, :, :]
-    if np.issubdtype(image.dtype, np.float):
+    if np.issubdtype(image.dtype, np.floating):
         image = (image * 255).astype(np.uint8)
 
     # transpose to xyzc
     image = np.transpose(image)
     image_bbox = Bbox.from_slices(chunk.slices[::-1][:3])
-
+    
     downsample_and_upload(
         image,
         image_bbox,

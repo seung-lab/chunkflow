@@ -3,5 +3,13 @@
 *__pycache__/*
 *.swp
 *.dat
+.coverage
+dist/
+bin/
 jwu
-
+*.egg-info/
+.ipynb_checkpoints/
+.vscode/
+docker/inference/build_docker.sh
+docker/inference/pytorch-emvision/
+docker/inference/pytorch-model/

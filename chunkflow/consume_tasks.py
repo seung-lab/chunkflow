@@ -201,7 +201,7 @@ def create_thumbnail_cmd(tasks, volume_path):
 @cli.command('mask')
 @click.option('--volume-path', type=str, required=True, help='mask volume path')
 @click.option('--mask-mip', type=int, default=5, help='mip level of mask')
-@click.option('--inverse/--no-inverse', default=True, 
+@click.option('--inverse/--no-inverse', default=False, 
               help='inverse the mask or not. default is True. ' + 
               'the mask will be multiplied to chunk.')
 @click.option('--fill-missing/--no-fill-missing', default=False, 
@@ -215,8 +215,9 @@ def mask_cmd(tasks, volume_path, mask_mip, inverse, fill_missing):
     for task in tasks:
         start = time()
         task['chunk'] = mask(task['chunk'], 
-                             volume_path, mask_mip, inverse, 
-                             task['mip'], fill_missing=fill_missing, 
+                             volume_path, mask_mip, task['mip'], 
+                             fill_missing=fill_missing, 
+                             inverse=inverse,
                              verbose=task['verbose'])
         # Note that mask operation could be used several times, 
         # this will only record the last masking operation 
