@@ -14,8 +14,9 @@ before_script:
 - pip install coveralls
 
 script:
-- coverage run --source chunkflow -m unittest 
-- 
+- cd chunkflow
+- coverage run -m unittest 
+
 after_success:
 - coveralls 
 
