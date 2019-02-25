@@ -37,3 +37,6 @@ we can simply set an environment variable to use specific GPU device.
 
 `CUDA_VISIBLE_DEVICES=2 python consume_tasks.py `
 
+# Development
+# Create a new release in PyPi 
+refer to [lasio documentation](https://github.com/kinverarity1/lasio/wiki/Creating-a-new-release-(GitHub-and-PyPi)).
