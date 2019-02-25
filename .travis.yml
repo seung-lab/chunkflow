@@ -5,13 +5,19 @@ python:
 - '3.7-dev'
 
 install:
-- pip install --upgrade pip 
+- pip install --upgrade pip
 - pip install numpy==1.16
 - pip install fpzip
-- pip install -r requirements.txt; 
+- pip install -e . --use-mirrors 
+
+before_script:
+- pip install coveralls
 
 script:
-- python3 -m unittest 
+- coverage run --source chunkflow -m unittest 
+- 
+after_success:
+- coveralls 
 
 matrix:
   allow_failures:

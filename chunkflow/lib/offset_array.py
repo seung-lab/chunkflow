@@ -16,7 +16,7 @@ class OffsetArray(np.ndarray):
 
     def __new__(cls, array, global_offset=None):
         if global_offset is None:
-            global_offset = np.zeros(array.ndim, dtype=np.int)
+            global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
         assert isinstance(array, np.ndarray)
         assert array.ndim == len(global_offset)
         obj = np.asarray(array).view(cls)
