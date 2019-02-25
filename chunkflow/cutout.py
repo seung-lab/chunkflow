@@ -8,18 +8,19 @@ from .lib.offset_array import OffsetArray
 
 
 def cutout(output_bbox, volume_path,  
-           mip=0,
-           expand_margin_size=(0,0,0),
-           show_progress=True, 
-           fill_missing=False, validate_mip=None):
+           mip=0, expand_margin_size=(0,0,0),
+           verbose=True, fill_missing=False, validate_mip=None):
     
     chunk_slices = tuple(slice(s.start - m, s.stop + m) 
                          for s, m in zip(output_bbox.to_slices(), expand_margin_size))
+    if verbose:
+        print('cutout {} from {}'.format(chunk_slices[::-1], volume_path))
+
     vol = CloudVolume(
         volume_path,
         bounded=False,
         fill_missing=fill_missing,
-        progress=show_progress,
+        progress=verbose,
         mip=mip,
         parallel=False)
     # always reverse the indexes since cloudvolume use x,y,z indexing
@@ -37,18 +38,20 @@ def cutout(output_bbox, volume_path,
     chunk = OffsetArray(chunk, global_offset=global_offset)
    
     if validate_mip:
-        print('validate chunk in mip {}'.format(validate_mip))
-        _validate_chunk(chunk, vol, volume_path, chunk_mip=mip, validate_mip=validate_mip,
-                        fill_missing=fill_missing, show_progress=show_progress)
+        _validate_chunk(chunk, vol, volume_path, chunk_mip=mip, 
+                        validate_mip=validate_mip,
+                        fill_missing=fill_missing, verbose=verbose)
     return chunk
 
 def _validate_chunk(chunk, vol, volume_path, chunk_mip=0, validate_mip=5,
-                    fill_missing=False, show_progress=True):
+                    fill_missing=False, verbose=True):
     """
     check that all the input voxels was downloaded without black region  
     We have found some black regions in previous inference run, 
     so hopefully this will solve the problem.
     """
+    if verbose:
+        print('validate chunk in mip {}'.format(validate_mip))
     assert validate_mip >= chunk_mip
     # only use the region corresponds to higher mip level
     # clamp the surrounding regions in XY plane

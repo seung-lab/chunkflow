@@ -3,7 +3,10 @@ from cloudvolume import Storage
 from .aws.cloud_watch import CloudWatch
 
 
-def upload_log(log_path, log, output_bbox):
+def upload_log(log_path, log, output_bbox, verbose=True):
+    if verbose:
+        print('save log {} to {}'.format(output_bbox.to_filename, log_path))
+
     # write to aws cloud watch
     aws_cloud_watch = CloudWatch('inference')
     aws_cloud_watch.put_metric_data(log)

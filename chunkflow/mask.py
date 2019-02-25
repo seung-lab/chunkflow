@@ -4,11 +4,11 @@ from cloudvolume.lib import Bbox
 
 
 def mask(chunk, volume_path, mask_mip, inverse, chunk_mip, 
-         fill_missing=False, show_progress=False):
+         fill_missing=False, verbose=True):
     chunk_bbox = Bbox.from_slices(chunk.slices)
-    mask_in_high_mip= _read_mask(volume_path, mask_mip, chunk_mip,
+    mask_in_high_mip = _read_mask(volume_path, mask_mip, chunk_mip,
                                  chunk_bbox, inverse=inverse, 
-                                 fill_missing=False, show_progress=False)
+                                 fill_missing=fill_missing, verbose=verbose)
     if np.alltrue(mask_in_high_mip == 0):
         print('the mask is all black, mask all the voxels directly')
         chunk = 0
@@ -25,8 +25,9 @@ def mask(chunk, volume_path, mask_mip, inverse, chunk_mip,
     
     # make it the same type with input 
     mask_in_high_mip = mask_in_high_mip.astype(chunk.dtype)
-    
-    print("upsampling mask ...")
+   
+    if verbose:
+        print("upsampling mask ...")
     # upsampling factor in XY plane
     mask = np.zeros(chunk.shape[-3:], dtype=chunk.dtype)
     xyfactor = 2**(mask_mip - chunk_mip)
@@ -43,9 +44,10 @@ def mask(chunk, volume_path, mask_mip, inverse, chunk_mip,
                         out=chunk[channel, :, :, :])
     else:
         raise ValueError('invalid chunk or mask dimension.')
+    return chunk
 
 def _read_mask(mask_volume_path, mask_mip, chunk_mip, chunk_bbox, 
-               inverse=True, fill_missing=False, show_progress=False):
+               inverse=True, fill_missing=False, verbose=True):
     """
     chunk_bbox: the bounding box of the chunk in lower mip level
     inverse_mask: (bool) whether inverse the mask or not
@@ -59,15 +61,15 @@ def _read_mask(mask_volume_path, mask_mip, chunk_mip, chunk_bbox,
         mask_volume_path,
         bounded=False,
         fill_missing=fill_missing,
-        progress=show_progress,
+        progress=verbose,
         mip=mask_mip)
     # assume that input mip is the same with output mip
     xyfactor = 2**(mask_mip - chunk_mip)
     # only scale the indices in XY plane
     mask_slices = tuple(
         slice(a.start // xyfactor, a.stop // xyfactor)
-        for a in bbox.to_slices()[1:3])
-    mask_slices = (bbox.to_slices()[0], ) + mask_slices
+        for a in chunk_bbox.to_slices()[1:3])
+    mask_slices = (chunk_bbox.to_slices()[0], ) + mask_slices
 
     # the slices did not contain the channel dimension 
     mask = vol[mask_slices[::-1]]

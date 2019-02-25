@@ -2,6 +2,7 @@
 import os
 import click
 from functools import update_wrapper
+from time import time
 import numpy as np
 from cloudvolume.lib import Bbox
 
@@ -12,6 +13,7 @@ from chunkflow.cutout import cutout
 from chunkflow.inference import inference
 from chunkflow.create_thumbnail import create_thumbnail
 from chunkflow.mask import mask
+from chunkflow.crop_margin import crop_margin
 from chunkflow.save import save
 from chunkflow.upload_log import upload_log 
 
@@ -68,30 +70,28 @@ def generator(f):
 
 
 @cli.command('generate-task')
-@click.option('--mip', type=int, default=0, help='default mip level for all operations.')
-@click.option('--show-progress/--not-show-progress', default=False,
-              help='show progress bar or not. default is not. ' + 
-              'The progress bar should be disabled since google cloud' + 
-              'logging will pop out a lot of messages.')
 @click.option('--queue-name', type=str, default=None, help='sqs queue name')
 @click.option('--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
 @click.option('--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
 @click.option('--visibility-timeout', type=int, default=None,
               help='visibility timeout of sqs queue; default is using the timeout of the queue.')
+@click.option('--verbose/--quiet', default=True, help='default is quiet. ' + 
+              'This option will be used in other operations.') 
 @generator 
-def generate_task_cmd(mip, show_progress, queue_name, offset, shape, visibility_timeout):
+def generate_task_cmd(queue_name, offset, shape, visibility_timeout, verbose):
     """Create task or fetch task from queue."""
     task = {
-        'mip': mip,
-        'show_progress': show_progress
+        'verbose': verbose,
+        'log': {'timer': {}}
     }
     if not queue_name:
         # no queue name specified
         # will only run one task
         stop = np.asarray(offset) + np.asarray(shape)
         output_bbox = Bbox.from_list([*offset, *stop])
-        task['output_bbox'] = output_bbox 
-        yield task 
+        task['output_bbox'] = output_bbox
+        task['log']['output_bbox'] = output_bbox.to_filename()
+        yield task
     else:
         queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
         task['queue'] = queue
@@ -101,6 +101,7 @@ def generate_task_cmd(mip, show_progress, queue_name, offset, shape, visibility_
             # record the task handle to delete after the processing
             task['task_handle'] = task_handle
             task['output_bbox'] = output_bbox
+            task['log']['output_bbox'] = output_bbox.to_filename()
             yield task
 
 
@@ -112,10 +113,13 @@ def delete_task_in_queue_cmd(tasks):
         queue = task['queue']
         task_handle = task['task_handle']
         queue.delete(task_handle)
+        if task['verbose']:
+            print('deleted task {} in queue: {}'.format(task_handle, queue))
 
 
 @cli.command('cutout')
 @click.option('--volume-path', type=str, required=True, help='volume path')
+@click.option('--mip', type=int, default=None, help='default mip level for all operations.')
 @click.option('--expand-margin-size', type=int, nargs=3, default=(0,0,0), 
               help='include surrounding regions of output bounding box.')
 @click.option('--fill-missing/--no-fill-missing', default=False,
@@ -123,15 +127,22 @@ def delete_task_in_queue_cmd(tasks):
               'or not, default is false')
 @click.option('--validate-mip', type=int, default=None, help='validate chunk using higher mip level')
 @processor
-def cutout_cmd(tasks, volume_path, expand_margin_size, fill_missing, validate_mip):
+def cutout_cmd(tasks, volume_path, mip, expand_margin_size, fill_missing, validate_mip):
     """Cutout chunk from volume."""
     for task in tasks:
+        if not mip:
+            mip = task['mip']
+        if 'mip' not in task:
+            # set up default mip
+            task['mip'] = mip
+        start = time()
         task['chunk'] = cutout(task['output_bbox'], 
                                volume_path, mip=task['mip'],
                                expand_margin_size=expand_margin_size,
-                               show_progress=task['show_progress'], 
+                               verbose=task['verbose'], 
                                fill_missing=fill_missing, 
                                validate_mip=validate_mip)
+        task['log']['timer']['cutout'] = time() - start
         yield task
 
 
@@ -154,6 +165,7 @@ def inference_cmd(tasks, convnet_model, convnet_weight_path, patch_size,
               num_output_channels, framework):
     """Perform convolutional network inference for chunks."""
     for task in tasks:
+        start = time()
         task['chunk'] = inference(
             task['chunk'],
             convnet_model, convnet_weight_path, 
@@ -161,19 +173,28 @@ def inference_cmd(tasks, convnet_model, convnet_weight_path, patch_size,
             original_num_output_channels=original_num_output_channels, 
             num_output_channels=num_output_channels, 
             framework=framework,
-            show_progress=task['show_progress']
+            log = task['log'],
+            verbose=task['verbose']
         )
+        task['log']['timer']['inference'] = time() - start 
         yield task
 
 
 @cli.command('create-thumbnail')
-@click.option('--volume-path', type=str, required=True, help='thumbnail volume path')
+@click.option('--volume-path', type=str, default=None, help='thumbnail volume path')
 @processor 
 def create_thumbnail_cmd(tasks, volume_path):
-    """create quantized thumbnail layer for visualization."""
+    """create quantized thumbnail layer for visualization. 
+    Note that the float data type will be quantized to uint8.
+    """
     for task in tasks:
+        if not volume_path:
+            volume_path = os.path.join(task['output_volume_path'],
+                                       'thumbnail')
+        start = time()
         create_thumbnail(task['chunk'], volume_path, task['mip'],
-                         show_progress=task['show_progress'])
+                         verbose=task['verbose'])
+        task['log']['timer']['create-thumbnail'] = time() - start
         yield task
 
 
@@ -192,40 +213,33 @@ def mask_cmd(tasks, volume_path, mask_mip, inverse, fill_missing):
     will automatically upsample it to the same mip level with chunk.
     """
     for task in tasks:
+        start = time()
         task['chunk'] = mask(task['chunk'], 
                              volume_path, mask_mip, inverse, 
                              task['mip'], fill_missing=fill_missing, 
-                             show_progress=task['show_progress']) 
+                             verbose=task['verbose'])
+        # Note that mask operation could be used several times, 
+        # this will only record the last masking operation 
+        task['log']['timer']['mask'] = time() - start
         yield task
 
 
 @cli.command('crop-margin')
 @click.option('--margin-size', type=int, nargs=3, default=None,
-              help='crop the chunk margin.')
+              help='crop the chunk margin. ' + 
+              'The default is None and will use the output_bbox ' + 
+              'as croping range.')
 @processor
 def crop_margin_cmd(tasks, margin_size):
     """Crop the margin of chunk."""
     for task in tasks:
-        if not margin_size:
-            print('automatically crop the chunk to output bounding box.')
-            task['chunk'] = task['chunk'].cutout(
-                task['output_bbox'].to_slices())
-            yield task
-        else:
-            chunk = task['chunk']
-            if chunk.ndim==3:
-                chunk = chunk[margin_size[0]:chunk.shape[1]-margin_size[0],
-                              margin_size[1]:chunk.shape[2]-margin_size[1],
-                              margin_size[2]:chunk.shape[3]-margin_size[2]]
-            elif chunk.ndim==4:
-                chunk = chunk[:, 
-                              margin_size[0]:chunk.shape[1]-margin_size[0],
-                              margin_size[1]:chunk.shape[2]-margin_size[1],
-                              margin_size[2]:chunk.shape[3]-margin_size[2]]
-            else:
-                raise ValueError('the array dimension can only by 3 or 4.')
-            task['chunk'] = chunk
-            yield task
+        start = time()
+        task['chunk'] = crop_margin(task['chunk'], 
+                                    output_bbox=task['output_bbox'],
+                                    margin_size=margin_size, 
+                                    verbose=task['verbose'])
+        task['log']['timer']['crop-margin'] = time() - start
+        yield task
 
 
 @cli.command('save')
@@ -234,9 +248,11 @@ def crop_margin_cmd(tasks, margin_size):
 def save_cmd(tasks, volume_path):
     """Save chunk to volume."""
     for task in tasks:
+        start = time()
         save(task['chunk'], volume_path, task['mip'], 
-             show_progress=task['show_progress'])
-        task['output_volume_path'] = volume_path 
+             verbose=task['verbose'])
+        task['output_volume_path'] = volume_path
+        task['log']['timer']['save'] = time() - start
         yield task
 
 
@@ -249,8 +265,8 @@ def upload_log_cmd(tasks, log_path):
         if not log_path:
             print('put logs inside output path.')
             log_path = os.path.join(task['output_volume_path'], 'log')
-
-        upload_log(log_path, task['log'], task['output_bbox'])
+        upload_log(log_path, task['log'], task['output_bbox'],
+                   verbose=task['verbose'])
         yield task
 
 

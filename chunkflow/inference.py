@@ -8,7 +8,9 @@ def inference(
         patch_overlap=(4, 64, 64),
         is_masked_in_device=False,
         framework='identity', log={},
-        show_progress=False):
+        verbose=True):
+    print('run convnet inference using framework of {}'.format(framework))
+
     def _log_gpu_device():
         import torch 
         log['compute_device'] = torch.cuda.get_device_name(0)
@@ -62,6 +64,6 @@ def inference(
         output_key=output_key,
         num_output_channels=num_output_channels,
         is_masked_in_device=is_masked_in_device,
-        show_progress=show_progress)
+        verbose=verbose)
 
     return block_inference_engine(chunk)

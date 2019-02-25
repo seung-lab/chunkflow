@@ -16,7 +16,7 @@ class CloudWatch:
         assert isinstance(log, dict)
         # create metric data
         metric_data = []
-        for key, value in log['time_elapsed'].items():
+        for key, value in log['timer'].items():
             metric_data.append(
                 {
                     'MetricName': key,
