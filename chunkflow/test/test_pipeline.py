@@ -3,7 +3,7 @@ from cloudvolume import CloudVolume
 import numpy as np
 #from cloudvolume.volumecutout import VolumeCutout
 from cloudvolume.lib import generate_random_string, Bbox
-import os, shutil
+import os
 
 from chunkflow.cutout import cutout
 from chunkflow.inference import inference
@@ -124,21 +124,21 @@ class TestInferencePipeline(unittest.TestCase):
         
         # check that the masked region are all zero
         # input mask validation
-        assert np.alltrue(out[:2, :8, :8]==0)
+        self.assertTrue( np.alltrue(out[:2, :8, :8]==0) )
         # output mask validation 
-        assert np.alltrue(out[-2: -8:, -8:]==0)
+        self.assertTrue( np.alltrue(out[-2: -8:, -8:]==0) )
 
         # ignore the masked part of output 
         img = img[2:-2, 8:-8, 8:-8]
         out = out[2:-2, 8:-8, 8:-8]
         # the value can only be close since there is mask error
-        assert np.alltrue(np.isclose(img, out, atol=1))
+        self.assertTrue(np.alltrue(np.isclose(img, out, atol=1)))
         
         # clean up 
-        shutil.rmtree('/tmp/input')
-        shutil.rmtree('/tmp/input-mask')
-        shutil.rmtree('/tmp/output-mask')
-        shutil.rmtree('/tmp/output')
+        os.rmdir('/tmp/input')
+        os.rmdir('/tmp/input-mask')
+        os.rmdir('/tmp/output-mask')
+        os.rmdir('/tmp/output')
 
 
 if __name__ == '__main__':

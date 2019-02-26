@@ -17,20 +17,27 @@ class OffsetArray(np.ndarray):
     def __new__(cls, array, global_offset=None):
         if global_offset is None:
             global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
-        assert isinstance(array, np.ndarray)
         assert array.ndim == len(global_offset)
         obj = np.asarray(array).view(cls)
         obj.global_offset = global_offset
         return obj
+    
+    def __array_finalize__(self, obj):
+        """
+        https://www.numpy.org/devdocs/user/basics.subclassing.html#basics-subclassing
+        """
+        if obj is None:
+            return
+        else:
+            self.global_offset = getattr(
+                obj, 'global_offset',
+                tuple(np.zeros(obj.ndim, dtype=np.int))
+            )
 
     @classmethod
     def from_bbox(cls, array, bbox):
         global_offset = (bbox.minpt.z, bbox.minpt.y, bbox.minpt.x)
         return OffsetArray(array, global_offset=global_offset)
-
-    def __array_finalize__(self, obj):
-        if obj is not None:
-            self.info = getattr(obj, 'global_offset', None)
 
     @property
     def slices(self):
@@ -78,3 +85,7 @@ class OffsetArray(np.ndarray):
         return tuple(
             slice(s.start - o, s.stop - o)
             for s, o in zip(slices, self.global_offset))
+
+#    def __array_wrap__(self, out_arr, context=None):
+#        chunk = super().__array_wrap__(self, out_arr, context)
+#        return OffsetArray(chunk, global_offset=self.global_offset)

@@ -23,8 +23,7 @@ class BlockInferenceEngine(object):
     """
     def __init__(self, patch_inference_engine, patch_size, patch_overlap,
                  output_key='affinity', num_output_channels=3, 
-                 is_masked_in_device=False, is_padding=False, 
-                 verbose=True):
+                 is_masked_in_device=False, verbose=True):
         """
         params:
             inference_engine, patch_size, input_chunk, output_key, patch_stride
@@ -40,7 +39,6 @@ class BlockInferenceEngine(object):
 
         self.patch_mask = PatchMask(patch_size, patch_overlap)
         self.is_masked_in_device = is_masked_in_device
-        self.is_padding = is_padding 
         self.verbose = verbose
 
     def __call__(self, input_chunk, output_buffer=None):
@@ -49,25 +47,14 @@ class BlockInferenceEngine(object):
             input_chunk (OffsetArray): input chunk with global offset
         """
         assert isinstance(input_chunk, OffsetArray)
-        
         if np.all(input_chunk==0):
             print('input is all zero, return zero buffer directly')
             if output_buffer is None:
                 output_buffer = self._create_output_buffer(input_chunk)
             return output_buffer 
         
-        if self.is_padding:
-            self._get_pad_size(input_chunk.shape)
-            global_offset = input_chunk.global_offset 
-            input_chunk = np.pad(input_chunk, ((0, self.pad_size[0]), 
-                                               (0, self.pad_size[1]), 
-                                               (0, self.pad_size[2])), 'reflect')
-            input_chunk = OffsetArray(input_chunk, global_offset)
-
         if input_chunk.dtype == np.uint8:
-            global_offset = input_chunk.global_offset 
             input_chunk = input_chunk.astype(np.float32) / 255.0
-            input_chunk = OffsetArray(input_chunk, global_offset)
         
         # patches should be aligned within input chunk
         for i, s, o in zip(input_chunk.shape, self.stride, self.patch_overlap):
@@ -116,26 +103,11 @@ class BlockInferenceEngine(object):
                     #print("Elapsed: %3f sec" % (end-start))
                     #start = end
         
-        if self.is_padding:
-            output_buffer = output_buffer[:, :-self.pad_size[0], 
-                                             :-self.pad_size[1],
-                                             :-self.pad_size[2]]
         return output_buffer
 
     def _create_output_buffer(self, input_chunk):
+        assert isinstance(input_chunk, OffsetArray)
         output_buffer = np.zeros((self.num_output_channels,)+input_chunk.shape,
                                  dtype=np.float32)
         return OffsetArray(output_buffer,
                            global_offset=(0,)+input_chunk.global_offset)
-
-    def _get_pad_size(self, input_chunk_shape):
-        """
-            _pad_image(self, input_chunk_shape)
-        pad the image to make it align with patch size and patch overlap 
-        """
-        # patches should be aligned within input chunk
-        pad_size = [s-(i-o)%s for i, s, o in 
-                    zip(input_chunk_shape, self.stride, self.patch_overlap)]
-        # if the padding size is the same with stride, then do not need to pad!
-        self.pad_size = [ p if s!=p else 0 for s, p in zip(self.stride, pad_size)]
-        print('pad size: {}'.format(self.pad_size))

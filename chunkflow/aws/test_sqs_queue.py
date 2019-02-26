@@ -6,7 +6,11 @@ class TestSQSQueue(unittest.TestCase):
     def setUp(self):
         queue_name = 'chunkflow-test'
         print('test sqs queue using queue of {}'.format(queue_name))
-        self.queue = SQSQueue(queue_name, wait_if_empty=None)
+        # use small fetch_wait_time_seconds to make the test faster 
+        # we should use 20 seconds in production run to use long pull
+        # see more details in the class documentation.
+        self.queue = SQSQueue(queue_name, wait_if_empty=None,
+                              fetch_wait_time_seconds=1)
 
     def test_send_and_receive_message_list(self):
         print('start sending messages...')

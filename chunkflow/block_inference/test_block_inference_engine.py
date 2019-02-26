@@ -39,35 +39,6 @@ class TestBlockInferenceEngine(unittest.TestCase):
         # some of the image voxel is 0, the test can only work with rtol=1
         np.testing.assert_allclose(image, output, rtol=1, atol=1e-17)
     
-    def test_non_aligned_input_chunk(self):
-        print('\ntest block inference engine with non aligned input chunk...')
-        patch_engine = IdentityPatchInferenceEngine()
-        patch_overlap = (4, 64, 64)
-        block_inference_engine = BlockInferenceEngine(
-            patch_inference_engine=patch_engine,
-            patch_size=(32, 256, 256),
-            patch_overlap=patch_overlap,
-            num_output_channels=1,
-            is_padding = True
-        )
-
-        image = np.random.rand(28 * 2 + 3, (256 - 64) * 2 + 62,
-                               (256 - 64) * 2 + 60)
-        image = np.asarray(image, dtype=np.float32)
-        image = OffsetArray(image)
-        output = block_inference_engine(image)
-        output = np.reshape(output, image.shape)
-        
-        image = image[patch_overlap[0]:-patch_overlap[0],
-                      patch_overlap[1]:-patch_overlap[1],
-                      patch_overlap[2]:-patch_overlap[2]]
-        output = output[patch_overlap[0]:-patch_overlap[0],
-                        patch_overlap[1]:-patch_overlap[1],
-                        patch_overlap[2]:-patch_overlap[2]]
-
-        # some of the image voxel is 0, the test can only work with rtol=1
-        np.testing.assert_allclose(image, output, rtol=1, atol=1e-17)
-
 
 if __name__ == '__main__':
     # setup debug mode

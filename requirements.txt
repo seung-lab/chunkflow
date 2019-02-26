@@ -4,3 +4,5 @@ click
 scikit-image>=0.14.1
 six
 boto3
+h5py
+tifffile

@@ -5,23 +5,33 @@ from cloudvolume.secrets import aws_credentials
 
 class SQSQueue(object):
     def __init__(self, queue_name, visibility_timeout=None, 
-                 wait_if_empty=100):
+                 wait_if_empty=100, fetch_wait_time_seconds=20):
         """
         Parameters:
         visibility_timeout: (int) make the task invisible for a while (seconds)
         wait_if_empty: (int) wait for a while and continue fetching task 
             if the queue is empty.
+        fetch_wait_time_seconds: (int) the maximum wait time if the fetched queue is empty. 
+            The maximum value is 20, which will use the long polling. If we set it to be 0,
+            the message fetch could fail even if the queue has messages. This problem is due 
+            to the fact that the message in queue is managed distributedly, and the query was
+            only sent to a few servers. Normally, we should set fetch wait time to use long poll. 
+            checkout the AWS documentation here:
+            https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html#sqs-short-long-polling-differences
         """
         credentials = aws_credentials()
-        self.client = boto3.client('sqs',
-                region_name=credentials['AWS_DEFAULT_REGION'],
-                aws_secret_access_key=credentials['AWS_SECRET_ACCESS_KEY'],
-                aws_access_key_id=credentials['AWS_ACCESS_KEY_ID'])
+        self.client = boto3.client(
+            'sqs',
+            region_name=credentials['AWS_DEFAULT_REGION'],
+            aws_secret_access_key=credentials['AWS_SECRET_ACCESS_KEY'],
+            aws_access_key_id=credentials['AWS_ACCESS_KEY_ID']
+        )
 
         resp = self.client.get_queue_url(QueueName=queue_name)
         self.queue_url = resp['QueueUrl']
         self.visibility_timeout = visibility_timeout
         self.wait_if_empty = wait_if_empty
+        self.fetch_wait_time_seconds = fetch_wait_time_seconds
 
     def __iter__(self):
         return self
@@ -36,17 +46,14 @@ class SQSQueue(object):
                 # we should set this wait time to use long poll
                 # checkout the AWS documentation here:
                 # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html#sqs-short-long-polling-differences
-                WaitTimeSeconds=20)
+                WaitTimeSeconds=self.fetch_wait_time_seconds)
         else:
             # use the visibility timeout in the queue
             resp = self.client.receive_message(
                 QueueUrl=self.queue_url,
                 MaxNumberOfMessages=1,
                 MessageAttributeNames=['All'],
-                # we should set this wait time to use long poll
-                # checkout the AWS documentation here:
-                # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html#sqs-short-long-polling-differences
-                WaitTimeSeconds=20)
+                WaitTimeSeconds=self.fetch_wait_time_seconds)
         return resp
 
     def __next__(self):

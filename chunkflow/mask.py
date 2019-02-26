@@ -8,7 +8,6 @@ from .lib.offset_array import OffsetArray
 
 def mask(chunk, volume_path, mask_mip, chunk_mip, 
          inverse=False, fill_missing=False, verbose=True):
-    global_offset = chunk.global_offset
     chunk_bbox = Bbox.from_slices(chunk.slices[-3:])
     mask_in_high_mip = _read_mask(volume_path, mask_mip, chunk_mip,
                                  chunk_bbox,  
@@ -23,7 +22,7 @@ def mask(chunk, volume_path, mask_mip, chunk_mip,
     if np.alltrue(mask_in_high_mip == 0):
         warn('the mask is all black, mask all the voxels directly')
         np.multiply(chunk, 0, out=chunk)
-        return OffsetArray(chunk, global_offset=global_offset)
+        return chunk
     if np.all(mask_in_high_mip):
         warn("mask elements are all positive, return directly")
         return chunk
@@ -56,7 +55,7 @@ def mask(chunk, volume_path, mask_mip, chunk_mip,
                         out=chunk[channel, :, :, :])
     else:
         raise ValueError('invalid chunk or mask dimension.')
-    return OffsetArray(chunk, global_offset=global_offset)
+    return chunk
 
 def _read_mask(mask_volume_path, mask_mip, chunk_mip, chunk_bbox, 
                fill_missing=False, verbose=True):

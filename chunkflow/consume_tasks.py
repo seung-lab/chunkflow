@@ -15,7 +15,11 @@ from chunkflow.create_thumbnail import create_thumbnail
 from chunkflow.mask import mask
 from chunkflow.crop_margin import crop_margin
 from chunkflow.save import save
-from chunkflow.upload_log import upload_log 
+from chunkflow.upload_log import upload_log
+from chunkflow.view import view
+from chunkflow.create_chunk import create_chunk
+from chunkflow.read_file import read_file
+from chunkflow.write_h5 import write_h5
 
 
 @click.group(chain=True)
@@ -43,8 +47,9 @@ def process_commands(processors):
         stream = processor(stream)
 
     # Evaluate the stream and throw away the items.
-    for _ in stream:
-        pass
+    if stream:
+        for _ in stream:
+            pass
 
 
 def processor(f):
@@ -67,6 +72,39 @@ def generator(f):
         for item in f(*args, **kwargs):
             yield item 
     return update_wrapper(new_func, f)
+
+
+@cli.command('create-chunk')
+@click.option('--size', type=int, nargs=3, default=(64, 64, 64),
+              help='the size of created chunk')
+@click.option('--dtype', type=str, default='uint8',
+              help='the data type of chunk')
+@generator
+def create_chunk_cmd(size, dtype):
+    chunk = create_chunk(size=size, dtype=dtype)
+    yield {'chunk': chunk}
+
+
+@cli.command('read-file')
+@click.option('--file-name', type=str, required=True,
+              help='read chunk from file, support .h5 and .tif')
+@click.option('--offset', type=int, nargs=3,
+              help='global offset of this chunk')
+@generator
+def read_file_cmd(file_name, offset):
+    chunk = read_file(file_name, global_offset=offset)
+    yield {'chunk': chunk}
+
+
+@cli.command('write-h5')
+@click.option('--file-name', type=str, required=True,
+              help='file name of hdf5 file, the extention should be .h5')
+@processor
+def write_h5_cmd(tasks, file_name):
+    for task in tasks:
+        write_h5(task['chunk'], file_name)
+        # keep the pipeline going
+        yield task
 
 
 @cli.command('generate-task')
@@ -269,6 +307,13 @@ def upload_log_cmd(tasks, log_path):
         upload_log(log_path, task['log'], task['output_bbox'],
                    verbose=task['verbose'])
         yield task
+
+
+@cli.command('view')
+@processor
+def view_cmd(tasks):
+    for task in tasks:
+        view(task['chunk'])
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-version = '0.1.0'
+version = '0.1.1'
 from setuptools import setup, find_packages, Command 
 
 with open("README.md", "r") as fh:
@@ -10,7 +10,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license='Apache License 2.0',
-    version="0.0.2",
+    version=version,
     author='Jingpeng Wu',
     author_email='jingpeng.wu@gmail.com',
     packages=find_packages(exclude=['chunkflow/test*']),
