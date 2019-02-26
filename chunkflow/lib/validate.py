@@ -1,5 +1,8 @@
 import numpy as np 
+from warnings import warn
+
 from skimage.feature import match_template
+
 
 def validate_by_template_matching(img):
     """ detect 3d black boxes by template matching.
@@ -12,7 +15,10 @@ def validate_by_template_matching(img):
     the detection will fail.
     """
     print("testing validation by template matching...")
-    if img.dtype == np.uint8:
+    if np.issubdtype(img.dtype, np.floating):
+        warn('do not support image with floating data type, will skip the validation.')
+        return True
+    elif np.issubdtype(img.dtype, np.integer):
         img = img.astype(dtype=np.bool)
     assert img.dtype == np.bool
     matching_threshold = 100

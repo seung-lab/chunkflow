@@ -1,11 +1,13 @@
 import boto3
+
 from cloudvolume.secrets import aws_credentials
 
 
 class CloudWatch:
-    def __init__(self, log_name):
+    def __init__(self, log_name, credentials=None):
         self.log_name = log_name
-        credentials = aws_credentials()
+        if not credentials:
+            credentials = aws_credentials()
         self.client = boto3.client(
             'cloudwatch',
             region_name=credentials['AWS_DEFAULT_REGION'],
