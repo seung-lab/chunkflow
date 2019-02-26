@@ -17,7 +17,7 @@ before_script:
 script:
 - cd chunkflow
 - coverage run --source=chunkflow -m unittest
-- coverage run chunkflow/consume_tasks.py create-chunk write-h5 --file-name /tmp/test.h5
+- coverage run consume_tasks.py create-chunk write-h5 --file-name /tmp/test.h5
 
 after_success:
 - coveralls 
