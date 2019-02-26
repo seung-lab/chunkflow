@@ -39,4 +39,8 @@ we can simply set an environment variable to use specific GPU device.
 
 # Development
 # Create a new release in PyPi 
-refer to [lasio documentation](https://github.com/kinverarity1/lasio/wiki/Creating-a-new-release-(GitHub-and-PyPi)).
+
+```
+python setup.py bdist_wheel --universal
+twine upload dist/my-new-wheel
+```
