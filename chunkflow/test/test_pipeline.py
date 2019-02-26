@@ -3,7 +3,7 @@ from cloudvolume import CloudVolume
 import numpy as np
 #from cloudvolume.volumecutout import VolumeCutout
 from cloudvolume.lib import generate_random_string, Bbox
-import os
+import os, shutil
 
 from chunkflow.cutout import cutout
 from chunkflow.inference import inference
@@ -135,10 +135,10 @@ class TestInferencePipeline(unittest.TestCase):
         self.assertTrue(np.alltrue(np.isclose(img, out, atol=1)))
         
         # clean up 
-        os.rmdir('/tmp/input')
-        os.rmdir('/tmp/input-mask')
-        os.rmdir('/tmp/output-mask')
-        os.rmdir('/tmp/output')
+        shutil.rmtree('/tmp/input')
+        shutil.rmtree('/tmp/input-mask')
+        shutil.rmtree('/tmp/output-mask')
+        shutil.rmtree('/tmp/output')
 
 
 if __name__ == '__main__':

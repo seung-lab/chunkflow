@@ -1,4 +1,4 @@
-version = '0.1.1'
+version = '0.1.2'
 from setuptools import setup, find_packages, Command 
 
 with open("README.md", "r") as fh:
