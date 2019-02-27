@@ -12,3 +12,4 @@ __pycache__
 kubernetes
 bin/*.sh
 bin/*.yml
+*.ipynb

@@ -1,5 +1,5 @@
 # backend: base | pytorch | pznet 
-ARG BACKEND=base
+ARG BACKEND=pytorch
 
 FROM seunglab/chunkflow:${BACKEND}
 
@@ -11,7 +11,7 @@ RUN mkdir -p $HOME/workspace/chunkflow
 # WORKDIR only works with ENV 
 ENV HOME /root
 WORKDIR $HOME/workspace/chunkflow
-COPY * ./
+COPY . .
 
 RUN apt-get update && apt-get install -y -qq --no-install-recommends \
         apt-utils \
@@ -29,7 +29,9 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     && pip install fpzip --no-binary :all: --no-cache-dir \
 #&& git clone --single-branch --depth 1 https://github.com/seung-lab/cloud-volume.git \
 #   && pip install --no-cache-dir -r $HOME/workspace/cloud-volume/requirements.txt \
-    && pip install -r $HOME/workspace/chunkflow/requirements.txt --no-cache-dir \
+    && pip install -r requirements.txt --no-cache-dir \
+    # install the commandline chunkflow
+    && pip install -e . \
     # cleanup build dependencies 
     && apt-get remove --purge -y  \
 		build-essential \
