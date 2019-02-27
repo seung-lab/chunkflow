@@ -5,6 +5,7 @@ from .cloud_watch import CloudWatch
 
 class TestCloudWatch(unittest.TestCase):
     def setUp(self):
+        print('test cloud watch...')
         log_name = 'chunkflow-test'
         self.cloud_watch = CloudWatch(log_name)
 
