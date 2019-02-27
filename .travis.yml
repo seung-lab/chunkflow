@@ -16,8 +16,8 @@ before_script:
 
 script:
 - cd chunkflow
-- coverage run --source=chunkflow -m unittest
 # use -a to append to the coverage file, otherwise it will clean previous record
+- coverage run -a --source=chunkflow -m unittest
 - coverage run -a --source=chunkflow consume_tasks.py create-chunk write-h5 --file-name /tmp/test.h5
 
 after_success:
