@@ -20,6 +20,7 @@ from chunkflow.view import view
 from chunkflow.create_chunk import create_chunk
 from chunkflow.read_file import read_file
 from chunkflow.write_h5 import write_h5
+from chunkflow.neuroglancer_view import neuroglancer_view
 
 
 @click.group(chain=True)
@@ -79,19 +80,22 @@ def generator(f):
               help='the size of created chunk')
 @click.option('--dtype', type=str, default='uint8',
               help='the data type of chunk')
+@click.option('--voxel-offset', type=int, nargs=3, default=(0,0,0),
+              help='offset in voxel number.')
 @generator
-def create_chunk_cmd(size, dtype):
-    chunk = create_chunk(size=size, dtype=dtype)
+def create_chunk_cmd(size, dtype, voxel_offset):
+    chunk = create_chunk(size=size, dtype=dtype, voxel_offset=voxel_offset)
     yield {'chunk': chunk}
 
 
 @cli.command('read-file')
 @click.option('--file-name', type=str, required=True,
               help='read chunk from file, support .h5 and .tif')
-@click.option('--offset', type=int, nargs=3,
+@click.option('--offset', type=int, nargs=3, default=None,
               help='global offset of this chunk')
 @generator
 def read_file_cmd(file_name, offset):
+    print('offset:', offset)
     chunk = read_file(file_name, global_offset=offset)
     yield {'chunk': chunk}
 
@@ -157,7 +161,7 @@ def delete_task_in_queue_cmd(tasks):
 
 @cli.command('cutout')
 @click.option('--volume-path', type=str, required=True, help='volume path')
-@click.option('--mip', type=int, default=None, help='default mip level for all operations.')
+@click.option('--mip', type=int, default=None, help='mip level of the cutout.')
 @click.option('--expand-margin-size', type=int, nargs=3, default=(0,0,0), 
               help='include surrounding regions of output bounding box.')
 @click.option('--fill-missing/--no-fill-missing', default=False,
@@ -168,7 +172,7 @@ def delete_task_in_queue_cmd(tasks):
 def cutout_cmd(tasks, volume_path, mip, expand_margin_size, fill_missing, validate_mip):
     """Cutout chunk from volume."""
     for task in tasks:
-        if not mip:
+        if mip is None:
             mip = task['mip']
         if 'mip' not in task:
             # set up default mip
@@ -314,6 +318,17 @@ def upload_log_cmd(tasks, log_path):
 def view_cmd(tasks):
     for task in tasks:
         view(task['chunk'])
+        yield task
+
+
+@cli.command('neuroglancer')
+@click.option('--voxel-size', nargs=3, type=int, default=(1,1,1),
+              help='voxel size of chunk')
+@processor
+def neuroglancer_cmd(tasks, voxel_size):
+    for task in tasks:
+        neuroglancer_view([task['chunk'],], voxel_size=voxel_size)
+        yield task
 
 
 if __name__ == '__main__':

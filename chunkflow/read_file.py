@@ -13,16 +13,15 @@ def read_file(file_name, global_offset=None, verbose=True):
         print('read from file: {}'.format(file_name))
 
     base_name, file_extension = path.splitext(file_name)
+    import pdb; pdb.set_trace()
     if file_extension=='.h5' or file_extension=='.hdf5':
         with h5py.File(file_name) as f:
             arr = np.asarray(f['/main'])
 
             if global_offset is None:
-                global_offset = f.get('/global_offset', default=None)
-                if isinstance(global_offset, h5py._hl.dataset.Dataset):
-                    global_offset = tuple(global_offset)
+                global_offset = tuple(f['/global_offset'])
                 if verbose:
-                    print('global offset: {}'.format(global_offset))
+                    print('read out global offset: {}'.format(global_offset))
 
     elif '.tif' in file_extension:
         arr = tifffile.imread(file_name)
