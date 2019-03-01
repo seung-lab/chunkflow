@@ -18,9 +18,8 @@ before_script:
     - pip install coveralls
 
 script:
-    - cd chunkflow
     # use -a to append to the coverage file, otherwise it will clean previous record
-    - coverage run -a --source=chunkflow consume_tasks.py create-chunk write-h5 --file-name /tmp/test.h5
+    - cd chunkflow
     - coverage run -a --source=chunkflow -m unittest
 
 after_success:
