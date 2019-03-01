@@ -13,7 +13,6 @@ def read_file(file_name, global_offset=None, verbose=True):
         print('read from file: {}'.format(file_name))
 
     base_name, file_extension = path.splitext(file_name)
-    import pdb; pdb.set_trace()
     if file_extension=='.h5' or file_extension=='.hdf5':
         with h5py.File(file_name) as f:
             arr = np.asarray(f['/main'])

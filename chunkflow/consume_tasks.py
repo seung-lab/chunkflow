@@ -23,6 +23,17 @@ from chunkflow.write_h5 import write_h5
 from chunkflow.neuroglancer_view import neuroglancer_view
 
 
+def default_none(ctx, param, value):
+    """
+    click currently can not use None with tuple type 
+    it will return an empty tuple if the default=None 
+    details:
+    https://github.com/pallets/click/issues/789
+    """
+    if not value:
+        return None
+
+
 @click.group(chain=True)
 def cli():
     """This script processes a chunk in a pipe. 
@@ -91,11 +102,10 @@ def create_chunk_cmd(size, dtype, voxel_offset):
 @cli.command('read-file')
 @click.option('--file-name', type=str, required=True,
               help='read chunk from file, support .h5 and .tif')
-@click.option('--offset', type=int, nargs=3, default=None,
+@click.option('--offset', type=int, nargs=3, callback=default_none,
               help='global offset of this chunk')
 @generator
 def read_file_cmd(file_name, offset):
-    print('offset:', offset)
     chunk = read_file(file_name, global_offset=offset)
     yield {'chunk': chunk}
 

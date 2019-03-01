@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
         git \
         build-essential \
 		python3-dev \
+        parallel \
     && pip install -U pip \
     # test whether pip is working 
     # there is an issue of pip:
