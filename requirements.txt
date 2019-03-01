@@ -1,4 +1,4 @@
-numpy>=1.15
+numpy>=1.16
 cloud-volume>=0.47.0
 click 
 scikit-image>=0.14.1
