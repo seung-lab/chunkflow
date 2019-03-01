@@ -2,9 +2,10 @@ import unittest
 import numpy as np
 import os
 
-from chunkflow.read_file import read_file
-from chunkflow.write_h5 import write_h5
 from chunkflow.lib.offset_array import OffsetArray
+
+from .read_file import ReadFileOperator
+from .write_h5 import WriteH5Operator
 
 
 class TestReadWrite(unittest.TestCase):
@@ -16,9 +17,9 @@ class TestReadWrite(unittest.TestCase):
         file_name = 'test.h5'
         if os.path.exists(file_name):
             os.remove(file_name)
-
-        write_h5(chunk, file_name)
-        chunk2 = read_file( file_name )
+        
+        WriteH5Operator()(chunk, file_name)
+        chunk2 = ReadFileOperator()( file_name )
         self.assertTrue( np.alltrue(chunk==chunk2) )
         self.assertEqual(chunk.global_offset, 
                          chunk2.global_offset, 

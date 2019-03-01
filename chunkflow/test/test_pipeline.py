@@ -1,16 +1,12 @@
 import unittest 
-from cloudvolume import CloudVolume
 import numpy as np
+
+from cloudvolume import CloudVolume
 #from cloudvolume.volumecutout import VolumeCutout
 from cloudvolume.lib import generate_random_string, Bbox
 import os, shutil
 
-from chunkflow.cutout import cutout
-from chunkflow.inference import inference
-from chunkflow.create_thumbnail import create_thumbnail
-from chunkflow.mask import mask
-from chunkflow.crop_margin import crop_margin
-from chunkflow.save import save
+from chunkflow.operators import *
 
 
 class TestInferencePipeline(unittest.TestCase):
@@ -18,6 +14,7 @@ class TestInferencePipeline(unittest.TestCase):
         # compute parameters 
         self.mip = 0
         self.input_size = (36, 448, 448)
+        self.patch_size = (20, 256, 256)
         self.cropping_margin_size = (4, 64, 64)
         self.patch_overlap = (4, 64, 64)
         self.input_mask_mip = 1
@@ -91,30 +88,55 @@ class TestInferencePipeline(unittest.TestCase):
                                max_mip=4)
 
     def test_inference_pipeline(self):
-        # run pipeline by composing functions 
-        chunk = cutout(self.output_bbox, self.input_volume_path,
-                       mip=self.mip, 
-                       expand_margin_size=self.cropping_margin_size)
-        chunk = mask(chunk, self.input_mask_volume_path, 
-                     self.input_mask_mip, self.mip, inverse=False)
-        chunk = inference(chunk, None, None, patch_size=(20, 256, 256), 
-                          output_key='affinity', num_output_channels=3, 
-                          patch_overlap=(4, 64, 64), framework='identity')
+        # run pipeline by composing functions
+        print('cutout image chunk...')
+        cutout_operator = CutoutOperator(self.input_volume_path,
+                                         mip=self.mip, 
+                                         expand_margin_size=self.cropping_margin_size)
+        chunk = cutout_operator(self.output_bbox)
+        
+        print('mask input...')
+        mask_input_operator = MaskOperator(
+            self.input_mask_volume_path, 
+            self.input_mask_mip, self.mip, inverse=False)
+        chunk = mask_input_operator(chunk) 
+        
+        print('run convnet inference...')
+        inference_operator = InferenceOperator(
+            None, None, patch_size=self.patch_size, output_key='affinity',
+            num_output_channels=3, patch_overlap=self.patch_overlap,
+            framework='identity')
+        chunk = inference_operator(chunk)
         print('after inference: {}'.format(chunk.slices))
-        chunk = crop_margin(chunk, output_bbox=self.output_bbox, 
-                            margin_size=(0,)+self.cropping_margin_size)
+        
+        print('crop the marging...')
+        crop_margin_operator = CropMarginOperator(
+            margin_size=(0,)+self.cropping_margin_size)
+        chunk = crop_margin_operator(chunk, output_bbox=self.output_bbox)
         print('after crop: {}'.format(chunk.slices))
-        chunk = mask(chunk, self.output_mask_volume_path, 
-                     self.output_mask_mip, self.mip, 
-                     inverse=False)
+        
+        print('mask the output...')
+        mask_output_operator = MaskOperator(
+            self.output_mask_volume_path, 
+            self.output_mask_mip, self.mip, inverse=False)
+        chunk = mask_output_operator(chunk) 
         print('after masking: {}'.format(chunk.slices))
-        save(chunk, self.output_volume_path, self.mip)
+        
+        print('save to output volume...')
+        save_operator = SaveOperator(self.output_volume_path, 
+                                     self.mip)
+        save_operator(chunk)
         print('after saving: {}'.format(chunk.slices))
-        create_thumbnail(chunk, self.thumbnail_volume_path, self.mip)
+        
+        print('create thumbnail...')
+        create_thumbnail_operator = CreateThumbnailOperator(
+            self.thumbnail_volume_path, chunk_mip=self.mip)
+        create_thumbnail_operator(chunk)
 
         # evaluate the output 
         print('start evaluation...')
         out = self.output_vol[self.output_bbox.to_slices()[::-1] + (slice(0,3),)]
+        out =np.asarray(out)
         out = out[:,:,:,0] * 255
         out = out.astype(np.uint8)
         out = np.transpose(out)

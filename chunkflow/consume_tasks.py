@@ -9,18 +9,7 @@ from cloudvolume.lib import Bbox
 from chunkflow.aws.sqs_queue import SQSQueue
 
 # import processor functions
-from chunkflow.cutout import cutout
-from chunkflow.inference import inference
-from chunkflow.create_thumbnail import create_thumbnail
-from chunkflow.mask import mask
-from chunkflow.crop_margin import crop_margin
-from chunkflow.save import save
-from chunkflow.upload_log import upload_log
-from chunkflow.view import view
-from chunkflow.create_chunk import create_chunk
-from chunkflow.read_file import read_file
-from chunkflow.write_h5 import write_h5
-from chunkflow.neuroglancer_view import neuroglancer_view
+from .operators import *
 
 
 def default_none(ctx, param, value):
@@ -95,7 +84,8 @@ def generator(f):
               help='offset in voxel number.')
 @generator
 def create_chunk_cmd(size, dtype, voxel_offset):
-    chunk = create_chunk(size=size, dtype=dtype, voxel_offset=voxel_offset)
+    create_chunk_operator = CreateChunkOperator()
+    chunk = create_chunk_operator(size=size, dtype=dtype, voxel_offset=voxel_offset)
     yield {'chunk': chunk}
 
 
@@ -106,7 +96,8 @@ def create_chunk_cmd(size, dtype, voxel_offset):
               help='global offset of this chunk')
 @generator
 def read_file_cmd(file_name, offset):
-    chunk = read_file(file_name, global_offset=offset)
+    read_file_operator = ReadFileOperator()
+    chunk = read_file_operator(file_name, global_offset=offset)
     yield {'chunk': chunk}
 
 
@@ -116,7 +107,8 @@ def read_file_cmd(file_name, offset):
 @processor
 def write_h5_cmd(tasks, file_name):
     for task in tasks:
-        write_h5(task['chunk'], file_name)
+        write_h5_operator = WriteH5Operator()
+        write_h5_operator(task['chunk'], file_name)
         # keep the pipeline going
         yield task
 
@@ -179,8 +171,10 @@ def delete_task_in_queue_cmd(tasks):
               'or not, default is false')
 @click.option('--validate-mip', type=int, default=None, help='validate chunk using higher mip level')
 @processor
-def cutout_cmd(tasks, volume_path, mip, expand_margin_size, fill_missing, validate_mip):
+def cutout_cmd(tasks, volume_path, mip, expand_margin_size, 
+               fill_missing, validate_mip):
     """Cutout chunk from volume."""
+
     for task in tasks:
         if mip is None:
             mip = task['mip']
@@ -188,20 +182,21 @@ def cutout_cmd(tasks, volume_path, mip, expand_margin_size, fill_missing, valida
             # set up default mip
             task['mip'] = mip
         start = time()
-        task['chunk'] = cutout(task['output_bbox'], 
-                               volume_path, mip=task['mip'],
-                               expand_margin_size=expand_margin_size,
-                               verbose=task['verbose'], 
-                               fill_missing=fill_missing, 
-                               validate_mip=validate_mip)
+        operator = CutoutOperator(
+            volume_path, mip=task['mip'], 
+            expand_margin_size=expand_margin_size,
+            verbose=task['verbose'], fill_missing=fill_missing,
+            validate_mip=validate_mip)
+         
+        task['chunk'] = operator(task['output_bbox'])
         task['log']['timer']['cutout'] = time() - start
         yield task
 
 
 @cli.command('inference')
-@click.option('--convnet-model', type=str, required=True, help='convnet model path or type.')
-@click.option('--convnet-weight-path', type=str, required=True, help='convnet weight path')
-@click.option('--patch-size', type=int, nargs=3, required=True, help='patch size')
+@click.option('--convnet-model', type=str, default=None, help='convnet model path or type.')
+@click.option('--convnet-weight-path', type=str, default=None, help='convnet weight path')
+@click.option('--patch-size', type=int, nargs=3, default=(20, 256, 256), help='patch size')
 @click.option('--patch-overlap', type=int, nargs=3, default=(4, 64, 64), help='patch overlap')
 @click.option('--output-key', type=str, default='affinity', help='key name of output dict')
 @click.option('--original-num-output-channels', type=int, default=3,
@@ -217,17 +212,19 @@ def inference_cmd(tasks, convnet_model, convnet_weight_path, patch_size,
               num_output_channels, framework):
     """Perform convolutional network inference for chunks."""
     for task in tasks:
+        if 'log' not in task:
+            task['log'] = {'timer': {}}
         start = time()
-        task['chunk'] = inference(
-            task['chunk'],
+        operator = InferenceOperator(
             convnet_model, convnet_weight_path, 
-            patch_size=patch_size, patch_overlap=patch_overlap, output_key=output_key,
-            original_num_output_channels=original_num_output_channels, 
-            num_output_channels=num_output_channels, 
-            framework=framework,
-            log = task['log'],
-            verbose=task['verbose']
-        )
+            patch_size=patch_size, output_key=output_key,
+            num_output_channels=num_output_channels,
+            original_num_output_channels=original_num_output_channels,
+            patch_overlap=patch_overlap,
+            framework='identity', log=task.get('log', {}),
+            verbose=task.get('verbose', True))
+
+        task['chunk'] = operator(task['chunk'])
         task['log']['timer']['inference'] = time() - start 
         yield task
 
@@ -244,8 +241,9 @@ def create_thumbnail_cmd(tasks, volume_path):
             volume_path = os.path.join(task['output_volume_path'],
                                        'thumbnail')
         start = time()
-        create_thumbnail(task['chunk'], volume_path, task['mip'],
-                         verbose=task['verbose'])
+        operator = CreateThumbnailOperator(
+            volume_path, chunk_mip=task['mip'], verbose=task['verbose'])
+        operator(task['chunk']) 
         task['log']['timer']['create-thumbnail'] = time() - start
         yield task
 
@@ -266,11 +264,11 @@ def mask_cmd(tasks, volume_path, mask_mip, inverse, fill_missing):
     """
     for task in tasks:
         start = time()
-        task['chunk'] = mask(task['chunk'], 
-                             volume_path, mask_mip, task['mip'], 
-                             fill_missing=fill_missing, 
-                             inverse=inverse,
-                             verbose=task['verbose'])
+        operator = MaskOperator(volume_path, mask_mip, task['mip'], 
+                                inverse=inverse, 
+                                fill_missing=fill_missing, 
+                                verbose=task['verbose'])
+        task['chunk'] = operator(task['chunk']) 
         # Note that mask operation could be used several times, 
         # this will only record the last masking operation 
         task['log']['timer']['mask'] = time() - start
@@ -287,10 +285,10 @@ def crop_margin_cmd(tasks, margin_size):
     """Crop the margin of chunk."""
     for task in tasks:
         start = time()
-        task['chunk'] = crop_margin(task['chunk'], 
-                                    output_bbox=task['output_bbox'],
-                                    margin_size=margin_size, 
-                                    verbose=task['verbose'])
+        operator = CropMarginOperator(margin_size=margin_size, 
+                                      verbose=task['verbose'])
+        task['chunk'] = operator(task['chunk'], 
+                                 output_bbox=task['output_bbox'])
         task['log']['timer']['crop-margin'] = time() - start
         yield task
 
@@ -302,8 +300,9 @@ def save_cmd(tasks, volume_path):
     """Save chunk to volume."""
     for task in tasks:
         start = time()
-        save(task['chunk'], volume_path, task['mip'], 
-             verbose=task['verbose'])
+        operator = SaveOperator(volume_path, task['mip'], 
+                                verbose=task['verbose'])
+        operator(task['chunk'])
         task['output_volume_path'] = volume_path
         task['log']['timer']['save'] = time() - start
         yield task
@@ -318,8 +317,8 @@ def upload_log_cmd(tasks, log_path):
         if not log_path:
             print('put logs inside output path.')
             log_path = os.path.join(task['output_volume_path'], 'log')
-        upload_log(log_path, task['log'], task['output_bbox'],
-                   verbose=task['verbose'])
+        operator = UploadLogOperator(log_path, verbose=task['verbose'])
+        operator(task['log'], task['output_bbox'])
         yield task
 
 
@@ -327,7 +326,8 @@ def upload_log_cmd(tasks, log_path):
 @processor
 def view_cmd(tasks):
     for task in tasks:
-        view(task['chunk'])
+        operator = ViewOperator()
+        operator(task['chunk'])
         yield task
 
 
@@ -337,7 +337,8 @@ def view_cmd(tasks):
 @processor
 def neuroglancer_cmd(tasks, voxel_size):
     for task in tasks:
-        neuroglancer_view([task['chunk'],], voxel_size=voxel_size)
+        operator = NeuroglancerViewOperator()
+        operator([task['chunk'],], voxel_size=voxel_size)
         yield task
 
 
