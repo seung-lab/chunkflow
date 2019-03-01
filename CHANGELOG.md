@@ -1,5 +1,17 @@
 ChangeLog history
 =================
+# chunkflow 0.1.0 (2019-02-25)
+## Breaking Changes
+- make all operators inherit from a base class
+- move all operators to a separate folder for cleaner code.
+## Deprecations 
+
+## Features
+
+## Bug Fixes 
+- fix default global offset not working in read file operator
+## Improved Documentation 
+
 # chunkflow 0.1.2 (2019-02-26)
 ## Breaking Changes
 

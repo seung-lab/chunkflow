@@ -84,6 +84,7 @@ def generator(f):
               help='offset in voxel number.')
 @generator
 def create_chunk_cmd(size, dtype, voxel_offset):
+    """Create a fake chunk for easy test."""
     create_chunk_operator = CreateChunkOperator()
     chunk = create_chunk_operator(size=size, dtype=dtype, voxel_offset=voxel_offset)
     yield {'chunk': chunk}
@@ -96,6 +97,7 @@ def create_chunk_cmd(size, dtype, voxel_offset):
               help='global offset of this chunk')
 @generator
 def read_file_cmd(file_name, offset):
+    """Read HDF5 and tiff files."""
     read_file_operator = ReadFileOperator()
     chunk = read_file_operator(file_name, global_offset=offset)
     yield {'chunk': chunk}
@@ -106,6 +108,7 @@ def read_file_cmd(file_name, offset):
               help='file name of hdf5 file, the extention should be .h5')
 @processor
 def write_h5_cmd(tasks, file_name):
+    """Write chunk to HDF5 file."""
     for task in tasks:
         write_h5_operator = WriteH5Operator()
         write_h5_operator(task['chunk'], file_name)
@@ -313,6 +316,7 @@ def save_cmd(tasks, volume_path):
               help='log storage path')
 @processor
 def upload_log_cmd(tasks, log_path):
+    """Upload log as json file."""
     for task in tasks:
         if not log_path:
             print('put logs inside output path.')
@@ -322,9 +326,21 @@ def upload_log_cmd(tasks, log_path):
         yield task
 
 
+@cli.command('cloud-watch')
+@click.option('--name', type=str, default='chunkflow', help='name of the speedometer')
+@processor
+def cloud_watch_cmd(tasks, name):
+    """real time speedometer in AWS CloudWatch."""
+    for task in tasks:
+        operator=CloudWatchOperator()
+        operator(task['log'])
+        yield task
+
+
 @cli.command('view')
 @processor
 def view_cmd(tasks):
+    """Visualize the chunk using cloudvolume view in browser."""
     for task in tasks:
         operator = ViewOperator()
         operator(task['chunk'])
@@ -336,6 +352,7 @@ def view_cmd(tasks):
               help='voxel size of chunk')
 @processor
 def neuroglancer_cmd(tasks, voxel_size):
+    """Visualize the chunk using neuroglancer."""
     for task in tasks:
         operator = NeuroglancerViewOperator()
         operator([task['chunk'],], voxel_size=voxel_size)
