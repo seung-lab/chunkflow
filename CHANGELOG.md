@@ -3,14 +3,11 @@ ChangeLog history
 
 # chunkflow 0.1.3 (2019-03-01)
 ## Breaking Changes
-
-## Deprecations 
-
-## Features
+- make all operators inherit from a base class
+- move all operators to a separate folder for cleaner code.
 
 ## Bug Fixes 
 - the default offset in read-file operator was not working correctly. 
-## Improved Documentation 
 
 
 # chunkflow 0.1.2 (2019-02-26)

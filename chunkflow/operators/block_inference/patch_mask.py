@@ -56,5 +56,13 @@ def make_bump_map(patch_size):
 
 
 if __name__ == '__main__':
-    patch_mask = PatchMask((18, 256, 256), (4, 32, 32))
+    patch_mask = PatchMask((20, 256, 256), (4, 64, 64))
     print('shape of mask: {}'.format(patch_mask.shape))
+    import h5py
+    import os
+    file_name = '/tmp/patch_mask.h5'
+    if os.path.exists(file_name):
+        os.remove(file_name)
+
+    with h5py.File(file_name) as f:
+        f['/main'] = patch_mask

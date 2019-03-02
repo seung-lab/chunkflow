@@ -68,7 +68,9 @@ class BlockInferenceEngine(object):
         input_offset = input_chunk.global_offset
         for oz in tqdm(range(input_offset[0],
                              input_offset[0]+input_size[0]-self.patch_overlap[0],
-                             self.stride[0]), disable=not self.verbose):
+                             self.stride[0]), 
+                       disable=not self.verbose, 
+                       desc='ConvNet Inferece: '):
             for oy in range(input_offset[1],
                            input_offset[1]+input_size[1]-self.patch_overlap[1],
                            self.stride[1]):
