@@ -5,26 +5,25 @@ python:
 - '3.7-dev'
 
 install:
-    - pip install --upgrade pip
-    # fix fpzip problem
-    - pip install numpy==1.16
-    # fix neuroglancer problem
-    - pip install tornado==5.0
-    - pip install fpzip
-    - pip install -r requirements.txt
-    - pip install -e .  
+- pip install --upgrade pip
+# fix fpzip problem
+- pip install numpy==1.16
+# fix neuroglancer problem
+- pip install tornado==5.0
+- pip install fpzip
+- pip install -r requirements.txt
+- pip install -e .  
 
 before_script:
-    - pip install coveralls
+- pip install coveralls
 
 script:
-	# did not find a method to use coverage for command line interface test
-    - chunkflow generate-task --shape 28 320 320 --offset 4 64 64 upload-log --log-path file:///tmp/test/log
-    - chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-file --file-name=/tmp/img.h5
-    - chunkflow create-chunk --size 36 448 448 inference  cloud-watch
-    # use -a to append to the coverage file, otherwise it will clean previous record
-    - cd chunkflow
-    - coverage run -a --source=chunkflow -m unittest
+- chunkflow generate-task --shape 28 320 320 --offset 4 64 64 upload-log --log-path file:///tmp/test/log
+- chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-file --file-name=/tmp/img.h5
+- chunkflow create-chunk --size 36 448 448 inference  cloud-watch
+# use -a to append to the coverage file, otherwise it will clean previous record
+- cd chunkflow
+- coverage run -a --source=chunkflow -m unittest
 
 after_success:
 - coveralls 
