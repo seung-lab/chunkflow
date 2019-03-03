@@ -1,3 +1,4 @@
+from .cloud_watch import CloudWatchOperator
 from .create_chunk import CreateChunkOperator
 from .create_thumbnail import CreateThumbnailOperator
 from .crop_margin import CropMarginOperator

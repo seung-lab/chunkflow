@@ -1,5 +1,5 @@
 import boto3
-
+from warnings import warn
 from cloudvolume.secrets import aws_credentials
 
 
@@ -16,6 +16,14 @@ class CloudWatch:
 
     def put_metric_data(self, log):
         assert isinstance(log, dict)
+
+        if 'compute_device' in log:
+            compute_device = log['compute_device']
+        else:
+            warn('did not find compute device in log, will create one based on CPU.')
+            import platform
+            compute_device = platform.processor()
+
         # create metric data
         metric_data = []
         for key, value in log['timer'].items():
@@ -25,7 +33,7 @@ class CloudWatch:
                     'Dimensions': [
                         {
                             'Name': 'compute_device',
-                            'Value': log['compute_device']
+                            'Value': compute_device
                         }
                     ],
                     'Value': value,
