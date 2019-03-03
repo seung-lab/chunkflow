@@ -1,6 +1,19 @@
 ChangeLog history
 =================
 
+# chunkflow 0.2.0 (2019-03-03)
+## Breaking Changes
+- added global parameters
+- separate out cloud-watch operator
+- rename the consume_task.py to main.py for better code meaning
+## Deprecations 
+
+## Features
+- reuse operators in loop, so we only need to construct operator once.
+- add operator name to add more than one operator with same class. For example, in the inference pipeline, we might mask out both image and affinitymap, the two mask operator should have different names. 
+## Bug Fixes 
+
+## Improved Documentation 
 # chunkflow 0.1.3 (2019-03-01)
 ## Breaking Changes
 - make all operators inherit from a base class

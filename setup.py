@@ -1,4 +1,4 @@
-version = '0.1.3'
+version = '0.2.0'
 from setuptools import setup, find_packages, Command 
 
 with open("README.md", "r") as fh:
@@ -25,6 +25,6 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        chunkflow=chunkflow.consume_tasks:cli
+        chunkflow=chunkflow.main:cli
     ''',
 )
