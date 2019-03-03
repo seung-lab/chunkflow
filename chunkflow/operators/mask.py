@@ -1,11 +1,10 @@
-from .operator_base import OperatorBase
-
-import numpy as np
 from warnings import warn
+import numpy as np
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
-from chunkflow.lib.offset_array import OffsetArray
+
+from .operator_base import OperatorBase
 
 
 class MaskOperator(OperatorBase):

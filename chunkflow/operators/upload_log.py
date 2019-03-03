@@ -1,6 +1,7 @@
-from .operator_base import OperatorBase
 import json
 from cloudvolume import Storage
+
+from .operator_base import OperatorBase
 
 
 class UploadLogOperator(OperatorBase):

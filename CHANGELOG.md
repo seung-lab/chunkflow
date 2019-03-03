@@ -1,6 +1,19 @@
 ChangeLog history
 =================
 
+# chunkflow 0.2.1 (2019-03-03)
+## Breaking Changes
+
+## Deprecations 
+
+## Features
+- rename offset_array to chunk
+- rename main.py to flow.py to match the package name
+## Bug Fixes 
+
+## Improved Documentation
+
+
 # chunkflow 0.2.0 (2019-03-03)
 ## Breaking Changes
 - added global parameters

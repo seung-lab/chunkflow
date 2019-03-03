@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import os
 
-from chunkflow.lib.offset_array import OffsetArray
+from chunkflow.chunk import Chunk
 
 from .read_file import ReadFileOperator
 from .write_h5 import WriteH5Operator
@@ -12,7 +12,7 @@ class TestReadWrite(unittest.TestCase):
     def test_read_write(self):
         arr = np.random.randint(0, 256, size=(8, 16, 16), 
                                 dtype=np.uint8)
-        chunk = OffsetArray(arr, global_offset=(1,2,3))
+        chunk = Chunk(arr, global_offset=(1,2,3))
         
         file_name = 'test.h5'
         if os.path.exists(file_name):

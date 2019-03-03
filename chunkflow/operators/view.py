@@ -1,8 +1,8 @@
-from .operator_base import OperatorBase
 import numpy as np
 
 from cloudvolume import view, hyperview
 import neuroglancer
+from .operator_base import OperatorBase
 
 
 class ViewOperator(OperatorBase):

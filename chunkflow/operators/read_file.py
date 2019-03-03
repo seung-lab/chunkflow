@@ -1,10 +1,10 @@
-from .operator_base import OperatorBase
 from os import path
 import numpy as np
 import h5py 
 import tifffile
 
-from chunkflow.lib.offset_array import OffsetArray
+from chunkflow.chunk import Chunk
+from .operator_base import OperatorBase
 
 
 class ReadFileOperator(OperatorBase):
@@ -34,4 +34,4 @@ class ReadFileOperator(OperatorBase):
             raise NotImplementedError('only support .tif, .h5 or .hdf5 files, '+
                                       'but getting {}'.format(file_extension))
 
-        return OffsetArray(arr, global_offset=global_offset)
+        return Chunk(arr, global_offset=global_offset)

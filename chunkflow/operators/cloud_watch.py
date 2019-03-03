@@ -1,5 +1,6 @@
-from .operator_base import OperatorBase
 from chunkflow.aws.cloud_watch import CloudWatch
+
+from .operator_base import OperatorBase
 
 
 class CloudWatchOperator(OperatorBase):

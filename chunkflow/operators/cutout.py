@@ -1,11 +1,11 @@
-from .operator_base import OperatorBase
 import numpy as np
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
 
 from chunkflow.lib.validate import validate_by_template_matching
 from chunkflow.igneous.downsample import downsample_with_averaging
-from chunkflow.lib.offset_array import OffsetArray
+from chunkflow.chunk import Chunk
+from .operator_base import OperatorBase
 
 
 class CutoutOperator(OperatorBase):
@@ -60,7 +60,7 @@ class CutoutOperator(OperatorBase):
         chunk = np.squeeze(chunk, axis=0)
         global_offset = tuple(s.start for s in chunk_slices)
 
-        chunk = OffsetArray(chunk, global_offset=global_offset)
+        chunk = Chunk(chunk, global_offset=global_offset)
        
         if self.validate_mip:
             self._validate_chunk(chunk)

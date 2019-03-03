@@ -1,5 +1,5 @@
+from chunkflow.chunk import Chunk 
 from .operator_base import OperatorBase
-from chunkflow.lib.offset_array import OffsetArray 
 
 
 class CropMarginOperator(OperatorBase):
@@ -30,7 +30,7 @@ class CropMarginOperator(OperatorBase):
                 raise ValueError('the array dimension can only by 3 or 4.')
             global_offset = tuple(o+m for o, m in
                                   zip(chunk.global_offset, margin_size))
-            return OffsetArray(chunk, global_offset=global_offset)
+            return Chunk(chunk, global_offset=global_offset)
         else:
             if self.verbose:
                 print('automatically crop the chunk to output bounding box.')

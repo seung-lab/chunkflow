@@ -1,6 +1,7 @@
-from .operator_base import OperatorBase
 import numpy as np
-from chunkflow.lib.offset_array import OffsetArray
+from chunkflow.chunk import Chunk
+
+from .operator_base import OperatorBase
 
 
 class CreateChunkOperator(OperatorBase):
@@ -18,11 +19,11 @@ class CreateChunkOperator(OperatorBase):
             ix, iy, iz = np.meshgrid(* [np.linspace(0, 1, n) for n in a.shape[1:]], indexing='ij')
             a[:, :, :] = np.abs(np.sin(4 * (ix + iy))) * 255
             _make_black_box()
-            return OffsetArray(chunk, global_offset=voxel_offset)
+            return Chunk(chunk, global_offset=voxel_offset)
         elif dtype=='uint8':
             chunk = np.random.randint(0, 256, size=size, dtype=dtype)
             _make_black_box()
-            return OffsetArray(chunk, global_offset=voxel_offset)
+            return Chunk(chunk, global_offset=voxel_offset)
         elif np.issubdtype(dtype, np.integer):
             raise NotImplementedError()
         else:
