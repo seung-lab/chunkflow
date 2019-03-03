@@ -7,33 +7,23 @@ class InferenceOperator(OperatorBase):
                  num_output_channels=3,
                  original_num_output_channels=3,
                  patch_overlap=(4, 64, 64),
-                 framework='identity', log={},
+                 framework='identity',
                  verbose=True, name='inference'):
 
         super().__init__(name=name)
         
-        assert isinstance(log, dict)
+        self.framework = framework
 
-        def _log_gpu_device():
-            import torch 
-            log['compute_device'] = torch.cuda.get_device_name(0)
-        
-        def _log_cpu_device():
-            import platform
-            log['compute_device'] = platform.processor() 
- 
         # prepare for inference
         from .block_inference.block_inference_engine \
             import BlockInferenceEngine
         if framework == 'pznet':
             is_masked_in_device=False
-            _log_cpu_device()
             from .block_inference.frameworks.pznet_patch_inference_engine \
                 import PZNetPatchInferenceEngine
             patch_engine = PZNetPatchInferenceEngine(convnet_model, convnet_weight_path)
         elif framework == 'pytorch':
             is_masked_in_device=False
-            _log_gpu_device()
             from .block_inference.frameworks.pytorch_patch_inference_engine \
                 import PytorchPatchInferenceEngine
             patch_engine = PytorchPatchInferenceEngine(
@@ -44,7 +34,6 @@ class InferenceOperator(OperatorBase):
                 num_output_channels=num_output_channels)
         elif framework == 'pytorch-multitask':
             is_masked_in_device=True
-            _log_gpu_device()
             from .block_inference.frameworks.pytorch_multitask_patch_inference \
                 import PytorchMultitaskPatchInferenceEngine
             patch_engine = PytorchMultitaskPatchInferenceEngine(
@@ -57,7 +46,6 @@ class InferenceOperator(OperatorBase):
                 num_output_channels=num_output_channels)
         elif framework == 'identity':
             is_masked_in_device=False
-            _log_cpu_device()
             from .block_inference.frameworks.identity_patch_inference_engine \
                 import IdentityPatchInferenceEngine
             patch_engine = IdentityPatchInferenceEngine(num_output_channels=3)
@@ -78,3 +66,12 @@ class InferenceOperator(OperatorBase):
         # the chunk size should always be the same 
         # and the size is aligned with patch size and patch overlap
         return self.block_inference_engine(chunk)
+
+    @property
+    def compute_device(self):
+        if self.framework in ('pznet', 'identity'):
+            import platform
+            return platform.processor() 
+        else:
+            import torch 
+            return torch.cuda.get_device_name(0)

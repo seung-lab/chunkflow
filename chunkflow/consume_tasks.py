@@ -8,8 +8,14 @@ from cloudvolume.lib import Bbox
 
 from chunkflow.aws.sqs_queue import SQSQueue
 
-# import processor functions
+# import operator functions
 from .operators import *
+
+
+# global dict to hold the operators and parameters
+state = {
+    'operators': {}
+}
 
 
 def default_none(ctx, param, value):
@@ -24,17 +30,22 @@ def default_none(ctx, param, value):
 
 
 @click.group(chain=True)
-def cli():
+@click.option('--verbose/--quiet', default=True, 
+              help='print informations or not, default is quiet.')
+@click.option('--mip', type=int, default=0, help='default mip level of chunks.')
+# the code design is from:
+# https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
+def cli(verbose, mip):
     """This script processes a chunk in a pipe. 
     One command feeds into the next.
-    
-    The design is mimicking the click example here:
-    https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
     """
+    state['verbose'] = verbose
+    state['mip'] = mip
+    pass
 
 
 @cli.resultcallback()
-def process_commands(processors):
+def process_commands(operators, verbose, mip):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
     returns a function we can chain them together to feed one 
@@ -43,9 +54,9 @@ def process_commands(processors):
     # Start with an empty iterable 
     stream = ()
 
-    # Pipe it through all stream processors.
-    for processor in processors:
-        stream = processor(stream)
+    # Pipe it through all stream operators.
+    for operator in operators:
+        stream = operator(stream)
 
     # Evaluate the stream and throw away the items.
     if stream:
@@ -53,20 +64,20 @@ def process_commands(processors):
             pass
 
 
-def processor(f):
+def operator(f):
     """Help decorator to rewrite a function so that it returns another function from it."""
     def new_func(*args, **kwargs):
-        def processor(stream):
+        def operator(stream):
             return f(stream, *args, **kwargs)
-        return processor
+        return operator
     return update_wrapper(new_func, f)
 
 
 def generator(f):
-    """Similar to the :func:`processor` but passes through old values unchanged and does not pass 
+    """Similar to the :func:`operator` but passes through old values unchanged and does not pass 
     through the values as parameter.
     """
-    @processor
+    @operator
     def new_func(stream, *args, **kwargs):
         for item in stream:
             yield item
@@ -104,14 +115,15 @@ def read_file_cmd(file_name, offset):
 
 
 @cli.command('write-h5')
+@click.option('--name', type=str, default='write-h5', help='name of this operator')
 @click.option('--file-name', type=str, required=True,
               help='file name of hdf5 file, the extention should be .h5')
-@processor
-def write_h5_cmd(tasks, file_name):
+@operator
+def write_h5_cmd(tasks, name, file_name):
     """Write chunk to HDF5 file."""
+    state['operators'][name] = WriteH5Operator()
     for task in tasks:
-        write_h5_operator = WriteH5Operator()
-        write_h5_operator(task['chunk'], file_name)
+        state['operators'][name](task['chunk'], file_name)
         # keep the pipeline going
         yield task
 
@@ -122,15 +134,10 @@ def write_h5_cmd(tasks, file_name):
 @click.option('--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
 @click.option('--visibility-timeout', type=int, default=None,
               help='visibility timeout of sqs queue; default is using the timeout of the queue.')
-@click.option('--verbose/--quiet', default=True, help='default is quiet. ' + 
-              'This option will be used in other operations.') 
 @generator 
-def generate_task_cmd(queue_name, offset, shape, visibility_timeout, verbose):
+def generate_task_cmd(queue_name, offset, shape, visibility_timeout):
     """Create task or fetch task from queue."""
-    task = {
-        'verbose': verbose,
-        'log': {'timer': {}}
-    }
+    task = {'log': {'timer': {}}}
     if not queue_name:
         # no queue name specified
         # will only run one task
@@ -153,18 +160,20 @@ def generate_task_cmd(queue_name, offset, shape, visibility_timeout, verbose):
 
 
 @cli.command('delete-task-in-queue')
-@processor
-def delete_task_in_queue_cmd(tasks):
+@click.option('--name', type=str, default='delete-task-in-queue', help='name of this operator')
+@operator
+def delete_task_in_queue_cmd(tasks, name):
     """Delete the task in queue."""
     for task in tasks:
         queue = task['queue']
         task_handle = task['task_handle']
         queue.delete(task_handle)
-        if task['verbose']:
+        if state['verbose']:
             print('deleted task {} in queue: {}'.format(task_handle, queue))
 
 
 @cli.command('cutout')
+@click.option('--name', type=str, default='cutout', help='name of this operator')
 @click.option('--volume-path', type=str, required=True, help='volume path')
 @click.option('--mip', type=int, default=None, help='mip level of the cutout.')
 @click.option('--expand-margin-size', type=int, nargs=3, default=(0,0,0), 
@@ -173,30 +182,25 @@ def delete_task_in_queue_cmd(tasks):
               help='fill the missing chunks in input volume with zeros ' + 
               'or not, default is false')
 @click.option('--validate-mip', type=int, default=None, help='validate chunk using higher mip level')
-@processor
-def cutout_cmd(tasks, volume_path, mip, expand_margin_size, 
+@operator
+def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size, 
                fill_missing, validate_mip):
     """Cutout chunk from volume."""
-
+    state['operators'][name] = CutoutOperator(
+        volume_path, mip=state['mip'], 
+        expand_margin_size=expand_margin_size,
+        verbose=state['verbose'], fill_missing=fill_missing,
+        validate_mip=validate_mip, name=name)
+ 
     for task in tasks:
-        if mip is None:
-            mip = task['mip']
-        if 'mip' not in task:
-            # set up default mip
-            task['mip'] = mip
         start = time()
-        operator = CutoutOperator(
-            volume_path, mip=task['mip'], 
-            expand_margin_size=expand_margin_size,
-            verbose=task['verbose'], fill_missing=fill_missing,
-            validate_mip=validate_mip)
-         
-        task['chunk'] = operator(task['output_bbox'])
+        task['chunk'] = state['operators'][name](task['output_bbox'])
         task['log']['timer']['cutout'] = time() - start
         yield task
 
 
 @cli.command('inference')
+@click.option('--name', type=str, default='inference', help='name of this operator')
 @click.option('--convnet-model', type=str, default=None, help='convnet model path or type.')
 @click.option('--convnet-weight-path', type=str, default=None, help='convnet weight path')
 @click.option('--patch-size', type=int, nargs=3, default=(20, 256, 256), help='patch size')
@@ -209,49 +213,55 @@ def cutout_cmd(tasks, volume_path, mip, expand_margin_size,
 @click.option('--num-output-channels', type=int, default=3, help='number of output channels')
 @click.option('--framework', type=click.Choice(['identity', 'pznet', 'pytorch', 'pytorch-multitask']), 
               default='pytorch-multitask', help='inference framework')
-@processor
-def inference_cmd(tasks, convnet_model, convnet_weight_path, patch_size,
+@operator
+def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
               patch_overlap, output_key, original_num_output_channels,
               num_output_channels, framework):
     """Perform convolutional network inference for chunks."""
+    state['operators'][name] = InferenceOperator(
+        convnet_model, convnet_weight_path, 
+        patch_size=patch_size, output_key=output_key,
+        num_output_channels=num_output_channels,
+        original_num_output_channels=original_num_output_channels,
+        patch_overlap=patch_overlap,
+        framework='identity',
+        verbose=state['verbose'], name=name)
+
     for task in tasks:
         if 'log' not in task:
             task['log'] = {'timer': {}}
         start = time()
-        operator = InferenceOperator(
-            convnet_model, convnet_weight_path, 
-            patch_size=patch_size, output_key=output_key,
-            num_output_channels=num_output_channels,
-            original_num_output_channels=original_num_output_channels,
-            patch_overlap=patch_overlap,
-            framework='identity', log=task.get('log', {}),
-            verbose=task.get('verbose', True))
-
-        task['chunk'] = operator(task['chunk'])
-        task['log']['timer']['inference'] = time() - start 
+        task['chunk'] = state['operators'][name](task['chunk'])
+        task['log']['timer']['inference'] = time() - start
+        task['compute_device'] = state['operators'][name].compute_device
         yield task
 
 
 @cli.command('create-thumbnail')
+@click.option('--name', type=str, default='create-thumbnail', help='name of this operator')
 @click.option('--volume-path', type=str, default=None, help='thumbnail volume path')
-@processor 
-def create_thumbnail_cmd(tasks, volume_path):
+@operator 
+def create_thumbnail_cmd(tasks, name, volume_path):
     """create quantized thumbnail layer for visualization. 
     Note that the float data type will be quantized to uint8.
     """
+    state['operators'][name] = CreateThumbnailOperator(
+        volume_path, chunk_mip=state['mip'], verbose=state['verbose'],
+        name=name
+    )
+
     for task in tasks:
         if not volume_path:
             volume_path = os.path.join(task['output_volume_path'],
                                        'thumbnail')
         start = time()
-        operator = CreateThumbnailOperator(
-            volume_path, chunk_mip=task['mip'], verbose=task['verbose'])
-        operator(task['chunk']) 
+        state['operators'][name](task['chunk']) 
         task['log']['timer']['create-thumbnail'] = time() - start
         yield task
 
 
 @cli.command('mask')
+@click.option('--name', type=str, default='mask', help='name of this operator')
 @click.option('--volume-path', type=str, required=True, help='mask volume path')
 @click.option('--mask-mip', type=int, default=5, help='mip level of mask')
 @click.option('--inverse/--no-inverse', default=False, 
@@ -260,18 +270,20 @@ def create_thumbnail_cmd(tasks, volume_path):
 @click.option('--fill-missing/--no-fill-missing', default=False, 
               help='fill missing blocks with black or not. ' + 
               'default is False.')
-@processor
+@operator
 def mask_cmd(tasks, volume_path, mask_mip, inverse, fill_missing):
     """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
+    state['operators'][name] = MaskOperator(volume_path, mask_mip, state['mip'], 
+                                 inverse=inverse, 
+                                 fill_missing=fill_missing, 
+                                 verbose=state['verbose'],
+                                 name=name)
+
     for task in tasks:
         start = time()
-        operator = MaskOperator(volume_path, mask_mip, task['mip'], 
-                                inverse=inverse, 
-                                fill_missing=fill_missing, 
-                                verbose=task['verbose'])
-        task['chunk'] = operator(task['chunk']) 
+        task['chunk'] = state['operators'][name](task['chunk']) 
         # Note that mask operation could be used several times, 
         # this will only record the last masking operation 
         task['log']['timer']['mask'] = time() - start
@@ -279,32 +291,36 @@ def mask_cmd(tasks, volume_path, mask_mip, inverse, fill_missing):
 
 
 @cli.command('crop-margin')
+@click.option('--name', type=str, default='crop-margin', help='name of this operator')
 @click.option('--margin-size', type=int, nargs=3, default=None,
               help='crop the chunk margin. ' + 
               'The default is None and will use the output_bbox ' + 
               'as croping range.')
-@processor
-def crop_margin_cmd(tasks, margin_size):
+@operator
+def crop_margin_cmd(tasks, name, margin_size):
     """Crop the margin of chunk."""
+    state['operators'][name] = CropMarginOperator(margin_size=margin_size, 
+                                       verbose=state['verbose'],
+                                       name=name)
     for task in tasks:
         start = time()
-        operator = CropMarginOperator(margin_size=margin_size, 
-                                      verbose=task['verbose'])
-        task['chunk'] = operator(task['chunk'], 
-                                 output_bbox=task['output_bbox'])
+        task['chunk'] = state['operators'][name](task['chunk'], 
+                                      output_bbox=task['output_bbox'])
         task['log']['timer']['crop-margin'] = time() - start
         yield task
 
 
 @cli.command('save')
+@click.option('--name', type=str, default='save', help='name of this operator')
 @click.option('--volume-path', type=str, required=True, help='volume path')
-@processor 
-def save_cmd(tasks, volume_path):
+@operator 
+def save_cmd(tasks, name, volume_path):
     """Save chunk to volume."""
+    state['operators'][name] = SaveOperator(volume_path, state['mip'], 
+                                 verbose=state['verbose'],
+                                 name=name)
     for task in tasks:
         start = time()
-        operator = SaveOperator(volume_path, task['mip'], 
-                                verbose=task['verbose'])
         operator(task['chunk'])
         task['output_volume_path'] = volume_path
         task['log']['timer']['save'] = time() - start
@@ -312,50 +328,54 @@ def save_cmd(tasks, volume_path):
 
 
 @cli.command('upload-log')
+@click.option('--name', type=str, default='upload-log', help='name of this operator')
 @click.option('--log-path', type=str, default=None, 
               help='log storage path')
-@processor
-def upload_log_cmd(tasks, log_path):
+@operator
+def upload_log_cmd(tasks, name, log_path):
     """Upload log as json file."""
+    state['operators'][name] = UploadLogOperator(log_path, verbose=state['verbose'], name=name)
     for task in tasks:
         if not log_path:
             print('put logs inside output path.')
             log_path = os.path.join(task['output_volume_path'], 'log')
-        operator = UploadLogOperator(log_path, verbose=task['verbose'])
-        operator(task['log'], task['output_bbox'])
+        state['operators'][name](task['log'], task['output_bbox'])
         yield task
 
 
 @cli.command('cloud-watch')
-@click.option('--name', type=str, default='chunkflow', help='name of the speedometer')
-@processor
-def cloud_watch_cmd(tasks, name):
+@click.option('--name', type=str, default='cloud-watch', help='name of this operator')
+@click.option('--log-name', type=str, default='chunkflow', help='name of the speedometer')
+@operator
+def cloud_watch_cmd(tasks, name, log_name):
     """real time speedometer in AWS CloudWatch."""
+    state['operators'][name]=CloudWatchOperator(log_name=log_name, name=name)
     for task in tasks:
-        operator=CloudWatchOperator()
-        operator(task['log'])
+        state['operators'][name](task['log'])
         yield task
 
 
 @cli.command('view')
-@processor
-def view_cmd(tasks):
+@click.option('--name', type=str, default='view', help='name of this operator')
+@operator
+def view_cmd(tasks, name):
     """Visualize the chunk using cloudvolume view in browser."""
+    state['operators'][name] = ViewOperator(name=name)
     for task in tasks:
-        operator = ViewOperator()
-        operator(task['chunk'])
+        state['operators'][name](task['chunk'])
         yield task
 
 
 @cli.command('neuroglancer')
+@click.option('--name', type=str, default='neuroglancer', help='name of this operator')
 @click.option('--voxel-size', nargs=3, type=int, default=(1,1,1),
               help='voxel size of chunk')
-@processor
-def neuroglancer_cmd(tasks, voxel_size):
+@operator
+def neuroglancer_cmd(tasks, name, voxel_size):
     """Visualize the chunk using neuroglancer."""
+    state['operators'][name] = NeuroglancerViewOperator(name=name)
     for task in tasks:
-        operator = NeuroglancerViewOperator()
-        operator([task['chunk'],], voxel_size=voxel_size)
+        state['operators'][name]([task['chunk'],], voxel_size=voxel_size)
         yield task
 
 
