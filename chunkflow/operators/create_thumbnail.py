@@ -1,10 +1,10 @@
-from .operator_base import OperatorBase
 import numpy as np
 
 from cloudvolume.lib import Vec, Bbox
 from cloudvolume import CloudVolume
 
 from chunkflow.igneous.tasks import downsample_and_upload
+from .operator_base import OperatorBase
 
 
 class CreateThumbnailOperator(OperatorBase):

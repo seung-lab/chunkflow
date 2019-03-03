@@ -1,6 +1,7 @@
-from .operator_base import OperatorBase
 import numpy as np
 from cloudvolume import CloudVolume 
+
+from .operator_base import OperatorBase
 
 
 class SaveOperator(OperatorBase):

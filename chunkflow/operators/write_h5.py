@@ -2,7 +2,7 @@ from .operator_base import OperatorBase
 import h5py
 import os
 
-from chunkflow.lib.offset_array import OffsetArray
+from chunkflow.chunk import Chunk
 
 
 class WriteH5Operator(OperatorBase):
@@ -20,6 +20,6 @@ class WriteH5Operator(OperatorBase):
 
         with h5py.File(file_name) as f:
             f.create_dataset('/main', data=chunk, compression='gzip')
-            if isinstance(chunk, OffsetArray):
+            if isinstance(chunk, Chunk):
                 f.create_dataset('/global_offset', 
                                  data=chunk.global_offset)

@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm 
 
 from .patch_mask import PatchMask
-from chunkflow.lib.offset_array import OffsetArray
+from chunkflow.chunk import Chunk
 
 
 class BlockInferenceEngine(object):
@@ -44,9 +44,9 @@ class BlockInferenceEngine(object):
     def __call__(self, input_chunk, output_buffer=None):
         """
         args:
-            input_chunk (OffsetArray): input chunk with global offset
+            input_chunk (Chunk): input chunk with global offset
         """
-        assert isinstance(input_chunk, OffsetArray)
+        assert isinstance(input_chunk, Chunk)
         if np.all(input_chunk==0):
             print('input is all zero, return zero buffer directly')
             if output_buffer is None:
@@ -92,7 +92,7 @@ class BlockInferenceEngine(object):
 
                     output_patch = output_patch[:self.num_output_channels, :, :, :]
                     
-                    output_patch = OffsetArray(output_patch,
+                    output_patch = Chunk(output_patch,
                                                (0,)+input_patch.global_offset)
 
                     # normalized by patch mask
@@ -108,8 +108,8 @@ class BlockInferenceEngine(object):
         return output_buffer
 
     def _create_output_buffer(self, input_chunk):
-        assert isinstance(input_chunk, OffsetArray)
+        assert isinstance(input_chunk, Chunk)
         output_buffer = np.zeros((self.num_output_channels,)+input_chunk.shape,
                                  dtype=np.float32)
-        return OffsetArray(output_buffer,
+        return Chunk(output_buffer,
                            global_offset=(0,)+input_chunk.global_offset)

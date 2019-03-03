@@ -2,7 +2,7 @@ import numpy as np
 import unittest
 from .block_inference_engine import BlockInferenceEngine
 from .frameworks.identity_patch_inference_engine import IdentityPatchInferenceEngine
-from chunkflow.lib.offset_array import OffsetArray
+from chunkflow.chunk import Chunk
 
 
 class TestBlockInferenceEngine(unittest.TestCase):
@@ -21,7 +21,7 @@ class TestBlockInferenceEngine(unittest.TestCase):
                                                 (256 - 64) * 2 + 64,
                                                 (256 - 64) * 2 + 64), 
                                   dtype=np.uint8) 
-        image = OffsetArray(image)
+        image = Chunk(image)
         output = block_inference_engine(image)
         output = np.reshape(output, image.shape)
         

@@ -4,12 +4,10 @@ import numpy as np
 # Offset = Tuple[int, int, int]
 
 
-class OffsetArray(np.ndarray):
+class Chunk(np.ndarray):
     """
-        OffsetArray
+       Chunk 
     a chunk of big array with offset
-    this is a python alternative of Julia OffsetArrays.jl
-    https://github.com/JuliaArrays/OffsetArrays.jl
     implementation following an example in (ndarray subclassing)
     [https://docs.scipy.org/doc/numpy/user/basics.subclassing.html]
     """
@@ -37,7 +35,7 @@ class OffsetArray(np.ndarray):
     @classmethod
     def from_bbox(cls, array, bbox):
         global_offset = (bbox.minpt.z, bbox.minpt.y, bbox.minpt.x)
-        return OffsetArray(array, global_offset=global_offset)
+        return Chunk(array, global_offset=global_offset)
 
     @property
     def slices(self):
@@ -56,7 +54,7 @@ class OffsetArray(np.ndarray):
                      zip(np.where(mask), self.global_offset))
 
     def add_overlap(self, other):
-        assert isinstance(other, OffsetArray)
+        assert isinstance(other, Chunk)
         overlap_slices = self._get_overlap_slices(other.slices)
         self[overlap_slices] += other[overlap_slices]
 
@@ -66,7 +64,7 @@ class OffsetArray(np.ndarray):
         internalSlices = self._get_internal_slices(slices)
         arr = self[internalSlices]
         global_offset = tuple(s.start for s in slices)
-        return OffsetArray(arr, global_offset=global_offset)
+        return Chunk(arr, global_offset=global_offset)
 
     def save(self, patch):
         internalSlices = self._get_internal_slices(patch.slices)
@@ -88,4 +86,4 @@ class OffsetArray(np.ndarray):
 
 #    def __array_wrap__(self, out_arr, context=None):
 #        chunk = super().__array_wrap__(self, out_arr, context)
-#        return OffsetArray(chunk, global_offset=self.global_offset)
+#        return Chunk(chunk, global_offset=self.global_offset)
