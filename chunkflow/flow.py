@@ -181,16 +181,22 @@ def delete_task_in_queue_cmd(tasks, name):
 @click.option('--fill-missing/--no-fill-missing', default=False,
               help='fill the missing chunks in input volume with zeros ' + 
               'or not, default is false')
-@click.option('--validate-mip', type=int, default=None, help='validate chunk using higher mip level')
+@click.option('--validate-mip', type=int, default=None, 
+              help='validate chunk using higher mip level')
+@click.option('--blackout-sections/--no-blackout-sections', 
+              default=False, help='blackout some sections. ' +
+              'the section ids json file should named blackout_section_ids.json.' +
+              'default is False.')
 @operator
 def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size, 
-               fill_missing, validate_mip):
+               fill_missing, validate_mip, blackout_sections):
     """[operator] Cutout chunk from volume."""
     state['operators'][name] = CutoutOperator(
         volume_path, mip=state['mip'], 
         expand_margin_size=expand_margin_size,
         verbose=state['verbose'], fill_missing=fill_missing,
-        validate_mip=validate_mip, name=name)
+        validate_mip=validate_mip, blackout_sections=blackout_sections,
+        name=name)
  
     for task in tasks:
         start = time()

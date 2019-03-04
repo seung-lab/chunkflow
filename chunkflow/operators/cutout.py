@@ -1,6 +1,7 @@
 import numpy as np
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
+from cloudvolume.storage import Storage
 
 from chunkflow.lib.validate import validate_by_template_matching
 from chunkflow.igneous.downsample import downsample_with_averaging
@@ -12,7 +13,8 @@ class CutoutOperator(OperatorBase):
     def __init__(self, volume_path, mip=0, 
                  expand_margin_size=(0,0,0),
                  verbose=True, fill_missing=False,
-                 validate_mip=None, name='cutout'):
+                 validate_mip=None, blackout_sections=None, 
+                 name='cutout'):
         super().__init__(name=name)
         self.volume_path = volume_path
         self.mip = mip
@@ -20,6 +22,7 @@ class CutoutOperator(OperatorBase):
         self.verbose = verbose
         self.fill_missing = fill_missing
         self.validate_mip = validate_mip
+        self.blackout_sections = blackout_sections
         
         self.vol = CloudVolume(
             self.volume_path,
@@ -28,6 +31,11 @@ class CutoutOperator(OperatorBase):
             progress=self.verbose,
             mip=self.mip,
             parallel=False)
+
+        if blackout_sections:
+            with Storage(volume_path) as stor:
+                self.blackout_section_ids = stor.get_json(
+                    'blackout_section_ids.json')['section_ids'] 
 
         if self.validate_mip:
             self.validate_vol = CloudVolume(
@@ -61,9 +69,25 @@ class CutoutOperator(OperatorBase):
         global_offset = tuple(s.start for s in chunk_slices)
 
         chunk = Chunk(chunk, global_offset=global_offset)
-       
+        
+        if self.blackout_sections:
+            chunk = self._blackout_sections(chunk)
+
         if self.validate_mip:
             self._validate_chunk(chunk)
+        return chunk
+    
+    def _blackout_sections(self, chunk):
+        """
+        make some sections black.
+        this was normally used for the section with bad alignment.
+        The ConvNet was supposed to handle them better with black image.
+        """
+        # current code only works with 
+        assert chunk.ndim == 3, "current code assumes that the chunk is 3D image."
+        for z in self.blackout_section_ids:
+            z0 = z - chunk.global_offset[0]
+            chunk[z0, :,:] = 0
         return chunk
 
     def _validate_chunk(self, chunk):
