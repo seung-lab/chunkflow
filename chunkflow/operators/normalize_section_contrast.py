@@ -15,12 +15,12 @@ class NormalizeSectionContrastOperator(OperatorBase):
     https://github.com/seung-lab/igneous/blob/master/igneous/tasks.py#L735
     """
     def __init__(self,
-                 levels_path,
-                 mip,
-                 clip_fraction,
-                 minval=None,
-                 maxval=None,
-                 name='normalize-contrast'):
+                 levels_path: str,
+                 mip: int,
+                 clip_fraction: float,
+                 minval: float=None,
+                 maxval: float=None,
+                 name: str='normalize-contrast'):
         """
         levels_path: (str) path of section histogram files.
         mip: (int) the mip level of section histogram.

@@ -8,9 +8,9 @@ from .operator_base import OperatorBase
 
 
 class CreateThumbnailOperator(OperatorBase):
-    def __init__(self, volume_path,
-                 chunk_mip=0, verbose=True,
-                 name='create-thumbnail'):
+    def __init__(self, volume_path: str,
+                 chunk_mip: int=0, verbose: bool=True,
+                 name: str='create-thumbnail'):
         super().__init__(name=name)
         self.volume_path = volume_path
         self.chunk_mip = chunk_mip

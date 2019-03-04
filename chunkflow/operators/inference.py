@@ -2,13 +2,13 @@ from .operator_base import OperatorBase
 
 
 class InferenceOperator(OperatorBase):
-    def __init__(self, convnet_model, convnet_weight_path, 
-                 patch_size=(20, 256, 256), output_key='affinity',
-                 num_output_channels=3,
-                 original_num_output_channels=3,
+    def __init__(self, convnet_model: str, convnet_weight_path: str, 
+                 patch_size=(20, 256, 256), output_key: str='affinity',
+                 num_output_channels: int=3,
+                 original_num_output_channels: int=3,
                  patch_overlap=(4, 64, 64),
-                 framework='identity',
-                 verbose=True, name='inference'):
+                 framework: str='identity',
+                 verbose: bool=True, name: str='inference'):
 
         super().__init__(name=name)
         

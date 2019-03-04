@@ -5,7 +5,8 @@ from .operator_base import OperatorBase
 
 
 class SaveOperator(OperatorBase):
-    def __init__(self, volume_path, mip, verbose=True, name='save'):
+    def __init__(self, volume_path: str, mip: int, 
+                 verbose: bool=True, name: str='save'):
         super().__init__(name=name)
         self.verbose = verbose
         self.volume = CloudVolume(

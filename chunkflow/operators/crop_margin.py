@@ -8,7 +8,7 @@ class CropMarginOperator(OperatorBase):
     in both side in each dimension.
     """
     def __init__(self, margin_size=None, 
-                 verbose=True, name='crop-margin'):
+                 verbose: bool=True, name: str='crop-margin'):
         super().__init__(name=name)
         self.margin_size = margin_size
         self.verbose = verbose

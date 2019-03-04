@@ -4,7 +4,7 @@ from cloudvolume.secrets import aws_credentials
 
 
 class CloudWatch:
-    def __init__(self, log_name, credentials=None):
+    def __init__(self, log_name: str, credentials: dict=None):
         self.log_name = log_name
         if not credentials:
             credentials = aws_credentials()
@@ -14,7 +14,7 @@ class CloudWatch:
             aws_secret_access_key=credentials['AWS_SECRET_ACCESS_KEY'],
             aws_access_key_id=credentials['AWS_ACCESS_KEY_ID'])
 
-    def put_metric_data(self, log):
+    def put_metric_data(self, log: dict):
         assert isinstance(log, dict)
 
         if 'compute_device' in log:

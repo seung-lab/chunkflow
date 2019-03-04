@@ -8,9 +8,9 @@ from .operator_base import OperatorBase
 
 
 class MaskOperator(OperatorBase):
-    def __init__(self, volume_path, mask_mip, chunk_mip, 
-                 inverse=False, fill_missing=False, verbose=True,
-                 name='mask'):
+    def __init__(self, volume_path: str, mask_mip: int, chunk_mip: int, 
+                 inverse: bool=False, fill_missing: bool=False, verbose: bool=True,
+                 name: str='mask'):
         super().__init__(name=name)
 
         self.mask_mip = mask_mip

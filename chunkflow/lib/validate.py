@@ -4,7 +4,7 @@ from warnings import warn
 from skimage.feature import match_template
 
 
-def validate_by_template_matching(img, verbose=True):
+def validate_by_template_matching(img: np.ndarray, verbose: bool=True):
     """ Detect 3d black boxes by template matching.
     1. binarize the image. the voxels inside the black box will be false, and the outside will be true
     2. The template is 7x7x2 with one section true and the other false. 

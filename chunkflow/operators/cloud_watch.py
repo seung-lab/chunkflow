@@ -4,7 +4,7 @@ from .operator_base import OperatorBase
 
 
 class CloudWatchOperator(OperatorBase):
-    def __init__(self, log_name='chunkflow', name='cloud-watch'):
+    def __init__(self, log_name: str='chunkflow', name: str='cloud-watch'):
         super().__init__(name=name)
 
         # write to aws cloud watch

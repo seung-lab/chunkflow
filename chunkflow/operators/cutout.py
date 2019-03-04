@@ -10,11 +10,11 @@ from .operator_base import OperatorBase
 
 
 class CutoutOperator(OperatorBase):
-    def __init__(self, volume_path, mip=0, 
+    def __init__(self, volume_path: str, mip: int=0, 
                  expand_margin_size=(0,0,0),
-                 verbose=True, fill_missing=False,
-                 validate_mip=None, blackout_sections=None, 
-                 name='cutout'):
+                 verbose: bool=True, fill_missing: bool=False,
+                 validate_mip: int=None, blackout_sections: bool=None, 
+                 name: str='cutout'):
         super().__init__(name=name)
         self.volume_path = volume_path
         self.mip = mip
