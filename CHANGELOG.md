@@ -1,6 +1,17 @@
 ChangeLog history
 =================
 
+# chunkflow 0.2.2 (2019-03-04)
+## Breaking Changes
+
+## Deprecations 
+
+## Features
+- add option to blackout some sections
+- add a new operator: normalize the sections using precomputed histogram
+- add typing check for most of the function arguments and kwargs
+## Bug Fixes 
+
 # chunkflow 0.2.1 (2019-03-03)
 ## Breaking Changes
 
