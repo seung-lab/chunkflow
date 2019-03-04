@@ -95,7 +95,7 @@ def generator(f):
               help='offset in voxel number.')
 @generator
 def create_chunk_cmd(size, dtype, voxel_offset):
-    """Create a fake chunk for easy test."""
+    """[generator] Create a fake chunk for easy test."""
     create_chunk_operator = CreateChunkOperator()
     chunk = create_chunk_operator(size=size, dtype=dtype, voxel_offset=voxel_offset)
     yield {'chunk': chunk}
@@ -108,7 +108,7 @@ def create_chunk_cmd(size, dtype, voxel_offset):
               help='global offset of this chunk')
 @generator
 def read_file_cmd(file_name, offset):
-    """Read HDF5 and tiff files."""
+    """[generator] Read HDF5 and tiff files."""
     read_file_operator = ReadFileOperator()
     chunk = read_file_operator(file_name, global_offset=offset)
     yield {'chunk': chunk}
@@ -120,7 +120,7 @@ def read_file_cmd(file_name, offset):
               help='file name of hdf5 file, the extention should be .h5')
 @operator
 def write_h5_cmd(tasks, name, file_name):
-    """Write chunk to HDF5 file."""
+    """[operator] Write chunk to HDF5 file."""
     state['operators'][name] = WriteH5Operator()
     for task in tasks:
         state['operators'][name](task['chunk'], file_name)
@@ -136,7 +136,7 @@ def write_h5_cmd(tasks, name, file_name):
               help='visibility timeout of sqs queue; default is using the timeout of the queue.')
 @generator 
 def generate_task_cmd(queue_name, offset, shape, visibility_timeout):
-    """Create task or fetch task from queue."""
+    """[generator] Create task or fetch task from queue."""
     task = {'log': {'timer': {}}}
     if not queue_name:
         # no queue name specified
@@ -163,7 +163,7 @@ def generate_task_cmd(queue_name, offset, shape, visibility_timeout):
 @click.option('--name', type=str, default='delete-task-in-queue', help='name of this operator')
 @operator
 def delete_task_in_queue_cmd(tasks, name):
-    """Delete the task in queue."""
+    """[operator] Delete the task in queue."""
     for task in tasks:
         queue = task['queue']
         task_handle = task['task_handle']
@@ -185,7 +185,7 @@ def delete_task_in_queue_cmd(tasks, name):
 @operator
 def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size, 
                fill_missing, validate_mip):
-    """Cutout chunk from volume."""
+    """[operator] Cutout chunk from volume."""
     state['operators'][name] = CutoutOperator(
         volume_path, mip=state['mip'], 
         expand_margin_size=expand_margin_size,
@@ -195,7 +195,39 @@ def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size,
     for task in tasks:
         start = time()
         task['chunk'] = state['operators'][name](task['output_bbox'])
-        task['log']['timer']['cutout'] = time() - start
+        task['log']['timer'][name] = time() - start
+        task['cutout_volume_path'] = volume_path
+        yield task
+
+
+@cli.command('normalize-section-contrast')
+@click.option('--name', type=str, default='normalize-section-contrast', help='name of operator.')
+@click.option('--levels-path', type=str, default=None, 
+              help='the path of section histograms.')
+@click.option('--mip', type=int, default=None, 
+              help='the mip level of section histograms.')
+@click.option('--clip-fraction', type=float, default=0.01, 
+              help='the voxel intensity fraction to clip out.')
+@click.option('--minval', type=float, default=None,
+              help='the minimum intensity of transformed chunk.')
+@click.option('--maxval', type=float, default=None,
+              help='the maximum intensity of transformed chunk.')
+@operator
+def normalize_contrast_contrast_cmd(tasks, name, levels_path, mip, clip_fraction,
+                           minval, maxval):
+    """[operator] Normalize the section contrast using precomputed histograms."""
+    if mip is None:
+        mip = state['mip']
+    if levels_path is None:
+        levels_path = state['cutout_volume_path']
+
+    state['operators'][name] = NormalizeSectionContrastOperator(
+        levels_path, mip, clip_fraction, minval=minval, maxval=maxval, name=name)
+    
+    for task in tasks:
+        start = time()
+        task['chunk'] = state['operators'][name](task['chunk'])
+        task['log']['timer'][name] = time() - start
         yield task
 
 
@@ -217,7 +249,7 @@ def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size,
 def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
               patch_overlap, output_key, original_num_output_channels,
               num_output_channels, framework):
-    """Perform convolutional network inference for chunks."""
+    """[operator] Perform convolutional network inference for chunks."""
     state['operators'][name] = InferenceOperator(
         convnet_model, convnet_weight_path, 
         patch_size=patch_size, output_key=output_key,
@@ -232,7 +264,7 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
             task['log'] = {'timer': {}}
         start = time()
         task['chunk'] = state['operators'][name](task['chunk'])
-        task['log']['timer']['inference'] = time() - start
+        task['log']['timer'][name] = time() - start
         task['compute_device'] = state['operators'][name].compute_device
         yield task
 
@@ -242,7 +274,7 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
 @click.option('--volume-path', type=str, default=None, help='thumbnail volume path')
 @operator 
 def create_thumbnail_cmd(tasks, name, volume_path):
-    """create quantized thumbnail layer for visualization. 
+    """[operator] Create quantized thumbnail layer for visualization. 
     Note that the float data type will be quantized to uint8.
     """
     state['operators'][name] = CreateThumbnailOperator(
@@ -256,7 +288,7 @@ def create_thumbnail_cmd(tasks, name, volume_path):
                                        'thumbnail')
         start = time()
         state['operators'][name](task['chunk']) 
-        task['log']['timer']['create-thumbnail'] = time() - start
+        task['log']['timer'][name] = time() - start
         yield task
 
 
@@ -272,7 +304,7 @@ def create_thumbnail_cmd(tasks, name, volume_path):
               'default is False.')
 @operator
 def mask_cmd(tasks, volume_path, mask_mip, inverse, fill_missing):
-    """Mask the chunk. The mask could be in higher mip level and we
+    """[operator] Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
     state['operators'][name] = MaskOperator(volume_path, mask_mip, state['mip'], 
@@ -286,7 +318,7 @@ def mask_cmd(tasks, volume_path, mask_mip, inverse, fill_missing):
         task['chunk'] = state['operators'][name](task['chunk']) 
         # Note that mask operation could be used several times, 
         # this will only record the last masking operation 
-        task['log']['timer']['mask'] = time() - start
+        task['log']['timer'][name] = time() - start
         yield task
 
 
@@ -298,7 +330,7 @@ def mask_cmd(tasks, volume_path, mask_mip, inverse, fill_missing):
               'as croping range.')
 @operator
 def crop_margin_cmd(tasks, name, margin_size):
-    """Crop the margin of chunk."""
+    """[operator] Crop the margin of chunk."""
     state['operators'][name] = CropMarginOperator(margin_size=margin_size, 
                                        verbose=state['verbose'],
                                        name=name)
@@ -306,7 +338,7 @@ def crop_margin_cmd(tasks, name, margin_size):
         start = time()
         task['chunk'] = state['operators'][name](task['chunk'], 
                                       output_bbox=task['output_bbox'])
-        task['log']['timer']['crop-margin'] = time() - start
+        task['log']['timer'][name] = time() - start
         yield task
 
 
@@ -315,7 +347,7 @@ def crop_margin_cmd(tasks, name, margin_size):
 @click.option('--volume-path', type=str, required=True, help='volume path')
 @operator 
 def save_cmd(tasks, name, volume_path):
-    """Save chunk to volume."""
+    """[operator] Save chunk to volume."""
     state['operators'][name] = SaveOperator(volume_path, state['mip'], 
                                  verbose=state['verbose'],
                                  name=name)
@@ -323,7 +355,7 @@ def save_cmd(tasks, name, volume_path):
         start = time()
         operator(task['chunk'])
         task['output_volume_path'] = volume_path
-        task['log']['timer']['save'] = time() - start
+        task['log']['timer'][name] = time() - start
         yield task
 
 
@@ -333,7 +365,7 @@ def save_cmd(tasks, name, volume_path):
               help='log storage path')
 @operator
 def upload_log_cmd(tasks, name, log_path):
-    """Upload log as json file."""
+    """[operator] Upload log as json file."""
     state['operators'][name] = UploadLogOperator(log_path, verbose=state['verbose'], name=name)
     for task in tasks:
         if not log_path:
@@ -348,7 +380,7 @@ def upload_log_cmd(tasks, name, log_path):
 @click.option('--log-name', type=str, default='chunkflow', help='name of the speedometer')
 @operator
 def cloud_watch_cmd(tasks, name, log_name):
-    """real time speedometer in AWS CloudWatch."""
+    """[operator] Real time speedometer in AWS CloudWatch."""
     state['operators'][name]=CloudWatchOperator(log_name=log_name, name=name)
     for task in tasks:
         state['operators'][name](task['log'])
@@ -359,7 +391,7 @@ def cloud_watch_cmd(tasks, name, log_name):
 @click.option('--name', type=str, default='view', help='name of this operator')
 @operator
 def view_cmd(tasks, name):
-    """Visualize the chunk using cloudvolume view in browser."""
+    """[operator] Visualize the chunk using cloudvolume view in browser."""
     state['operators'][name] = ViewOperator(name=name)
     for task in tasks:
         state['operators'][name](task['chunk'])
@@ -372,7 +404,7 @@ def view_cmd(tasks, name):
               help='voxel size of chunk')
 @operator
 def neuroglancer_cmd(tasks, name, voxel_size):
-    """Visualize the chunk using neuroglancer."""
+    """[operator] Visualize the chunk using neuroglancer."""
     state['operators'][name] = NeuroglancerViewOperator(name=name)
     for task in tasks:
         state['operators'][name]([task['chunk'],], voxel_size=voxel_size)

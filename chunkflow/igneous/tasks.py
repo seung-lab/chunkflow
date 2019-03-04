@@ -72,3 +72,6 @@ def downsample_and_upload(
       # this is not the last mip level
       if not only_last_mip:
         vol[new_bounds.to_slices()] = image 
+
+
+
