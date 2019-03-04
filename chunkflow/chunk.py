@@ -1,5 +1,5 @@
 import numpy as np
-
+from cloudvolume.lib import Bbox
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
 
@@ -41,6 +41,10 @@ class Chunk(np.ndarray):
     def slices(self):
         return tuple(slice(o, o + s) for o, s in 
                      zip(self.global_offset, self.shape))
+
+    @property
+    def bbox(self):
+        return Bbox.from_delta(self.global_offset, self.shape)
 
     def where(self, mask):
         """

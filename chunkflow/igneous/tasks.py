@@ -72,3 +72,130 @@ def downsample_and_upload(
       # this is not the last mip level
       if not only_last_mip:
         vol[new_bounds.to_slices()] = image 
+
+
+class ContrastNormalizationTask(RegisteredTask):
+  """TransferTask + Contrast Correction based on LuminanceLevelsTask output."""
+  # translate = change of origin
+
+  def __init__(
+    self, src_path, dest_path, levels_path, shape, 
+    offset, mip, clip_fraction, fill_missing, 
+    translate, minval, maxval
+  ):
+
+    super(ContrastNormalizationTask, self).__init__(
+      src_path, dest_path, levels_path, shape, offset, 
+      mip, clip_fraction, fill_missing, translate,
+      minval, maxval
+    )
+    self.src_path = src_path
+    self.dest_path = dest_path
+    self.shape = Vec(*shape)
+    self.offset = Vec(*offset)
+    self.fill_missing = fill_missing
+    self.translate = Vec(*translate)
+    self.mip = int(mip)
+    self.clip_fraction = float(clip_fraction)
+    self.minval = minval 
+    self.maxval = maxval
+
+    self.levels_path = levels_path if levels_path else self.src_path
+
+    assert 0 <= self.clip_fraction <= 1
+
+  def execute(self):
+    srccv = CloudVolume(
+        self.src_path, fill_missing=self.fill_missing, mip=self.mip)
+    destcv = CloudVolume(
+        self.dest_path, fill_missing=self.fill_missing, mip=self.mip)
+
+    bounds = Bbox(self.offset, self.shape[:3] + self.offset)
+    bounds = Bbox.clamp(bounds, srccv.bounds)
+    image = srccv[bounds.to_slices()].astype(np.float32)
+
+    zlevels = self.fetch_z_levels()
+
+    nbits = np.dtype(srccv.dtype).itemsize * 8
+    maxval = float(2 ** nbits - 1)
+
+    for z in range(bounds.minpt.z, bounds.maxpt.z):
+      imagez = z - bounds.minpt.z
+      zlevel = zlevels[imagez]
+      (lower, upper) = self.find_section_clamping_values(
+          zlevel, self.clip_fraction, 1 - self.clip_fraction)
+      if lower == upper:
+        continue
+      img = image[:, :, imagez]
+      img = (img - float(lower)) * (maxval / (float(upper) - float(lower)))
+      image[:, :, imagez] = img
+
+    image = np.round(image)
+
+    minval = self.minval if self.minval is not None else 0.0
+    maxval = self.maxval if self.maxval is not None else maxval
+
+    image = np.clip(image, minval, maxval).astype(destcv.dtype)
+
+    bounds += self.translate
+    downsample_and_upload(image, bounds, destcv, self.shape, mip=self.mip)
+
+  def find_section_clamping_values(self, zlevel, lowerfract, upperfract):
+    filtered = np.copy(zlevel)
+
+    # remove pure black from frequency counts as
+    # it has no information in our images
+    filtered[0] = 0
+
+    cdf = np.zeros(shape=(len(filtered),), dtype=np.uint64)
+    cdf[0] = filtered[0]
+    for i in range(1, len(filtered)):
+      cdf[i] = cdf[i - 1] + filtered[i]
+
+    total = cdf[-1]
+
+    if total == 0:
+      return (0, 0)
+
+    lower = 0
+    for i, val in enumerate(cdf):
+      if float(val) / float(total) > lowerfract:
+        break
+      lower = i
+
+    upper = 0
+    for i, val in enumerate(cdf):
+      if float(val) / float(total) > upperfract:
+        break
+      upper = i
+
+    return (lower, upper)
+
+  def fetch_z_levels(self):
+    bounds = Bbox(self.offset, self.shape[:3] + self.offset)
+
+    levelfilenames = [
+      'levels/{}/{}'.format(self.mip, z) \
+      for z in range(bounds.minpt.z, bounds.maxpt.z)
+    ]
+    
+    with Storage(self.levels_path) as stor:
+      levels = stor.get_files(levelfilenames)
+
+    errors = [ 
+      level['filename'] \
+      for level in levels if level['content'] == None
+    ]
+
+    if len(errors):
+      raise Exception(", ".join(
+          errors) + " were not defined. Did you run a LuminanceLevelsTask for these slices?")
+
+    levels = [(
+      int(os.path.basename(item['filename'])),
+      json.loads(item['content'].decode('utf-8'))
+    ) for item in levels ]
+
+    levels.sort(key=lambda x: x[0])
+    levels = [x[1] for x in levels]
+    return [ np.array(x['levels'], dtype=np.uint64) for x in levels ]

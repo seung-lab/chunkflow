@@ -1,13 +1,24 @@
 import numpy as np
 import unittest
+from cloudvolume.lib import Bbox
 from chunkflow.chunk import Chunk
 
 
 class TestChunk(unittest.TestCase):
     def setUp(self):
-        arr = np.ones((3, 3, 3), dtype='float32')
-        self.chunk = Chunk(arr, (-1, -1, -1))
+        self.size = (3,3,3)
+        self.global_offset = (-1, -1, -1)
+        arr = np.ones(self.size, dtype='float32')
+        self.chunk = Chunk(arr, self.global_offset)
     
+    def test_bbox(self):
+        self.assertEqual(self.chunk.bbox, 
+                         Bbox.from_delta(self.global_offset, self.size))
+
+    def test_slices(self):
+        self.assertEqual(self.chunk.slices, 
+                         (slice(-1, 1), slice(-1, 1), slice(-1, 1)))
+
     def test_initialization(self):
         arr = np.ones((3, 3, 3), dtype='float32')
         chunk = Chunk(arr)
