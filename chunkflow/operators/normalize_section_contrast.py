@@ -28,14 +28,13 @@ class NormalizeSectionContrastOperator(OperatorBase):
         minval: (float)
         """
         super().__init__(name=name)
+        assert 0 <= clip_fraction <= 1
 
         self.levels_path = levels_path
         self.mip = int(mip)
         self.clip_fraction = float(clip_fraction)
         self.minval = minval
         self.maxval = maxval
-
-        assert 0 <= self.clip_fraction <= 1
 
     def __call__(self, chunk):
         """
@@ -45,11 +44,11 @@ class NormalizeSectionContrastOperator(OperatorBase):
         """
         # this is a image, not affinitymap
         assert chunk.ndim == 3
-        image = np.transpose(chunk)
+        image = np.transpose(chunk).astype(np.float32)
 
         # translate to xyz order since cloudvolume is working this F order
-        offset = Vec(*chunk.global_offset)
-        shape = Vec(*chunk.shape)
+        offset = Vec(*chunk.global_offset[::-1])
+        shape = Vec(*image.shape)
         bounds = Bbox.from_delta(offset, shape)
 
         zlevels = self.fetch_z_levels(bounds)

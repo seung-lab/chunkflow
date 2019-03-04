@@ -219,7 +219,7 @@ def normalize_contrast_contrast_cmd(tasks, name, levels_path, mip, clip_fraction
     if mip is None:
         mip = state['mip']
     if levels_path is None:
-        levels_path = os.path.join(state['cutout_volume_path'], 'levels')
+        levels_path = state['cutout_volume_path']
 
     state['operators'][name] = NormalizeSectionContrastOperator(
         levels_path, mip, clip_fraction, minval=minval, maxval=maxval, name=name)
