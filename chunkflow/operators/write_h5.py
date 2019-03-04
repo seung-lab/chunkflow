@@ -1,12 +1,12 @@
-from .operator_base import OperatorBase
 import h5py
 import os
 
 from chunkflow.chunk import Chunk
+from .operator_base import OperatorBase
 
 
 class WriteH5Operator(OperatorBase):
-    def __init__(self, verbose=True, name='write-h5'):
+    def __init__(self, verbose=True, name: str='write-h5'):
         super().__init__(name=name)
         self.verbose = verbose
 

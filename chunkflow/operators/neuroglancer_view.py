@@ -5,7 +5,7 @@ from .operator_base import OperatorBase
 
 
 class NeuroglancerViewOperator(OperatorBase):
-    def __init__(self, name='neuroglancer'):
+    def __init__(self, name: str='neuroglancer'):
         super().__init__(name=name)
 
     def __call__(self, chunks, voxel_size=(1,1,1)):

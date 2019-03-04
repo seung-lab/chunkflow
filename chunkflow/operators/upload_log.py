@@ -5,7 +5,7 @@ from .operator_base import OperatorBase
 
 
 class UploadLogOperator(OperatorBase):
-    def __init__(self, log_path, verbose=True, name='upload-log'):
+    def __init__(self, log_path: str, verbose: bool=True, name: str='upload-log'):
         super().__init__(name=name)
         self.log_path = log_path
         self.verbose = verbose

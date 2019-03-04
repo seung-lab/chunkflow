@@ -8,7 +8,7 @@ from .operator_base import OperatorBase
 
 
 class ReadFileOperator(OperatorBase):
-    def __init__(self, verbose=True, name='read-file'):
+    def __init__(self, verbose: bool=True, name: str='read-file'):
         super().__init__(name=name)
         self.verbose = verbose
 

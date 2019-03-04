@@ -4,8 +4,8 @@ from time import sleep
 from cloudvolume.secrets import aws_credentials
 
 class SQSQueue(object):
-    def __init__(self, queue_name, visibility_timeout=None, 
-                 wait_if_empty=100, fetch_wait_time_seconds=20):
+    def __init__(self, queue_name: str, visibility_timeout: int=None, 
+                 wait_if_empty: int=100, fetch_wait_time_seconds: int=20):
         """
         Parameters:
         visibility_timeout: (int) make the task invisible for a while (seconds)
@@ -76,18 +76,18 @@ class SQSQueue(object):
             assert md5_of_body == hashlib.md5(body.encode('utf-8')).hexdigest()
             return receipt_handle, body
 
-    def delete(self, receipt_handle):
+    def delete(self, receipt_handle: str):
         self.client.delete_message(
             QueueUrl=self.queue_url, ReceiptHandle=receipt_handle)
 
-    def _send_entry_list(self, entry_list):
+    def _send_entry_list(self, entry_list: list):
         resp = self.client.send_message_batch(
             QueueUrl=self.queue_url, Entries=entry_list)
         # the failed list should be empty
         assert 'Failed' not in resp
         entry_list.clear()
 
-    def send_message_list(self, message_list):
+    def send_message_list(self, message_list: list):
         '''
         the messages are string 
         use batch mode to send the messages quickly 
