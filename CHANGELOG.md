@@ -1,6 +1,18 @@
 ChangeLog history
 =================
 
+# chunkflow 0.2.3 (2019-02-25)
+## Breaking Changes
+
+## Deprecations 
+
+## Features
+
+## Bug Fixes 
+
+## Improved Documentation
+- updated the documentation to focus on chunk operators, not just ConvNet Inference.
+
 # chunkflow 0.2.2 (2019-03-04)
 ## Breaking Changes
 
