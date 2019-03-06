@@ -15,6 +15,7 @@ class TestBlockInferenceEngine(unittest.TestCase):
             patch_size=(32, 256, 256),
             patch_overlap=patch_overlap,
             num_output_channels=1,
+            batch_size=2
         )
         
         image = np.random.randint(0, 255, size=(28 * 2 + 4, 

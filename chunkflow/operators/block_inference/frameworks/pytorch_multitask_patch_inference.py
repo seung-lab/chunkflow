@@ -46,12 +46,8 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
         assert len(self.opt.in_spec) == 1
 
     def __call__(self, patch):
-        # patch should be a 5d np array
-        #assert isinstance(patch, np.ndarray)
-        if patch.ndim == 3:
-            patch = patch.reshape((1, 1) + patch.shape)
-        elif patch.ndim == 4:
-            patch = patch.reshape((1, ) + patch.shape)
+        # make sure that patch is 5d ndarray
+        patch = self._reshape_patch(patch)
 
         with torch.no_grad():
             inputs = dict()
@@ -60,5 +56,4 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
                 inputs[k] = torch.from_numpy(patch).cuda()
             outputs = self.net(inputs)
             output = outputs[self.output_key].cpu().numpy()
-            #output = np.squeeze(output)
             return output

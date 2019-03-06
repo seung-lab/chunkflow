@@ -12,14 +12,16 @@ class PZNetPatchInferenceEngine(PatchInferenceEngine):
         self.net = pznet.znet()
         self.net.load_net(net_dir)
 
-    def __call__(self, input_patch):
+    def __call__(self, patch):
         """
         args:
-            input_patch (5d numpy array): input patch with dimensions \
+            patch (5d numpy array): input patch with dimensions \
                 batch/channel/z/y/x
         return:
             5d numpy array with the same dimension arrangment.
         """
+        # make sure that the input patch is 5d ndarray
+        patch = self._reshape_patch(patch)
         return self.net.forward(input_patch)
 
 

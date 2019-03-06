@@ -20,7 +20,7 @@ before_script:
 script:
 - chunkflow generate-task --shape 28 320 320 --offset 4 64 64 upload-log --log-path file:///tmp/test/log
 - chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-file --file-name=/tmp/img.h5
-- chunkflow create-chunk --size 36 448 448 inference  cloud-watch
+- chunkflow create-chunk --size 36 448 448 inference  --batch-size 3 cloud-watch
 # use -a to append to the coverage file, otherwise it will clean previous record
 - cd chunkflow
 - coverage run --source=chunkflow -m unittest

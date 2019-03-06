@@ -37,12 +37,8 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
             self.net.eval()
 
     def __call__(self, patch):
-        # patch should be a 5d np array
-        #assert isinstance(patch, np.ndarray)
-        if patch.ndim == 3:
-            patch = patch.reshape((1, 1) + patch.shape)
-        elif patch.ndim == 4:
-            patch = patch.reshape((1, ) + patch.shape)
+        # make sure that the patch is 5d ndarray
+        patch = self._reshape_patch(patch)
 
         with torch.no_grad():
             in_v = torch.from_numpy(patch).cuda()
