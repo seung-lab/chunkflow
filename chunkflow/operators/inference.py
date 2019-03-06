@@ -8,6 +8,7 @@ class InferenceOperator(OperatorBase):
                  original_num_output_channels: int=3,
                  patch_overlap=(4, 64, 64),
                  framework: str='identity',
+                 batch_size=1,
                  verbose: bool=True, name: str='inference'):
 
         super().__init__(name=name)
@@ -60,6 +61,7 @@ class InferenceOperator(OperatorBase):
             output_key=output_key,
             num_output_channels=num_output_channels,
             is_masked_in_device=is_masked_in_device,
+            batch_size=batch_size,
             verbose=verbose)
  
     def __call__(self, chunk):

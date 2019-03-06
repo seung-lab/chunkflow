@@ -105,7 +105,7 @@ class TestInferencePipeline(unittest.TestCase):
         inference_operator = InferenceOperator(
             None, None, patch_size=self.patch_size, output_key='affinity',
             num_output_channels=3, patch_overlap=self.patch_overlap,
-            framework='identity')
+            framework='identity', batch_size=3)
         chunk = inference_operator(chunk)
         print('after inference: {}'.format(chunk.slices))
         

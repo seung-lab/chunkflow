@@ -251,10 +251,11 @@ def normalize_contrast_contrast_cmd(tasks, name, levels_path, mip, clip_fraction
 @click.option('--num-output-channels', type=int, default=3, help='number of output channels')
 @click.option('--framework', type=click.Choice(['identity', 'pznet', 'pytorch', 'pytorch-multitask']), 
               default='pytorch-multitask', help='inference framework')
+@click.option('--batch-size', type=int, default=1, help='mini batch size of input patch.')
 @operator
 def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
               patch_overlap, output_key, original_num_output_channels,
-              num_output_channels, framework):
+              num_output_channels, framework, batch_size):
     """[operator] Perform convolutional network inference for chunks."""
     state['operators'][name] = InferenceOperator(
         convnet_model, convnet_weight_path, 
@@ -263,6 +264,7 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
         original_num_output_channels=original_num_output_channels,
         patch_overlap=patch_overlap,
         framework='identity',
+        batch_size=batch_size,
         verbose=state['verbose'], name=name)
 
     for task in tasks:

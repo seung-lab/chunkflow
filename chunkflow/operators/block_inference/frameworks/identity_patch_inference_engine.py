@@ -16,12 +16,14 @@ class IdentityPatchInferenceEngine(PatchInferenceEngine):
 
     def __call__(self, patch):
         """
-        return the same with argument 
+        return the same with argument
         reshape the size to 5 dimension:
-        batch, channel, z, y, x 
+        batch, channel, z, y, x
         """
-        output = np.reshape(np.copy(patch), (1, 1, *patch.shape))
+        patch = self._reshape_patch(patch)
+
+        output = np.copy(patch)
         if self.num_output_channels > 1:
-            output = np.repeat(output, 3, axis=1)
-        
+            output = np.repeat(output, self.num_output_channels, axis=1)
+
         return output

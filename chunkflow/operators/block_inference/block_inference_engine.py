@@ -3,7 +3,7 @@ __doc__ = """
 Inference a chunk of image
 """
 
-#import time
+import time
 import numpy as np
 from tqdm import tqdm 
 
@@ -72,6 +72,9 @@ class BlockInferenceEngine(object):
         for i, s, o in zip(input_chunk.shape, self.stride, self.patch_overlap):
             assert (i-o) % s == 0, ('the patche stride {} and overlap {} do not align with the input chunk size {}' % s, o, i)
         
+        if self.verbose:
+            start = time.time()
+
         if output_buffer is None:
             # this consumes a lot of memory, should not be preallocated
             output_buffer = self._create_output_buffer(input_chunk)
@@ -94,36 +97,38 @@ class BlockInferenceEngine(object):
                     offset_list.append((oz, oy, ox))
         
         # iterate the offset list
-        for i in range(0, len(offset_list), batch_size):
-            offsets = offset_list[i:i+batch_size]
+        for i in range(0, len(offset_list), self.batch_size):
+            offsets = offset_list[i : i + self.batch_size]
             for j,offset in enumerate(offsets):
                 input_patch = input_chunk.cutout((
                     slice(offset[0], offset[0] + self.patch_size[0]),
                     slice(offset[1], offset[1] + self.patch_size[1]),
                     slice(offset[2], offset[2] + self.patch_size[2])))
+                self.input_patch_buffer[j, :,:,:] = input_patch
 
-        # the input and output patch is a 5d numpy array with
-        # datatype of float32, the dimensions are batch/channel/z/y/x.
-        # the input image should be normalized to [0,1]
-        output_patch = self.patch_inference_engine(input_patch)
 
-        # remove the batch number dimension
-        output_patch = np.squeeze(output_patch, axis=0)
+            # the input and output patch is a 5d numpy array with
+            # datatype of float32, the dimensions are batch/channel/z/y/x.
+            # the input image should be normalized to [0,1]
+            output_patch = self.patch_inference_engine(self.input_patch_buffer)
 
-        output_patch = output_patch[:self.num_output_channels, :, :, :]
-        
-        output_patch = Chunk(output_patch,
-                                   (0,)+input_patch.global_offset)
+            assert output_patch.ndim == 5 
+            for j,offset in enumerate(offsets):
+                output_chunk = output_patch[j, :self.num_output_channels, :, :, :]
+                
+                output_chunk = Chunk(output_chunk, (0,)+offset)
 
-        # normalized by patch mask
-        if not self.is_masked_in_device:
-            output_patch *= self.patch_mask
+                # normalized by patch mask
+                if not self.is_masked_in_device:
+                    output_chunk *= self.patch_mask
 
-        # blend to output buffer
-        output_buffer.blend(output_patch)
-        #end = time.time()
-        #print("Elapsed: %3f sec" % (end-start))
-        #start = end
+                # blend to output buffer
+                output_buffer.blend(output_chunk)
+
+        if self.verbose:
+            end = time.time()
+            print("Elapsed: %3f sec" % (end-start))
+            start = end
 
         return output_buffer
 
