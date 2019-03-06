@@ -22,11 +22,19 @@ class BlockInferenceEngine(object):
                 such as gpu, for speed up. 
     """
     def __init__(self, patch_inference_engine, patch_size, patch_overlap,
-                 output_key='affinity', num_output_channels=3, 
-                 is_masked_in_device=False, verbose=True):
+                 output_key: str='affinity', num_output_channels: int=3, 
+                 is_masked_in_device: bool=False, batch_size: int=1, 
+                 verbose: bool=True):
         """
         params:
-            inference_engine, patch_size, input_chunk, output_key, patch_stride
+            patch_inference_engine: inference for each patch.
+            patch_size: (tuple) the size of patch.
+            input_chunk: (ndarray) input image
+            output_key: (str) the key of ConvNet output
+            patch_overlap: (tuple of int) overlap of each patch 
+            num_output_channels: (int) the number of output channels.
+            batch_size: (int) the mini batch size 
+            verbose: (bool) print out info or not.
         """
         assert len(patch_overlap) == 3
         assert len(patch_size) == 3
@@ -39,7 +47,11 @@ class BlockInferenceEngine(object):
 
         self.patch_mask = PatchMask(patch_size, patch_overlap)
         self.is_masked_in_device = is_masked_in_device
+        self.batch_size = batch_size
         self.verbose = verbose
+
+        # allocate a buffer to avoid redundent 
+        self.input_patch_buffer = np.zeros((batch_size, 1, *patch_size), dtype=np.float32)
 
     def __call__(self, input_chunk, output_buffer=None):
         """
@@ -61,9 +73,11 @@ class BlockInferenceEngine(object):
             assert (i-o) % s == 0, ('the patche stride {} and overlap {} do not align with the input chunk size {}' % s, o, i)
         
         if output_buffer is None:
+            # this consumes a lot of memory, should not be preallocated
             output_buffer = self._create_output_buffer(input_chunk)
         
-        #start = time.time()
+        # contruct input patch offset list
+        offset_list = []
         input_size = input_chunk.shape
         input_offset = input_chunk.global_offset
         for oz in tqdm(range(input_offset[0],
@@ -77,34 +91,40 @@ class BlockInferenceEngine(object):
                 for ox in range(input_offset[2],
                                 input_offset[2]+input_size[2]-self.patch_overlap[2],
                                 self.stride[2]):
-                    input_patch = input_chunk.cutout((
-                        slice(oz, oz + self.patch_size[0]),
-                        slice(oy, oy + self.patch_size[1]),
-                        slice(ox, ox + self.patch_size[2])))
-
-                    # the input and output patch is a 5d numpy array with
-                    # datatype of float32, the dimensions are batch/channel/z/y/x.
-                    # the input image should be normalized to [0,1]
-                    output_patch = self.patch_inference_engine(input_patch)
-
-                    # remove the batch number dimension
-                    output_patch = np.squeeze(output_patch, axis=0)
-
-                    output_patch = output_patch[:self.num_output_channels, :, :, :]
-                    
-                    output_patch = Chunk(output_patch,
-                                               (0,)+input_patch.global_offset)
-
-                    # normalized by patch mask
-                    if not self.is_masked_in_device:
-                        output_patch *= self.patch_mask
-
-                    # blend to output buffer
-                    output_buffer.blend(output_patch)
-                    #end = time.time()
-                    #print("Elapsed: %3f sec" % (end-start))
-                    #start = end
+                    offset_list.append((oz, oy, ox))
         
+        # iterate the offset list
+        for i in range(0, len(offset_list), batch_size):
+            offsets = offset_list[i:i+batch_size]
+            for j,offset in enumerate(offsets):
+                input_patch = input_chunk.cutout((
+                    slice(offset[0], offset[0] + self.patch_size[0]),
+                    slice(offset[1], offset[1] + self.patch_size[1]),
+                    slice(offset[2], offset[2] + self.patch_size[2])))
+
+        # the input and output patch is a 5d numpy array with
+        # datatype of float32, the dimensions are batch/channel/z/y/x.
+        # the input image should be normalized to [0,1]
+        output_patch = self.patch_inference_engine(input_patch)
+
+        # remove the batch number dimension
+        output_patch = np.squeeze(output_patch, axis=0)
+
+        output_patch = output_patch[:self.num_output_channels, :, :, :]
+        
+        output_patch = Chunk(output_patch,
+                                   (0,)+input_patch.global_offset)
+
+        # normalized by patch mask
+        if not self.is_masked_in_device:
+            output_patch *= self.patch_mask
+
+        # blend to output buffer
+        output_buffer.blend(output_patch)
+        #end = time.time()
+        #print("Elapsed: %3f sec" % (end-start))
+        #start = end
+
         return output_buffer
 
     def _create_output_buffer(self, input_chunk):
