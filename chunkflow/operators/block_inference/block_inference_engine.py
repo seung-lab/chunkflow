@@ -73,7 +73,7 @@ class BlockInferenceEngine(object):
             assert (i-o) % s == 0, ('the patche stride {} and overlap {} do not align with the input chunk size {}' % s, o, i)
         
         if self.verbose:
-            start = time.time()
+            chunk_time_start = time.time()
 
         if output_buffer is None:
             # this consumes a lot of memory, should not be preallocated
@@ -98,6 +98,9 @@ class BlockInferenceEngine(object):
         
         # iterate the offset list
         for i in range(0, len(offset_list), self.batch_size):
+            if self.verbose:
+                start = time.time()
+
             offsets = offset_list[i : i + self.batch_size]
             for j,offset in enumerate(offsets):
                 input_patch = input_chunk.cutout((
@@ -105,12 +108,21 @@ class BlockInferenceEngine(object):
                     slice(offset[1], offset[1] + self.patch_size[1]),
                     slice(offset[2], offset[2] + self.patch_size[2])))
                 self.input_patch_buffer[j, :,:,:] = input_patch
-
+            
+            if self.verbose:
+                end = time.time()
+                print('prepare input patch takes %3f sec' % (end - start))
+                start = end
 
             # the input and output patch is a 5d numpy array with
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
             output_patch = self.patch_inference_engine(self.input_patch_buffer)
+            
+            if self.verbose:
+                end = time.time()
+                print('run inference for a patch takes %3f sec' % (end-start))
+                start = end
 
             assert output_patch.ndim == 5 
             for j,offset in enumerate(offsets):
@@ -124,11 +136,13 @@ class BlockInferenceEngine(object):
 
                 # blend to output buffer
                 output_buffer.blend(output_chunk)
+            if self.verbose:
+                end = time.time()
+                print('mask and blend patch takes %3f sec' % (end-start))
 
         if self.verbose:
-            end = time.time()
-            print("Elapsed: %3f sec" % (end-start))
-            start = end
+            print("Inference of whole chunk takes %3f sec" % 
+                  (time.time() - chunk_time_start))
 
         return output_buffer
 
