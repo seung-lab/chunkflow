@@ -4,6 +4,8 @@
 tests
 docker
 .env
+.dat
+.json
 jwu
 dist 
 build

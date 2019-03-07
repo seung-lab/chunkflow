@@ -7,7 +7,7 @@ python:
 install:
 - pip install --upgrade pip
 # fix fpzip problem
-- pip install numpy==1.16
+# - pip install numpy==1.16
 # fix neuroglancer problem
 - pip install tornado==5.0
 - pip install fpzip
@@ -19,7 +19,7 @@ before_script:
 
 script:
 - chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-file --file-name=/tmp/img.h5
-- chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch
+- chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 # use -a to append to the coverage file, otherwise it will clean previous record
 - cd chunkflow
 - coverage run --source=chunkflow -m unittest

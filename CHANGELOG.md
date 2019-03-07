@@ -9,7 +9,8 @@ ChangeLog history
 ## Features
 
 ## Bug Fixes 
-
+- fix log uploading and cloud watch
+- fix the misplaced log in task, which will make the inference log not working
 ## Improved Documentation
 - clarify patch, chunk and block.
 - add realistic example for ConvNet inference.

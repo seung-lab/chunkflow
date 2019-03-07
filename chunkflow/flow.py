@@ -272,9 +272,8 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
             task['log'] = {'timer': {}}
         start = time()
         task['chunk'] = state['operators'][name](task['chunk'])
-        assert task['chunk'].dtype == np.float32
         task['log']['timer'][name] = time() - start
-        task['compute_device'] = state['operators'][name].compute_device
+        task['log']['compute_device'] = state['operators'][name].compute_device
         yield task
 
 
@@ -349,12 +348,11 @@ def save_cmd(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
         verbose=state['verbose'], name=name)
 
     for task in tasks:
-        start = time()
+        # the time elapsed was recorded internally
         state['operators'][name](
             task['chunk'], log=task.get('log', None), 
             output_bbox=task.get('output_bbox', None))
         task['output_volume_path'] = volume_path
-        task['log']['timer'][name] = time() - start
         yield task
 
 
@@ -364,7 +362,8 @@ def save_cmd(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
 @operator
 def cloud_watch_cmd(tasks, name, log_name):
     """[operator] Real time speedometer in AWS CloudWatch."""
-    state['operators'][name]=CloudWatchOperator(log_name=log_name, name=name)
+    state['operators'][name]=CloudWatchOperator(log_name=log_name, name=name,
+                                                verbose=state['verbose'])
     for task in tasks:
         state['operators'][name](task['log'])
         yield task

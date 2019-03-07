@@ -21,7 +21,7 @@ from . import downsample, downsample_scales
 def downsample_and_upload(
     image, bounds, vol, ds_shape, 
     mip=0, axis='z', skip_first=False,
-    sparse=False, only_last_mip=False
+    sparse=False, only_last_mip=True
   ): 
   """ 
   mip:int, the current mip level of image
