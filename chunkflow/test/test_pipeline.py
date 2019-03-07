@@ -124,15 +124,11 @@ class TestInferencePipeline(unittest.TestCase):
         
         print('save to output volume...')
         save_operator = SaveOperator(self.output_volume_path, 
-                                     self.mip)
+                                     self.mip, upload_log=False,
+                                     create_thumbnail=True)
         save_operator(chunk)
         print('after saving: {}'.format(chunk.slices))
         
-        print('create thumbnail...')
-        create_thumbnail_operator = CreateThumbnailOperator(
-            self.thumbnail_volume_path, chunk_mip=self.mip)
-        create_thumbnail_operator(chunk)
-
         # evaluate the output 
         print('start evaluation...')
         out = self.output_vol[self.output_bbox.to_slices()[::-1] + (slice(0,3),)]

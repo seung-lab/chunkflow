@@ -1,7 +1,30 @@
 ChangeLog history
 =================
 
-# chunkflow 0.2.3 (2019-02-25)
+# chunkflow 0.2.5 (2019-02-25)
+## Breaking Changes
+
+## Deprecations 
+
+## Features
+
+## Bug Fixes 
+
+## Improved Documentation 
+# chunkflow 0.2.4 (2019-03-07)
+## Breaking Changes
+- merge operator upload-log to save since we normally just put log inside saved volume.
+
+## Deprecations 
+
+## Features
+- add batch size option for ConvNet inference
+- better memory footprint by deleting the ascontiguousarray
+## Bug Fixes 
+- the inference framework was hard coded as identity, fixed this bug.
+## Improved Documentation 
+
+# chunkflow 0.2.3 (2019-03-05)
 ## Breaking Changes
 
 ## Deprecations 

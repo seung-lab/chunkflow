@@ -22,7 +22,7 @@ class IdentityPatchInferenceEngine(PatchInferenceEngine):
         """
         patch = self._reshape_patch(patch)
 
-        output = np.copy(patch)
+        output = np.copy(patch).astype(np.float32)
         if self.num_output_channels > 1:
             output = np.repeat(output, self.num_output_channels, axis=1)
 

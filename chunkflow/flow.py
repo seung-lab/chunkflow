@@ -263,7 +263,7 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
         num_output_channels=num_output_channels,
         original_num_output_channels=original_num_output_channels,
         patch_overlap=patch_overlap,
-        framework='identity',
+        framework=framework,
         batch_size=batch_size,
         verbose=state['verbose'], name=name)
 
@@ -272,31 +272,9 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
             task['log'] = {'timer': {}}
         start = time()
         task['chunk'] = state['operators'][name](task['chunk'])
+        assert task['chunk'].dtype == np.float32
         task['log']['timer'][name] = time() - start
         task['compute_device'] = state['operators'][name].compute_device
-        yield task
-
-
-@cli.command('create-thumbnail')
-@click.option('--name', type=str, default='create-thumbnail', help='name of this operator')
-@click.option('--volume-path', type=str, default=None, help='thumbnail volume path')
-@operator 
-def create_thumbnail_cmd(tasks, name, volume_path):
-    """[operator] Create quantized thumbnail layer for visualization. 
-    Note that the float data type will be quantized to uint8.
-    """
-    state['operators'][name] = CreateThumbnailOperator(
-        volume_path, chunk_mip=state['mip'], verbose=state['verbose'],
-        name=name
-    )
-
-    for task in tasks:
-        if not volume_path:
-            volume_path = os.path.join(task['output_volume_path'],
-                                       'thumbnail')
-        start = time()
-        state['operators'][name](task['chunk']) 
-        task['log']['timer'][name] = time() - start
         yield task
 
 
@@ -353,33 +331,30 @@ def crop_margin_cmd(tasks, name, margin_size):
 @cli.command('save')
 @click.option('--name', type=str, default='save', help='name of this operator')
 @click.option('--volume-path', type=str, required=True, help='volume path')
+@click.option('--upload-log/--no-upload-log', default=True, 
+              help='the log will be put inside volume-path')
+@click.option('--nproc', type=int, default=0,
+              help='number of processes, negative means using all the cores, ' +
+              '0/1 means turning off multiple processing, ' +
+              'n>1 means using n processes')
+@click.option('--create-thumbnail/--no-create-thumbnail', default=False,
+              help='create thumbnail or not. '+
+              'the thumbnail is a downsampled and quantized version of the chunk.')
 @operator 
-def save_cmd(tasks, name, volume_path):
+def save_cmd(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
     """[operator] Save chunk to volume."""
-    state['operators'][name] = SaveOperator(volume_path, state['mip'], 
-                                 verbose=state['verbose'],
-                                 name=name)
+    state['operators'][name] = SaveOperator(
+        volume_path, state['mip'], upload_log=upload_log,
+        create_thumbnail=create_thumbnail, nproc=nproc,
+        verbose=state['verbose'], name=name)
+
     for task in tasks:
         start = time()
-        operator(task['chunk'])
+        state['operators'][name](
+            task['chunk'], log=task.get('log', None), 
+            output_bbox=task.get('output_bbox', None))
         task['output_volume_path'] = volume_path
         task['log']['timer'][name] = time() - start
-        yield task
-
-
-@cli.command('upload-log')
-@click.option('--name', type=str, default='upload-log', help='name of this operator')
-@click.option('--log-path', type=str, default=None, 
-              help='log storage path')
-@operator
-def upload_log_cmd(tasks, name, log_path):
-    """[operator] Upload log as json file."""
-    state['operators'][name] = UploadLogOperator(log_path, verbose=state['verbose'], name=name)
-    for task in tasks:
-        if not log_path:
-            print('put logs inside output path.')
-            log_path = os.path.join(task['output_volume_path'], 'log')
-        state['operators'][name](task['log'], task['output_bbox'])
         yield task
 
 

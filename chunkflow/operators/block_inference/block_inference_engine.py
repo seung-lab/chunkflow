@@ -51,7 +51,8 @@ class BlockInferenceEngine(object):
         self.verbose = verbose
 
         # allocate a buffer to avoid redundent 
-        self.input_patch_buffer = np.zeros((batch_size, 1, *patch_size), dtype=np.float32)
+        self.input_patch_buffer = np.zeros((batch_size, 1, *patch_size), 
+                                           dtype=np.float32)
 
     def __call__(self, input_chunk, output_buffer=None):
         """
@@ -151,4 +152,4 @@ class BlockInferenceEngine(object):
         output_buffer = np.zeros((self.num_output_channels,)+input_chunk.shape,
                                  dtype=np.float32)
         return Chunk(output_buffer,
-                           global_offset=(0,)+input_chunk.global_offset)
+                     global_offset=(0,)+input_chunk.global_offset)
