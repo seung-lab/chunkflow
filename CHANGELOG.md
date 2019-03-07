@@ -10,7 +10,10 @@ ChangeLog history
 
 ## Bug Fixes 
 
-## Improved Documentation 
+## Improved Documentation
+- clarify patch, chunk and block.
+- add realistic example for ConvNet inference.
+
 # chunkflow 0.2.4 (2019-03-07)
 ## Breaking Changes
 - merge operator upload-log to save since we normally just put log inside saved volume.

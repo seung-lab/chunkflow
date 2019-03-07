@@ -32,6 +32,10 @@ The commands could be composed and used flexiblly. The first command should be a
 chunkflow create-chunk view
 chunkflow create-chunk 
 ```
+A Typical pipeline to run ConvNet inference is something like:
+```
+chunkflow --verbose generate-task --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT cutout --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 4 64 64 inference --convnet-model=your-model-name --convnet-weight-path=path/of/net/weight --patch-size 20 256 256 --patch-overlap 4 64 64 --output-key your-output-key --framework='identity' --batch-size 2 crop-margin save --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 4 --create-thumbnail delete-task-in-queue
+```
 
 ## Some Typical Operators
 - [x] Convolutional Network Inference. Currently, we support [PyTorch](https://pytorch.org) and [pznet](https://github.com/supersergiy/znnphi_interface)
@@ -39,11 +43,14 @@ chunkflow create-chunk
 - [x] Cutout service. Cutout chunk from datasets formatted as [neuroglancer precomputed](https://github.com/google/neuroglancer/tree/master/src/neuroglancer/datasource/precomputed) using [cloudvolume](https://github.com/seung-lab/cloud-volume)
 - [x] Save. Save chunk to neuroglancer precomputed. 
 - [x] Real File. Read image from hdf5 and tiff files. 
-- [x] Upload Log. upload log information to storage.
 - [x] View. View chunk using cloudvolume viewer.
 - [x] Mask. Mask out the chunk using a precomputed dataset.
 - [x] Cloud Watch. Realtime speedometer using AWS CloudWatch.
 
+### Use specific GPU device
+We can simply set an environment variable to use specific GPU device.
+
+`CUDA_VISIBLE_DEVICES=2 chunkflow`
 
 ## Produce tasks to AWS SQS queue
 in `bin`, 
@@ -51,14 +58,9 @@ in `bin`,
 `python produce_tasks.py --help`
 
 ## Terminology
-- patch: the input/output 3D/4D array for convnet with typical size like 32x256x256.
-- chunk: the input/output 3D/4D array after blending in each machine with typical size like 116x1216x1216.
-- block: the final main output array of each machine which should be aligned with storage backend such as [neuroglancer precomputed](https://github.com/google/neuroglancer/tree/master/src/neuroglancer/datasource/precomputed). The typical size is like 112x1152x1152.
-
-### Use specific GPU device
-We can simply set an environment variable to use specific GPU device.
-
-`CUDA_VISIBLE_DEVICES=2 python consume_tasks.py `
+- patch: ndarray as input to ConvNet. Normally it is pretty small due to the limited memory capacity of GPU.
+- chunk: ndarray with global offset and arbitrary shape.
+- block: the array with a shape and global offset aligned with storage backend. The block could be saved directly to storage backend. The alignment with storage files ensures that there is no writting conflict when saved parallelly.
 
 # Development
 ## Create a new release in PyPi 
