@@ -60,7 +60,10 @@ class CutoutOperator(OperatorBase):
         chunk = self.vol[chunk_slices[::-1]]
         # the cutout is fortran ordered, so need to transpose and make it C order
         chunk = np.transpose(chunk)
-        chunk = np.ascontiguousarray(chunk)
+        # we can delay this transpose later
+        # actually we do not need to make it contiguous
+        # chunk = np.ascontiguousarray(chunk)
+        
         # if the channel number is 1, squeeze it as 3d array
         # this should not be neccessary 
         # TODO: remove this step and use 4D array all over this package.
