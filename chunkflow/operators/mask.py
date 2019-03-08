@@ -17,6 +17,8 @@ class MaskOperator(OperatorBase):
         self.chunk_mip = chunk_mip
         self.inverse = inverse
         self.verbose = verbose
+        self.volume_path = volume_path
+
         self.mask_vol = CloudVolume(
             volume_path,
             bounded=False,
@@ -25,10 +27,18 @@ class MaskOperator(OperatorBase):
             mip=mask_mip)
         
         if verbose:
-            print("mask chunk using {} at mip {}".format(
-                volume_path, mask_mip))
+            print("mask chunk at mip {} using {}".format(
+                mask_mip, volume_path))
 
     def __call__(self, chunk):
+        if self.verbose:
+            print('mask out chunk using {} in mip {}'.format(
+                self.volume_path, self.mask_mip))
+
+        if np.alltrue(chunk==0):
+            warn("chunk is all black, return directly")
+            return chunk
+
         chunk_bbox = Bbox.from_slices(chunk.slices[-3:])
         mask_in_high_mip = self._read_mask(chunk_bbox)
         # this is a cloudvolume VolumeCutout rather than a normal numpy array
@@ -45,9 +55,6 @@ class MaskOperator(OperatorBase):
         if np.all(mask_in_high_mip):
             warn("mask elements are all positive, return directly")
             return chunk
-        if np.alltrue(chunk==0):
-            warn("chunk is all black, return directly")
-            return chunk
         
         assert np.any(mask_in_high_mip)
         
@@ -63,12 +70,12 @@ class MaskOperator(OperatorBase):
             mask[:, 
                  np.s_[offset[0]::xyfactor], 
                  np.s_[offset[1]::xyfactor]] = mask_in_high_mip
-
+        
         if chunk.ndim == mask.ndim:
             np.multiply(chunk, mask, out=chunk)
         elif chunk.ndim == mask.ndim + 1:
             for channel in range(chunk.shape[0]):
-                np.multiply(chunk[channel, :, :, :], mask, 
+                np.multiply(chunk[channel, :, :, :], mask,
                             out=chunk[channel, :, :, :])
         else:
             raise ValueError('invalid chunk or mask dimension.')
