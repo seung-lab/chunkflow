@@ -280,7 +280,7 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
 @cli.command('mask')
 @click.option('--name', type=str, default='mask', help='name of this operator')
 @click.option('--volume-path', type=str, required=True, help='mask volume path')
-@click.option('--mask-mip', type=int, default=5, help='mip level of mask')
+@click.option('--mip', type=int, default=5, help='mip level of mask')
 @click.option('--inverse/--no-inverse', default=False, 
               help='inverse the mask or not. default is True. ' + 
               'the mask will be multiplied to chunk.')
@@ -288,13 +288,13 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
               help='fill missing blocks with black or not. ' + 
               'default is False.')
 @operator
-def mask_cmd(tasks, volume_path, mask_mip, inverse, fill_missing):
+def mask_cmd(tasks, name, volume_path, mip, inverse, fill_missing):
     """[operator] Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
-    state['operators'][name] = MaskOperator(volume_path, mask_mip, state['mip'], 
-                                 inverse=inverse, 
-                                 fill_missing=fill_missing, 
+    state['operators'][name] = MaskOperator(volume_path, mip, state['mip'], 
+                                 inverse=inverse,
+                                 fill_missing=fill_missing,
                                  verbose=state['verbose'],
                                  name=name)
 

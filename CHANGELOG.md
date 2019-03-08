@@ -1,7 +1,7 @@
 ChangeLog history
 =================
 
-# chunkflow 0.2.5 (2019-02-25)
+# chunkflow 0.1.0 (2019-XX-XX)
 ## Breaking Changes
 
 ## Deprecations 
@@ -9,8 +9,20 @@ ChangeLog history
 ## Features
 
 ## Bug Fixes 
+
+## Improved Documentation 
+
+# chunkflow 0.2.5 (2019-03-08)
+## Breaking Changes
+- change the mask command parameter `mask-mip` to `mip`
+## Deprecations 
+
+## Features
+
+## Bug Fixes 
 - fix log uploading and cloud watch
 - fix the misplaced log in task, which will make the inference log not working
+- fix blackout section bug. Previous implementation will have indexing error while blacking out z outside of chunk.
 ## Improved Documentation
 - clarify patch, chunk and block.
 - add realistic example for ConvNet inference.
@@ -120,7 +132,7 @@ ChangeLog history
 # Template 
 the following texts are templates for adding change log
 
-# chunkflow 0.1.0 (2019-02-25)
+# chunkflow 0.1.0 (2019-xx-xx)
 ## Breaking Changes
 
 ## Deprecations 

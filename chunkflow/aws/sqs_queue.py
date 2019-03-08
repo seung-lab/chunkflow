@@ -74,6 +74,8 @@ class SQSQueue(object):
             body = resp['Messages'][0]['Body']
             md5_of_body = resp['Messages'][0]['MD5OfBody']
             assert md5_of_body == hashlib.md5(body.encode('utf-8')).hexdigest()
+            assert isinstance(receipt_handle, str)
+            assert body is not None
             return receipt_handle, body
 
     def delete(self, receipt_handle: str):

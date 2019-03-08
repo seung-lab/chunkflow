@@ -86,11 +86,12 @@ class CutoutOperator(OperatorBase):
         this was normally used for the section with bad alignment.
         The ConvNet was supposed to handle them better with black image.
         """
-        # current code only works with 
+        # current code only works with 3d image 
         assert chunk.ndim == 3, "current code assumes that the chunk is 3D image."
         for z in self.blackout_section_ids:
             z0 = z - chunk.global_offset[0]
-            chunk[z0, :,:] = 0
+            if z0 >= 0 and z0 < chunk.shape[0]:
+                chunk[z0, :, :] = 0
         return chunk
 
     def _validate_chunk(self, chunk):
