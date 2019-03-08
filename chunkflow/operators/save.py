@@ -51,7 +51,7 @@ class SaveOperator(OperatorBase):
                 progress=verbose)
  
  
-    def __call__(self, chunk, log=None, output_bbox=None):
+    def __call__(self, chunk, log={'timer':{}}, output_bbox=None):
         start = time.time()
 
         chunk_slices = chunk.slices 

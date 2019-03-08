@@ -2,7 +2,7 @@
 
 class OperatorBase(object):
     """Real Operator should inherit from this base class."""
-    def __init__(self, name: str=''):
+    def __init__(self, name: str=None):
         assert isinstance(name, str)
         self.name=name
 

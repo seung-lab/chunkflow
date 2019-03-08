@@ -350,7 +350,7 @@ def save_cmd(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
     for task in tasks:
         # the time elapsed was recorded internally
         state['operators'][name](
-            task['chunk'], log=task.get('log', None), 
+            task['chunk'], log=task.get('log', {'timer':{}}), 
             output_bbox=task.get('output_bbox', None))
         task['output_volume_path'] = volume_path
         yield task
