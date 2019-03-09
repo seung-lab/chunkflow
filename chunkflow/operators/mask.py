@@ -4,12 +4,14 @@ import numpy as np
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
 
+from chunkflow.chunk import Chunk
 from .operator_base import OperatorBase
 
 
 class MaskOperator(OperatorBase):
     def __init__(self, volume_path: str, mask_mip: int, chunk_mip: int, 
-                 inverse: bool=False, fill_missing: bool=False, 
+                 inverse: bool=False, fill_missing: bool=False,
+                 check_all_zero=False,
                  verbose: bool=True, name: str='mask'):
         super().__init__(name=name)
 
@@ -18,6 +20,7 @@ class MaskOperator(OperatorBase):
         self.inverse = inverse
         self.verbose = verbose
         self.volume_path = volume_path
+        self.check_all_zero = check_all_zero
 
         self.mask_vol = CloudVolume(
             volume_path,
@@ -29,8 +32,24 @@ class MaskOperator(OperatorBase):
         if verbose:
             print("mask chunk at mip {} using {}".format(
                 mask_mip, volume_path))
+    
+    def __call__(self, x):
+        if self.check_all_zero:
+            assert isinstance(x, Bbox)
+            return self.is_all_zero(x)
+        else:
+            assert isinstance(x, Chunk)
+            return self.maskout(x)
 
-    def __call__(self, chunk):
+    def is_all_zero(self, bbox):
+        mask_in_high_mip = self._read_mask(bbox)
+        if np.alltrue(mask_in_high_mip == 0):
+            # mask is all zero
+            return True
+        else:
+            return False
+
+    def maskout(self, chunk):
         if self.verbose:
             print('mask out chunk using {} in mip {}'.format(
                 self.volume_path, self.mask_mip))
@@ -41,12 +60,6 @@ class MaskOperator(OperatorBase):
 
         chunk_bbox = Bbox.from_slices(chunk.slices[-3:])
         mask_in_high_mip = self._read_mask(chunk_bbox)
-        # this is a cloudvolume VolumeCutout rather than a normal numpy array
-        # which will make np.alltrue(mask_in_high_mip == 0) to be 
-        # VolumeCutout(False) rather than False
-        mask_in_high_mip = np.asarray(mask_in_high_mip)
-        if self.inverse:
-            mask_in_high_mip = (mask_in_high_mip==0)
 
         if np.alltrue(mask_in_high_mip == 0):
             warn('the mask is all black, mask all the voxels directly')
@@ -100,6 +113,12 @@ class MaskOperator(OperatorBase):
         mask = self.mask_vol[mask_slices[::-1]]
         mask = np.transpose(mask)
         mask = np.squeeze(mask, axis=0)
-        
+
+        # this is a cloudvolume VolumeCutout rather than a normal numpy array
+        # which will make np.alltrue(mask_in_high_mip == 0) to be 
+        # VolumeCutout(False) rather than False
+        mask = np.asarray(mask)
+        if self.inverse:
+            mask = (mask==0)
         return mask
 
