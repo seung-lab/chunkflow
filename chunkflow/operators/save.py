@@ -50,7 +50,13 @@ class SaveOperator(OperatorBase):
                 mip=mip,
                 progress=verbose)
  
- 
+    def create_chunk_with_zeros(self, bbox):
+        """Create a fake all zero chunk"""
+        shape = (self.volume.num_channels, *bbox.size3[::-1])
+        arr = np.zeros(shape, dtype=self.volume.dtype)
+        chunk = Chunk(arr, global_offset=bbox.minpt)
+        return chunk
+
     def __call__(self, chunk, log={'timer':{}}, output_bbox=None):
         start = time.time()
 
