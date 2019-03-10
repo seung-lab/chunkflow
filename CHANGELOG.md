@@ -11,6 +11,7 @@ ChangeLog history
 ## Bug Fixes 
 
 ## Improved Documentation 
+- add kubernetes documentation to find monitor of operations per second and bandwidth usage.
 
 # chunkflow 0.2.5 (2019-03-08)
 ## Breaking Changes

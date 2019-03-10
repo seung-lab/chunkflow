@@ -22,12 +22,15 @@ kubectl edit configmap kube-dns-autoscaler --namespace=kube-system
 ## reconnect
 `gcloud container clusters get-credentials my-cluster`
 
-## watch
+## monitor and watch
 get the pod id
     kubectl get pods
 
 watch the logs
     watch kubectl logs pod-id
+
+We can monitor the traffic operations per second in Kubernetes deployment monitor interface.
+There is no bandwidth usage in Kubernetes, we can only monitor it in `instance group` monitor interface.
 
 ## deployment
 - create: `kubectl apply -f deploy.yml`
