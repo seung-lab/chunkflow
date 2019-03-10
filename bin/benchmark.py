@@ -16,14 +16,18 @@ for file_name in tqdm(os.listdir('log'), desc='loading log files'):
 #     print('file name: {}'.format(complete_file_name))
     with open(complete_file_name) as f:
         d = json.load(f)
-    timing = d['time_elapsed']
-
+    timing = d['timer']
+    
+    time_per_task = 0.0
+    for t in d['timer'].values():
+        time_per_task += t
+    
     item = pd.DataFrame({
         'compute_device': d['compute_device'],
-        'convnet_inference': timing['convnet_inference'],
-        'upload_output': timing['upload_output'],
-        'read_image': timing['read_image'],
-        'complete_task': timing['complete_task']
+        'inference': timing['inference'],
+        'save': timing['save'],
+        'cutout': timing['cutout'],
+        'complete_task': time_per_task,
     }, index=[0])
     dfs.append(item)
 

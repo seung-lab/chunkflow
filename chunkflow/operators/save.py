@@ -7,6 +7,7 @@ from cloudvolume.lib import Vec, Bbox
 from cloudvolume.storage import Storage
 
 from chunkflow.igneous.tasks import downsample_and_upload
+from chunkflow.chunk import Chunk
 
 from .operator_base import OperatorBase
 
@@ -52,9 +53,9 @@ class SaveOperator(OperatorBase):
  
     def create_chunk_with_zeros(self, bbox):
         """Create a fake all zero chunk"""
-        shape = (self.volume.num_channels, *bbox.size3[::-1])
+        shape = (self.volume.num_channels, *bbox.size3())
         arr = np.zeros(shape, dtype=self.volume.dtype)
-        chunk = Chunk(arr, global_offset=bbox.minpt)
+        chunk = Chunk(arr, global_offset=(0, *bbox.minpt))
         return chunk
 
     def __call__(self, chunk, log={'timer':{}}, output_bbox=None):
