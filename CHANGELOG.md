@@ -1,7 +1,18 @@
 ChangeLog history
 =================
 
-# chunkflow 0.1.0 (2019-XX-XX)
+# chunkflow 0.1.0 (2019-xx-xx)
+## Breaking Changes
+
+## Deprecations 
+
+## Features
+
+## Bug Fixes 
+
+## Improved Documentation 
+
+# chunkflow 0.2.6 (2019-03-11)
 ## Breaking Changes
 
 ## Deprecations 
