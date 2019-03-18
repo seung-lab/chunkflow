@@ -13,6 +13,9 @@ kubectl create secret generic secrets \
 --from-file=/secrets/boss-secret.json
 ```
 
+delete secret
+    kubectl delete secret --all 
+
 ## reconfig cluster
 ```
 gcloud container clusters resize my-cluster --region us-central1 --node-pool gpu-pool-1 --size 1

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Operators to generate tasks or process chunks.
+"""Operators to generate or handle tasks.
 """
 from .cloud_watch import CloudWatchOperator
 from .create_chunk import CreateChunkOperator
@@ -11,5 +11,6 @@ from .neuroglancer_view import NeuroglancerViewOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .read_file import ReadFileOperator
 from .save import SaveOperator
+from .save_images import SaveImagesOperator
 from .view import ViewOperator
 from .write_h5 import WriteH5Operator

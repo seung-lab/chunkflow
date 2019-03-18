@@ -18,7 +18,7 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
-
+- a new operator called `save-images` to save chunk as a serials of PNG images.
 ## Bug Fixes 
 
 ## Improved Documentation 

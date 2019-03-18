@@ -162,7 +162,7 @@ def generate_task_cmd(queue_name, offset, shape, visibility_timeout):
 
 
 @cli.command('write-h5')
-@click.option('--name', type=str, default='write-h5', help='name of this operator')
+@click.option('--name', type=str, default='write-h5', help='name of operator')
 @click.option('--file-name', type=str, required=True,
               help='file name of hdf5 file, the extention should be .h5')
 @operator
@@ -174,6 +174,21 @@ def write_h5_cmd(tasks, name, file_name):
         if not task['skip']:
             state['operators'][name](task['chunk'], file_name)
         # keep the pipeline going
+        yield task
+
+
+@cli.command('save-images')
+@click.option('--name', type=str, default='save-image', help='name of operator')
+@click.option('--output-path', type=str, default='/tmp/',
+              help='output path of saved 2d images formated as png.')
+@operator
+def save_images_cmd(tasks, name, output_path):
+    """[operator] Save as 2D PNG images."""
+    state['operators'][name] = SaveImagesOperator(output_path, name=name)
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            state['operators'][name](task['chunk'])
         yield task
 
 

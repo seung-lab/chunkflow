@@ -42,6 +42,7 @@ chunkflow --verbose generate-task --queue-name="$QUEUE_NAME" --visibility-timeou
 - [x] Task Generator. Fetch task from AWS SQS.
 - [x] Cutout service. Cutout chunk from datasets formatted as [neuroglancer precomputed](https://github.com/google/neuroglancer/tree/master/src/neuroglancer/datasource/precomputed) using [cloudvolume](https://github.com/seung-lab/cloud-volume)
 - [x] Save. Save chunk to neuroglancer precomputed. 
+- [x] Save Images. Save chunk as a serials of PNG images in local directory.
 - [x] Real File. Read image from hdf5 and tiff files. 
 - [x] View. View chunk using cloudvolume viewer.
 - [x] Mask. Mask out the chunk using a precomputed dataset.
