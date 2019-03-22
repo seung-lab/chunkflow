@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys
-from chunkflow.frameworks.patch_inference_engine import PatchInferenceEngine
+from .patch_inference_engine import PatchInferenceEngine
 
 
 class PZNetPatchInferenceEngine(PatchInferenceEngine):
@@ -22,7 +22,7 @@ class PZNetPatchInferenceEngine(PatchInferenceEngine):
         """
         # make sure that the input patch is 5d ndarray
         patch = self._reshape_patch(patch)
-        return self.net.forward(input_patch)
+        return self.net.forward(patch)
 
 
 if __name__ == "__main__":
