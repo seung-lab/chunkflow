@@ -1,5 +1,5 @@
 # backend: base | pytorch | pznet 
-ARG BACKEND=pznet
+ARG BACKEND=base
 
 FROM seunglab/chunkflow:${BACKEND}
 

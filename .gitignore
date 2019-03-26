@@ -4,6 +4,7 @@
 *.swp
 *.dat
 *.sh
+*secret.json
 .coverage
 dist/
 bin/
