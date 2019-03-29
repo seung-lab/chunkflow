@@ -22,6 +22,7 @@ class NormalizeSectionShangOperator(OperatorBase):
 
         self.nominalmin = nominalmin
         self.nominalmax = nominalmax
+        self.clipvalues = clipvalues
 
     def __call__(self, chunk):
         # this is an image chunk, not affinitymap
@@ -45,7 +46,7 @@ class NormalizeSectionShangOperator(OperatorBase):
         # Note in cloudvolume the last dim is z
         for ii in range(chunk.shape[2]):
             grey_normalize(chunk[:,:,ii], normalization, target_scale = [nominalmin,nominalmax], 
-                    min_max_invalid = [True,True], do_clipping = clipvalues, make_copy=False)
+                    min_max_invalid = [True,True], do_clipping = self.clipvalues, make_copy=False)
 
         # cast to original data type if necessary
         #chunk = np.round(chunk)
