@@ -24,11 +24,13 @@ class NormalizeSectionShangOperator(OperatorBase):
         self.nominalmax = nominalmax
         self.clipvalues = clipvalues
 
-    def __call__(self, chunk):
+    def __call__(self, chunk, debug=False):
         # this is an image chunk, not affinitymap
         assert chunk.ndim == 3
         originaltype = chunk.dtype
         chunk = chunk.astype(np.float32)
+        if debug:
+            print(chunk.shape)
 
         # number of bits per voxel
         nbits = np.dtype(originaltype).itemsize * 8
@@ -43,9 +45,9 @@ class NormalizeSectionShangOperator(OperatorBase):
         #chunk = grey_normalize(chunk, normalization, target_scale = [-1,1], min_max_invalid = [True]*2, make_copy=False)
         
         # slice-wise normalization
-        # Note in cloudvolume the last dim is z
-        for ii in range(chunk.shape[2]):
-            grey_normalize(chunk[:,:,ii], normalization, target_scale = [nominalmin,nominalmax], 
+        # Note in chunkflow the first dim is z/slice
+        for ii in range(chunk.shape[0]):
+            grey_normalize(chunk[ii,:,:], normalization, target_scale = [nominalmin,nominalmax], 
                     min_max_invalid = [True,True], do_clipping = self.clipvalues, make_copy=False)
 
         # cast to original data type if necessary
