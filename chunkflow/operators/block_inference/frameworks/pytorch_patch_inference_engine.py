@@ -30,7 +30,8 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
         else:
             self.is_gpu = False
 
-        self.net = load_source(model_file_name).InstantiatedModel
+        self.net_source = load_source(model_file_name)
+        self.net = self.net_source.InstantiatedModel
         if self.is_gpu:
             self.net.load_state_dict(torch.load(weight_file_name))
             self.net.cuda()
@@ -47,13 +48,22 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
         patch = self._reshape_patch(patch)
 
         with torch.no_grad():
+            if hasattr(self.net_source, 'pre_process'):
+                patch = self.net_source.pre_process(patch)
             in_v = torch.from_numpy(patch)
             if self.is_gpu:
                 in_v = in_v.cuda()
-            # this net returns a list, but has one output
-            output_v = self.net(in_v)[0]
-            # the network output do not have sigmoid function
-            output_patch = torch.sigmoid(output_v).data.cpu().numpy()
+
+            output_v = self.net(in_v)
+            if hasattr(self.net_source, 'post_process'):
+                output_patch = self.net_source.post_process(output_v)
+            else:   # backward compatibility
+                # this net returns a list, but has one output
+                output_v = output_v[0]
+                # the network output do not have sigmoid function
+                output_patch = torch.sigmoid(output_v)
+
+            output_patch = output_patch.data.cpu().numpy()
             return output_patch[:,0:self.num_output_channels, :,:]
 
 
