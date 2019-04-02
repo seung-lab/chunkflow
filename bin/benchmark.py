@@ -7,9 +7,9 @@
 import os
 import json
 import click
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
-
 
 def load_log(log_dir):
     dfs = []
@@ -45,15 +45,23 @@ def load_log(log_dir):
     return df
 
 
-def print_log_statistics(df):
+def print_log_statistics(df, output_size=None):
     grouped_df = df.groupby('compute_device')
 
+    #import pdb; pdb.set_trace()
+
+    print('\n\ngrouped dataframe')
+    print(grouped_df)
 
     print('\n\nmax time (sec):')
     print(grouped_df.max()) 
 
     print('\n\nmean time (sec):')
     print(grouped_df.mean())
+
+    if output_size:
+        print('\n\nmean speed (mv/s)')
+        print(np.prod(output_size)/grouped_df.mean()/1e3)
 
     print('\n\nsummation of time (hour):')
     print(grouped_df.sum()/3600)
@@ -62,12 +70,14 @@ def print_log_statistics(df):
 @click.command()
 @click.option('--log-dir', '-l', type=click.Path(exists=True, dir_okay=True, readable=True), 
               default='./log', help='directory of json log files.')
-def main(log_dir):
+@click.option('--output-size', '-s', type=int, nargs=3, default=None, 
+              help='output size for each task. will be used for computing speed.')
+def main(log_dir, output_size):
     """
     The log directory.
     """
     df = load_log(log_dir)
-    print_log_statistics(df)
+    print_log_statistics(df, output_size=output_size)
 
 
 if __name__ == '__main__':

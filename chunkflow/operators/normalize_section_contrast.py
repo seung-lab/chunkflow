@@ -77,6 +77,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
         image = np.clip(image, minval, maxval)
 
         chunk = np.transpose(image).astype(chunk.dtype)
+        chunk = Chunk(chunk, global_offset = (*offset[::-1]))
         return chunk
 
     def find_section_clamping_values(self, zlevel, lowerfract, upperfract):

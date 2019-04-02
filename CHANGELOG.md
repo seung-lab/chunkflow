@@ -19,6 +19,7 @@ ChangeLog history
 
 ## Features
 - a new operator called `save-images` to save chunk as a serials of PNG images.
+- add log directory parameter for benchmark script.
 ## Bug Fixes 
 - queue becomes None
 - pznet was not working.
