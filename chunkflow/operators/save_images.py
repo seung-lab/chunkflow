@@ -9,8 +9,10 @@ from chunkflow.chunk import Chunk
 
 
 class SaveImagesOperator(OperatorBase):
-    def __init__(self, output_path='./saved_images/', name='save-images'):
-        super().__init__(name=name)
+    def __init__(self, output_path: str='./saved_images/', 
+                 name: str='save-images',
+                 verbose: bool=True):
+        super().__init__(name=name, verbose=verbose)
         
         if not os.path.isdir(output_path):
             warn('output path do not exist, will create %s.' % output_path)

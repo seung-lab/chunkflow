@@ -5,8 +5,8 @@ from .operator_base import OperatorBase
 
 
 class CreateChunkOperator(OperatorBase):
-    def __init__(self, name: str='create-chunk'):
-        super().__init__(name=name)
+    def __init__(self, name: str='create-chunk', verbose: bool=True):
+        super().__init__(name=name, verbose=verbose)
 
     def __call__(self, size=(64, 64, 64), dtype='uint8', voxel_offset=(0,0,0)):
         def _make_black_box():

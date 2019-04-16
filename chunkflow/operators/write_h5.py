@@ -6,9 +6,8 @@ from .operator_base import OperatorBase
 
 
 class WriteH5Operator(OperatorBase):
-    def __init__(self, verbose=True, name: str='write-h5'):
-        super().__init__(name=name)
-        self.verbose = verbose
+    def __init__(self, verbose: bool=True, name: str='write-h5'):
+        super().__init__(name=name, verbose=verbose)
 
     def __call__(self, chunk, file_name):
         assert '.h5' in file_name

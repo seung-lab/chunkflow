@@ -16,7 +16,7 @@ class InferenceOperator(OperatorBase):
                  bump='wu',
                  verbose: bool=True, name: str='inference'):
 
-        super().__init__(name=name)
+        super().__init__(name=name, verbose=verbose)
         
         self.framework = framework
 

@@ -13,12 +13,11 @@ class MaskOperator(OperatorBase):
                  inverse: bool=False, fill_missing: bool=False,
                  check_all_zero=False,
                  verbose: bool=True, name: str='mask'):
-        super().__init__(name=name)
+        super().__init__(name=name, verbose=verbose)
 
         self.mask_mip = mask_mip
         self.chunk_mip = chunk_mip
         self.inverse = inverse
-        self.verbose = verbose
         self.volume_path = volume_path
         self.check_all_zero = check_all_zero
 

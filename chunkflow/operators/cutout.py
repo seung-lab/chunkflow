@@ -12,14 +12,13 @@ from .operator_base import OperatorBase
 class CutoutOperator(OperatorBase):
     def __init__(self, volume_path: str, mip: int=0, 
                  expand_margin_size=(0,0,0),
-                 verbose: bool=True, fill_missing: bool=False,
+                 fill_missing: bool=False,
                  validate_mip: int=None, blackout_sections: bool=None, 
-                 name: str='cutout'):
-        super().__init__(name=name)
+                 name: str='cutout', verbose: bool=True):
+        super().__init__(name=name, verbose=verbose)
         self.volume_path = volume_path
         self.mip = mip
         self.expand_margin_size = expand_margin_size
-        self.verbose = verbose
         self.fill_missing = fill_missing
         self.validate_mip = validate_mip
         self.blackout_sections = blackout_sections

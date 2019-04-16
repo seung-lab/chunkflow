@@ -18,7 +18,7 @@ class SaveOperator(OperatorBase):
                  create_thumbnail: bool=False,
                  nproc: int=0,
                  verbose: bool=True, name: str='save'):
-        super().__init__(name=name)
+        super().__init__(name=name, verbose=verbose)
         if nproc < 0:
             nproc = True
         elif nproc == 0:
@@ -27,7 +27,6 @@ class SaveOperator(OperatorBase):
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
-        self.verbose = verbose
         self.volume = CloudVolume(
             volume_path,
             fill_missing=True,

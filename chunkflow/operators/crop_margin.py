@@ -9,9 +9,8 @@ class CropMarginOperator(OperatorBase):
     """
     def __init__(self, margin_size=None, 
                  verbose: bool=True, name: str='crop-margin'):
-        super().__init__(name=name)
+        super().__init__(name=name, verbose=verbose)
         self.margin_size = margin_size
-        self.verbose = verbose
 
     def __call__(self, chunk, output_bbox=None):
         margin_size = self.margin_size

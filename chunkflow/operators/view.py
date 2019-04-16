@@ -6,8 +6,8 @@ from .operator_base import OperatorBase
 
 
 class ViewOperator(OperatorBase):
-    def __init__(self, name='view'):
-        super().__init__(name=name)
+    def __init__(self, name: str='view', verbose: bool=True):
+        super().__init__(name=name, verbose=verbose)
 
     def __call__(self, chunk, seg=None):
         """view chunk using cloudvolume view"""
