@@ -66,7 +66,7 @@ class SQSQueue(object):
                     self.wait_if_empty + 20))
                 sleep(self.wait_if_empty)
                 # contine trying to receive message
-                self.__next__()
+                return self.__next__()
             else:
                 raise StopIteration
         else:

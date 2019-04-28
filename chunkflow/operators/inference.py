@@ -2,6 +2,10 @@ from .operator_base import OperatorBase
 
 
 class InferenceOperator(OperatorBase):
+    """
+    bump: (str) bump function of mask. {wu, zung} 
+            this only works with the pytorch-multitask backend.
+    """
     def __init__(self, convnet_model: str, convnet_weight_path: str, 
                  patch_size=(20, 256, 256), output_key: str='affinity',
                  num_output_channels: int=3,
@@ -9,6 +13,7 @@ class InferenceOperator(OperatorBase):
                  patch_overlap=(4, 64, 64),
                  framework: str='identity',
                  batch_size=1,
+                 bump='wu',
                  verbose: bool=True, name: str='inference'):
 
         super().__init__(name=name)
@@ -44,7 +49,8 @@ class InferenceOperator(OperatorBase):
                 output_key=output_key,
                 patch_overlap=patch_overlap,
                 original_num_output_channels=original_num_output_channels,
-                num_output_channels=num_output_channels)
+                num_output_channels=num_output_channels,
+                bump=bump)
         elif framework == 'identity':
             is_masked_in_device=False
             from .block_inference.frameworks.identity_patch_inference_engine \

@@ -68,8 +68,11 @@ class CutoutOperator(OperatorBase):
         # this should not be neccessary 
         # TODO: remove this step and use 4D array all over this package.
         # always use 4D array will simplify some operations
-        chunk = np.squeeze(chunk, axis=0)
         global_offset = tuple(s.start for s in chunk_slices)
+        if chunk.shape[0]==1:
+            chunk = np.squeeze(chunk, axis=0)
+        else:
+            global_offset = (chunk.shape[0],) + global_offset 
 
         chunk = Chunk(chunk, global_offset=global_offset)
         
@@ -100,6 +103,9 @@ class CutoutOperator(OperatorBase):
         We have found some black regions in previous inference run, 
         so hopefully this will solve the problem.
         """
+        if chunk.ndim==4 and chunk.shape[0]>1:
+            chunk = chunk[0, :,:,:]
+
         chunk_mip = self.mip
         if self.verbose:
             print('validate chunk in mip {}'.format(self.validate_mip))
@@ -144,8 +150,8 @@ class CutoutOperator(OperatorBase):
         assert validate_by_template_matching(clamped_input)
 
         validate_input = self.validate_vol[validate_bbox.to_slices()]
-        assert validate_input.shape[3] == 1
-        validate_input = np.squeeze(validate_input, axis=3)
+        if validate_input.shape[3] == 1:
+            validate_input = np.squeeze(validate_input, axis=3)
 
         # use the validate input to check the downloaded input
         assert np.alltrue(validate_input == clamped_input)
