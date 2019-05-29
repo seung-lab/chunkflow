@@ -12,12 +12,12 @@ class NormalizeSectionShangOperator(OperatorBase):
                  nominalmin: float=None,
                  nominalmax: float=None,
                  clipvalues: bool=False,
-                 name: str='normalize-gray'):
+                 name: str='normalize-gray', verbose=False):
         """
         nominalmin/max: (float)
         clipvalues: (bool)
         """
-        super().__init__(name=name)
+        super().__init__(name=name, verbose=verbose)
         assert nominalmin < nominalmax
 
         self.nominalmin = nominalmin
