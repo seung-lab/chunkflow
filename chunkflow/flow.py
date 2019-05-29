@@ -276,7 +276,7 @@ def normalize_contrast_contrast_cmd(tasks, name, levels_path, mip, clip_fraction
             task['log']['timer'][name] = time() - start
         yield task
 
-@cli.command('normalize-section-mu')
+@cli.command('normalize-section-shang')
 @click.option('--name', type=str, default='normalize-section-mu', help='name of operator.')
 @click.option('--nominalmin', type=float, default=None,
               help='targeted minimum of transformed chunk.')
@@ -285,7 +285,7 @@ def normalize_contrast_contrast_cmd(tasks, name, levels_path, mip, clip_fraction
 @click.option('--clipvalues', type=bool, default=False, 
               help='clip transformed values to be within the target range.')
 @operator
-def normalize_contrast_mu_cmd(tasks, name, nominalmin, nominalmax, clipvalues):
+def normalize_section_shang_cmd(tasks, name, nominalmin, nominalmax, clipvalues):
     """[operator] Normalize voxel values based on slice min/max within the chunk, Shang's method.
     The transformed chunk has floating point values.
     """
