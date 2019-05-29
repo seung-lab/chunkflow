@@ -1,5 +1,5 @@
-# backend: base | pytorch | pznet 
-ARG BACKEND=pytorch
+# backend: base | pytorch | pznet | pytorch-cuda9
+ARG BACKEND=pytorch 
 
 FROM seunglab/chunkflow:${BACKEND}
 
@@ -20,16 +20,20 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
         build-essential \
 		python3-dev \
         parallel \
-    && pip install -U pip \
     # test whether pip is working 
     # there is an issue of pip:
     # https://github.com/laradock/laradock/issues/1496
 	# we need this hash to solve this issue
-    && hash -r pip \ 
+    # && ln -sf /usr/bin/pip3 /usr/bin/pip \
+    # this do not work due to an issue in pip3
+    # https://github.com/pypa/pip/issues/5240
+    && pip install -U pip \
+    && hash -r pip \
+    && pip install --upgrade setuptools \
     && pip install numpy setuptools tornado==5.0 --no-cache-dir \ 
     && pip install fpzip --no-binary :all: --no-cache-dir \
-#&& git clone --single-branch --depth 1 https://github.com/seung-lab/cloud-volume.git \
-#   && pip install --no-cache-dir -r $HOME/workspace/cloud-volume/requirements.txt \
+    # && git clone --single-branch --depth 1 https://github.com/seung-lab/cloud-volume.git \
+    # && pip install --no-cache-dir -r $HOME/workspace/cloud-volume/requirements.txt \
     && pip install -r requirements.txt --no-cache-dir \
     # install the commandline chunkflow
     && pip install -e . \

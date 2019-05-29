@@ -15,6 +15,7 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
                  output_key='affinity',
                  original_num_output_channels=3,
                  num_output_channels=3,
+                 bump='wu',
                  patch_overlap=(4, 64, 64)):
         """
         this function do masking in gpu for speed up, 
@@ -37,7 +38,7 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
             'precomputed': True,
             'edges': [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
             'overlap': patch_overlap,
-            'bump': 'wu'
+            'bump': bump
         }
         
         self.opt = SimpleNamespace(**d)

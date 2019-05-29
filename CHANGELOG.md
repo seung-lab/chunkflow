@@ -19,7 +19,11 @@ ChangeLog history
 
 ## Features
 - a new operator called `save-images` to save chunk as a serials of PNG images.
+- add log directory parameter for benchmark script.
 ## Bug Fixes 
+- queue becomes None
+- pznet was not working.
+- fix Dockerfile for pznet build (not sure whether breaks PyTorch or not)
 
 ## Improved Documentation 
 - add kubernetes documentation to find monitor of operations per second and bandwidth usage.
