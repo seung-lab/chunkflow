@@ -244,6 +244,30 @@ def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size,
         yield task
 
 
+@cli.command('downsample-upload')
+@click.option('--name', type=str, default='downsample-upload', help='name of operator')
+@click.option('--volume-path', type=str, help='path of output volume')
+@click.option('--start-mip', type=int, default=0, help='the start uploading mip level.')
+@click.option('--stop-mip', type=int, default=5, help='stop mip level. the indexing follows python style and the last index is exclusive.')
+@click.option('--fill-missing/--no-fill-missing', default=True, help='fill missing or not when there is all zero blocks.')
+@operator
+def downsample_upload_cmd(tasks, name, volume_path, start_mip, stop_mip, fill_missing):
+    """[operator] Downsample chunk and upload to volume."""
+    state['operators'][name] = DownsampleUploadOperator(
+        volume_path, input_mip=state['mip'], 
+        start_mip=start_mip, stop_mip=stop_mip, 
+        fill_missing=fill_missing, name=name
+    )
+
+    for task in tasks:
+        handle_task_skip(task,name)
+        if not task['skip']:
+            start = time()
+            task['chunk'] = state['operators'][name](task['chunk'])
+            task['log']['timer'][name] = time() - start
+        yield task
+
+
 @cli.command('normalize-section-contrast')
 @click.option('--name', type=str, default='normalize-section-contrast', help='name of operator.')
 @click.option('--levels-path', type=str, default=None, 

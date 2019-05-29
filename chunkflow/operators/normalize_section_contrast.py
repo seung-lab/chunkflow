@@ -20,14 +20,14 @@ class NormalizeSectionContrastOperator(OperatorBase):
                  clip_fraction: float,
                  minval: float=None,
                  maxval: float=None,
-                 name: str='normalize-contrast'):
+                 name: str='normalize-contrast', verbose: bool=True):
         """
         levels_path: (str) path of section histogram files.
         mip: (int) the mip level of section histogram.
         clip_fraction: (float) the fraction of intensity to be clamped.
         minval: (float)
         """
-        super().__init__(name=name)
+        super().__init__(name=name, verbose=verbose)
         assert 0 <= clip_fraction <= 1
 
         self.levels_path = levels_path

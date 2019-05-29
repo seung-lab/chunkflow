@@ -5,6 +5,7 @@ from .cloud_watch import CloudWatchOperator
 from .create_chunk import CreateChunkOperator
 from .crop_margin import CropMarginOperator
 from .cutout import CutoutOperator
+from .downsample_upload import DownsampleUploadOperator
 from .inference import InferenceOperator
 from .mask import MaskOperator
 from .neuroglancer_view import NeuroglancerViewOperator

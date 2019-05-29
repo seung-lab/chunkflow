@@ -7,3 +7,4 @@ boto3
 h5py
 tifffile
 neuroglancer
+tinybrain
