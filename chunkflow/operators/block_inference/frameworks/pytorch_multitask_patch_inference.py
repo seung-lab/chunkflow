@@ -16,7 +16,8 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
                  original_num_output_channels=3,
                  num_output_channels=3,
                  bump='wu',
-                 patch_overlap=(4, 64, 64)):
+                 patch_overlap=(4, 64, 64),
+                 mask_in_device=True):
         """
         this function do masking in gpu for speed up, 
         so we need the patch_overlap information.
@@ -35,7 +36,7 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
             'out_spec': {output_key: (original_num_output_channels, *patch_size)},
             'scan_spec': {output_key: (num_output_channels, *patch_size)},
             'pretrain': True,
-            'precomputed': True,
+            'precomputed': mask_in_device,
             'edges': [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
             'overlap': patch_overlap,
             'bump': bump

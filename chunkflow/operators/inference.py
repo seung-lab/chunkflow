@@ -1,4 +1,5 @@
 from .operator_base import OperatorBase
+from warnings import warn
 
 
 class InferenceOperator(OperatorBase):
@@ -14,6 +15,7 @@ class InferenceOperator(OperatorBase):
                  framework: str='identity',
                  batch_size=1,
                  bump='wu',
+                 mask_in_device=False,
                  verbose: bool=True, name: str='inference'):
 
         super().__init__(name=name, verbose=verbose)
@@ -24,12 +26,12 @@ class InferenceOperator(OperatorBase):
         from .block_inference.block_inference_engine \
             import BlockInferenceEngine
         if framework == 'pznet':
-            is_masked_in_device=False
+            assert mask_in_device==False
             from .block_inference.frameworks.pznet_patch_inference_engine \
                 import PZNetPatchInferenceEngine
             patch_engine = PZNetPatchInferenceEngine(convnet_model, convnet_weight_path)
         elif framework == 'pytorch':
-            is_masked_in_device=False
+            assert mask_in_device==False
             from .block_inference.frameworks.pytorch_patch_inference_engine \
                 import PytorchPatchInferenceEngine
             patch_engine = PytorchPatchInferenceEngine(
@@ -39,7 +41,6 @@ class InferenceOperator(OperatorBase):
                 output_key=output_key,
                 num_output_channels=num_output_channels)
         elif framework == 'pytorch-multitask':
-            is_masked_in_device=True
             from .block_inference.frameworks.pytorch_multitask_patch_inference \
                 import PytorchMultitaskPatchInferenceEngine
             patch_engine = PytorchMultitaskPatchInferenceEngine(
@@ -50,9 +51,10 @@ class InferenceOperator(OperatorBase):
                 patch_overlap=patch_overlap,
                 original_num_output_channels=original_num_output_channels,
                 num_output_channels=num_output_channels,
-                bump=bump)
+                bump=bump,
+                mask_in_device=mask_in_device)
         elif framework == 'identity':
-            is_masked_in_device=False
+            assert mask_in_device==False
             from .block_inference.frameworks.identity_patch_inference_engine \
                 import IdentityPatchInferenceEngine
             patch_engine = IdentityPatchInferenceEngine(num_output_channels=3)
@@ -66,7 +68,7 @@ class InferenceOperator(OperatorBase):
             patch_overlap=patch_overlap,
             output_key=output_key,
             num_output_channels=num_output_channels,
-            is_masked_in_device=is_masked_in_device,
+            mask_in_device=mask_in_device,
             batch_size=batch_size,
             verbose=verbose)
  

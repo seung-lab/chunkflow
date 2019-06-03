@@ -34,7 +34,7 @@ chunkflow create-chunk
 ```
 A Typical pipeline to run ConvNet inference is something like:
 ```
-chunkflow --verbose generate-task --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT cutout --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 4 64 64 inference --convnet-model=your-model-name --convnet-weight-path=path/of/net/weight --patch-size 20 256 256 --patch-overlap 4 64 64 --output-key your-output-key --framework='identity' --batch-size 2 crop-margin save --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 4 --create-thumbnail delete-task-in-queue
+chunkflow --verbose fetch-task --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT cutout --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 4 64 64 inference --convnet-model=your-model-name --convnet-weight-path=path/of/net/weight --patch-size 20 256 256 --patch-overlap 4 64 64 --output-key your-output-key --framework='identity' --batch-size 2 crop-margin save --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 4 --create-thumbnail delete-task-in-queue
 ```
 
 ## Some Typical Operators
