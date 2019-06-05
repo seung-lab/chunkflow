@@ -1,5 +1,4 @@
 from .operator_base import OperatorBase
-from warnings import warn
 
 
 class InferenceOperator(OperatorBase):
@@ -8,14 +7,15 @@ class InferenceOperator(OperatorBase):
             this only works with the pytorch-multitask backend.
     """
     def __init__(self, convnet_model: str, convnet_weight_path: str, 
-                 patch_size=(20, 256, 256), output_key: str='affinity',
+                 patch_size: tuple=(20, 256, 256), output_key: str='affinity',
                  num_output_channels: int=3,
                  original_num_output_channels: int=3,
-                 patch_overlap=(4, 64, 64),
+                 patch_overlap: tuple=(4, 64, 64),
                  framework: str='identity',
-                 batch_size=1,
-                 bump='wu',
-                 mask_in_device=False,
+                 batch_size: int=1,
+                 bump: str='wu',
+                 mask_in_device: bool=False,
+                 device: str='gpu',
                  verbose: bool=True, name: str='inference'):
 
         super().__init__(name=name, verbose=verbose)
@@ -37,9 +37,9 @@ class InferenceOperator(OperatorBase):
             patch_engine = PytorchPatchInferenceEngine(
                 convnet_model,
                 convnet_weight_path,
-                patch_size=patch_size,
                 output_key=output_key,
-                num_output_channels=num_output_channels)
+                num_output_channels=num_output_channels,
+                device=device)
         elif framework == 'pytorch-multitask':
             from .block_inference.frameworks.pytorch_multitask_patch_inference \
                 import PytorchMultitaskPatchInferenceEngine
@@ -61,7 +61,6 @@ class InferenceOperator(OperatorBase):
         else:
             raise Exception('invalid inference backend: {}'.format(framework))
         
-        assert isinstance(is_masked_in_device, bool)
         self.block_inference_engine = BlockInferenceEngine(
             patch_inference_engine=patch_engine,
             patch_size=patch_size,

@@ -1,3 +1,5 @@
+#!/bin/env python
+
 import click 
 import boto3 
 from tqdm import tqdm 
