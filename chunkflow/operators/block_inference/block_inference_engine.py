@@ -18,12 +18,12 @@ class BlockInferenceEngine(object):
         block size. 
 
     Parameters:
-        is_masked_in_device: the patch was already masked/normalized in the device, 
+        mask_in_device: the patch was already masked/normalized in the device, 
                 such as gpu, for speed up. 
     """
     def __init__(self, patch_inference_engine, patch_size, patch_overlap,
                  output_key: str='affinity', num_output_channels: int=3, 
-                 is_masked_in_device: bool=False, batch_size: int=1, 
+                 mask_in_device: bool=False, batch_size: int=1, 
                  verbose: bool=True):
         """
         params:
@@ -46,7 +46,7 @@ class BlockInferenceEngine(object):
         self.num_output_channels = num_output_channels
 
         self.patch_mask = PatchMask(patch_size, patch_overlap)
-        self.is_masked_in_device = is_masked_in_device
+        self.mask_in_device = mask_in_device
         self.batch_size = batch_size
         self.verbose = verbose
 
@@ -132,7 +132,7 @@ class BlockInferenceEngine(object):
                 output_chunk = Chunk(output_chunk, (0,)+offset)
 
                 # normalized by patch mask
-                if not self.is_masked_in_device:
+                if not self.mask_in_device:
                     output_chunk *= self.patch_mask
 
                 # blend to output buffer
