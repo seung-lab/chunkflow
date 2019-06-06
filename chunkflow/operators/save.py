@@ -2,6 +2,8 @@ import time
 import os
 import json
 import numpy as np
+from warnings import warn
+
 from cloudvolume import CloudVolume 
 from cloudvolume.lib import Vec, Bbox
 from cloudvolume.storage import Storage
@@ -27,6 +29,7 @@ class SaveOperator(OperatorBase):
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
+        
         self.volume = CloudVolume(
             volume_path,
             fill_missing=True,
@@ -69,9 +72,10 @@ class SaveOperator(OperatorBase):
             self._create_thumbnail(chunk)
         
         # add timer for save operation itself
-        elapsed = time.time() - start
         log['timer'][self.name] = time.time() - start
         if self.upload_log:
+            if output_bbox is None:
+                output_bbox = Bbox.from_delta((0,0,0), chunk.shape)
             self._upload_log(log, output_bbox)
 
     def _create_thumbnail(self, chunk):

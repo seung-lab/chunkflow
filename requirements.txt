@@ -8,3 +8,4 @@ h5py
 tifffile
 neuroglancer
 tinybrain
+zmesh

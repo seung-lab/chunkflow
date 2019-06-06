@@ -35,7 +35,7 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
             'out_spec': {output_key: (original_num_output_channels, *patch_size)},
             'scan_spec': {output_key: (num_output_channels, *patch_size)},
             'pretrain': True,
-            'precomputed': True,
+            'precomputed': torch.cuda.is_available(),
             'edges': [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
             'overlap': patch_overlap,
             'bump': bump
