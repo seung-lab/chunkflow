@@ -352,14 +352,10 @@ def normalize_section_shang_cmd(tasks, name, nominalmin, nominalmax, clipvalues)
 @click.option('--batch-size', type=int, default=1, help='mini batch size of input patch.')
 @click.option('--bump', type=click.Choice(['wu', 'zung']), default='wu', 
               help='bump function type. only works with pytorch-multitask backend.')
-@click.option('--mask-in-device/--mask-in-host', default=False, 
-              help='perform masking in device or host.')
-@click.option('--device', type=str, default='gpu',
-              help='computation using device, currently only support {cpu, gpu}')
 @operator
 def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
               patch_overlap, output_key, original_num_output_channels,
-              num_output_channels, framework, batch_size, bump, mask_in_device, device):
+              num_output_channels, framework, batch_size, bump):
     """[operator] Perform convolutional network inference for chunks."""
     state['operators'][name] = InferenceOperator(
         convnet_model, convnet_weight_path, 
@@ -370,8 +366,6 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
         framework=framework,
         batch_size=batch_size,
         bump=bump,
-        mask_in_device=mask_in_device,
-        device=device,
         verbose=state['verbose'], name=name)
 
     for task in tasks:

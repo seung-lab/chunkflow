@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from .patch_mask import PatchMask
 from chunkflow.chunk import Chunk
-
+from .frameworks.pytorch_multitask_patch_inference import PytorchMultitaskPatchInferenceEngine
 
 class BlockInferenceEngine(object):
     """
@@ -17,14 +17,10 @@ class BlockInferenceEngine(object):
     convnet inference for a whole block. the patches should aligned with the \
         block size. 
 
-    Parameters:
-        mask_in_device: the patch was already masked/normalized in the device, 
-                such as gpu, for speed up. 
     """
     def __init__(self, patch_inference_engine, patch_size, patch_overlap,
                  output_key: str='affinity', num_output_channels: int=3, 
-                 mask_in_device: bool=False, batch_size: int=1, 
-                 verbose: bool=True):
+                 batch_size: int=1, verbose: bool=True):
         """
         params:
             patch_inference_engine: inference for each patch.
@@ -46,13 +42,17 @@ class BlockInferenceEngine(object):
         self.num_output_channels = num_output_channels
 
         self.patch_mask = PatchMask(patch_size, patch_overlap)
-        self.mask_in_device = mask_in_device
         self.batch_size = batch_size
         self.verbose = verbose
 
         # allocate a buffer to avoid redundent 
         self.input_patch_buffer = np.zeros((batch_size, 1, *patch_size), 
                                            dtype=np.float32)
+
+        if isinstance(patch_inference_engine, PytorchMultitaskPatchInferenceEngine):
+            self.mask_in_device = True 
+        else:
+            self.mask_in_device = False
 
     def __call__(self, input_chunk, output_buffer=None):
         """

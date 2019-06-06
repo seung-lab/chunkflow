@@ -22,11 +22,10 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
                  use_batch_norm=True,
                  is_static_batch_norm=False,
                  output_key='affinity',
-                 num_output_channels=3,
-                 device='gpu'):
+                 num_output_channels=3):
         super().__init__()
         self.num_output_channels=num_output_channels
-        if device=='gpu':
+        if torch.cuda.is_available():
             self.is_gpu = True
         else:
             self.is_gpu = False
@@ -38,7 +37,6 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
             self.net = torch.nn.DataParallel(self.net,
                                              device_ids=range(torch.cuda.device_count()))
         else:
-            import pdb; pdb.set_trace()
             self.net.load_state_dict(torch.load(weight_file_name, map_location='cpu'))
             
         if use_batch_norm and is_static_batch_norm:

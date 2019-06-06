@@ -14,8 +14,6 @@ class InferenceOperator(OperatorBase):
                  framework: str='identity',
                  batch_size: int=1,
                  bump: str='wu',
-                 mask_in_device: bool=False,
-                 device: str='gpu',
                  verbose: bool=True, name: str='inference'):
 
         super().__init__(name=name, verbose=verbose)
@@ -26,12 +24,10 @@ class InferenceOperator(OperatorBase):
         from .block_inference.block_inference_engine \
             import BlockInferenceEngine
         if framework == 'pznet':
-            assert mask_in_device==False
             from .block_inference.frameworks.pznet_patch_inference_engine \
                 import PZNetPatchInferenceEngine
             patch_engine = PZNetPatchInferenceEngine(convnet_model, convnet_weight_path)
         elif framework == 'pytorch':
-            assert mask_in_device==False
             from .block_inference.frameworks.pytorch_patch_inference_engine \
                 import PytorchPatchInferenceEngine
             patch_engine = PytorchPatchInferenceEngine(
@@ -51,10 +47,8 @@ class InferenceOperator(OperatorBase):
                 patch_overlap=patch_overlap,
                 original_num_output_channels=original_num_output_channels,
                 num_output_channels=num_output_channels,
-                bump=bump,
-                mask_in_device=mask_in_device)
+                bump=bump)
         elif framework == 'identity':
-            assert mask_in_device==False
             from .block_inference.frameworks.identity_patch_inference_engine \
                 import IdentityPatchInferenceEngine
             patch_engine = IdentityPatchInferenceEngine(num_output_channels=3)
@@ -67,7 +61,6 @@ class InferenceOperator(OperatorBase):
             patch_overlap=patch_overlap,
             output_key=output_key,
             num_output_channels=num_output_channels,
-            mask_in_device=mask_in_device,
             batch_size=batch_size,
             verbose=verbose)
  

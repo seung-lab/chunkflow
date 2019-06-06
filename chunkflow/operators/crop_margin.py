@@ -15,15 +15,16 @@ class CropMarginOperator(OperatorBase):
     def __call__(self, chunk, output_bbox=None):
         margin_size = self.margin_size
         if margin_size:
+            assert chunk.ndim == len(margin_size)
             if chunk.ndim == 3:
                 chunk = chunk[margin_size[0]:chunk.shape[0]-margin_size[0],
                               margin_size[1]:chunk.shape[1]-margin_size[1],
                               margin_size[2]:chunk.shape[2]-margin_size[2]]
             elif chunk.ndim == 4:
-                chunk = chunk[:,
-                              margin_size[0]:chunk.shape[1]-margin_size[0],
-                              margin_size[1]:chunk.shape[2]-margin_size[1],
-                              margin_size[2]:chunk.shape[3]-margin_size[2]]
+                chunk = chunk[margin_size[0]:chunk.shape[0]-margin_size[0],
+                              margin_size[1]:chunk.shape[1]-margin_size[1],
+                              margin_size[2]:chunk.shape[2]-margin_size[2],
+                              margin_size[3]:chunk.shape[3]-margin_size[3]]
             else:
                 raise ValueError('the array dimension can only by 3 or 4.')
             global_offset = tuple(o+m for o, m in
