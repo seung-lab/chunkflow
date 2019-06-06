@@ -20,6 +20,9 @@ class InferenceOperator(OperatorBase):
         
         self.framework = framework
 
+        # mask in cpu in default
+        mask_in_device = False
+
         # prepare for inference
         from .block_inference.block_inference_engine \
             import BlockInferenceEngine
@@ -37,6 +40,8 @@ class InferenceOperator(OperatorBase):
                 num_output_channels=num_output_channels,
                 device=device)
         elif framework == 'pytorch-multitask':
+            # currently only this type of task support mask in device
+            mask_in_device = True
             from .block_inference.frameworks.pytorch_multitask_patch_inference \
                 import PytorchMultitaskPatchInferenceEngine
             patch_engine = PytorchMultitaskPatchInferenceEngine(
@@ -62,6 +67,7 @@ class InferenceOperator(OperatorBase):
             output_key=output_key,
             num_output_channels=num_output_channels,
             batch_size=batch_size,
+            mask_in_device=mask_in_device,
             verbose=verbose)
  
     def __call__(self, chunk):
