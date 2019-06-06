@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import os
 import click
 from functools import update_wrapper
 from time import time
@@ -65,7 +64,7 @@ def process_commands(operators, verbose, mip):
     returns a function we can chain them together to feed one 
     into the other, similar to how a pipe on unix works.
     """
-    # Start with an empty iterable 
+    # Start with an empty iterable
     stream = ()
 
     # Pipe it through all stream operators.
@@ -96,7 +95,7 @@ def generator(f):
         for item in stream:
             yield item
         for item in f(*args, **kwargs):
-            yield item 
+            yield item
     return update_wrapper(new_func, f)
 
 
@@ -117,48 +116,59 @@ def create_chunk_cmd(size, dtype, voxel_offset):
 
 
 @cli.command('read-file')
+@click.option('--name', type=str, default='read-file',
+              help='read file from local disk.')
 @click.option('--file-name', type=str, required=True,
               help='read chunk from file, support .h5 and .tif')
 @click.option('--offset', type=int, nargs=3, callback=default_none,
               help='global offset of this chunk')
+@click.option('--chunk-name', type=str, default='chunk',
+              help='chunk name in the global state')
 @generator
-def read_file_cmd(file_name, offset):
+def read_file_cmd(name, file_name, offset, chunk_name):
     """[generator] Read HDF5 and tiff files."""
     task = initialize_task()
     read_file_operator = ReadFileOperator()
-    task['chunk'] = read_file_operator(file_name, global_offset=offset)
+    start = time()
+    task[chunk_name] = read_file_operator(file_name, global_offset=offset)
+    task['log']['timer'][name] = time() - start
     yield task
 
 
 @cli.command('generate-task')
-@click.option('--queue-name', type=str, default=None, help='sqs queue name')
 @click.option('--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
 @click.option('--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
+@generator 
+def generate_task_cmd(offset, shape):
+    """[generator] Create a task."""
+    task = initialize_task()
+    # no queue name specified
+    # will only run one task
+    stop = np.asarray(offset) + np.asarray(shape)
+    output_bbox = Bbox.from_list([*offset, *stop])
+    task['output_bbox'] = output_bbox
+    task['log']['output_bbox'] = output_bbox.to_filename()
+    yield task
+
+
+@cli.command('fetch-task')
+@click.option('--queue-name', type=str, default=None, help='sqs queue name')
 @click.option('--visibility-timeout', type=int, default=None,
               help='visibility timeout of sqs queue; default is using the timeout of the queue.')
 @generator 
-def generate_task_cmd(queue_name, offset, shape, visibility_timeout):
-    """[generator] Create task or fetch task from queue."""
+def fetch_task_cmd(queue_name, offset, shape, visibility_timeout):
+    """[generator] Fetch task from queue."""
     task = initialize_task()
-    if not queue_name:
-        # no queue name specified
-        # will only run one task
-        stop = np.asarray(offset) + np.asarray(shape)
-        output_bbox = Bbox.from_list([*offset, *stop])
+    queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
+    task['queue'] = queue
+    for task_handle, output_bbox_str in queue:
+        print('get task: ', output_bbox_str)
+        output_bbox = Bbox.from_filename(output_bbox_str)
+        # record the task handle to delete after the processing
+        task['task_handle'] = task_handle
         task['output_bbox'] = output_bbox
         task['log']['output_bbox'] = output_bbox.to_filename()
         yield task
-    else:
-        queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
-        task['queue'] = queue
-        for task_handle, output_bbox_str in queue:
-            print('get task: ', output_bbox_str)
-            output_bbox = Bbox.from_filename(output_bbox_str)
-            # record the task handle to delete after the processing
-            task['task_handle'] = task_handle
-            task['output_bbox'] = output_bbox
-            task['log']['output_bbox'] = output_bbox.to_filename()
-            yield task
 
 
 @cli.command('write-h5')
@@ -492,14 +502,18 @@ def cloud_watch_cmd(tasks, name, log_name):
 
 @cli.command('view')
 @click.option('--name', type=str, default='view', help='name of this operator')
+@click.option('--image-chunk-name', type=str, default='chunk', 
+              help='image chunk name in the global state')
+@click.option('--segmentation-chunk-name', type=str, default=None,
+              help='segmentation chunk name in the global state')
 @operator
-def view_cmd(tasks, name):
+def view_cmd(tasks, name, image_chunk_name, segmentation_chunk_name):
     """[operator] Visualize the chunk using cloudvolume view in browser."""
     state['operators'][name] = ViewOperator(name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task['chunk'])
+            state['operators'][name](task[image_chunk_name], seg=segmentation_chunk_name)
         yield task
 
 
