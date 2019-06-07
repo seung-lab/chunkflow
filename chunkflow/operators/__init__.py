@@ -8,6 +8,7 @@ from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
 from .inference import InferenceOperator
 from .mask import MaskOperator
+from .mesh import MeshOperator
 from .neuroglancer_view import NeuroglancerViewOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
