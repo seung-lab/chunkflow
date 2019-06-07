@@ -102,8 +102,8 @@ def generator(f):
 @cli.command('create-chunk')
 @click.option('--size', type=int, nargs=3, default=(64, 64, 64),
               help='the size of created chunk')
-@click.option('--dtype', type=str, default='uint8',
-              help='the data type of chunk')
+@click.option('--dtype', type=click.Choice(['uint8', 'uint32', 'uint16', 'float32', 'float64']),
+              default='uint8', help='the data type of chunk')
 @click.option('--voxel-offset', type=int, nargs=3, default=(0,0,0),
               help='offset in voxel number.')
 @generator
@@ -445,6 +445,36 @@ def crop_margin_cmd(tasks, name, margin_size):
             start = time()
             task['chunk'] = state['operators'][name](task['chunk'], 
                                           output_bbox=task['output_bbox'])
+            task['log']['timer'][name] = time() - start
+        yield task
+
+
+@cli.command('mesh')
+@click.option('--name', type=str, default='mesh', help='name of operator')
+@click.option('--chunk-name', type=str, default='chunk', help='name of chunk needs to be meshed.')
+@click.option('--voxel-size', type=int, nargs=3, default=(40, 4, 4), help='voxel size of the segmentation')
+@click.option('--output-path', type=str, default='file:///tmp/mesh/', 
+              help='output path of meshes, follow the protocol rule of CloudVolume. \
+              The path will be adjusted if there is a info file with precomputed format.')
+@click.option('--output-format', type=click.Choice(['ply', 'obj', 'precomputed']), default='ply', 
+              help='output format, could be one of ply|obj|precomputed.')
+@click.option('--simplification-factor', type=int, default=100, help='mesh simplification factor.')
+@click.option('--max-simplification-error', type=int, default=8, help='max simplification error.')
+@click.option('--manifest/--no-manifest', default=False, help='create manifest file or not.')
+@operator
+def mesh_cmd(tasks, name, chunk_name, voxel_size, output_path, output_format, 
+             simplification_factor, max_simplification_error, manifest):
+    """[operator] perform meshing for segmentation chunk."""
+    state['operators'][name] = MeshOperator(output_path, output_format, 
+                                           voxel_size=voxel_size,
+                                           simplification_factor=simplification_factor,
+                                           max_simplification_error=max_simplification_error,
+                                           manifest=manifest)
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            start = time()
+            task[chunk_name] = state['operators'][name](task[chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
