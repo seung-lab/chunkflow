@@ -37,9 +37,9 @@ class MeshOperator(OperatorBase):
         self.output_path = output_path
         self.output_format = output_format
         self.manifest = manifest
-        
+
         if manifest:
-            assert output_format=='precomputed'
+            assert output_format == 'precomputed'
 
         mesh_path = output_path
 
@@ -56,7 +56,6 @@ class MeshOperator(OperatorBase):
 
         self.storage = Storage(mesh_path)
 
-    
     def _get_mesh_data(self, obj_id):
         mesh = self.mesher.get_mesh(
             obj_id,
@@ -84,8 +83,8 @@ class MeshOperator(OperatorBase):
         assert np.issubdtype(seg.dtype, np.integer)
         print('computing meshes from segmentation...')
         self.mesher.mesh(seg)
-            
-        # write mesh to storage
+
+        print('write mesh to storage...')
         with self.storage as stor:
             for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
                 data = self._get_mesh_data(obj_id) 

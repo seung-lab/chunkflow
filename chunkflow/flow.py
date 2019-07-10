@@ -452,7 +452,8 @@ def crop_margin_cmd(tasks, name, margin_size):
 @cli.command('mesh')
 @click.option('--name', type=str, default='mesh', help='name of operator')
 @click.option('--chunk-name', type=str, default='chunk', help='name of chunk needs to be meshed.')
-@click.option('--voxel-size', type=int, nargs=3, default=(40, 4, 4), help='voxel size of the segmentation')
+@click.option('--voxel-size', type=int, nargs=3, default=(40, 4, 4), 
+              help='voxel size of the segmentation. zyx order.')
 @click.option('--output-path', type=str, default='file:///tmp/mesh/', 
               help='output path of meshes, follow the protocol rule of CloudVolume. \
               The path will be adjusted if there is a info file with precomputed format.')
