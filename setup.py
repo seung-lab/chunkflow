@@ -1,5 +1,6 @@
-version = '0.2.6'
-from setuptools import setup, find_packages, Command 
+from setuptools import setup
+
+version = '0.2.8'
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -13,7 +14,7 @@ setup(
     version=version,
     author='Jingpeng Wu',
     author_email='jingpeng.wu@gmail.com',
-    packages=find_packages(exclude=['chunkflow/test*']),
+    packages=['chunkflow'],
     url='https://github.com/seung-lab/chunkflow',
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -22,6 +23,15 @@ setup(
     ],
     install_requires=[
         'click',
+        'numpy',
+        'cloud-volume',
+        'scikit-image',
+        'boto3',
+        'h5py',
+        'tifffile',
+        'neuroglancer',
+        'tinybrain',
+        'zmesh'
     ],
     entry_points='''
         [console_scripts]
