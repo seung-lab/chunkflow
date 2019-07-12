@@ -66,8 +66,8 @@ in `bin`,
 # Development
 ## Create a new release in PyPi 
 ```
-python setup.py bdist_wheel --universal
-twine upload dist/my-new-wheel
+python setup.py sdist
+twine upload dist/chunkflow-version.tar.gz
 ```
 
 ## Add a new operator

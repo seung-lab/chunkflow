@@ -1,6 +1,6 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
-version = '0.2.8'
+version = '0.3.0'
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -14,13 +14,8 @@ setup(
     version=version,
     author='Jingpeng Wu',
     author_email='jingpeng.wu@gmail.com',
-    packages=['chunkflow'],
+    packages=find_packages(exclude=['chunkflow.test']),
     url='https://github.com/seung-lab/chunkflow',
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: OS Independent",
-    ],
     install_requires=[
         'click',
         'numpy',
@@ -37,4 +32,12 @@ setup(
         [console_scripts]
         chunkflow=chunkflow.flow:cli
     ''',
+    classifiers=[
+        'Environment :: Console',
+        'Intended Audience :: End Users/Desktop',
+        'Intended Audience :: Developers',
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: OS Independent",
+    ],
 )
