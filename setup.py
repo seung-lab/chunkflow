@@ -18,12 +18,13 @@ setup(
     url='https://github.com/seung-lab/chunkflow',
     install_requires=[
         'click',
-        'numpy',
+        'numpy>=1.16',
         'cloud-volume',
         'scikit-image',
         'boto3',
         'h5py',
         'tifffile',
+        'tornado==5.0',
         'neuroglancer',
         'tinybrain',
         'zmesh'
