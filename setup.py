@@ -1,9 +1,19 @@
 from setuptools import setup, find_packages
 
-version = '0.3.0'
+version = '0.3.1'
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
+
+# This is a fix for numpy to work with setuptools
+# https://github.com/numpy/numpy/blob/master/setup.py
+# This is a bit hackish: we are setting a global variable so that the main
+# numpy __init__ can detect if it is being loaded by the setup routine, to
+# avoid attempting to load components that aren't built yet.  While ugly, it's
+# a lot more robust than what was previously being used.
+import builtins
+builtins.__NUMPY_SETUP__ = True
+
 
 setup(
     name='chunkflow',
@@ -18,12 +28,13 @@ setup(
     url='https://github.com/seung-lab/chunkflow',
     install_requires=[
         'click',
-        'numpy',
+        'numpy>=1.16',
         'cloud-volume',
         'scikit-image',
         'boto3',
         'h5py',
         'tifffile',
+        'tornado==5.0',
         'neuroglancer',
         'tinybrain',
         'zmesh'

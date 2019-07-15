@@ -1,0 +1,11 @@
+numpy>=1.16
+cloud-volume>=0.47.0
+click 
+scikit-image>=0.14.2
+six>=1.12.0
+boto3
+h5py
+tifffile
+neuroglancer
+tinybrain
+zmesh

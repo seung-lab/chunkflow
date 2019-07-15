@@ -5,14 +5,8 @@ python:
 - '3.7-dev'
 
 install:
-- pip install --upgrade pip
-# fix fpzip problem
-# - pip install numpy==1.16
-# fix neuroglancer problem
-- pip install tornado==5.0
-- pip install fpzip
 - pip install -r requirements.txt
-- pip install -e .  
+- python setup.py install  
 
 before_script:
 - pip install coveralls

@@ -156,7 +156,7 @@ def generate_task_cmd(offset, shape):
 @click.option('--visibility-timeout', type=int, default=None,
               help='visibility timeout of sqs queue; default is using the timeout of the queue.')
 @generator 
-def fetch_task_cmd(queue_name, offset, shape, visibility_timeout):
+def fetch_task_cmd(queue_name, visibility_timeout):
     """[generator] Fetch task from queue."""
     task = initialize_task()
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
