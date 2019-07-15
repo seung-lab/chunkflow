@@ -5,6 +5,16 @@ version = '0.3.1'
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+# This is a fix for numpy to work with setuptools
+# https://github.com/numpy/numpy/blob/master/setup.py
+# This is a bit hackish: we are setting a global variable so that the main
+# numpy __init__ can detect if it is being loaded by the setup routine, to
+# avoid attempting to load components that aren't built yet.  While ugly, it's
+# a lot more robust than what was previously being used.
+import builtins
+builtins.__NUMPY_SETUP__ = True
+
+
 setup(
     name='chunkflow',
     description='Large Scale 3d Convolution Net Inference',

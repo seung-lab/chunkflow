@@ -5,7 +5,6 @@ python:
 - '3.7-dev'
 
 install:
-- pip install setuptools numpy
 - python setup.py install  
 
 before_script:
