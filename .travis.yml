@@ -6,7 +6,7 @@ python:
 
 install:
 # numpy have to be installed using pip, otherwise there is an error using neuroglancer
-- pip install numpy
+- pip install numpy neuroglancer
 - python setup.py install  
 
 before_script:
