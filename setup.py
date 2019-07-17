@@ -34,7 +34,6 @@ setup(
         'boto3',
         'h5py',
         'tifffile',
-        'tornado==5.0',
         'neuroglancer',
         'tinybrain',
         'zmesh'
