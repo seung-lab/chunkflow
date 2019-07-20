@@ -27,8 +27,10 @@ setup(
     packages=find_packages(exclude=['chunkflow.test']),
     url='https://github.com/seung-lab/chunkflow',
     install_requires=[
+        'six>=1.12.0',
+        'numpy>=1.16',
         'click',
-        'cloud-volume',
+        'cloud-volume>0.14.2',
         'scikit-image',
         'boto3',
         'h5py',
