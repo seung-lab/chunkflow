@@ -7,7 +7,7 @@ python:
 install:
 - sudo find /usr -name '*.pyc' -delete
 # numpy have to be installed using pip, otherwise there is an error using neuroglancer
-- pip install numpy neuroglancer
+- pip install -r requirements.txt
 - python setup.py install  
 
 before_script:
