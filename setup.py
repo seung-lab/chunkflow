@@ -28,7 +28,6 @@ setup(
     url='https://github.com/seung-lab/chunkflow',
     install_requires=[
         'click',
-        'numpy>=1.16',
         'cloud-volume',
         'scikit-image',
         'boto3',
