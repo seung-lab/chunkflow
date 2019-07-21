@@ -153,7 +153,7 @@ class BlockInferenceEngine(object):
             
             if self.verbose:
                 end = time.time()
-                print('prepare %d input patches takes %3f sec' % (self.batch_siz, end - start))
+                print('prepare %d input patches takes %3f sec' % (self.batch_size, end - start))
                 start = end
 
             # the input and output patch is a 5d numpy array with
