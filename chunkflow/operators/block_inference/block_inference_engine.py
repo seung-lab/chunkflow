@@ -20,17 +20,17 @@ class BlockInferenceEngine(object):
 
     """
     def __init__(self, patch_inference_engine, patch_size: tuple,
-                 patch_overlap: tuple, output_key: str='affinity',
-                 num_output_channels: int=3, batch_size: int=1,
-                 input_size: tuple=None, mask_output_chunk: bool=False,
-                 mask_in_device: bool=False, verbose: bool=True):
+                 patch_overlap: tuple, output_key: str = 'affinity',
+                 num_output_channels: int = 3, batch_size: int = 1,
+                 input_size: tuple = None, mask_output_chunk: bool = False,
+                 mask_in_device: bool = False, verbose: bool = True):
         """
         params:
             patch_inference_engine: inference for each patch.
             patch_size: (tuple) the size of patch.
             input_chunk: (ndarray) input image
             output_key: (str) the key of ConvNet output
-            patch_overlap: (tuple of int) overlap of each patch 
+            patch_overlap: (tuple of int) overlap of each patch
             num_output_channels: (int) the number of output channels.
             batch_size: (int) the mini batch size 
             verbose: (bool) print out info or not.
@@ -55,12 +55,15 @@ class BlockInferenceEngine(object):
         # allocate a buffer to avoid redundent memory allocation 
         self.input_patch_buffer = np.zeros((batch_size, 1, *patch_size), 
                                            dtype=np.float32)
-    
+
     def _check_alignment(self):
         if not self.mask_output_chunk:
-            is_align = tuple((i-o)%s==0 for i,s,o in 
-                             zip(self.input_size, self.stride, self.patch_overlap))
-            # all axis should be aligned 
+            is_align = tuple((i-o)%s==0 for i, s, o in 
+                             zip(self.input_size, self.stride, 
+                                 self.patch_overlap))
+            # all axis should be aligned
+            # the patches should aligned with input size in case 
+            # we will not mask the output chunk
             assert np.all(is_align)
 
     def _construct_patch_offset_list(self, input_size):
@@ -127,7 +130,7 @@ class BlockInferenceEngine(object):
             print('input is all zero, return zero buffer directly')
             return output_buffer
         
-        self._check_input_size(input_chunk.shape)
+        self._check_input_size_and_prepare_data(input_chunk.shape)
         self._check_alignment()
          
         if input_chunk.dtype == np.uint8:
