@@ -66,7 +66,7 @@ class BlockInferenceEngine(object):
             # we will not mask the output chunk
             assert np.all(is_align)
 
-    def _construct_patch_offset_list(self, input_size):
+    def _construct_patch_offset_list(self):
         """
         create the normalization mask and patch bounding box list
         """
