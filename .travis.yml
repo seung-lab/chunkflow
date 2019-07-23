@@ -7,10 +7,9 @@ python:
 install:
 - sudo find /usr -name '*.pyc' -delete
 # numpy have to be installed using pip, otherwise there is an error using neuroglancer
-- pip install -r requirements.txt
+- pip install .
 - python setup.py install  
-
-before_script:
+- pip install pytest
 - pip install coveralls
 
 script:
@@ -18,7 +17,7 @@ script:
 - chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 # use -a to append to the coverage file, otherwise it will clean previous record
 - cd chunkflow
-- coverage run --source=chunkflow -m unittest
+- coverage run --source=chunkflow -m pytest
 
 after_success:
 - coveralls 

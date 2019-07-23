@@ -105,7 +105,7 @@ class TestInferencePipeline(unittest.TestCase):
         inference_operator = InferenceOperator(
             None, None, patch_size=self.patch_size, output_key='affinity',
             num_output_channels=3, patch_overlap=self.patch_overlap,
-            framework='identity', batch_size=3)
+            framework='identity', batch_size=5)
         chunk = inference_operator(chunk)
         print('after inference: {}'.format(chunk.slices))
         
@@ -149,6 +149,7 @@ class TestInferencePipeline(unittest.TestCase):
         # ignore the masked part of output 
         img = img[2:-2, 8:-8, 8:-8]
         out = out[2:-2, 8:-8, 8:-8]
+
         # the value can only be close since there is mask error
         self.assertTrue(np.alltrue(np.isclose(img, out, atol=1)))
         

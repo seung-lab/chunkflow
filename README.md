@@ -21,6 +21,17 @@ This package was registered in PyPi, just run a simple command to install:
 pip install chunkflow
 ```
 
+or download and install manually:
+```
+pip install .
+```
+Note that do not install using `python setup.py install` since some packages are not installable using it.
+
+## Run unittest
+```
+python -m unittest
+```
+
 ## Get Help
 `chunkflow --help`
 
