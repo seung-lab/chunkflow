@@ -73,7 +73,7 @@ class BlockInferenceEngine(object):
         create the normalization mask and patch bounding box list
         """
         self.patch_slice_list = []
-        # I forget why I should use patch_overlap here! I have to figure it out again!
+        # the step is the stride, so the end of aligned patch is input_size - patch_overlap
         for oz in tqdm(range(0, self.input_size[0]-self.patch_overlap[0], self.stride[0]), 
                        disable=not self.verbose, 
                        desc='ConvNet Inferece: '):
