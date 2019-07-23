@@ -17,7 +17,7 @@ script:
 - chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 # use -a to append to the coverage file, otherwise it will clean previous record
 - cd chunkflow
-- coverage run --source=pytest tests
+- coverage run pytest tests
 
 after_success:
 - coveralls 
