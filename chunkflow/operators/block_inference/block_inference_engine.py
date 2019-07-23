@@ -68,11 +68,11 @@ class BlockInferenceEngine(object):
             # we will not mask the output chunk
             assert np.all(is_align)
 
-    def _construct_patch_offset_list(self):
+    def _construct_patch_slice_list(self):
         """
         create the normalization mask and patch bounding box list
         """
-        self.patch_offset_list = []
+        self.patch_slice_list = []
         # I forget why I should use patch_overlap here! I have to figure it out again!
         for oz in tqdm(range(0, self.input_size[0]-self.patch_overlap[0], self.stride[0]), 
                        disable=not self.verbose, 
@@ -88,9 +88,12 @@ class BlockInferenceEngine(object):
                     if ox + self.patch_size[2] > self.input_size[2]:
                         ox = self.input_size[2] - self.patch_size[2]
                         assert ox >= 0
-                    self.patch_offset_list.append((oz, oy, ox))
+                    patch_slice = (slice(oz, oz+self.patch_size[0]),
+                                   slice(oy, oy+self.patch_size[1]),
+                                   slice(ox, ox+self.patch_size[2]))
+                    self.patch_slice_list.append(patch_slice)
 
-    def _constrct_output_chunk_mask(self):
+    def _construct_output_chunk_mask(self):
         if not self.mask_output_chunk:
             return
         if self.output_chunk_mask:
@@ -116,13 +119,13 @@ class BlockInferenceEngine(object):
         """
         if self.input_size == input_size:
             print('reusing existing patch offset list and output chunk mask.')
-            assert self.patch_offset_list is not None 
+            assert self.patch_slice_list is not None 
             assert self.output_chunk_mask is not None 
         else:
             if self.input_size is not None:
                 warn('the input size has changed, using new intput size.')
             self.input_size = input_size
-            self._construct_patch_offset_list()
+            self._construct_patch_slice_list()
             if self.mask_output_chunk:
                 self._construct_output_chunk_mask()
 
@@ -150,18 +153,15 @@ class BlockInferenceEngine(object):
             chunk_time_start = time.time()
                
         # iterate the offset list
-        for i in tqdm(range(0, len(self.patch_offset_list), self.batch_size),
+        for i in tqdm(range(0, len(self.patch_slice_list), self.batch_size),
                       disable=not self.verbose,
                       desc='ConvNet Inference ...'):
             if self.verbose:
                 start = time.time()
 
-            patch_offsets = self.patch_offset_list[i:i + self.batch_size]
-            for j,offset in enumerate(patch_offsets):
-                self.input_patch_buffer[j, 0, :, :, :] = input_chunk[
-                    offset[0]:offset[0] + self.patch_size[0],
-                    offset[1]:offset[1] + self.patch_size[1],
-                    offset[2]:offset[2] + self.patch_size[2]]
+            patch_slices = self.patch_slice_list[i:i + self.batch_size]
+            for j,slices in enumerate(patch_slices):
+                self.input_patch_buffer[j, 0, :, :, :] = input_chunk[slices]
             
             if self.verbose:
                 end = time.time()
@@ -180,7 +180,7 @@ class BlockInferenceEngine(object):
                       (self.batch_size, end-start))
                 start = end
 
-            for j,offset in enumerate(patch_offsets):
+            for j,slices in enumerate(patch_slices):
                 # only use the required number of channels
                 # the remaining channels are dropped
                 output_chunk = output_patch[j, :self.num_output_channels,
@@ -190,10 +190,8 @@ class BlockInferenceEngine(object):
                 if not self.mask_in_device:
                     output_chunk *= self.patch_mask
                 
-                output_buffer[:, 
-                    offset[0]:offset[0] + self.patch_size[0],
-                    offset[1]:offset[1] + self.patch_size[1],
-                    offset[2]:offset[2] + self.patch_size[2]] += output_chunk
+                output_buffer[((slice(self.num_output_channels)), 
+                               *slices)] += output_chunk
 
             if self.verbose:
                 end = time.time()
