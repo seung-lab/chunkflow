@@ -96,21 +96,17 @@ class BlockInferenceEngine(object):
     def _construct_output_chunk_mask(self):
         if not self.mask_output_chunk:
             return
-        if self.output_chunk_mask:
-            warn('updating existing output chunk mask.')
 
         if self.verbose:
             print('creating output chunk mask...')
 
         self.output_chunk_mask = np.zeros(self.input_size[-3:], np.float32)
-        for oz,oy,ox in self.offset_list:
+        for patch_slices in self.patch_slice_list:
             # accumulate weights
-            self.output_chunk_mask[oz:oz+self.patch_size[0],
-                            oy:oy+self.patch_size[1],
-                            ox:ox+self.patch_size[2]] += self.patch_mask
+            self.output_chunk_mask[patch_slices] += self.patch_mask
         # normalize weight, so accumulated inference result multiplies 
         # this mask will result in 1
-        self.output_chunk_mask = 1.0 / self.chunk_mask
+        self.output_chunk_mask = 1.0 / self.output_chunk_mask
 
     def _check_input_size_and_prepare_data(self, input_size):
         """
