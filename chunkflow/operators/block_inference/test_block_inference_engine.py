@@ -9,27 +9,30 @@ class TestBlockInferenceEngine(unittest.TestCase):
     def test_aligned_input_chunk(self):
         print('\ntest block inference engine...')
         patch_overlap = (4, 64, 64)
-        patch_engine = IdentityPatchInferenceEngine()
+        num_output_channels = 2
+        
+        patch_engine = IdentityPatchInferenceEngine(
+            num_output_channels=num_output_channels)
+        
         block_inference_engine = BlockInferenceEngine(
             patch_inference_engine=patch_engine,
             patch_size=(32, 256, 256),
             patch_overlap=patch_overlap,
-            num_output_channels=1,
-            batch_size=2
+            num_output_channels=num_output_channels,
+            batch_size=5
         )
         
-        image = np.random.randint(0, 255, size=(28 * 2 + 4, 
+        image = np.random.randint(1, 255, size=(28 * 2 + 4, 
                                                 (256 - 64) * 2 + 64,
                                                 (256 - 64) * 2 + 64), 
                                   dtype=np.uint8) 
         image = Chunk(image)
         output = block_inference_engine(image)
+        # only use the first channel to check correctness
+        output = output[0,:,:,:]
         output = np.reshape(output, image.shape)
         
-        if image.dtype == np.uint8:
-            image = image.astype(np.float32)
-            image /= 255
-
+   
         # we need to crop the patch overlap since the values were changed
         image = image[patch_overlap[0]:-patch_overlap[0],
                       patch_overlap[1]:-patch_overlap[1],
@@ -37,8 +40,12 @@ class TestBlockInferenceEngine(unittest.TestCase):
         output = output[patch_overlap[0]:-patch_overlap[0],
                         patch_overlap[1]:-patch_overlap[1],
                         patch_overlap[2]:-patch_overlap[2]]
+        
+        image = image.astype(np.float32) / 255
+        print('maximum difference: ', np.max(image - output))
+       
         # some of the image voxel is 0, the test can only work with rtol=1
-        np.testing.assert_allclose(image, output, rtol=1, atol=1e-17)
+        np.testing.assert_allclose(image, output, rtol=1e-5, atol=1e-5)
     
 
 if __name__ == '__main__':

@@ -27,6 +27,11 @@ pip install .
 ```
 Note that do not install using `python setup.py install` since some packages are not installable using it.
 
+## Run unittest
+```
+python -m unittest
+```
+
 ## Get Help
 `chunkflow --help`
 

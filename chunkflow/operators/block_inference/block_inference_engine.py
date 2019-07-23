@@ -58,6 +58,8 @@ class BlockInferenceEngine(object):
 
     def _check_alignment(self):
         if not self.mask_output_chunk:
+            if self.verbose:
+                print('patches should align with input chunk when not using output chunk mask.')
             is_align = tuple((i-o)%s==0 for i, s, o in 
                              zip(self.input_size, self.stride, 
                                  self.patch_overlap))
@@ -71,24 +73,32 @@ class BlockInferenceEngine(object):
         create the normalization mask and patch bounding box list
         """
         self.patch_offset_list = []
-        for oz in tqdm(range(0, self.input_size[0], self.stride[0]), 
+        # I forget why I should use patch_overlap here! I have to figure it out again!
+        for oz in tqdm(range(0, self.input_size[0]-self.patch_overlap[0], self.stride[0]), 
                        disable=not self.verbose, 
                        desc='ConvNet Inferece: '):
             if oz + self.patch_size[0] > self.input_size[0]:
                 oz = self.input_size[0] - self.patch_size[0]
                 assert oz >= 0
-            for oy in range(0, self.input_size[1], self.stride[1]):
+            for oy in range(0, self.input_size[1]-self.patch_overlap[1], self.stride[1]):
                 if oy + self.patch_size[1] > self.input_size[1]:
                     oy = self.input_size[1] - self.patch_size[1]
                     assert oy >= 0
-                for ox in range(0, self.input_size[2], self.stride[2]):
+                for ox in range(0, self.input_size[2]-self.patch_overlap[2], self.stride[2]):
                     if ox + self.patch_size[2] > self.input_size[2]:
                         ox = self.input_size[2] - self.patch_size[2]
                         assert ox >= 0
                     self.patch_offset_list.append((oz, oy, ox))
 
     def _constrct_output_chunk_mask(self):
-        # make mask
+        if not self.mask_output_chunk:
+            return
+        if self.output_chunk_mask:
+            warn('updating existing output chunk mask.')
+
+        if self.verbose:
+            print('creating output chunk mask...')
+
         self.output_chunk_mask = np.zeros(self.input_size[-3:], np.float32)
         for oz,oy,ox in self.offset_list:
             # accumulate weights
@@ -140,16 +150,18 @@ class BlockInferenceEngine(object):
             chunk_time_start = time.time()
                
         # iterate the offset list
-        for i in range(0, len(self.patch_offset_list), self.batch_size):
+        for i in tqdm(range(0, len(self.patch_offset_list), self.batch_size),
+                      disable=not self.verbose,
+                      desc='ConvNet Inference ...'):
             if self.verbose:
                 start = time.time()
 
             patch_offsets = self.patch_offset_list[i:i + self.batch_size]
             for j,offset in enumerate(patch_offsets):
-                self.input_patch_buffer[j, :, :, :] = input_chunk.cutout((
-                    slice(offset[0], offset[0] + self.patch_size[0]),
-                    slice(offset[1], offset[1] + self.patch_size[1]),
-                    slice(offset[2], offset[2] + self.patch_size[2])))
+                self.input_patch_buffer[j, 0, :, :, :] = input_chunk[
+                    offset[0]:offset[0] + self.patch_size[0],
+                    offset[1]:offset[1] + self.patch_size[1],
+                    offset[2]:offset[2] + self.patch_size[2]]
             
             if self.verbose:
                 end = time.time()
@@ -160,24 +172,29 @@ class BlockInferenceEngine(object):
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
             output_patch = self.patch_inference_engine(self.input_patch_buffer)
-            
+
             if self.verbose:
+                assert output_patch.ndim == 5
                 end = time.time()
-                print('run inference for %d patch takes %3f sec' % (self.batch_size, end-start))
+                print('run inference for %d patch takes %3f sec' % 
+                      (self.batch_size, end-start))
                 start = end
 
-            assert output_patch.ndim == 5
             for j,offset in enumerate(patch_offsets):
-                output_chunk = output_patch[j, :self.num_output_channels, :, :, :]
-                
-                output_chunk = Chunk(output_chunk, (0,)+offset)
+                # only use the required number of channels
+                # the remaining channels are dropped
+                output_chunk = output_patch[j, :self.num_output_channels,
+                                            :, :, :]
 
                 # normalized by patch mask
                 if not self.mask_in_device:
                     output_chunk *= self.patch_mask
+                
+                output_buffer[:, 
+                    offset[0]:offset[0] + self.patch_size[0],
+                    offset[1]:offset[1] + self.patch_size[1],
+                    offset[2]:offset[2] + self.patch_size[2]] += output_chunk
 
-                # blend to output buffer
-                output_buffer.blend(output_chunk)
             if self.verbose:
                 end = time.time()
                 print('mask and blend patch takes %3f sec' % (end-start))
@@ -188,6 +205,11 @@ class BlockInferenceEngine(object):
         
         if self.mask_output_chunk:
             output_buffer *= self.output_chunk_mask
+    
+        # theoretically, all the value of output_buffer should not be greater than 1
+        # we use a slightly higher value here to accomondate numerical precision issue
+        np.testing.assert_array_less(output_buffer, 1.0001, 
+                                     err_msg='output buffer should not be greater than 1')
         return output_buffer
 
     def _create_output_buffer(self, input_chunk):

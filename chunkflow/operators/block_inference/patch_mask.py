@@ -7,11 +7,11 @@ class PatchMask(np.ndarray):
         assert len(patch_size) == 3
         assert len(overlap) == 3
 
-        mask = make_mask(patch_size, overlap)
+        mask = make_patch_mask(patch_size, overlap)
         return np.asarray(mask).view(cls)
 
 
-def make_mask(patch_size, overlap):
+def make_patch_mask(patch_size, overlap):
     """
         _make_mask()
     return:
@@ -55,7 +55,7 @@ def make_bump_map(patch_size):
                       -1.0 / (1.0 - zv * zv))
 
     # make the low value a little bit higher to avoid floating point error
-    threshold = np.max(bump_map) * 1e-6
+    threshold = np.max(bump_map) * 1e-5
     bump_map[bump_map < threshold] = threshold
     return np.asarray(bump_map, dtype='float64')
 

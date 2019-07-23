@@ -21,13 +21,13 @@ class TestInference(unittest.TestCase):
             num_output_channels=3, patch_overlap=self.patch_overlap,
             framework='identity')
         output = inference_operator(image)
-
+        
         # ignore the cropping region
         output = output[0, 4:-4, 64:-64, 64:-64]
         image = image[4:-4, 64:-64, 64:-64]
         
         output = output * 255
         output = output.astype(np.uint8)
-
+        
         self.assertTrue(np.alltrue(np.isclose(image, output, atol=1)))
 
