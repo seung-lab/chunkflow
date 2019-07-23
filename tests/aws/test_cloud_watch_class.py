@@ -1,6 +1,6 @@
 import unittest
 
-from .cloud_watch import CloudWatch 
+from chunkflow.aws.cloud_watch import CloudWatch 
 
 
 class TestCloudWatch(unittest.TestCase):

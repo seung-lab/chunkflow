@@ -6,7 +6,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
 from cloudvolume.lib import generate_random_string, Bbox
 
-from .cutout import CutoutOperator
+from chunkflow.operators.cutout import CutoutOperator
 
 
 class TestCutout(unittest.TestCase):

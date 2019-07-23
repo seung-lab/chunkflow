@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 
-from .inference import InferenceOperator
-from .create_chunk import CreateChunkOperator
+from chunkflow.operators.inference import InferenceOperator
+from chunkflow.operators.create_chunk import CreateChunkOperator
 
 
 class TestInference(unittest.TestCase):

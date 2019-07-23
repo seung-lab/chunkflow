@@ -215,3 +215,5 @@ class BlockInferenceEngine(object):
                                  dtype=np.float32)
         return Chunk(output_buffer,
                      global_offset=(0,)+input_chunk.global_offset)
+
+
