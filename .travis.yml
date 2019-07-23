@@ -14,7 +14,7 @@ install:
 
 script:
 - chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-file --file-name=/tmp/img.h5
-- chunkflow chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
+- chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 # use -a to append to the coverage file, otherwise it will clean previous record
 - cd chunkflow
 - coverage run --source=chunkflow -m pytest
