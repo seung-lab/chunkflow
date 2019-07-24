@@ -48,7 +48,7 @@ class InferenceOperator(OperatorBase):
             mask_output_chunk=mask_output_chunk,
             verbose=verbose)
          
-    def _prepare_patch_engine(self)
+    def _prepare_patch_engine(self):
         # prepare for inference
         if self.framework == 'pznet':
             from .block_inference.frameworks.pznet_patch_inference_engine \
