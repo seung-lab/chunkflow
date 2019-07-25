@@ -27,7 +27,7 @@ setup(
         'kubernetes'
     ]),
     url='https://github.com/seung-lab/chunkflow',
-    install_requires=requirements
+    install_requires=requirements,
     tests_require = [
     'pytest',
     ],
