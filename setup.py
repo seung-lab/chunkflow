@@ -2,17 +2,13 @@ from setuptools import setup, find_packages
 
 version = '0.3.1'
 
+
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+    requirements = [l for l in requirements if not l.startswith('#')]
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
-
-# This is a fix for numpy to work with setuptools
-# https://github.com/numpy/numpy/blob/master/setup.py
-# This is a bit hackish: we are setting a global variable so that the main
-# numpy __init__ can detect if it is being loaded by the setup routine, to
-# avoid attempting to load components that aren't built yet.  While ugly, it's
-# a lot more robust than what was previously being used.
-import builtins
-builtins.__NUMPY_SETUP__ = True
 
 
 setup(
@@ -24,21 +20,14 @@ setup(
     version=version,
     author='Jingpeng Wu',
     author_email='jingpeng.wu@gmail.com',
-    packages=find_packages(exclude=['chunkflow.test']),
+    packages=find_packages(exclude=[
+        'tests', 
+        'bin', 
+        'docker', 
+        'kubernetes'
+    ]),
     url='https://github.com/seung-lab/chunkflow',
-    install_requires=[
-        'six>=1.12.0',
-        'numpy>=1.16',
-        'click',
-        'cloud-volume>0.14.2',
-        'scikit-image',
-        'boto3',
-        'h5py',
-        'tifffile',
-        'neuroglancer',
-        'tinybrain',
-        'zmesh'
-    ],
+    install_requires=requirements
     tests_require = [
     'pytest',
     ],
@@ -50,8 +39,12 @@ setup(
         'Environment :: Console',
         'Intended Audience :: End Users/Desktop',
         'Intended Audience :: Developers',
-        "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
     ],
+    python_requires='>=3.5',
 )
