@@ -12,6 +12,7 @@ from .mesh import MeshOperator
 from .neuroglancer_view import NeuroglancerViewOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
+from .arbitrary_op import ArbitraryChunkOperator
 from .read_file import ReadFileOperator
 from .save import SaveOperator
 from .save_images import SaveImagesOperator
