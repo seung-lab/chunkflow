@@ -10,11 +10,6 @@ i.e. after ``import navis``.
 
 Chunk
 +++++++++++++++
-TreeNeurons and NeuronLists are the classes representing neurons and
-lists thereof respectively.
-
-.. autosummary::
-    :toctree: generated/
 
     ~chunkflow.chunk
 
@@ -23,9 +18,5 @@ Operators
 These are class methods available for both TreeNeurons and NeuronLists. They
 are simply short-hands for the other navis functions.
 
-.. autosummary::
-    :toctree: generated/
-
     ~chunkflow.operators.read-h5
-
 
