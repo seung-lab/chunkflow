@@ -341,14 +341,14 @@ def normalize_section_shang_cmd(tasks, name, nominalmin, nominalmax, clipvalues)
             task['log']['timer'][name] = time() - start
         yield task
 
-@cli.command('custom-chunk-op')
+@cli.command('arbitrary-chunk-op')
 @click.option('--name', type=str, default='arbitrary-chunk-op', help='name of operator.')
 @click.option('--opprogram', type=str,
               help='python file to call.')
 @click.option('--args', type=str, default='',
               help='args to pass in')
 @operator
-def custom_chunk_op_cmd(tasks, name, opprogram, args):
+def arbitrary_chunk_op_cmd(tasks, name, opprogram, args):
     """[operator] .
     """
 
