@@ -8,7 +8,7 @@ chunkflow
 Chunk operations for large scale 3D image dataset processing
 
 # Introduction
-3D image dataset could be too large to be processed in a single computer, and distributed processing was required. In most cases, the image dataset could be choped to chunks and distributed to computers for processing. This package provide a framework to perform distributed chunk processing. 
+3D image dataset could be too large to be processed in a single computer, and distributed processing was required. In most cases, the image dataset could be choped to chunks and distributed to computers for processing. This package provide a framework to perform distributed chunk processing for large scale 3D image dataset. For each task in a single machine, it has a few composable chunk operators for flexible real world usage, including convolutional network inference and meshing of segmentation.
 
 ## Features
 - Decoupled frontend and backend. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication. 
