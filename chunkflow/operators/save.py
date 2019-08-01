@@ -62,6 +62,8 @@ class SaveOperator(OperatorBase):
 
     def __call__(self, chunk, log={'timer':{}}, output_bbox=None):
         start = time.time()
+        
+        chunk = self._auto_convert_dtype(chunk)
 
         chunk_slices = chunk.slices 
         # transpose czyx to xyzc order
@@ -77,6 +79,16 @@ class SaveOperator(OperatorBase):
             if output_bbox is None:
                 output_bbox = Bbox.from_delta((0,0,0), chunk.shape)
             self._upload_log(log, output_bbox)
+
+    def _auto_convert_dtype(self, chunk):
+        """convert the data type to fit volume datatype"""
+        if self.volume.dtype != chunk.dtype:
+            float_chunk = chunk.astype(np.float64)
+            #chunk = float_chunk / np.iinfo(chunk.dtype).max * np.iinfo(self.volume.dtype).max
+            chunk = float_chunk / np.max(chunk) * np.iinfo(self.volume.dtype).max
+            return chunk.astype(self.volume.dtype)
+        else:
+            return chunk
 
     def _create_thumbnail(self, chunk):
         if self.verbose:
