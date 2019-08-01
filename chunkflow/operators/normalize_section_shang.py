@@ -27,6 +27,7 @@ class NormalizeSectionShangOperator(OperatorBase):
     def __call__(self, chunk, debug=False):
         # this is an image chunk, not affinitymap
         assert chunk.ndim == 3
+        global_offset = chunk.global_offset
         originaltype = chunk.dtype
         chunk = chunk.astype(np.float32)
         if debug:
@@ -54,4 +55,5 @@ class NormalizeSectionShangOperator(OperatorBase):
         #chunk = np.round(chunk)
         #chunk = chunk.astype(originaltype)
 
-        return chunk
+        from chunkflow.chunk import Chunk
+        return Chunk(chunk, global_offset=global_offset)
