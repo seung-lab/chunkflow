@@ -1,4 +1,4 @@
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 from warnings import warn
 import os

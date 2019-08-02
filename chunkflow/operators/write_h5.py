@@ -2,7 +2,7 @@ import h5py
 import os
 
 from chunkflow.chunk import Chunk
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class WriteH5Operator(OperatorBase):

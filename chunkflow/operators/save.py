@@ -11,7 +11,7 @@ from cloudvolume.storage import Storage
 from chunkflow.igneous.tasks import downsample_and_upload
 from chunkflow.chunk import Chunk
 
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class SaveOperator(OperatorBase):

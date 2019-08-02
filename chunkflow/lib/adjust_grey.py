@@ -11,7 +11,7 @@ def window_level(img, half_window, level):
     Mathematically equivalent of rescale(img, level+np.array([-1,1])*half_window, [-1,1])
     '''
     if half_window<=0:
-        throwerror
+        raise ValueError('invalid value.')
     #img = np.copy(img)
     img -= level
     img *= 1./half_window
@@ -167,7 +167,6 @@ def test1_grey_augment():
     y = grey_augment(x, value_range=[0,1])
     ind = np.where(np.logical_and(y>0, y<1))
     return np.array_equal(np.argsort(x[ind]), np.argsort(y[ind]))
-
 
 
 if __name__ == "__main__":

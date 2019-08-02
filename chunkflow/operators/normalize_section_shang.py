@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-from .operator_base import OperatorBase
-from .adjust_grey import normalize as grey_normalize
+from .base import OperatorBase
+from chunkflow.lib.adjust_grey import normalize as grey_normalize
 
 
 class NormalizeSectionShangOperator(OperatorBase):
-    """Contrast Correction based on section min/max within the chunk, Shang's method.
+    """Contrast Correction based on section min/max within the chunk, 
+    Shang's method.
     """
     def __init__(self,
                  nominalmin: float=None,

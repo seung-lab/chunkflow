@@ -6,7 +6,7 @@ from cloudvolume.storage import Storage
 from chunkflow.lib.validate import validate_by_template_matching
 from chunkflow.igneous.downsample import downsample_with_averaging
 from chunkflow.chunk import Chunk
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class CutoutOperator(OperatorBase):

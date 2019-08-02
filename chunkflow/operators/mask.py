@@ -5,7 +5,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
 
 from chunkflow.chunk import Chunk
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class MaskOperator(OperatorBase):

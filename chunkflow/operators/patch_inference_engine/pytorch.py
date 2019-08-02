@@ -1,10 +1,10 @@
 # from .inference_engine import InferenceEngine
 # import imp
-
+from typing import Union
 import torch
 import numpy as np
 import importlib, types
-from .patch_inference_engine import PatchInferenceEngine
+from .base import PatchInferenceEngine
 
 
 def load_source(fname, module_name="something"):
@@ -15,18 +15,23 @@ def load_source(fname, module_name="something"):
     return mod
 
 
-class PytorchPatchInferenceEngine(PatchInferenceEngine):
+class PyTorchPatchInferenceEngine(PatchInferenceEngine):
     def __init__(self,
-                 model_file_name,
-                 weight_file_name,
-                 use_batch_norm=True,
-                 is_static_batch_norm=False,
-                 output_key='affinity',
-                 num_output_channels=3):
-        super().__init__()
-        self.num_output_channels=num_output_channels
+            model_file_name: str,
+            weight_file_name: str,
+            patch_size: Union[tuple, list],
+            patch_overlap: Union[tuple, list],
+            use_batch_norm: bool = True,
+            is_static_batch_norm: bool = False,
+            output_key: str = 'affinity',
+            num_output_channels: int = 3,
+            mask: np.ndarray = None):
+        super().__init__(patch_size, patch_overlap)
+        self.num_output_channels = num_output_channels
         if torch.cuda.is_available():
             self.is_gpu = True
+            # put mask to gpu
+            self.mask = torch.from_numpy(self.mask).cuda()
         else:
             self.is_gpu = False
 
@@ -36,9 +41,10 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
             self.net.load_state_dict(torch.load(weight_file_name))
             self.net.cuda()
             self.net = torch.nn.DataParallel(self.net,
-                                             device_ids=range(torch.cuda.device_count()))
+                    device_ids=range(torch.cuda.device_count()))
         else:
-            self.net.load_state_dict(torch.load(weight_file_name, map_location='cpu'))
+            self.net.load_state_dict(torch.load(weight_file_name,
+                map_location='cpu'))
             
         if use_batch_norm and is_static_batch_norm:
             self.net.eval()
@@ -62,25 +68,11 @@ class PytorchPatchInferenceEngine(PatchInferenceEngine):
                 output_v = output_v[0]
                 # the network output do not have sigmoid function
                 output_patch = torch.sigmoid(output_v)
-
-            output_patch = output_patch.data.cpu().numpy()
-            return output_patch[:,0:self.num_output_channels, :,:]
-
-
-if __name__ == "__main__":
-    from .rsunet import RSUNet
-    import os
-    model_file_name = os.path.expanduser('~/workspace/pytorch-model/pytorch_model/rsunet.py')
-    net_file_name = '/nets/weight.chkpt'
-    engine = PyTorchEngine(model_file_name, net_file_name)
-
-    import h5py
-    from dataprovider.emio import imsave
-    fimg = '/tmp/img.h5'
-    with h5py.File(fimg) as f:
-
-        patch = f['main'][:20, :256, :256]
-        patch = np.asarray(patch, dtype='float32') / 255.0
-        output = engine(patch)
-        print('shape of output: {}'.format(output.shape))
-        imsave(output, '/tmp/patch.h5')
+            
+            # only transfer required channels to cpu
+            output_patch = output_patch[:,0:self.num_output_channels, :,:]
+            # mask in gpu/cpu
+            output_patch *= self.mask
+            if self.is_gpu:
+                output_patch = output_patch.data.cpu().numpy()
+            return output_patch

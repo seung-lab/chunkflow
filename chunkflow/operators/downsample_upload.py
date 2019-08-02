@@ -1,5 +1,5 @@
 from chunkflow.chunk import Chunk 
-from .operator_base import OperatorBase
+from .base import OperatorBase
 from cloudvolume import CloudVolume
 import tinybrain
 import numpy as np

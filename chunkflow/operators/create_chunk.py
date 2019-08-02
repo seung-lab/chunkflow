@@ -1,7 +1,7 @@
 import numpy as np
 from chunkflow.chunk import Chunk
 
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class CreateChunkOperator(OperatorBase):

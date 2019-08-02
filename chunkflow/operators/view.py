@@ -1,7 +1,7 @@
 import numpy as np
 
 from cloudvolume import view, hyperview
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class ViewOperator(OperatorBase):

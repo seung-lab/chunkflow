@@ -8,7 +8,7 @@ from zmesh import Mesher
 from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
 
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class MeshOperator(OperatorBase):

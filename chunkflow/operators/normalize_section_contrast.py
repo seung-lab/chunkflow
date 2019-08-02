@@ -5,7 +5,7 @@ import numpy as np
 from cloudvolume import CloudVolume, Storage
 from cloudvolume.lib import Vec, Bbox
 
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class NormalizeSectionContrastOperator(OperatorBase):

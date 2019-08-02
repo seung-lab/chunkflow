@@ -4,7 +4,7 @@ import h5py
 import tifffile
 
 from chunkflow.chunk import Chunk
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class ReadFileOperator(OperatorBase):

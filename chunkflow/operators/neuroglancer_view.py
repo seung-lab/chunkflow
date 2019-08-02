@@ -1,7 +1,7 @@
 import neuroglancer
 import numpy as np
 
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
 
 class NeuroglancerViewOperator(OperatorBase):
