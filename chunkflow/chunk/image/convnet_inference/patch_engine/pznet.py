@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import sys
-from .patch_inference_engine import PatchInferenceEngine
+from .base import PatchEngine
 
 
-class PZNetPatchInferenceEngine(PatchInferenceEngine):
+class PZNet(PatchEngine):
     def __init__(self, net_dir, use_bn=True, is_static_batch_norm=False):
         super().__init__()
         sys.path.append(net_dir)
@@ -29,8 +29,8 @@ if __name__ == "__main__":
     import numpy as np
     for i in range(10):
         print("patch iteration: {}".format(i))
-        engine = PZNetPatchInferenceEngine(
-            "/nets/pinky100/unet4-long/mip1/cores2")
-        input_patch = np.random.randint(
-            0, 255, (1, 1, 20, 256, 256), dtype='uint8')
+        engine = PZNet("/nets/pinky100/unet4-long/mip1/cores2")
+        input_patch = np.random.randint(0,
+                                        255, (1, 1, 20, 256, 256),
+                                        dtype='uint8')
         engine(input_patch)

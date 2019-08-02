@@ -2,7 +2,7 @@ import numpy as np
 from cloudvolume.lib import Bbox
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
-
+from .validate import validate_by_template_matching
 
 class Chunk(np.ndarray):
     """
@@ -91,3 +91,9 @@ class Chunk(np.ndarray):
 #    def __array_wrap__(self, out_arr, context=None):
 #        chunk = super().__array_wrap__(self, out_arr, context)
 #        return Chunk(chunk, global_offset=self.global_offset)
+
+    def validate(self, verbose: bool = False):
+        """validate the completeness of this chunk, there
+        should not have black boxes
+        """
+        validate_by_template_matching(self, verbose=verbose)

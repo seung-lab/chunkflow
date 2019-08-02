@@ -1,15 +1,14 @@
 import numpy as np
-from .patch_inference_engine import PatchInferenceEngine
+from .base import PatchEngine
 
 
-class IdentityPatchInferenceEngine(PatchInferenceEngine):
+class Identity(PatchEngine):
     """
         IdentityPatchInferenceEngine(PatchInferenceEngine) 
 
     return the same output with the input 
     this class was only used for tests 
     """
-
     def __init__(self, num_output_channels=1):
         super().__init__()
         self.num_output_channels = num_output_channels

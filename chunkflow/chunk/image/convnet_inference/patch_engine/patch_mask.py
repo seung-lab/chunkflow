@@ -24,9 +24,9 @@ def make_patch_mask(patch_size, overlap):
     stride = tuple(p - o for p, o in zip(patch_size, overlap))
     # use 3x3x3 mask addition to figure out the normalization parameter
     # this is a simulation of blending
-    base_mask = np.zeros(
-        tuple(f + 2 * s for (f, s) in zip(patch_size, stride)),
-        dtype='float64')
+    base_mask = np.zeros(tuple(f + 2 * s
+                               for (f, s) in zip(patch_size, stride)),
+                         dtype='float64')
     for nz in range(3):
         for ny in range(3):
             for nx in range(3):
@@ -50,9 +50,8 @@ def make_bump_map(patch_size):
     xv = (xv + 1.0) / (patch_size[-1] + 1.0) * 2.0 - 1.0
     yv = (yv + 1.0) / (patch_size[-2] + 1.0) * 2.0 - 1.0
     zv = (zv + 1.0) / (patch_size[-3] + 1.0) * 2.0 - 1.0
-    bump_map = np.exp(-1.0 / (1.0 - xv * xv) + 
-                      -1.0 / (1.0 - yv * yv) +
-                      -1.0 / (1.0 - zv * zv))
+    bump_map = np.exp(-1.0 / (1.0 - xv * xv) + -1.0 / (1.0 - yv * yv) + -1.0 /
+                      (1.0 - zv * zv))
 
     # make the low value a little bit higher to avoid floating point error
     threshold = np.max(bump_map) * 1e-5
@@ -72,7 +71,7 @@ if __name__ == '__main__':
     print('shape of mask: {}'.format(patch_mask.shape))
     print('describe patch mask:')
     print(describe(patch_mask, axis=None))
-    
+
     import h5py
     import os
     file_name = '/tmp/patch_mask.h5'

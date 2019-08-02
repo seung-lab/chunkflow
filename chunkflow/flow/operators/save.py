@@ -8,7 +8,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
 from cloudvolume.storage import Storage
 
-from chunkflow.igneous.tasks import downsample_and_upload
+from chunkflow.lib.igneous.tasks import downsample_and_upload
 from chunkflow.chunk import Chunk
 
 from .base import OperatorBase

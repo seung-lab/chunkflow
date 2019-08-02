@@ -3,10 +3,10 @@ import torch
 from pytorch_model.model import load_model
 from types import SimpleNamespace
 
-from .patch_inference_engine import PatchInferenceEngine
+from .base import PatchEngine
 
 
-class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
+class PytorchMultitask(PatchEngine):
     def __init__(self,
                  convnet_model,
                  convnet_weight_path,
@@ -22,8 +22,8 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
         so we need the patch_overlap information.
         """
         super().__init__()
-        
-        # we currently only support two types of model 
+
+        # we currently only support two types of model
         assert convnet_model in ('rsunet', 'rsunet_act')
 
         self.output_key = output_key
@@ -31,16 +31,22 @@ class PytorchMultitaskPatchInferenceEngine(PatchInferenceEngine):
         d = {
             'model': convnet_model,
             'width': width,
-            'in_spec': {'input': (1, *patch_size)},
-            'out_spec': {output_key: (original_num_output_channels, *patch_size)},
-            'scan_spec': {output_key: (num_output_channels, *patch_size)},
+            'in_spec': {
+                'input': (1, *patch_size)
+            },
+            'out_spec': {
+                output_key: (original_num_output_channels, *patch_size)
+            },
+            'scan_spec': {
+                output_key: (num_output_channels, *patch_size)
+            },
             'pretrain': True,
             'precomputed': torch.cuda.is_available(),
             'edges': [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
             'overlap': patch_overlap,
             'bump': bump
         }
-        
+
         self.opt = SimpleNamespace(**d)
         assert os.path.isfile(convnet_weight_path)
         self.net = load_model(self.opt, convnet_weight_path)

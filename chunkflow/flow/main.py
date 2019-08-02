@@ -5,7 +5,7 @@ from time import time
 import numpy as np
 from cloudvolume.lib import Bbox
 
-from chunkflow.aws.sqs_queue import SQSQueue
+from chunkflow.lib.aws.sqs_queue import SQSQueue
 
 # import operator functions
 from .operators import *

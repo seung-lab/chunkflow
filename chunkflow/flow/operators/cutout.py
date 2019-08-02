@@ -3,8 +3,8 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
 from cloudvolume.storage import Storage
 
-from chunkflow.lib.validate import validate_by_template_matching
-from chunkflow.igneous.downsample import downsample_with_averaging
+from chunkflow.chunk.validate import validate_by_template_matching
+from chunkflow.lib.igneous.downsample import downsample_with_averaging
 from chunkflow.chunk import Chunk
 from .base import OperatorBase
 
