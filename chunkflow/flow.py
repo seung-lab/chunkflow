@@ -167,6 +167,7 @@ def fetch_task_cmd(queue_name, visibility_timeout):
         # record the task handle to delete after the processing
         task['task_handle'] = task_handle
         task['output_bbox'] = output_bbox
+        task['log'] = {'timer': {}}
         task['log']['output_bbox'] = output_bbox.to_filename()
         yield task
 
