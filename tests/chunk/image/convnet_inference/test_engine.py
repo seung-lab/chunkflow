@@ -1,23 +1,23 @@
 import numpy as np
-from chunkflow.operators.block_inference.block_inference_engine import BlockInferenceEngine
-from chunkflow.operators.block_inference.frameworks.identity_patch_inference_engine import IdentityPatchInferenceEngine
+from chunkflow.chunk.image.convnet_inference.engine import Engine
+from chunkflow.chunk.image.convnet_inference.patch_engine.identity import Identity
 from chunkflow.chunk import Chunk
 
 
 def test_aligned_input_chunk():
     print('\ntest block inference engine...')
+    patch_size=(32, 256, 256)
     patch_overlap = (4, 64, 64)
     num_output_channels = 2
     
-    patch_engine = IdentityPatchInferenceEngine(
-        num_output_channels=num_output_channels)
-    
-    block_inference_engine = BlockInferenceEngine(
-        patch_inference_engine=patch_engine,
-        patch_size=(32, 256, 256),
+    block_inference_engine = Engine(
+        None, None,
+        patch_size=patch_size,
         patch_overlap=patch_overlap,
         num_output_channels=num_output_channels,
-        batch_size=5
+        framework='identity',
+        batch_size=5,
+        mask_output_chunk=False
     )
     
     image = np.random.randint(1, 255, size=(28 * 2 + 4, 
@@ -47,18 +47,17 @@ def test_aligned_input_chunk():
 
 def test_non_aligned_input_chunk():
     print('\ntest no aligned block inference engine...')
+    patch_size=(32, 256, 256)
     patch_overlap = (4, 64, 64)
     num_output_channels = 2
     
-    patch_engine = IdentityPatchInferenceEngine(
-        num_output_channels=num_output_channels)
-    
-    block_inference_engine = BlockInferenceEngine(
-        patch_inference_engine=patch_engine,
-        patch_size=(32, 256, 256),
+    block_inference_engine = Engine(
+        None,None,
+        patch_size=patch_size,
         patch_overlap=patch_overlap,
         num_output_channels=num_output_channels,
         batch_size=5,
+        framework='identity',
         mask_output_chunk=True
     )
     

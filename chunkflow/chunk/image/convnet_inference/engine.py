@@ -111,7 +111,7 @@ class Engine(object):
         self.output_chunk_mask = np.zeros(self.input_size[-3:], np.float32)
         for patch_slices in self.patch_slice_list:
             # accumulate weights
-            self.output_chunk_mask[patch_slices] += self.patch_mask
+            self.output_chunk_mask[patch_slices] += self.patch_engine.mask
         # normalize weight, so accumulated inference result multiplies
         # this mask will result in 1
         self.output_chunk_mask = 1.0 / self.output_chunk_mask
@@ -151,9 +151,13 @@ class Engine(object):
 
         self._check_input_size_and_prepare_data(input_chunk.shape)
         self._check_alignment()
+        
+        if np.issubdtype(input_chunk.dtype, np.integer):
+            # normalize to 0-1 value range
+            input_chunk = input_chunk / np.iinfo(input_chunk.dtype).max
 
-        if input_chunk.dtype == np.uint8:
-            input_chunk = input_chunk.astype(np.float32) / 255.0
+        #if input_chunk.dtype == np.uint8:
+        #    input_chunk = input_chunk.astype(np.float32) / 255.0
 
         if self.verbose:
             chunk_time_start = time.time()
@@ -178,7 +182,7 @@ class Engine(object):
             # the input and output patch is a 5d numpy array with
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
-            output_patch = self.patch_inference_engine(self.input_patch_buffer)
+            output_patch = self.patch_engine(self.input_patch_buffer)
 
             if self.verbose:
                 assert output_patch.ndim == 5
@@ -186,15 +190,16 @@ class Engine(object):
                 print('run inference for %d patch takes %3f sec' %
                       (self.batch_size, end - start))
                 start = end
+            
+            import pdb; pdb.set_trace() 
 
-            for j, slices in enumerate(patch_slices):
+            for batch_idx, slices in enumerate(patch_slices):
                 # only use the required number of channels
                 # the remaining channels are dropped
-                output_chunk = output_patch[j, :self.
-                                            num_output_channels, :, :, :]
-
                 output_buffer[((slice(self.num_output_channels)),
-                               *slices)] += output_chunk
+                               *slices)] += output_patch[batch_idx, 
+                                            :self.num_output_channels, 
+                                            :, :, :]
 
             if self.verbose:
                 end = time.time()
@@ -250,9 +255,9 @@ class Engine(object):
                 num_output_channels=self.num_output_channels,
                 bump=self.bump)
         elif self.framework == 'identity':
-            from .block_inference.frameworks.identity_patch_inference_engine \
-                import IdentityPatchInferenceEngine
-            self.patch_engine = IdentityPatchInferenceEngine(
+            from .patch_engine.identity import Identity
+            self.patch_engine = Identity(
+                self.patch_size, self.patch_overlap,
                 num_output_channels=self.num_output_channels)
         else:
             raise Exception('invalid inference backend: {}'.format(

@@ -9,8 +9,9 @@ class Identity(PatchEngine):
     return the same output with the input 
     this class was only used for tests 
     """
-    def __init__(self, num_output_channels=1):
-        super().__init__()
+    def __init__(self, patch_size, patch_overlap, 
+                 num_output_channels=1):
+        super().__init__(patch_size, patch_overlap)
         self.num_output_channels = num_output_channels
 
     def __call__(self, patch):
@@ -21,7 +22,11 @@ class Identity(PatchEngine):
         """
         patch = self._reshape_patch(patch)
 
-        output = np.copy(patch).astype(np.float32)
+        output = patch.astype(np.float32)
+        #if np.issubdtype(patch.dtype, np.integer):
+        #    # normalize to 0-1 value range
+        #    output /= np.iinfo(patch.dtype).max
+
         if self.num_output_channels > 1:
             output = np.repeat(output, self.num_output_channels, axis=1)
 
