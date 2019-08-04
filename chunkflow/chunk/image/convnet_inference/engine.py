@@ -191,8 +191,6 @@ class Engine(object):
                       (self.batch_size, end - start))
                 start = end
             
-            import pdb; pdb.set_trace() 
-
             for batch_idx, slices in enumerate(patch_slices):
                 # only use the required number of channels
                 # the remaining channels are dropped
@@ -230,22 +228,24 @@ class Engine(object):
         # prepare for inference
         if self.framework == 'pznet':
             from .patch_engine.pznet import PZNet
-            self.patch_engine = PZNetPatchInferenceEngine(
+            self.patch_engine = PZNet(
+                self.patch_size, self.patch_overlap,
                 self.convnet_model, self.convnet_weight_path)
         elif self.framework == 'pytorch':
-            from .block_inference.frameworks.pytorch_patch_inference_engine \
-                import PytorchPatchInferenceEngine
-            self.patch_engine = PytorchPatchInferenceEngine(
+            from .patch_engine.pytorch import Pytorch
+            self.patch_engine = Pytorch(
+                self.patch_size,
+                self.patch_overlap,
                 self.convnet_model,
                 self.convnet_weight_path,
                 output_key=self.output_key,
-                num_output_channels=self.num_output_channels,
-                device=self.compute_device)
+                num_output_channels=self.num_output_channels)
         elif self.framework == 'pytorch-multitask':
             # currently only this type of task support mask in device
-            from .block_inference.frameworks.pytorch_multitask_patch_inference \
-                import PytorchMultitaskPatchInferenceEngine
-            self.patch_engine = PytorchMultitaskPatchInferenceEngine(
+            from .patch_engine.pytorch_multitask import PytorchMultitask
+            self.patch_engine = PytorchMultitask(
+                self.patch_size,
+                self.patch_overlap,
                 self.convnet_model,
                 self.convnet_weight_path,
                 patch_size=self.patch_size,

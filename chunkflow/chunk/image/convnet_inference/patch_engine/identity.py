@@ -26,6 +26,9 @@ class Identity(PatchEngine):
         #if np.issubdtype(patch.dtype, np.integer):
         #    # normalize to 0-1 value range
         #    output /= np.iinfo(patch.dtype).max
+        
+        # mask should be done in patch engine now
+        output *= self.mask
 
         if self.num_output_channels > 1:
             output = np.repeat(output, self.num_output_channels, axis=1)
