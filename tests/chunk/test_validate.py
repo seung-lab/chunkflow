@@ -1,7 +1,7 @@
 import numpy as np
 import unittest
 
-from chunkflow.lib.validate import validate_by_template_matching
+from chunkflow.chunk.validate import validate_by_template_matching
 
 
 class TestValidateByTemplateMatching(unittest.TestCase):

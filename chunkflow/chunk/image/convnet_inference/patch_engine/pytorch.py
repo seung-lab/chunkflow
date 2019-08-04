@@ -37,6 +37,7 @@ class PyTorch(PatchEngine):
 
         self.net_source = load_source(model_file_name)
         self.net = self.net_source.InstantiatedModel
+
         if self.is_gpu:
             self.net.load_state_dict(torch.load(weight_file_name))
             self.net.cuda()
@@ -75,5 +76,6 @@ class PyTorch(PatchEngine):
             # mask in gpu/cpu
             output_patch *= self.mask
             if self.is_gpu:
+                # transfer to cpu
                 output_patch = output_patch.data.cpu().numpy()
             return output_patch

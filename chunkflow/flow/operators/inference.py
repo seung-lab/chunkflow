@@ -32,12 +32,13 @@ class InferenceOperator(OperatorBase):
         self.mask_output_chunk = mask_output_chunk
 
         self.engine = Engine(
-            patch_size=patch_size,
-            patch_overlap=patch_overlap,
+            patch_size,
+            patch_overlap,
             output_key=output_key,
             num_output_channels=num_output_channels,
             batch_size=batch_size,
             mask_output_chunk=mask_output_chunk,
+            framework='identity',
             verbose=verbose)
          
     def __call__(self, chunk):

@@ -3,6 +3,10 @@ from .patch_mask import PatchMask
 
 
 class PatchEngine(object):
+    """PatchEngine
+    
+    the input patch is a 
+    """
     def __init__(self, patch_size, patch_overlap):
         self.patch_size = patch_size
         self.patch_overlap = patch_overlap
@@ -10,9 +14,16 @@ class PatchEngine(object):
         # prepare patch mask
         self.mask = PatchMask(patch_size, patch_overlap)
 
-    def __call__(self, patch):
-        """
-        this method should be inherited for real implementation
+    def __call__(self, patch: np.ndarray) -> np.ndarray:
+        r"""This method should be inherited for real implementation
+
+        Args:
+            patch: a image patch with datatype of float32,
+                The value range should be in [0,1]
+        
+        Returns
+        --------
+        np.ndarray
         """
         return NotImplementedError()
 

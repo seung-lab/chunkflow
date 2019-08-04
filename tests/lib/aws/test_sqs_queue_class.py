@@ -1,4 +1,4 @@
-from chunkflow.aws.sqs_queue import SQSQueue
+from chunkflow.lib.aws.sqs_queue import SQSQueue
 import unittest
 
 

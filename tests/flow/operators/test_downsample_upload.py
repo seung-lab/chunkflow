@@ -7,7 +7,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
 from cloudvolume.lib import generate_random_string, Bbox
 
-from chunkflow.operators.downsample_upload import DownsampleUploadOperator
+from chunkflow.flow.operators.downsample_upload import DownsampleUploadOperator
 
 
 class TestDownsampleUpload(unittest.TestCase):
