@@ -234,14 +234,14 @@ def delete_task_in_queue_cmd(tasks, name):
               default=False, help='blackout some sections. ' +
               'the section ids json file should named blackout_section_ids.json.' +
               'default is False.')
-@click.option('--storage-var-name', type=str, default='chunk',
+@click.option('--chunk-name', type=str, default='chunk',
               help = 
               'Variable name to store the cutout to for later retrieval. Chunkflow'
               ' operators by default operates on a variable named "chunk" but'
               ' sometimes you may need to have a secondary volume to work on.')
 @operator
 def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size, 
-               fill_missing, validate_mip, blackout_sections, storage_var_name):
+               fill_missing, validate_mip, blackout_sections, chunk_name):
     """[operator] Cutout chunk from volume."""
     state['operators'][name] = CutoutOperator(
         volume_path, mip=state['mip'], 
@@ -254,7 +254,7 @@ def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[storage_var_name] = state['operators'][name](task['output_bbox'])
+            task[chunk_name] = state['operators'][name](task['output_bbox'])
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
         yield task
@@ -341,15 +341,17 @@ def normalize_section_shang_cmd(tasks, name, nominalmin, nominalmax, clipvalues)
             task['log']['timer'][name] = time() - start
         yield task
 
-@cli.command('arbitrary-chunk-op')
-@click.option('--name', type=str, default='arbitrary-chunk-op', help='name of operator.')
+@cli.command('custom-operator')
+@click.option('--name', type=str, default='custom-operator-1', help='name of operator.')
 @click.option('--opprogram', type=str,
               help='python file to call.')
 @click.option('--args', type=str, default='',
               help='args to pass in')
 @operator
-def arbitrary_chunk_op_cmd(tasks, name, opprogram, args):
-    """[operator] .
+def custom_operator_cmd(tasks, name, opprogram, args):
+    """[operator] Custom operation on the chunk.
+    The custom python file should contain a callable named "op_call" such that 
+    a call of `op_call(chunk, args)` can be made to operate on the chunk.
     """
 
     state['operators'][name] = ArbitraryChunkOperator(
@@ -366,13 +368,13 @@ def arbitrary_chunk_op_cmd(tasks, name, opprogram, args):
 
 
 @cli.command('copy-var')
-@click.option('--name', type=str, default='copy-var', help='name of step')
+@click.option('--name', type=str, default='copy-var-1', help='name of step')
 @click.option('--from-name', type=str, default='chunk',
               help = 'Variable to be (shallow) copied/"renamed"')
 @click.option('--to-name', type=str, default='chunk',
               help = 'New variable name')
 @operator
-def copy_var_op_cmd(tasks, name, from_name, to_name):
+def copy_var_cmd(tasks, name, from_name, to_name):
     """[operator] Copy a variable to a new name.
     """
     for task in tasks:
