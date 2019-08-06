@@ -26,8 +26,6 @@ author = 'Jingpeng Wu'
 # The full version, including alpha/beta/rc tags
 # release = '0.4.0'
 
-autodoc_mock_imports = ['matplotlib']
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -38,10 +36,10 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode', # This will add links to source code to autodoc
     #'sphinx.ext.linkcode', # This is similar to viewcode but links to external source -> need to define a function for this
-    'sphinx.ext.napoleon',
+    #'sphinx.ext.napoleon',
     #'sphinx.ext.mathjax', # mathjax is interactive and configurable but can also misbehave when rendering - switched to imgmath instead
-    'sphinx.ext.imgmath',
-    'matplotlib.sphinxext.plot_directive',
+    #'sphinx.ext.imgmath',
+    #'matplotlib.sphinxext.plot_directive',
     'sphinx_autodoc_typehints',
 ]
 
