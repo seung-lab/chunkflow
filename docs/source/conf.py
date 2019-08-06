@@ -24,8 +24,9 @@ copyright = '2019, Jingpeng Wu'
 author = 'Jingpeng Wu'
 
 # The full version, including alpha/beta/rc tags
-release = '0.4.0'
+# release = '0.4.0'
 
+autodoc_mock_imports = ['matplotlib']
 
 # -- General configuration ---------------------------------------------------
 
