@@ -5,8 +5,9 @@ from cloudvolume.lib import Bbox
 from .validate import validate_by_template_matching
 
 class Chunk(np.ndarray):
-    """
+    r"""
        Chunk 
+    
     a chunk of big array with offset
     implementation following an example in (ndarray subclassing)
     [https://docs.scipy.org/doc/numpy/user/basics.subclassing.html]

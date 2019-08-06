@@ -4,14 +4,13 @@ API Reference
 =============
 
 Unless otherwise stated below functions are available at top level import,
-i.e. after ``import navis``.
-
-.. _api_chunk:
+i.e. after ``import chunkflow``.
 
 Chunk
-+++++++++++++++
+------------
+.. autosummary::
+    :toctree: generated/
 
-    ~chunkflow.chunk
 
 Operators
 -----------------------
