@@ -354,7 +354,7 @@ def custom_operator_cmd(tasks, name, opprogram, args):
     a call of `op_call(chunk, args)` can be made to operate on the chunk.
     """
 
-    state['operators'][name] = ArbitraryChunkOperator(
+    state['operators'][name] = CustomOperator(
         opprogram=opprogram, args=args, name=name)
     print('Received args for ', name, ':', args)
     

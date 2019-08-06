@@ -6,7 +6,7 @@ from .operator_base import OperatorBase
 from .block_inference.frameworks.pytorch_patch_inference_engine import load_source
 
 
-class ArbitraryChunkOperator(OperatorBase):
+class CustomOperator(OperatorBase):
     r"""
     Chunk operation using a custom python file.
     """
