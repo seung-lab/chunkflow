@@ -7,6 +7,11 @@ with open('requirements.txt') as f:
     requirements = f.read().splitlines()
     requirements = [l for l in requirements if not l.startswith('#')]
 
+
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+    requirements = [l for l in requirements if not l.startswith('#')]
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
