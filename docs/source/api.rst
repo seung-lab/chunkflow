@@ -8,14 +8,69 @@ i.e. after ``import chunkflow``.
 
 Chunk
 ------------
-.. autosummary::
-    :toctree: generated/
+.. autoclass:: chunkflow.chunk.Chunk
+   :members:
 
+Image
+~~~~~~~
+.. autoclass:: chunkflow.chunk.image.Image
+   :members:
+
+Flow
+------------
+.. automodule:: chunkflow.flow.main
+   :members:
 
 Operators
------------------------
-These are class methods available for both TreeNeurons and NeuronLists. They
-are simply short-hands for the other navis functions.
+~~~~~~~~~~
+.. automodule:: chunkflow.flow.operators
+   :members:
 
-    ~chunkflow.operators.read-h5
+.. autoclass:: chunkflow.flow.operators.cloud_watch.CloudWatchOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.create_chunk.CreateChunkOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.crop_margin.CropMarginOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.cutout.CutoutOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.downsample_upload.DownsampleUploadOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.inference.InferenceOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.mask.MaskOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.mesh.MeshOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.neuroglancer_view.NeuroglancerViewOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.normalize_section_contrast.NormalizeSectionContrastOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.normalize_section_shang.NormalizeSectionShangOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.read_file.ReadFileOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.save.SaveOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.save_images.SaveImagesOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.view.ViewOperator
+   :members:
+
+.. autoclass:: chunkflow.flow.operators.write_h5.WriteH5Operator
+   :members:
 
