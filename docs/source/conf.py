@@ -15,6 +15,7 @@ import sys
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../..'))
+import chunkflow
 
 # -- Project information -----------------------------------------------------
 
@@ -22,8 +23,14 @@ project = 'chunkflow'
 copyright = '2019, Jingpeng Wu'
 author = 'Jingpeng Wu'
 
-# The full version, including alpha/beta/rc tags
-# release = '0.4.0'
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+# The short X.Y version.
+version = chunkflow.__version__
+# The full version, including alpha/beta/rc tags.
+#release = chunkflow.__release__
 
 # -- General configuration ---------------------------------------------------
 
@@ -31,9 +38,10 @@ author = 'Jingpeng Wu'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autosummary',
+    #'sphinx.ext.autosummary',
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode', # This will add links to source code to autodoc
+    'sphinx.ext.githubpages',
     #'sphinx.ext.linkcode', # This is similar to viewcode but links to external source -> need to define a function for this
     #'sphinx.ext.napoleon',
     #'sphinx.ext.mathjax', # mathjax is interactive and configurable but can also misbehave when rendering - switched to imgmath instead

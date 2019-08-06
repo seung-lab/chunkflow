@@ -1,6 +1,5 @@
 from setuptools import setup, find_packages
-
-version = '0.4.0'
+import chunkflow
 
 
 with open('requirements.txt') as f:
@@ -22,7 +21,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license='Apache License 2.0',
-    version=version,
+    version=chunkflow.__version__,
     author='Jingpeng Wu',
     author_email='jingpeng.wu@gmail.com',
     packages=find_packages(exclude=[
