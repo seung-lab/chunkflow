@@ -15,6 +15,6 @@ What's new?
      - - ConvNet inference without patch alignment. 
    * - 0.3.1
      - Jul. 2019
-     - - functional to perform ConvNet inference for petabyte scale 3D image dataset.
+     - - distributed ConvNet inference for petabyte scale 3D image dataset.
 
 
