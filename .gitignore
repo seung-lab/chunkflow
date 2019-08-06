@@ -16,3 +16,4 @@ docker/inference/build_docker.sh
 docker/inference/pytorch-emvision/
 docker/inference/pytorch-model/
 docs/build/
+*generated/
