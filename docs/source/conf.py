@@ -12,8 +12,8 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('..'))
+#sys.path.insert(0, os.path.abspath('.'))
+#sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../..'))
 import chunkflow
 
@@ -33,7 +33,7 @@ version = chunkflow.__version__
 #release = chunkflow.__release__
 
 # -- General configuration ---------------------------------------------------
-autodoc_mock_imports = ["numpy"]
+#autodoc_mock_imports = ["numpy"]
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -44,7 +44,7 @@ extensions = [
     'sphinx.ext.viewcode', # This will add links to source code to autodoc
     'sphinx.ext.githubpages',
     #'sphinx.ext.linkcode', # This is similar to viewcode but links to external source -> need to define a function for this
-    #'sphinx.ext.napoleon',
+    'sphinx.ext.napoleon',
     #'sphinx.ext.mathjax', # mathjax is interactive and configurable but can also misbehave when rendering - switched to imgmath instead
     #'sphinx.ext.imgmath',
     #'matplotlib.sphinxext.plot_directive',
