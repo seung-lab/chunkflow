@@ -5,7 +5,7 @@ from .base import OperatorBase
 
 
 class ViewOperator(OperatorBase):
-    def __init__(self, name: str='view', verbose: bool=True):
+    def __init__(self, name: str = 'view', verbose: bool = True):
         super().__init__(name=name, verbose=verbose)
 
     def __call__(self, chunk, seg=None):
@@ -15,8 +15,9 @@ class ViewOperator(OperatorBase):
         if seg:
             seg = np.transpose(seg)
             hyperview(chunk, seg)
-        elif np.issubdtype(chunk.dtype, np.floating) or chunk.dtype == np.uint8:
-            # this is an image 
+        elif np.issubdtype(chunk.dtype,
+                           np.floating) or chunk.dtype == np.uint8:
+            # this is an image
             view(chunk)
         else:
             view(chunk, segmentation=True)

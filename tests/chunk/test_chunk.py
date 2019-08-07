@@ -6,17 +6,17 @@ from chunkflow.chunk import Chunk
 
 class TestChunk(unittest.TestCase):
     def setUp(self):
-        self.size = (3,3,3)
+        self.size = (3, 3, 3)
         self.global_offset = (-1, -1, -1)
         arr = np.ones(self.size, dtype='float32')
         self.chunk = Chunk(arr, self.global_offset)
-    
+
     def test_bbox(self):
-        self.assertEqual(self.chunk.bbox, 
+        self.assertEqual(self.chunk.bbox,
                          Bbox.from_delta(self.global_offset, self.size))
 
     def test_slices(self):
-        self.assertEqual(self.chunk.slices, 
+        self.assertEqual(self.chunk.slices,
                          (slice(-1, 1), slice(-1, 1), slice(-1, 1)))
 
     def test_initialization(self):
@@ -31,7 +31,7 @@ class TestChunk(unittest.TestCase):
         chunk2 = np.sin(self.chunk)
         self.assertIsInstance(chunk2, Chunk)
         self.assertEqual(chunk2.global_offset, self.chunk.global_offset)
-        
+
         chunk2 = self.chunk * 255
         self.assertIsInstance(chunk2, Chunk)
         self.assertEqual(chunk2.global_offset, self.chunk.global_offset)
@@ -44,7 +44,7 @@ class TestChunk(unittest.TestCase):
         print('type of chunk after transpose: {}'.format(type(chunk2)))
         self.assertIsInstance(chunk2, Chunk)
         self.assertEqual(chunk2.global_offset, self.chunk.global_offset)
-        
+
         #chunk2 = np.ascontiguousarray(chunk2)
         #self.assertIsInstance(chunk2, Chunk)
         #self.assertEqual(chunk2.global_offset, self.chunk.global_offset)
@@ -65,8 +65,9 @@ class TestChunk(unittest.TestCase):
     def test_slices(self):
         arr = np.ones((1, 3, 3, 3), dtype='float32')
         chunk = Chunk(arr, (0, -1, -1, -1))
-        self.assertEqual(chunk.slices,
-                         (slice(0,1), slice(-1, 2), slice(-1, 2), slice(-1, 2)))
+        self.assertEqual(
+            chunk.slices,
+            (slice(0, 1), slice(-1, 2), slice(-1, 2), slice(-1, 2)))
 
     def test_where(self):
         arr = np.asarray([0.1, 0.7])

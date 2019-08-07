@@ -9,8 +9,8 @@ class Identity(PatchEngine):
     return the same output with the input 
     this class was only used for tests 
     """
-    def __init__(self, patch_size, patch_overlap, 
-                 num_output_channels=1):
+
+    def __init__(self, patch_size, patch_overlap, num_output_channels=1):
         super().__init__(patch_size, patch_overlap)
         self.num_output_channels = num_output_channels
 
@@ -26,7 +26,7 @@ class Identity(PatchEngine):
         #if np.issubdtype(patch.dtype, np.integer):
         #    # normalize to 0-1 value range
         #    output /= np.iinfo(patch.dtype).max
-        
+
         # mask should be done in patch engine now
         output *= self.mask
 

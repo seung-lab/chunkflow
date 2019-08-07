@@ -9,6 +9,7 @@ class Image(Chunk):
     """
     a chunk of image volume.
     """
+
     def __new__(cls, array, **kwargs):
         if 'global_offset' in kwargs:
             global_offset = kwargs['global_offset']

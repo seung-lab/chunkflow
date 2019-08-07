@@ -1,6 +1,7 @@
 import importlib, types
 
-def load_source(fname: str, module_name: str="something"):
+
+def load_source(fname: str, module_name: str = "something"):
     """ Imports a module from source.
 
     Parameters

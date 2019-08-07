@@ -14,13 +14,15 @@ class NormalizeSectionContrastOperator(OperatorBase):
     Note that this operator was modified from Will's ContrastNormalizationTask in igneous:
     https://github.com/seung-lab/igneous/blob/master/igneous/tasks.py#L735
     """
+
     def __init__(self,
                  levels_path: str,
                  mip: int,
                  clip_fraction: float,
-                 minval: float=None,
-                 maxval: float=None,
-                 name: str='normalize-contrast', verbose: bool=True):
+                 minval: float = None,
+                 maxval: float = None,
+                 name: str = 'normalize-contrast',
+                 verbose: bool = True):
         """
         levels_path: (str) path of section histogram files.
         mip: (int) the mip level of section histogram.
@@ -77,7 +79,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
         image = np.clip(image, minval, maxval)
 
         chunk = np.transpose(image).astype(chunk.dtype)
-        chunk = Chunk(chunk, global_offset = (*offset,)[::-1])
+        chunk = Chunk(chunk, global_offset=(*offset, )[::-1])
         return chunk
 
     def find_section_clamping_values(self, zlevel, lowerfract, upperfract):

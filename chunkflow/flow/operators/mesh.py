@@ -13,10 +13,11 @@ from .base import OperatorBase
 
 class MeshOperator(OperatorBase):
     """Create mesh files from segmentation."""
-    def __init__(self, 
+
+    def __init__(self,
                  output_path: str,
                  output_format: str,
-                 voxel_size: tuple=(40, 4, 4),
+                 voxel_size: tuple = (40, 4, 4),
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
                  manifest: bool = False,
@@ -75,8 +76,7 @@ class MeshOperator(OperatorBase):
             obj_id,
             normals=False,
             simplification_factor=self.simplification_factor,
-            max_simplification_error=self.max_simplification_error
-        )
+            max_simplification_error=self.max_simplification_error)
         # delete high resolution mesh
         self.mesher.erase(obj_id)
 
@@ -107,7 +107,7 @@ class MeshOperator(OperatorBase):
         print('write mesh to storage...')
         with self.storage as stor:
             for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
-                data = self._get_mesh_data(obj_id) 
+                data = self._get_mesh_data(obj_id)
                 stor.put_file(str(obj_id), data)
 
                 # create manifest file
@@ -115,5 +115,5 @@ class MeshOperator(OperatorBase):
                     stor.put_file('{}:0'.format(obj_id),
                                   json.dumps({'fragments': [str(obj_id)]}))
 
-        # release memory       
+        # release memory
         self.mesher.clear()

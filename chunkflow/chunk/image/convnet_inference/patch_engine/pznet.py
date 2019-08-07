@@ -30,7 +30,6 @@ if __name__ == "__main__":
     for i in range(10):
         print("patch iteration: {}".format(i))
         engine = PZNet("/nets/pinky100/unet4-long/mip1/cores2")
-        input_patch = np.random.randint(0,
-                                        255, (1, 1, 20, 256, 256),
-                                        dtype='uint8')
+        input_patch = np.random.randint(
+            0, 255, (1, 1, 20, 256, 256), dtype='uint8')
         engine(input_patch)

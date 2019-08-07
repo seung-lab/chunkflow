@@ -6,6 +6,7 @@ import numpy as np
 from .base import PatchEngine
 from chunkflow.lib import load_source
 
+
 class PyTorch(PatchEngine):
     def __init__(self,
                  model_file_name: str,
@@ -32,9 +33,8 @@ class PyTorch(PatchEngine):
         if self.is_gpu:
             self.net.load_state_dict(torch.load(weight_file_name))
             self.net.cuda()
-            self.net = torch.nn.DataParallel(self.net,
-                                             device_ids=range(
-                                                 torch.cuda.device_count()))
+            self.net = torch.nn.DataParallel(
+                self.net, device_ids=range(torch.cuda.device_count()))
         else:
             self.net.load_state_dict(
                 torch.load(weight_file_name, map_location='cpu'))

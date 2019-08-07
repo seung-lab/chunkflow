@@ -10,11 +10,12 @@ class CustomOperator(OperatorBase):
     r"""
     Chunk operation using a custom python file.
     """
+
     def __init__(self,
-                 opprogram: str=None,
-                 args: str=None,
-                 name: str='custom-operator-1',
-                 verbose: bool=False):
+                 opprogram: str = None,
+                 args: str = None,
+                 name: str = 'custom-operator-1',
+                 verbose: bool = False):
         r"""
         Loads a custom python file specified in `opprogram`, which 
         should contain a callable named "op_call" such that 
