@@ -14,8 +14,8 @@ install:
 - pip install pytest-cov # to get .coverage report via pytest
 
 script:
-- coverage run -a chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-file --file-name=/tmp/img.h5
-- coverage run -a chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
+- coverage run -a --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-file --file-name=/tmp/img.h5
+- coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 - pytest --cov-append --cov=chunkflow ./tests --verbose
 
 after_success:
