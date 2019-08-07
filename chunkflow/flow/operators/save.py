@@ -2,7 +2,6 @@ import time
 import os
 import json
 import numpy as np
-from warnings import warn
 
 from cloudvolume import CloudVolume 
 from cloudvolume.lib import Vec, Bbox
@@ -125,4 +124,3 @@ class SaveOperator(OperatorBase):
             file_path=output_bbox.to_filename() + '.json',
             content=json.dumps(log),
             content_type='application/json')
-
