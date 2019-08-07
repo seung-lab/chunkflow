@@ -77,9 +77,16 @@ Operators
 
 Lib
 --------------------
+
+.. automodule:: chunkflow.lib
+   :members:
+
+AWS
+~~~~~~~~~~~~~~~~~~~
 .. automodule:: chunkflow.lib.aws.cloud_watch
    :members:
 
 .. automodule:: chunkflow.lib.aws.sqs_queue
    :members:
+
 
