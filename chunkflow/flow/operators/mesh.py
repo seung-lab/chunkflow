@@ -12,22 +12,36 @@ from .base import OperatorBase
 
 
 class MeshOperator(OperatorBase):
-    """
-    Create mesh files from segmentation
-    """
+    """Create mesh files from segmentation."""
     def __init__(self, 
                  output_path: str,
                  output_format: str,
-                 voxel_size=(40, 4, 4),
+                 voxel_size: tuple=(40, 4, 4),
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
                  manifest: bool = False,
                  name: str = 'meshing',
                  verbose: bool = True):
         """
-        output_path (str): path to store mesh files
-        output_format (str): format of output {'ply', 'obj', 'precomputed'}
-
+        Parameters
+        ------------
+        output_path: 
+            path to store mesh files
+        output_format: 
+            format of output {'ply', 'obj', 'precomputed'}
+        voxel_size:
+            size of voxels
+        simplification_factor:
+            mesh simplification factor.
+        max_simplification_error:
+            maximum tolerance error of meshing.
+        manifest:
+            create manifest files or not. This should 
+            not be True if you are only doing meshing for a segmentation chunk.
+        name: 
+            operator name.
+        verbose:
+            print out informations or not.
         """
         super().__init__(name=name, verbose=verbose)
         self.simplification_factor = simplification_factor
@@ -76,8 +90,14 @@ class MeshOperator(OperatorBase):
             raise NotImplementedError
         return data
 
-    def __call__(self, seg):
-        """Meshing the segmentation."""
+    def __call__(self, seg: np.ndarray):
+        """Meshing the segmentation.
+        
+        Parameters
+        ------------
+        seg:
+            3D segmentation volume.
+        """
         assert isinstance(seg, np.ndarray)
         assert seg.ndim == 3
         assert np.issubdtype(seg.dtype, np.integer)

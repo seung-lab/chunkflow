@@ -13,6 +13,13 @@ def validate_by_template_matching(img: np.ndarray, verbose: bool=True):
     5. if we can find multiple matchings in all the x,y,z direction, there is probably a black box. 
     Note that this is always effective. If the black box is large enough to reach both sides, 
     the detection will fail.
+
+    Parameters
+    -----------
+    img:
+        3D image volume.
+    verbose:
+        print out debuging info or not.
     """
     if verbose:
         print("validation by template matching...")

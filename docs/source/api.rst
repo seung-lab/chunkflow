@@ -11,10 +11,15 @@ Chunk
 .. autoclass:: chunkflow.chunk.Chunk
    :members:
 
+.. automodule:: chunkflow.chunk.validate
+   :members:
+
 Image
 ~~~~~~~
-.. autoclass:: chunkflow.chunk.image.Image
+.. automodule:: chunkflow.chunk.image.base
    :members:
+
+.. autofunction:: chunkflow.chunk.image.adjust_grey.normalize_section_shang
 
 Flow
 ------------

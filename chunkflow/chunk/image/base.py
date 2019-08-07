@@ -6,12 +6,13 @@ from .convnet_inference.engine import Engine
 
 
 class Image(Chunk):
-    """Image
-
-    a chunk of image volume
     """
-    def __new__(cls, array, *kwargs):
-        if isinstance(array, Chunk):
+    a chunk of image volume.
+    """
+    def __new__(cls, array, **kwargs):
+        if 'global_offset' in kwargs:
+            global_offset = kwargs['global_offset']
+        elif isinstance(array, Chunk):
             global_offset = array.global_offset
         else:
             global_offset = None
