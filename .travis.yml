@@ -16,7 +16,7 @@ install:
 script:
 - coverage run -a chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-file --file-name=/tmp/img.h5
 - coverage run -a chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
-- pytest --cov-append=./ tests/ --verbose
+- pytest --cov-append=./ ./ --verbose
 
 after_success:
 - coveralls 
