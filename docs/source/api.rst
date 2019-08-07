@@ -88,5 +88,3 @@ AWS
 
 .. automodule:: chunkflow.lib.aws.sqs_queue
    :members:
-
-

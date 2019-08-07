@@ -4,7 +4,7 @@ from cloudvolume.lib import Bbox
 from cloudvolume.storage import Storage
 
 from chunkflow.chunk.validate import validate_by_template_matching
-from chunkflow.lib.igneous.downsample import downsample_with_averaging
+from tinybrain import downsample_with_averaging
 from chunkflow.chunk import Chunk
 from .base import OperatorBase
 
@@ -143,7 +143,7 @@ class CutoutOperator(OperatorBase):
         # because of the rounding error of integer division
         for _ in range(self.validate_mip - chunk_mip):
             clamped_input = downsample_with_averaging(
-                clamped_input, np.array([2, 2, 1], dtype=np.int32))
+                clamped_input, (2, 2, 1))
 
         # validation by template matching
         assert validate_by_template_matching(clamped_input)

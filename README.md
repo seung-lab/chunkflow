@@ -81,6 +81,13 @@ in `bin`,
 python setup.py sdist
 twine upload dist/chunkflow-version.tar.gz
 ```
-
-## Add a new operator
-To be added.
+# Citation
+If you used this tool and is writing a paper, please cite this paper:
+```bibtex
+@article{wu2019chunkflow,
+  title={Chunkflow: Distributed Hybrid Cloud Processing of Large 3D Images by Convolutional Nets},
+  author={Wu, Jingpeng and Silversmith, William M and Seung, H Sebastian},
+  journal={arXiv preprint arXiv:1904.10489},
+  year={2019}
+}
+```
