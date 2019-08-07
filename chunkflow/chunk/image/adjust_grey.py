@@ -183,7 +183,20 @@ def grey_augment(img,
     return img
 
 
-def normalize_section_shang(image, nominalmin, nominalmax, clipvalues):
+def normalize_section_shang(image: np.ndarray, nominalmin: float, nominalmax: float, 
+                            clipvalues: bool):
+    """
+    Parameters
+    ------------
+    image:
+        image volume.
+    nominalmin:
+        min threshold
+    nominalmax:
+        max threshold
+    clipvalues:
+        clip values or not.
+    """
     assert nominalmin < nominalmax
     assert image.ndim == 3
     global_offset = image.global_offset

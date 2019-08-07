@@ -73,3 +73,9 @@ html_theme = 'default'
 html_static_path = ['_static']
 
 master_doc = 'index'
+
+# enable the documentation of __init__ function for classes
+autoclass_content = 'both'
+
+# enable the typehints for Numpy style documentation
+napoleon_use_param = True

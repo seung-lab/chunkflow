@@ -11,10 +11,15 @@ Chunk
 .. autoclass:: chunkflow.chunk.Chunk
    :members:
 
+.. automodule:: chunkflow.chunk.validate
+   :members:
+
 Image
 ~~~~~~~
-.. autoclass:: chunkflow.chunk.image.Image
+.. automodule:: chunkflow.chunk.image.base
    :members:
+
+.. autofunction:: chunkflow.chunk.image.adjust_grey.normalize_section_shang
 
 Flow
 ------------
@@ -74,3 +79,17 @@ Operators
 .. autoclass:: chunkflow.flow.operators.write_h5.WriteH5Operator
    :members:
 
+
+Lib
+--------------------
+
+.. automodule:: chunkflow.lib
+   :members:
+
+AWS
+~~~~~~~~~~~~~~~~~~~
+.. automodule:: chunkflow.lib.aws.cloud_watch
+   :members:
+
+.. automodule:: chunkflow.lib.aws.sqs_queue
+   :members:

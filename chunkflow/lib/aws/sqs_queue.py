@@ -4,20 +4,23 @@ from time import sleep
 from cloudvolume.secrets import aws_credentials
 
 class SQSQueue(object):
+    """upload/fetch messages using AWS Simple Queue Services."""
     def __init__(self, queue_name: str, visibility_timeout: int=None, 
                  wait_if_empty: int=100, fetch_wait_time_seconds: int=20):
         """
-        Parameters:
-        visibility_timeout: (int) make the task invisible for a while (seconds)
-        wait_if_empty: (int) wait for a while and continue fetching task 
-            if the queue is empty.
-        fetch_wait_time_seconds: (int) the maximum wait time if the fetched queue is empty. 
+        Parameters
+        ------------
+        visibility_timeout: 
+            make the task invisible for a while (seconds)
+        wait_if_empty: 
+            wait for a while and continue fetching task if the queue is empty.
+        fetch_wait_time_seconds: 
+            the maximum wait time if the fetched queue is empty. 
             The maximum value is 20, which will use the long polling. If we set it to be 0,
             the message fetch could fail even if the queue has messages. This problem is due 
             to the fact that the message in queue is managed distributedly, and the query was
             only sent to a few servers. Normally, we should set fetch wait time to use long poll. 
-            checkout the AWS documentation here:
-            https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html#sqs-short-long-polling-differences
+            checkout the AWS `documentation <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html#sqs-short-long-polling-differences>`_
         """
         credentials = aws_credentials()
         self.client = boto3.client(
@@ -79,6 +82,12 @@ class SQSQueue(object):
             return receipt_handle, body
 
     def delete(self, receipt_handle: str):
+        """
+        Parameters
+        -----------
+        receipt_handle:
+            a random string as a handle of the message in queue.
+        """
         self.client.delete_message(
             QueueUrl=self.queue_url, ReceiptHandle=receipt_handle)
 
@@ -91,8 +100,12 @@ class SQSQueue(object):
 
     def send_message_list(self, message_list: list):
         '''
-        the messages are string 
-        use batch mode to send the messages quickly 
+        Use batch mode to send a bunch of messages quickly.
+
+        Parameters
+        -----------
+        message_list: 
+            a list of input messages. the messages are string.
         '''
         # the maximum number in a batch is 10
         task_entries = []

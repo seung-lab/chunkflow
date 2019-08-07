@@ -14,6 +14,7 @@ Welcome to chunkflow's documentation!
   install
   tutorial
   api
+  development
 
 
 Indices and tables
