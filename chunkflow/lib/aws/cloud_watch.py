@@ -1,5 +1,5 @@
-import boto3
 from warnings import warn
+import boto3
 from cloudvolume.secrets import aws_credentials
 
 
@@ -9,9 +9,10 @@ class CloudWatch:
         """
         Parameters
         ----------
-        log_name: the name of the log.
-        credentials: aws credential. If it is None, we'll try to 
-            construct it automatically.
+        log_name: 
+            the name of the log.
+        credentials: 
+            aws credential. If it is None, we'll try to construct it automatically.
         """
         self.log_name = log_name
         if not credentials:
@@ -23,6 +24,12 @@ class CloudWatch:
             aws_access_key_id=credentials['AWS_ACCESS_KEY_ID'])
 
     def put_metric_data(self, log: dict):
+        """
+        Parameters
+        -----------
+        log: 
+            the log containing the operator time elapsed in the `timer` key.
+        """
         assert isinstance(log, dict)
 
         if 'compute_device' in log:

@@ -43,7 +43,7 @@ extensions = [
     'sphinx.ext.viewcode', # This will add links to source code to autodoc
     'sphinx.ext.githubpages',
     #'sphinx.ext.linkcode', # This is similar to viewcode but links to external source -> need to define a function for this
-    #'sphinx.ext.napoleon',
+    'sphinx.ext.napoleon',
     #'sphinx.ext.mathjax', # mathjax is interactive and configurable but can also misbehave when rendering - switched to imgmath instead
     #'sphinx.ext.imgmath',
     #'matplotlib.sphinxext.plot_directive',
@@ -72,3 +72,9 @@ html_theme = 'default'
 html_static_path = ['_static']
 
 master_doc = 'index'
+
+# enable the documentation of __init__ function for classes
+autoclass_content = 'both'
+
+# enable the typehints for Numpy style documentation
+napoleon_use_param = True
