@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from chunkflow.chunk import Chunk
-from .operator_base import OperatorBase
+from .base import OperatorBase
 
-from .block_inference.frameworks.pytorch_patch_inference_engine import load_source
+from chunkflow.lib import load_source
 
 
 class CustomOperator(OperatorBase):

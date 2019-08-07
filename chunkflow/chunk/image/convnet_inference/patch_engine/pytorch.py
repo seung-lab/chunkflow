@@ -3,17 +3,8 @@
 from typing import Union
 import torch
 import numpy as np
-import importlib, types
 from .base import PatchEngine
-
-
-def load_source(fname, module_name="something"):
-    """ Imports a module from source """
-    loader = importlib.machinery.SourceFileLoader(module_name, fname)
-    mod = types.ModuleType(loader.name)
-    loader.exec_module(mod)
-    return mod
-
+from chunkflow.lib import load_source
 
 class PyTorch(PatchEngine):
     def __init__(self,
