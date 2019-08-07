@@ -74,3 +74,8 @@ Operators
 .. autoclass:: chunkflow.flow.operators.write_h5.WriteH5Operator
    :members:
 
+
+Lib
+--------------------
+.. automodule:: chunkflow.lib.aws
+   :members:
