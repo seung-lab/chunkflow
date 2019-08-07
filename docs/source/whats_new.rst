@@ -10,6 +10,11 @@ What's new?
    * - Version
      - Date
      -
+   * - 0.3.2
+     - Aug. 5 2019
+     - - ConvNet inference without patch alignment. 
    * - 0.3.1
-     - July 2019
-     - - functional to perform ConvNet inference for petabyte scale 3D image dataset
+     - Jul. 2019
+     - - distributed ConvNet inference for petabyte scale 3D image dataset.
+
+

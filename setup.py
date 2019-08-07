@@ -1,6 +1,10 @@
 from setuptools import setup, find_packages
+import chunkflow
 
-version = '0.4.0'
+
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+    requirements = [l for l in requirements if not l.startswith('#')]
 
 
 with open('requirements.txt') as f:
@@ -17,7 +21,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license='Apache License 2.0',
-    version=version,
+    version=chunkflow.__version__,
     author='Jingpeng Wu',
     author_email='jingpeng.wu@gmail.com',
     packages=find_packages(exclude=[
