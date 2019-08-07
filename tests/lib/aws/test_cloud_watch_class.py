@@ -1,6 +1,6 @@
 import unittest
 
-from chunkflow.lib.aws.cloud_watch import CloudWatch 
+from chunkflow.lib.aws.cloud_watch import CloudWatch
 
 
 class TestCloudWatch(unittest.TestCase):
@@ -12,13 +12,14 @@ class TestCloudWatch(unittest.TestCase):
     def test_put_metric_data(self):
         log = {
             'compute_device': 'X86-64',
-            'timer':{
+            'timer': {
                 'cutout': 24,
                 'inference': 200,
                 'save': 50
             }
         }
         self.cloud_watch.put_metric_data(log)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,7 +3,7 @@ import os
 import json
 import numpy as np
 
-from cloudvolume import CloudVolume 
+from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
 from cloudvolume.storage import Storage
 
@@ -14,21 +14,24 @@ from .base import OperatorBase
 
 
 class SaveOperator(OperatorBase):
-    def __init__(self, volume_path: str, mip: int,
-                 upload_log: bool=True,
-                 create_thumbnail: bool=False,
-                 nproc: int=0,
-                 verbose: bool=True, name: str='save'):
+    def __init__(self,
+                 volume_path: str,
+                 mip: int,
+                 upload_log: bool = True,
+                 create_thumbnail: bool = False,
+                 nproc: int = 0,
+                 verbose: bool = True,
+                 name: str = 'save'):
         super().__init__(name=name, verbose=verbose)
         if nproc < 0:
             nproc = True
         elif nproc == 0:
             nproc = False
-        
+
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
-        
+
         self.volume = CloudVolume(
             volume_path,
             fill_missing=True,
@@ -51,7 +54,7 @@ class SaveOperator(OperatorBase):
                 autocrop=True,
                 mip=mip,
                 progress=verbose)
- 
+
     def create_chunk_with_zeros(self, bbox):
         """Create a fake all zero chunk"""
         shape = (self.volume.num_channels, *bbox.size3())
@@ -59,24 +62,24 @@ class SaveOperator(OperatorBase):
         chunk = Chunk(arr, global_offset=(0, *bbox.minpt))
         return chunk
 
-    def __call__(self, chunk, log={'timer':{}}, output_bbox=None):
+    def __call__(self, chunk, log={'timer': {}}, output_bbox=None):
         start = time.time()
-        
+
         chunk = self._auto_convert_dtype(chunk)
 
-        chunk_slices = chunk.slices 
+        chunk_slices = chunk.slices
         # transpose czyx to xyzc order
         arr = np.transpose(chunk)
         self.volume[chunk_slices[::-1]] = arr
 
         if self.create_thumbnail:
             self._create_thumbnail(chunk)
-        
+
         # add timer for save operation itself
         log['timer'][self.name] = time.time() - start
         if self.upload_log:
             if output_bbox is None:
-                output_bbox = Bbox.from_delta((0,0,0), chunk.shape)
+                output_bbox = Bbox.from_delta((0, 0, 0), chunk.shape)
             self._upload_log(log, output_bbox)
 
     def _auto_convert_dtype(self, chunk):
@@ -84,7 +87,8 @@ class SaveOperator(OperatorBase):
         if self.volume.dtype != chunk.dtype:
             float_chunk = chunk.astype(np.float64)
             #chunk = float_chunk / np.iinfo(chunk.dtype).max * np.iinfo(self.volume.dtype).max
-            chunk = float_chunk / np.max(chunk) * np.iinfo(self.volume.dtype).max
+            chunk = float_chunk / np.max(chunk) * np.iinfo(
+                self.volume.dtype).max
             return chunk.astype(self.volume.dtype)
         else:
             return chunk
@@ -101,7 +105,7 @@ class SaveOperator(OperatorBase):
         # transpose to xyzc
         image = np.transpose(image)
         image_bbox = Bbox.from_slices(chunk.slices[::-1][:3])
-        
+
         downsample_and_upload(
             image,
             image_bbox,
@@ -111,7 +115,7 @@ class SaveOperator(OperatorBase):
             axis='z',
             skip_first=True,
             only_last_mip=True)
- 
+
     def _upload_log(self, log, output_bbox):
         assert log
         assert isinstance(output_bbox, Bbox)
@@ -119,7 +123,7 @@ class SaveOperator(OperatorBase):
         if self.verbose:
             print('uploaded log: ', log)
 
-        # write to google cloud storage 
+        # write to google cloud storage
         self.log_storage.put_file(
             file_path=output_bbox.to_filename() + '.json',
             content=json.dumps(log),

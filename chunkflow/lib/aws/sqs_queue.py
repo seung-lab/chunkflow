@@ -3,10 +3,15 @@ import hashlib
 from time import sleep
 from cloudvolume.secrets import aws_credentials
 
+
 class SQSQueue(object):
     """upload/fetch messages using AWS Simple Queue Services."""
-    def __init__(self, queue_name: str, visibility_timeout: int=None, 
-                 wait_if_empty: int=100, fetch_wait_time_seconds: int=20):
+
+    def __init__(self,
+                 queue_name: str,
+                 visibility_timeout: int = None,
+                 wait_if_empty: int = 100,
+                 fetch_wait_time_seconds: int = 20):
         """
         Parameters
         ------------
@@ -27,8 +32,7 @@ class SQSQueue(object):
             'sqs',
             region_name=credentials['AWS_DEFAULT_REGION'],
             aws_secret_access_key=credentials['AWS_SECRET_ACCESS_KEY'],
-            aws_access_key_id=credentials['AWS_ACCESS_KEY_ID']
-        )
+            aws_access_key_id=credentials['AWS_ACCESS_KEY_ID'])
 
         resp = self.client.get_queue_url(QueueName=queue_name)
         self.queue_url = resp['QueueUrl']
@@ -38,7 +42,7 @@ class SQSQueue(object):
 
     def __iter__(self):
         return self
-    
+
     def _receive_message(self):
         if self.visibility_timeout:
             resp = self.client.receive_message(

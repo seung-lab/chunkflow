@@ -9,10 +9,15 @@ from .base import OperatorBase
 
 
 class MaskOperator(OperatorBase):
-    def __init__(self, volume_path: str, mask_mip: int, chunk_mip: int, 
-                 inverse: bool=False, fill_missing: bool=False,
+    def __init__(self,
+                 volume_path: str,
+                 mask_mip: int,
+                 chunk_mip: int,
+                 inverse: bool = False,
+                 fill_missing: bool = False,
                  check_all_zero=False,
-                 verbose: bool=True, name: str='mask'):
+                 verbose: bool = True,
+                 name: str = 'mask'):
         super().__init__(name=name, verbose=verbose)
 
         self.mask_mip = mask_mip
@@ -27,11 +32,11 @@ class MaskOperator(OperatorBase):
             fill_missing=fill_missing,
             progress=verbose,
             mip=mask_mip)
-        
+
         if verbose:
             print("mask chunk at mip {} using {}".format(
                 mask_mip, volume_path))
-    
+
     def __call__(self, x):
         if self.check_all_zero:
             assert isinstance(x, Bbox)
@@ -53,7 +58,7 @@ class MaskOperator(OperatorBase):
             print('mask out chunk using {} in mip {}'.format(
                 self.volume_path, self.mask_mip))
 
-        if np.alltrue(chunk==0):
+        if np.alltrue(chunk == 0):
             warn("chunk is all black, return directly")
             return chunk
 
@@ -67,28 +72,27 @@ class MaskOperator(OperatorBase):
         if np.all(mask_in_high_mip):
             warn("mask elements are all positive, return directly")
             return chunk
-        
+
         assert np.any(mask_in_high_mip)
-        
-        # make it the same type with input 
+
+        # make it the same type with input
         mask_in_high_mip = mask_in_high_mip.astype(chunk.dtype)
-       
+
         if self.verbose:
             print("upsampling mask ...")
         # upsampling factor in XY plane
         mask = np.zeros(chunk.shape[-3:], dtype=chunk.dtype)
         xyfactor = 2**(self.mask_mip - self.chunk_mip)
         for offset in np.ndindex((xyfactor, xyfactor)):
-            mask[:, 
-                 np.s_[offset[0]::xyfactor], 
-                 np.s_[offset[1]::xyfactor]] = mask_in_high_mip
-        
+            mask[:, np.s_[offset[0]::xyfactor], np.
+                 s_[offset[1]::xyfactor]] = mask_in_high_mip
+
         if chunk.ndim == mask.ndim:
             np.multiply(chunk, mask, out=chunk)
         elif chunk.ndim == mask.ndim + 1:
             for channel in range(chunk.shape[0]):
-                np.multiply(chunk[channel, :, :, :], mask,
-                            out=chunk[channel, :, :, :])
+                np.multiply(
+                    chunk[channel, :, :, :], mask, out=chunk[channel, :, :, :])
         else:
             raise ValueError('invalid chunk or mask dimension.')
         return chunk
@@ -108,16 +112,15 @@ class MaskOperator(OperatorBase):
             for a in chunk_slices[1:3])
         mask_slices = (chunk_slices[0], ) + mask_slices
 
-        # the slices did not contain the channel dimension 
+        # the slices did not contain the channel dimension
         mask = self.mask_vol[mask_slices[::-1]]
         mask = np.transpose(mask)
         mask = np.squeeze(mask, axis=0)
 
         # this is a cloudvolume VolumeCutout rather than a normal numpy array
-        # which will make np.alltrue(mask_in_high_mip == 0) to be 
+        # which will make np.alltrue(mask_in_high_mip == 0) to be
         # VolumeCutout(False) rather than False
         mask = np.asarray(mask)
         if self.inverse:
-            mask = (mask==0)
+            mask = (mask == 0)
         return mask
-

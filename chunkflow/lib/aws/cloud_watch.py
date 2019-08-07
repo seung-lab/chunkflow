@@ -5,7 +5,8 @@ from cloudvolume.secrets import aws_credentials
 
 class CloudWatch:
     """monitor time elapsed of each operator using AWS CloudWatch."""
-    def __init__(self, log_name: str, credentials: dict=None):
+
+    def __init__(self, log_name: str, credentials: dict = None):
         """
         Parameters
         ----------
@@ -35,29 +36,28 @@ class CloudWatch:
         if 'compute_device' in log:
             compute_device = log['compute_device']
         else:
-            warn('did not find compute device in log, will create one based on CPU.')
+            warn(
+                'did not find compute device in log, will create one based on CPU.'
+            )
             import platform
             compute_device = platform.processor()
 
         # create metric data
         metric_data = []
         for key, value in log['timer'].items():
-            metric_data.append(
-                {
-                    'MetricName': key,
-                    'Dimensions': [
-                        {
-                            'Name': 'compute_device',
-                            'Value': compute_device
-                        }
-                    ],
-                    'Value': value,
-                    'Unit': 'Seconds'
-                }
-            )
-        
+            metric_data.append({
+                'MetricName':
+                key,
+                'Dimensions': [{
+                    'Name': 'compute_device',
+                    'Value': compute_device
+                }],
+                'Value':
+                value,
+                'Unit':
+                'Seconds'
+            })
+
         # submit the metric data
         self.client.put_metric_data(
-            Namespace=self.log_name,
-            MetricData=metric_data
-        )
+            Namespace=self.log_name, MetricData=metric_data)

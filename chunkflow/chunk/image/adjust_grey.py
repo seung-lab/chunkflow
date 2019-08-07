@@ -72,9 +72,8 @@ def normalize(img,
     r'''
     *Assuming floating point voxel values.*
     '''
-    stat_img = get_voxels_for_stats(img,
-                                    min_max_invalid=min_max_invalid,
-                                    debug=debug)
+    stat_img = get_voxels_for_stats(
+        img, min_max_invalid=min_max_invalid, debug=debug)
 
     if make_copy:
         img = np.copy(img)
@@ -183,8 +182,8 @@ def grey_augment(img,
     return img
 
 
-def normalize_section_shang(image: np.ndarray, nominalmin: float, nominalmax: float, 
-                            clipvalues: bool):
+def normalize_section_shang(image: np.ndarray, nominalmin: float,
+                            nominalmax: float, clipvalues: bool):
     """
     Parameters
     ------------
@@ -218,12 +217,13 @@ def normalize_section_shang(image: np.ndarray, nominalmin: float, nominalmax: fl
     # slice-wise normalization
     # Note in chunkflow the first dim is z/slice
     for ii in range(arr.shape[0]):
-        normalize(arr[ii, :, :],
-                  normalization,
-                  target_scale=[nominalmin, nominalmax],
-                  min_max_invalid=[True, True],
-                  do_clipping=clipvalues,
-                  make_copy=False)
+        normalize(
+            arr[ii, :, :],
+            normalization,
+            target_scale=[nominalmin, nominalmax],
+            min_max_invalid=[True, True],
+            do_clipping=clipvalues,
+            make_copy=False)
 
     # cast to original data type if necessary
     #arr = np.round(arr)
@@ -270,25 +270,28 @@ if __name__ == "__main__":
                     normalization = 'fill'
                     old_range = (-1, 1)
                 if 1:  # stack-wise normalization
-                    imgs = normalize(imgs,
-                                     normalization,
-                                     target_scale=[-1, 1],
-                                     min_max_invalid=[True] * 2,
-                                     make_copy=False,
-                                     debug=True,
-                                     do_clipping=True)
+                    imgs = normalize(
+                        imgs,
+                        normalization,
+                        target_scale=[-1, 1],
+                        min_max_invalid=[True] * 2,
+                        make_copy=False,
+                        debug=True,
+                        do_clipping=True)
                 else:  # slice-wise normalization
                     for ii in range(imgs.shape[2]):
-                        normalize(imgs[..., ii],
-                                  normalization,
-                                  target_scale=[-1, 1],
-                                  min_max_invalid=[True, True],
-                                  make_copy=False,
-                                  debug=True,
-                                  do_clipping=True)
+                        normalize(
+                            imgs[..., ii],
+                            normalization,
+                            target_scale=[-1, 1],
+                            min_max_invalid=[True, True],
+                            make_copy=False,
+                            debug=True,
+                            do_clipping=True)
 
-                imgs = rescale(imgs, old_range=old_range,
-                               new_range=[0, 255]).astype(np.uint8)
+                imgs = rescale(
+                    imgs, old_range=old_range,
+                    new_range=[0, 255]).astype(np.uint8)
                 fname = out + '/' + ntpath.basename(image_file) + '_norm.tif'
 
                 if os.path.exists(fname):

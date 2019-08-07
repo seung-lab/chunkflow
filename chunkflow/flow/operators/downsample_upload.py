@@ -1,4 +1,4 @@
-from chunkflow.chunk import Chunk 
+from chunkflow.chunk import Chunk
 from .base import OperatorBase
 from cloudvolume import CloudVolume
 import tinybrain
@@ -17,10 +17,15 @@ class DownsampleUploadOperator(OperatorBase):
     Image: uint8, floating
     Segmentation: uint16, uint32, uint64,...
     """
-    def __init__(self, volume_path: str, input_mip: int=0, 
-                 start_mip: int=1, stop_mip: int=5,
-                 fill_missing: bool=True,
-                 name='downsample-upload', verbose: bool=True):
+
+    def __init__(self,
+                 volume_path: str,
+                 input_mip: int = 0,
+                 start_mip: int = 1,
+                 stop_mip: int = 5,
+                 fill_missing: bool = True,
+                 name='downsample-upload',
+                 verbose: bool = True):
         """
         volume_path: (str) path of volume
         input_mip: (int) the mip level of input chunk
@@ -38,8 +43,7 @@ class DownsampleUploadOperator(OperatorBase):
                 bounded=False,
                 autocrop=True,
                 mip=mip,
-                progress=verbose
-            )
+                progress=verbose)
 
         self.vols = vols
         self.input_mip = input_mip
@@ -50,23 +54,26 @@ class DownsampleUploadOperator(OperatorBase):
         global_offset = chunk.global_offset
 
         num_mips = self.stop_mip - self.input_mip
-        
+
         # tinybrain use F order and require 4D array!
         chunk2 = np.transpose(chunk)
-        chunk2 = np.reshape(chunk2, (*chunk2.shape, 1)) 
+        chunk2 = np.reshape(chunk2, (*chunk2.shape, 1))
 
-        if np.issubdtype(chunk.dtype, np.floating) or chunk.dtype==np.uint8:
-            pyramid = tinybrain.downsample_with_averaging(chunk2, factor=(2,2,1), num_mips=num_mips)
+        if np.issubdtype(chunk.dtype, np.floating) or chunk.dtype == np.uint8:
+            pyramid = tinybrain.downsample_with_averaging(
+                chunk2, factor=(2, 2, 1), num_mips=num_mips)
         else:
-            pyramid = tinybrain.downsample_segmentation(chunk2, factor=(2,2,1), num_mips=num_mips)
+            pyramid = tinybrain.downsample_segmentation(
+                chunk2, factor=(2, 2, 1), num_mips=num_mips)
 
         for mip in range(self.start_mip, self.stop_mip):
-            downsampled_chunk = pyramid[mip-self.input_mip]
+            downsampled_chunk = pyramid[mip - self.input_mip]
             vol = self.vols[mip]
             # compute new offset, only downsample the y,x dimensions
-            offset = np.divide(global_offset, np.asarray([1,
-                                                          2**(mip-self.input_mip),
-                                                          2**(mip-self.input_mip)]))
+            offset = np.divide(
+                global_offset,
+                np.asarray(
+                    [1, 2**(mip - self.input_mip), 2**(mip - self.input_mip)]))
             bbox = Bbox.from_delta(offset, downsampled_chunk.shape[0:3][::-1])
             # upload downsampled chunk, note that we should use F order in the indexing
             vol[bbox.to_slices()[::-1]] = downsampled_chunk

@@ -9,11 +9,13 @@ class NormalizeSectionShangOperator(OperatorBase):
     """Contrast Correction based on section min/max within the chunk, 
     Shang's method.
     """
+
     def __init__(self,
-                 nominalmin: float=None,
-                 nominalmax: float=None,
-                 clipvalues: bool=False,
-                 name: str='normalize-gray', verbose=False):
+                 nominalmin: float = None,
+                 nominalmax: float = None,
+                 clipvalues: bool = False,
+                 name: str = 'normalize-gray',
+                 verbose=False):
         """
         nominalmin/max: (float)
         clipvalues: (bool)
@@ -29,7 +31,7 @@ class NormalizeSectionShangOperator(OperatorBase):
         # this is an image chunk, not affinitymap
         if debug:
             print(chunk.shape)
-        
+
         image = Image(chunk)
-        return image.normalize_section_shang(self.nominalmin, 
-                self.nominalmax, self.clipvalues)
+        return image.normalize_section_shang(self.nominalmin, self.nominalmax,
+                                             self.clipvalues)

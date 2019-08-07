@@ -4,6 +4,7 @@ from cloudvolume.lib import Bbox
 # Offset = Tuple[int, int, int]
 from .validate import validate_by_template_matching
 
+
 class Chunk(np.ndarray):
     r"""
        Chunk 
@@ -24,7 +25,7 @@ class Chunk(np.ndarray):
         obj = np.asarray(array).view(cls)
         obj.global_offset = global_offset
         return obj
-    
+
     def __array_finalize__(self, obj):
         """
         https://www.numpy.org/devdocs/user/basics.subclassing.html#basics-subclassing
@@ -33,9 +34,7 @@ class Chunk(np.ndarray):
             return
         else:
             self.global_offset = getattr(
-                obj, 'global_offset',
-                tuple(np.zeros(obj.ndim, dtype=np.int))
-            )
+                obj, 'global_offset', tuple(np.zeros(obj.ndim, dtype=np.int)))
 
     @classmethod
     def from_bbox(cls, array: np.ndarray, bbox: Bbox):
@@ -52,8 +51,8 @@ class Chunk(np.ndarray):
         """
         :getter: the global slice in the big volume
         """
-        return tuple(slice(o, o + s) for o, s in 
-                     zip(self.global_offset, self.shape))
+        return tuple(
+            slice(o, o + s) for o, s in zip(self.global_offset, self.shape))
 
     @property
     def bbox(self) -> Bbox:
@@ -71,8 +70,7 @@ class Chunk(np.ndarray):
         """
         isinstance(mask, np.ndarray)
         assert mask.shape == self.shape
-        return tuple(i + o for i, o in 
-                     zip(np.where(mask), self.global_offset))
+        return tuple(i + o for i, o in zip(np.where(mask), self.global_offset))
 
     def add_overlap(self, other):
         """
@@ -124,6 +122,7 @@ class Chunk(np.ndarray):
         return tuple(
             slice(s.start - o, s.stop - o)
             for s, o in zip(slices, self.global_offset))
+
 
 #    def __array_wrap__(self, out_arr, context=None):
 #        chunk = super().__array_wrap__(self, out_arr, context)

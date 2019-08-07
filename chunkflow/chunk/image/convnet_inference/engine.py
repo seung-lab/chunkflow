@@ -17,6 +17,7 @@ class Engine(object):
         Engine
     convnet inference for a whole block. the patches should aligned with the block size.
     """
+
     def __init__(self,
                  convnet_model: str,
                  convnet_weight_path: str,
@@ -79,10 +80,11 @@ class Engine(object):
         """
         self.patch_slice_list = []
         # the step is the stride, so the end of aligned patch is input_size - patch_overlap
-        for oz in tqdm(range(0, self.input_size[0] - self.patch_overlap[0],
-                             self.stride[0]),
-                       disable=not self.verbose,
-                       desc='ConvNet Inferece: '):
+        for oz in tqdm(
+                range(0, self.input_size[0] - self.patch_overlap[0],
+                      self.stride[0]),
+                disable=not self.verbose,
+                desc='ConvNet Inferece: '):
             if oz + self.patch_size[0] > self.input_size[0]:
                 oz = self.input_size[0] - self.patch_size[0]
                 assert oz >= 0
@@ -151,7 +153,7 @@ class Engine(object):
 
         self._check_input_size_and_prepare_data(input_chunk.shape)
         self._check_alignment()
-        
+
         if np.issubdtype(input_chunk.dtype, np.integer):
             # normalize to 0-1 value range
             input_chunk = input_chunk / np.iinfo(input_chunk.dtype).max
@@ -163,9 +165,10 @@ class Engine(object):
             chunk_time_start = time.time()
 
         # iterate the offset list
-        for i in tqdm(range(0, len(self.patch_slice_list), self.batch_size),
-                      disable=not self.verbose,
-                      desc='ConvNet Inference ...'):
+        for i in tqdm(
+                range(0, len(self.patch_slice_list), self.batch_size),
+                disable=not self.verbose,
+                desc='ConvNet Inference ...'):
             if self.verbose:
                 start = time.time()
 
@@ -190,14 +193,14 @@ class Engine(object):
                 print('run inference for %d patch takes %3f sec' %
                       (self.batch_size, end - start))
                 start = end
-            
+
             for batch_idx, slices in enumerate(patch_slices):
                 # only use the required number of channels
                 # the remaining channels are dropped
-                output_buffer[((slice(self.num_output_channels)),
-                               *slices)] += output_patch[batch_idx, 
-                                            :self.num_output_channels, 
-                                            :, :, :]
+                output_buffer[(
+                    (slice(self.num_output_channels)),
+                    *slices)] += output_patch[batch_idx, :self.
+                                              num_output_channels, :, :, :]
 
             if self.verbose:
                 end = time.time()
@@ -221,16 +224,16 @@ class Engine(object):
     def _create_output_buffer(self, input_chunk):
         output_buffer = np.zeros(
             (self.num_output_channels, ) + input_chunk.shape, dtype=np.float32)
-        return Chunk(output_buffer,
-                     global_offset=(0, ) + input_chunk.global_offset)
+        return Chunk(
+            output_buffer, global_offset=(0, ) + input_chunk.global_offset)
 
     def _prepare_patch_engine(self):
         # prepare for inference
         if self.framework == 'pznet':
             from .patch_engine.pznet import PZNet
-            self.patch_engine = PZNet(
-                self.patch_size, self.patch_overlap,
-                self.convnet_model, self.convnet_weight_path)
+            self.patch_engine = PZNet(self.patch_size, self.patch_overlap,
+                                      self.convnet_model,
+                                      self.convnet_weight_path)
         elif self.framework == 'pytorch':
             from .patch_engine.pytorch import Pytorch
             self.patch_engine = Pytorch(
@@ -257,7 +260,8 @@ class Engine(object):
         elif self.framework == 'identity':
             from .patch_engine.identity import Identity
             self.patch_engine = Identity(
-                self.patch_size, self.patch_overlap,
+                self.patch_size,
+                self.patch_overlap,
                 num_output_channels=self.num_output_channels)
         else:
             raise Exception('invalid inference backend: {}'.format(
