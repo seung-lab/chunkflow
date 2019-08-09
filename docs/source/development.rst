@@ -59,8 +59,6 @@ Add a New Operator
 
 #. Add unit test in :file:`tests/flow/operators/`. 
 
-#. Run your unit test by
+#. Run your unit test by :code:`pytest tests/flow/operators/my_operator.py`
    
-.. code-block:: console
-
-   pytest tests/flow/operators/my_operator.py
+#. Add documentation in :ref:`api`.
