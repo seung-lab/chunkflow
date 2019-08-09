@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Welcome to chunkflow's documentation!
-=====================================
+######################################
 3D image dataset could be too large to be processed in a single computer, and distributed processing was required. In most cases, the image dataset could be choped to chunks and distributed to computers for processing. This package provide a framework to perform distributed chunk processing.
 
 .. toctree::
@@ -16,9 +16,8 @@ Welcome to chunkflow's documentation!
   api
   development
 
-
 Indices and tables
-==================
+###################
 
 * :ref:`genindex`
 * :ref:`modindex`
