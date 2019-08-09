@@ -1,0 +1,4 @@
+exclude .travis.yml
+exclude dist
+exclude chunkflow.egg-info
+exclude docs/source/_static

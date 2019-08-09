@@ -1,7 +1,7 @@
 .. _whats_new:
 
-What's new?
-===========
+What's New?
+############
 
 .. list-table::
    :widths: 7 7 86

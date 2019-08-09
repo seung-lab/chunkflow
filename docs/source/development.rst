@@ -18,10 +18,19 @@ Install with development mode (preferably in a python virtual environment)::
 
 Release
 ***********
-Create a new release in PyPi::
+
+#. Update version number. The version number is defined in `chunkflow/__init__.py`, increase the version number before releasing. 
+
+#. Create a new release in PyPi.
+
+.. code-block:: console
 
    python setup.py sdist
    twine upload dist/chunkflow-version.tar.gz
+
+.. note::
+
+    If you would like to include/exclude some files/folders, please edit the MANIFEST.in file.
 
 Documentation
 ***************
@@ -38,4 +47,20 @@ You can also make other formats, such as pdf and epub. Checkout it out with `mak
 
 Add a New Operator
 *******************
+#. Take a look of the existing simple operators, such as :file:`chunkflow/flow/operators/create_chunk.py`.
 
+#. Create your own operator file in the `operators` folder.
+
+#. Create your own operator class such as `MyOperator`, and this class should inherit from the `.base.OperatorBase`.
+
+#. Define the job of you operator in `__call__(self, chunk, *other_args, **kwargs)`.
+
+#. add the import operator code in :file:`chunkflow/flow/operators/__init__.py`.
+
+#. Add unit test in :file:`tests/flow/operators/`. 
+
+#. Run your unit test by
+   
+.. code-block:: console
+
+   pytest tests/flow/operators/my_operator.py
