@@ -18,3 +18,4 @@ docker/inference/pytorch-model/
 docs/build/
 *generated/
 build/
+data/
