@@ -11,15 +11,13 @@ Chunk
 .. autoclass:: chunkflow.chunk.Chunk
    :members:
 
-.. automodule:: chunkflow.chunk.validate
-   :members:
-
 Image
 ~~~~~~~
-.. automodule:: chunkflow.chunk.image.base
+.. automodule:: chunkflow.chunk.image
    :members:
 
-.. autofunction:: chunkflow.chunk.image.adjust_grey.normalize_section_shang
+.. automodule:: chunkflow.chunk.validate
+   :members:
 
 Flow
 ------------
@@ -55,7 +53,7 @@ Operators
 .. autoclass:: chunkflow.flow.operators.mesh.MeshOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.neuroglancer_view.NeuroglancerViewOperator
+.. autoclass:: chunkflow.flow.operators.neuroglancer.NeuroglancerOperator
    :members:
 
 .. autoclass:: chunkflow.flow.operators.normalize_section_contrast.NormalizeSectionContrastOperator

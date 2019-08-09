@@ -121,7 +121,7 @@ def generator(f):
     default=(0, 0, 0),
     help='offset in voxel number.')
 @generator
-def create_chunk_cmd(size, dtype, voxel_offset):
+def create_chunk(size, dtype, voxel_offset):
     """[generator] Create a fake chunk for easy test."""
     task = initialize_task()
     create_chunk_operator = CreateChunkOperator()
@@ -150,12 +150,48 @@ def create_chunk_cmd(size, dtype, voxel_offset):
     default='chunk',
     help='chunk name in the global state')
 @generator
-def read_file_cmd(name, file_name, offset, chunk_name):
+def read_file(name, file_name, offset, chunk_name):
     """[generator] Read HDF5 and tiff files."""
     task = initialize_task()
     read_file_operator = ReadFileOperator()
     start = time()
     task[chunk_name] = read_file_operator(file_name, global_offset=offset)
+    task['log']['timer'][name] = time() - start
+    yield task
+
+
+@cli.command('read-h5')
+@click.option(
+    '--name', type=str, default='read-h5', help='read file from local disk.')
+@click.option(
+    '--file-name',
+    type=str,
+    required=True,
+    help='read chunk from file, support .h5 and .tif')
+@click.option(
+    '--dataset-path',
+    type=str,
+    default='/main',
+    help='the dataset path inside HDF5 file.')
+@click.option(
+    '--offset',
+    type=int,
+    nargs=3,
+    callback=default_none,
+    help='global offset of this chunk')
+@click.option(
+    '--chunk-name',
+    type=str,
+    default='chunk',
+    help='chunk name in the global state')
+@generator
+def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
+    """[generator] Read HDF5 and tiff files."""
+    task = initialize_task()
+    read_h5_operator = ReadH5Operator()
+    start = time()
+    task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
+                                          global_offset=offset)
     task['log']['timer'][name] = time() - start
     yield task
 
@@ -166,7 +202,7 @@ def read_file_cmd(name, file_name, offset, chunk_name):
 @click.option(
     '--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
 @generator
-def generate_task_cmd(offset, shape):
+def generate_task(offset, shape):
     """[generator] Create a task."""
     task = initialize_task()
     # no queue name specified
@@ -188,7 +224,7 @@ def generate_task_cmd(offset, shape):
     'visibility timeout of sqs queue; default is using the timeout of the queue.'
 )
 @generator
-def fetch_task_cmd(queue_name, visibility_timeout):
+def fetch_task(queue_name, visibility_timeout):
     """[generator] Fetch task from queue."""
     task = initialize_task()
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
@@ -212,7 +248,7 @@ def fetch_task_cmd(queue_name, visibility_timeout):
     required=True,
     help='file name of hdf5 file, the extention should be .h5')
 @operator
-def write_h5_cmd(tasks, name, file_name):
+def write_h5(tasks, name, file_name):
     """[operator] Write chunk to HDF5 file."""
     state['operators'][name] = WriteH5Operator()
     for task in tasks:
@@ -232,7 +268,7 @@ def write_h5_cmd(tasks, name, file_name):
     default='./saved_images/',
     help='output path of saved 2d images formated as png.')
 @operator
-def save_images_cmd(tasks, name, output_path):
+def save_images(tasks, name, output_path):
     """[operator] Save as 2D PNG images."""
     state['operators'][name] = SaveImagesOperator(
         output_path=output_path, name=name)
@@ -250,7 +286,7 @@ def save_images_cmd(tasks, name, output_path):
     default='delete-task-in-queue',
     help='name of this operator')
 @operator
-def delete_task_in_queue_cmd(tasks, name):
+def delete_task_in_queue(tasks, name):
     """[operator] Delete the task in queue."""
     for task in tasks:
         handle_task_skip(task, name)
@@ -298,7 +334,7 @@ def delete_task_in_queue_cmd(tasks, name):
     ' operators by default operates on a variable named "chunk" but'
     ' sometimes you may need to have a secondary volume to work on.')
 @operator
-def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
+def cutout(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
                validate_mip, blackout_sections, chunk_name):
     """[operator] Cutout chunk from volume."""
     state['operators'][name] = CutoutOperator(
@@ -339,7 +375,7 @@ def cutout_cmd(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
     default=True,
     help='fill missing or not when there is all zero blocks.')
 @operator
-def downsample_upload_cmd(tasks, name, volume_path, start_mip, stop_mip,
+def downsample_upload(tasks, name, volume_path, start_mip, stop_mip,
                           fill_missing):
     """[operator] Downsample chunk and upload to volume."""
     state['operators'][name] = DownsampleUploadOperator(
@@ -391,7 +427,7 @@ def downsample_upload_cmd(tasks, name, volume_path, start_mip, stop_mip,
     default=None,
     help='the maximum intensity of transformed chunk.')
 @operator
-def normalize_contrast_contrast_cmd(tasks, name, levels_path, mip,
+def normalize_contrast_contrast(tasks, name, levels_path, mip,
                                     clip_fraction, minval, maxval):
     """[operator] Normalize the section contrast using precomputed histograms."""
     if mip is None:
@@ -438,7 +474,7 @@ def normalize_contrast_contrast_cmd(tasks, name, levels_path, mip,
     default=False,
     help='clip transformed values to be within the target range.')
 @operator
-def normalize_section_shang_cmd(tasks, name, nominalmin, nominalmax,
+def normalize_section_shang(tasks, name, nominalmin, nominalmax,
                                 clipvalues):
     """[operator] Normalize voxel values based on slice min/max within the chunk, Shang's method.
     The transformed chunk has floating point values.
@@ -465,7 +501,7 @@ def normalize_section_shang_cmd(tasks, name, nominalmin, nominalmax,
 @click.option('--opprogram', type=str, help='python file to call.')
 @click.option('--args', type=str, default='', help='args to pass in')
 @operator
-def custom_operator_cmd(tasks, name, opprogram, args):
+def custom_operator(tasks, name, opprogram, args):
     """[operator] Custom operation on the chunk.
     The custom python file should contain a callable named "op_call" such that 
     a call of `op_call(chunk, args)` can be made to operate on the chunk.
@@ -493,7 +529,7 @@ def custom_operator_cmd(tasks, name, opprogram, args):
     help='Variable to be (shallow) copied/"renamed"')
 @click.option('--to-name', type=str, default='chunk', help='New variable name')
 @operator
-def copy_var_cmd(tasks, name, from_name, to_name):
+def copy_var(tasks, name, from_name, to_name):
     """[operator] Copy a variable to a new name.
     """
     for task in tasks:
@@ -568,7 +604,7 @@ def copy_var_cmd(tasks, name, from_name, to_name):
     help='mask output chunk will make the whole chunk like one output patch. '
     + 'This will also work with non-aligned chunk size.')
 @operator
-def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
+def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
                   patch_overlap, output_key, original_num_output_channels,
                   num_output_channels, framework, batch_size, bump,
                   mask_output_chunk):
@@ -622,7 +658,7 @@ def inference_cmd(tasks, name, convnet_model, convnet_weight_path, patch_size,
     'check all zero will return boolean result.')
 @click.option('--skip-to', type=str, default='save', help='skip to a operator')
 @operator
-def mask_cmd(tasks, name, volume_path, mip, inverse, fill_missing,
+def mask(tasks, name, volume_path, mip, inverse, fill_missing,
              check_all_zero, skip_to):
     """[operator] Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
@@ -668,7 +704,7 @@ def mask_cmd(tasks, name, volume_path, mip, inverse, fill_missing,
     help='crop the chunk margin. ' +
     'The default is None and will use the output_bbox ' + 'as croping range.')
 @operator
-def crop_margin_cmd(tasks, name, margin_size):
+def crop_margin(tasks, name, margin_size):
     """[operator] Crop the margin of chunk."""
     state['operators'][name] = CropMarginOperator(
         margin_size=margin_size, verbose=state['verbose'], name=name)
@@ -723,7 +759,7 @@ def crop_margin_cmd(tasks, name, margin_size):
     default=False,
     help='create manifest file or not.')
 @operator
-def mesh_cmd(tasks, name, chunk_name, voxel_size, output_path, output_format,
+def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
              simplification_factor, max_simplification_error, manifest):
     """[operator] perform meshing for segmentation chunk."""
     state['operators'][name] = MeshOperator(
@@ -762,7 +798,7 @@ def mesh_cmd(tasks, name, chunk_name, voxel_size, output_path, output_format,
     help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
 @operator
-def save_cmd(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
+def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
     """[operator] Save chunk to volume."""
     state['operators'][name] = SaveOperator(
         volume_path,
@@ -800,7 +836,7 @@ def save_cmd(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
     default='chunkflow',
     help='name of the speedometer')
 @operator
-def cloud_watch_cmd(tasks, name, log_name):
+def cloud_watch(tasks, name, log_name):
     """[operator] Real time speedometer in AWS CloudWatch."""
     state['operators'][name] = CloudWatchOperator(
         log_name=log_name, name=name, verbose=state['verbose'])
@@ -824,7 +860,7 @@ def cloud_watch_cmd(tasks, name, log_name):
     default=None,
     help='segmentation chunk name in the global state')
 @operator
-def view_cmd(tasks, name, image_chunk_name, segmentation_chunk_name):
+def view(tasks, name, image_chunk_name, segmentation_chunk_name):
     """[operator] Visualize the chunk using cloudvolume view in browser."""
     state['operators'][name] = ViewOperator(name=name)
     for task in tasks:
@@ -845,9 +881,9 @@ def view_cmd(tasks, name, image_chunk_name, segmentation_chunk_name):
     default=(1, 1, 1),
     help='voxel size of chunk')
 @operator
-def neuroglancer_cmd(tasks, name, voxel_size):
+def neuroglancer(tasks, name, voxel_size):
     """[operator] Visualize the chunk using neuroglancer."""
-    state['operators'][name] = NeuroglancerViewOperator(name=name)
+    state['operators'][name] = NeuroglancerOperator(name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
