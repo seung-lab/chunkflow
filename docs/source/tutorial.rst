@@ -57,8 +57,17 @@ Note that the random image center is blacked out.
 Input and Output
 =================
 
-Now let's do some 
+Now let's play with some real data! You can download the data from `CREMI <https://cremi.org/>`_ challenge website. Let's use the `Dataset A <https://cremi.org/static/data/sample_A_20160501.hdf>`_ for now. 
 
+Run this command and open the link in your browser::
+
+   chunkflow read-h5 --file-name sample_A_20160501.hdf --dataset-path /volumes/raw neuroglancer --voxel-size 40 4 4 
+
+Change the file path if you put your image in some other places. You should see the image in neuroglancer:
+
+|cremi_image|
+
+.. |cremi_image| image:: _static/image/cremi_image.png
 
 
 Convolutional Network Inference

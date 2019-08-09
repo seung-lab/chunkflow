@@ -4,7 +4,7 @@ import numpy as np
 from .base import OperatorBase
 
 
-class NeuroglancerViewOperator(OperatorBase):
+class NeuroglancerOperator(OperatorBase):
     def __init__(self, name: str = 'neuroglancer', verbose: bool = True):
         super().__init__(name=name, verbose=verbose)
 
@@ -17,7 +17,7 @@ class NeuroglancerViewOperator(OperatorBase):
         with viewer.txn() as s:
             for idx, chunk in enumerate(chunks):
                 global_offset = chunk.global_offset
-                chunk = np.transpose(chunk)
+                #chunk = np.transpose(chunk)
                 chunk = np.ascontiguousarray(chunk)
                 #chunk = np.asfortranarray(chunk)
                 s.layers.append(

@@ -1,33 +1,31 @@
 .. _api:
 
 API Reference
-##############
+=============
 
 Unless otherwise stated below functions are available at top level import,
 i.e. after ``import chunkflow``.
 
 Chunk
-*******
+------------
 .. autoclass:: chunkflow.chunk.Chunk
+   :members:
+
+Image
+~~~~~~~
+.. automodule:: chunkflow.chunk.image
    :members:
 
 .. automodule:: chunkflow.chunk.validate
    :members:
 
-Image
-=======
-.. automodule:: chunkflow.chunk.image.base
-   :members:
-
-.. autofunction:: chunkflow.chunk.image.adjust_grey.normalize_section_shang
-
 Flow
-******
+------------
 .. automodule:: chunkflow.flow.main
    :members:
 
 Operators
-===========
+~~~~~~~~~~
 .. automodule:: chunkflow.flow.operators
    :members:
 
@@ -55,7 +53,7 @@ Operators
 .. autoclass:: chunkflow.flow.operators.mesh.MeshOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.neuroglancer_view.NeuroglancerViewOperator
+.. autoclass:: chunkflow.flow.operators.neuroglancer.NeuroglancerOperator
    :members:
 
 .. autoclass:: chunkflow.flow.operators.normalize_section_contrast.NormalizeSectionContrastOperator
@@ -81,13 +79,13 @@ Operators
 
 
 Lib
-*****
+--------------------
 
 .. automodule:: chunkflow.lib
    :members:
 
 AWS
-===========
+~~~~~~~~~~~~~~~~~~~
 .. automodule:: chunkflow.lib.aws.cloud_watch
    :members:
 

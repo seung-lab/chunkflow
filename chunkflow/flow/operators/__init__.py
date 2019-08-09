@@ -9,11 +9,12 @@ from .downsample_upload import DownsampleUploadOperator
 from .inference import InferenceOperator
 from .mask import MaskOperator
 from .mesh import MeshOperator
-from .neuroglancer_view import NeuroglancerViewOperator
+from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
 from .custom_operator import CustomOperator
 from .read_file import ReadFileOperator
+from .read_h5 import ReadH5Operator
 from .save import SaveOperator
 from .save_images import SaveImagesOperator
 from .view import ViewOperator

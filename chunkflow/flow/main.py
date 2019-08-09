@@ -160,6 +160,42 @@ def read_file_cmd(name, file_name, offset, chunk_name):
     yield task
 
 
+@cli.command('read-h5')
+@click.option(
+    '--name', type=str, default='read-h5', help='read file from local disk.')
+@click.option(
+    '--file-name',
+    type=str,
+    required=True,
+    help='read chunk from file, support .h5 and .tif')
+@click.option(
+    '--dataset-path',
+    type=str,
+    default='/main',
+    help='the dataset path inside HDF5 file.')
+@click.option(
+    '--offset',
+    type=int,
+    nargs=3,
+    callback=default_none,
+    help='global offset of this chunk')
+@click.option(
+    '--chunk-name',
+    type=str,
+    default='chunk',
+    help='chunk name in the global state')
+@generator
+def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
+    """[generator] Read HDF5 and tiff files."""
+    task = initialize_task()
+    read_h5_operator = ReadH5Operator()
+    start = time()
+    task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
+                                          global_offset=offset)
+    task['log']['timer'][name] = time() - start
+    yield task
+
+
 @cli.command('generate-task')
 @click.option(
     '--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
@@ -847,7 +883,7 @@ def view_cmd(tasks, name, image_chunk_name, segmentation_chunk_name):
 @operator
 def neuroglancer_cmd(tasks, name, voxel_size):
     """[operator] Visualize the chunk using neuroglancer."""
-    state['operators'][name] = NeuroglancerViewOperator(name=name)
+    state['operators'][name] = NeuroglancerOperator(name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
