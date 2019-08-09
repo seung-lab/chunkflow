@@ -15,7 +15,6 @@ import sys
 #sys.path.insert(0, os.path.abspath('.'))
 #sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../..'))
-import chunkflow
 
 # -- Project information -----------------------------------------------------
 
@@ -28,7 +27,9 @@ author = 'Jingpeng Wu'
 # built documents.
 #
 # The short X.Y version.
-version = chunkflow.__version__
+with open('../../VERSION.txt', "r") as f:
+    version = f.read()
+
 # The full version, including alpha/beta/rc tags.
 #release = chunkflow.__release__
 

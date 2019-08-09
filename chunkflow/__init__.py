@@ -1,2 +1,7 @@
-__version__ = '0.4.0'  #: the working version
-#__release__ = '0.4.0'  #: the release version
+import importlib
+
+from os.path import abspath
+with open("VERSION.txt", "r") as f:
+    __version__ = f.read()
+
+
