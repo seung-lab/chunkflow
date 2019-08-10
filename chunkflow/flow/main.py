@@ -8,7 +8,24 @@ from cloudvolume.lib import Bbox
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 
 # import operator functions
-from .operators import *
+from .operators.cloud_watch import CloudWatchOperator
+from .operators.create_chunk import CreateChunkOperator
+from .operators.crop_margin import CropMarginOperator
+from .operators.cutout import CutoutOperator
+from .operators.downsample_upload import DownsampleUploadOperator
+from .operators.inference import InferenceOperator
+from .operators.mask import MaskOperator
+from .operators.mesh import MeshOperator
+from .operators.neuroglancer import NeuroglancerOperator
+from .operators.normalize_section_contrast import NormalizeSectionContrastOperator
+from .operators.normalize_section_shang import NormalizeSectionShangOperator
+from .operators.custom_operator import CustomOperator
+from .operators.read_tif import ReadTIFOperator
+from .operators.read_h5 import ReadH5Operator
+from .operators.save import SaveOperator
+from .operators.save_images import SaveImagesOperator
+from .operators.view import ViewOperator
+from .operators.write_h5 import WriteH5Operator
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
@@ -130,9 +147,9 @@ def create_chunk(size, dtype, voxel_offset):
     yield task
 
 
-@cli.command('read-file')
+@cli.command('read-tif')
 @click.option(
-    '--name', type=str, default='read-file', help='read file from local disk.')
+    '--name', type=str, default='read-tif', help='read tif file from local disk.')
 @click.option(
     '--file-name',
     type=str,
@@ -151,11 +168,11 @@ def create_chunk(size, dtype, voxel_offset):
     help='chunk name in the global state')
 @generator
 def read_file(name, file_name, offset, chunk_name):
-    """[generator] Read HDF5 and tiff files."""
+    """[generator] Read tiff files."""
     task = initialize_task()
-    read_file_operator = ReadFileOperator()
+    read_tif_operator = ReadTIFOperator()
     start = time()
-    task[chunk_name] = read_file_operator(file_name, global_offset=offset)
+    task[chunk_name] = read_tif_operator(file_name, global_offset=offset)
     task['log']['timer'][name] = time() - start
     yield task
 
@@ -186,7 +203,7 @@ def read_file(name, file_name, offset, chunk_name):
     help='chunk name in the global state')
 @generator
 def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
-    """[generator] Read HDF5 and tiff files."""
+    """[generator] Read HDF5 files."""
     task = initialize_task()
     read_h5_operator = ReadH5Operator()
     start = time()
