@@ -6,7 +6,7 @@ from time import sleep
 
 from chunkflow.chunk import Chunk
 
-from chunkflow.flow.operators.read_file import ReadFileOperator
+from chunkflow.flow.operators.read_h5 import ReadH5Operator
 from chunkflow.flow.operators.write_h5 import WriteH5Operator
 from chunkflow.flow.operators.save_images import SaveImagesOperator
 
@@ -18,7 +18,7 @@ def perform_io(chunk):
         os.remove(file_name)
 
     WriteH5Operator()(chunk, file_name)
-    chunk2 = ReadFileOperator()(file_name)
+    chunk2 = ReadH5Operator()(file_name)
     assert np.alltrue(chunk == chunk2)
     assert chunk.global_offset == chunk2.global_offset
     os.remove(file_name)
