@@ -26,55 +26,55 @@ Flow
 
 Operators
 ~~~~~~~~~~
-.. automodule:: chunkflow.flow.operators
+.. automodule:: chunkflow.flow
    :members:
 
-.. autoclass:: chunkflow.flow.operators.cloud_watch.CloudWatchOperator
+.. autoclass:: chunkflow.flow.cloud_watch.CloudWatchOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.create_chunk.CreateChunkOperator
+.. autoclass:: chunkflow.flow.create_chunk.CreateChunkOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.crop_margin.CropMarginOperator
+.. autoclass:: chunkflow.flow.crop_margin.CropMarginOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.cutout.CutoutOperator
+.. autoclass:: chunkflow.flow.cutout.CutoutOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.downsample_upload.DownsampleUploadOperator
+.. autoclass:: chunkflow.flow.downsample_upload.DownsampleUploadOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.inference.InferenceOperator
+.. autoclass:: chunkflow.flow.inference.InferenceOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.mask.MaskOperator
+.. autoclass:: chunkflow.flow.mask.MaskOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.mesh.MeshOperator
+.. autoclass:: chunkflow.flow.mesh.MeshOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.neuroglancer.NeuroglancerOperator
+.. autoclass:: chunkflow.flow.neuroglancer.NeuroglancerOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.normalize_section_contrast.NormalizeSectionContrastOperator
+.. autoclass:: chunkflow.flow.normalize_section_contrast.NormalizeSectionContrastOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.normalize_section_shang.NormalizeSectionShangOperator
+.. autoclass:: chunkflow.flow.normalize_section_shang.NormalizeSectionShangOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.read_file.ReadFileOperator
+.. autoclass:: chunkflow.flow.read_file.ReadFileOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.save.SaveOperator
+.. autoclass:: chunkflow.flow.save.SaveOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.save_images.SaveImagesOperator
+.. autoclass:: chunkflow.flow.save_images.SaveImagesOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.view.ViewOperator
+.. autoclass:: chunkflow.flow.view.ViewOperator
    :members:
 
-.. autoclass:: chunkflow.flow.operators.write_h5.WriteH5Operator
+.. autoclass:: chunkflow.flow.write_h5.WriteH5Operator
    :members:
 
 

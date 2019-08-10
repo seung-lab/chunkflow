@@ -6,9 +6,9 @@ from time import sleep
 
 from chunkflow.chunk import Chunk
 
-from chunkflow.flow.operators.read_h5 import ReadH5Operator
-from chunkflow.flow.operators.write_h5 import WriteH5Operator
-from chunkflow.flow.operators.save_images import SaveImagesOperator
+from chunkflow.flow.read_h5 import ReadH5Operator
+from chunkflow.flow.write_h5 import WriteH5Operator
+from chunkflow.flow.save_images import SaveImagesOperator
 
 
 def perform_io(chunk):

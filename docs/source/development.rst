@@ -47,9 +47,9 @@ You can also make other formats, such as pdf and epub. Checkout it out with `mak
 
 Add a New Operator
 *******************
-#. Take a look of the existing simple operators, such as :file:`chunkflow/flow/operators/create_chunk.py`.
+#. Take a look of the existing simple operators, such as :file:`chunkflow/flow/create_chunk.py`.
 
-#. Create your own operator file in the `operators` folder.
+#. Create your own operator file in the `flow` folder.
 
 #. Create your own operator class such as `MyOperator`, and this class should inherit from the `.base.OperatorBase`.
 
@@ -57,8 +57,8 @@ Add a New Operator
 
 #. add the import operator code in :file:`chunkflow/flow/operators/__init__.py`.
 
-#. Add unit test in :file:`tests/flow/operators/`. 
+#. Add unit test in :file:`tests/flow/`. 
 
-#. Run your unit test by :code:`pytest tests/flow/operators/my_operator.py`
+#. Run your unit test by :code:`pytest tests/flow/my_operator.py`
    
 #. Add documentation in :ref:`api`.
