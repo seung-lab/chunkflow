@@ -1,5 +1,5 @@
 import unittest
-from chunkflow.flow.operators.cloud_watch import CloudWatchOperator
+from chunkflow.flow.cloud_watch import CloudWatchOperator
 
 
 class TestUploadLog(unittest.TestCase):
