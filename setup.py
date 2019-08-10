@@ -13,7 +13,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 with open("VERSION.txt", "r") as f:
-    version = f.read()
+    version = f.read().strip()
 
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path

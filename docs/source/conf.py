@@ -10,11 +10,9 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
+from os import path
 import sys
-#sys.path.insert(0, os.path.abspath('.'))
-#sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
 
@@ -27,8 +25,10 @@ author = 'Jingpeng Wu'
 # built documents.
 #
 # The short X.Y version.
-with open('../../VERSION.txt', "r") as f:
-    version = f.read()
+script_path = path.dirname(path.abspath( __file__ ))
+version_file = path.join(script_path, '../VERSION.txt')
+with open(version_file, "r") as f:
+    version = f.read().strip()
 
 # The full version, including alpha/beta/rc tags.
 #release = chunkflow.__release__

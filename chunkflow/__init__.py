@@ -1,7 +1,6 @@
-import importlib
+from os import path
+script_path = path.dirname(path.abspath( __file__ ))
+version_file = path.join(script_path, '../VERSION.txt')
 
-from os.path import abspath
-with open("VERSION.txt", "r") as f:
-    __version__ = f.read()
-
-
+with open(version_file, "r") as f:
+    __version__ = f.read().strip()
