@@ -8,24 +8,24 @@ from cloudvolume.lib import Bbox
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 
 # import operator functions
-from .operators.cloud_watch import CloudWatchOperator
-from .operators.create_chunk import CreateChunkOperator
-from .operators.crop_margin import CropMarginOperator
-from .operators.cutout import CutoutOperator
-from .operators.downsample_upload import DownsampleUploadOperator
-from .operators.inference import InferenceOperator
-from .operators.mask import MaskOperator
-from .operators.mesh import MeshOperator
-from .operators.neuroglancer import NeuroglancerOperator
-from .operators.normalize_section_contrast import NormalizeSectionContrastOperator
-from .operators.normalize_section_shang import NormalizeSectionShangOperator
-from .operators.custom_operator import CustomOperator
-from .operators.read_tif import ReadTIFOperator
-from .operators.read_h5 import ReadH5Operator
-from .operators.save import SaveOperator
-from .operators.save_images import SaveImagesOperator
-from .operators.view import ViewOperator
-from .operators.write_h5 import WriteH5Operator
+from .cloud_watch import CloudWatchOperator
+from .create_chunk import CreateChunkOperator
+from .crop_margin import CropMarginOperator
+from .cutout import CutoutOperator
+from .downsample_upload import DownsampleUploadOperator
+from .inference import InferenceOperator
+from .mask import MaskOperator
+from .mesh import MeshOperator
+from .neuroglancer import NeuroglancerOperator
+from .normalize_section_contrast import NormalizeSectionContrastOperator
+from .normalize_section_shang import NormalizeSectionShangOperator
+from .custom_operator import CustomOperator
+from .read_tif import ReadTIFOperator
+from .read_h5 import ReadH5Operator
+from .save import SaveOperator
+from .save_images import SaveImagesOperator
+from .view import ViewOperator
+from .write_h5 import WriteH5Operator
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
