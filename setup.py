@@ -2,6 +2,7 @@ from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
 import os
 import sys
+import re
 import setuptools
 from shutil import move
 
@@ -12,8 +13,14 @@ with open('requirements.txt') as f:
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open("VERSION.txt", "r") as f:
-    version = f.read().strip()
+VERSIONFILE = "chunkflow/__version__.py"
+verstrline = open(VERSIONFILE, "rt").read()
+VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+mo = re.search(VSRE, verstrline, re.M)
+if mo:
+    version = mo.group(1)
+else:
+    raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
