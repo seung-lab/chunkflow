@@ -6,7 +6,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import generate_random_string, Bbox
 import os, shutil
 
-from chunkflow.flow.operators import *
+from chunkflow.flow.flow import *
 
 
 class TestInferencePipeline(unittest.TestCase):
