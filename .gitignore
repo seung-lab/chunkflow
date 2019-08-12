@@ -4,6 +4,7 @@
 *.swp
 *.dat
 *.sh
+*.so
 *secret.json
 .coverage
 dist/
@@ -19,3 +20,4 @@ docs/build/
 *generated/
 build/
 data/
+tmp/
