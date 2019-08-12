@@ -7,7 +7,7 @@ import numpy as np
 from itertools import product
 
 from cloudvolume import Bbox
-from chunkflow.aws.sqs_queue import SQSQueue
+from chunkflow.lib.aws.sqs_queue import SQSQueue
 
 
 @click.command()
@@ -15,7 +15,7 @@ from chunkflow.aws.sqs_queue import SQSQueue
 @click.option('--block-size', '-b', type=int, required=True, nargs=3, help='(z y x), size/shape of output blocks')
 @click.option('--grid-size', '-g', type=int, default=(1,1,1), nargs=3, help='(z y x), grid size of output blocks')
 @click.option('--queue-name', '-q', type=str, default='chunkflow', help='sqs queue name')
-def produce_tasks(start, block_size, grid_size, queue_name):
+def main(start, block_size, grid_size, queue_name):
     start = np.asarray(start)
     block_size = np.asarray(block_size)
 
@@ -44,4 +44,4 @@ def produce_tasks(start, block_size, grid_size, queue_name):
 
 
 if __name__ == '__main__':
-    produce_tasks()
+    main()

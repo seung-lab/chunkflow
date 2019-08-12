@@ -37,7 +37,9 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        chunkflow=chunkflow.flow:cli
+        chunkflow=chunkflow.flow.flow:main
+        produce-tasks=chunkflow.flow.produce_tasks:main
+        log-stats=chunkflow.flow.log_stats:main
     ''',
     classifiers=[
         'Environment :: Console',
