@@ -165,6 +165,9 @@ setup(
 
 # The -o option of gcc is not working
 # use code to move all the compiled so files to lib folder!
-for f in os.listdir('./'):
-    if f.startswith("libchunkflow") and f.endswith(".so"):
-        move(f, 'chunkflow/lib/')
+for file_name in os.listdir():
+    if file_name.startswith("libchunkflow") and file_name.endswith(".so"):
+        dst_file_name = os.path.join('chunkflow/lib/', file_name)
+        # using the full destination path will replace the so file
+        # if it is already exist
+        move(file_name, dst_file_name)
