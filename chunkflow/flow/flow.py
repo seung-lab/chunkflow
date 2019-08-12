@@ -63,7 +63,7 @@ def default_none(ctx, param, value):
     '--mip', type=int, default=0, help='default mip level of chunks.')
 # the code design is from:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
-def cli(verbose, mip):
+def main(verbose, mip):
     """This script processes a chunk in a pipe. 
     One command feeds into the next.
     """
@@ -72,7 +72,7 @@ def cli(verbose, mip):
     pass
 
 
-@cli.resultcallback()
+@main.resultcallback()
 def process_commands(operators, verbose, mip):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
@@ -119,7 +119,7 @@ def generator(f):
     return update_wrapper(new_func, f)
 
 
-@cli.command('create-chunk')
+@main.command('create-chunk')
 @click.option(
     '--size',
     type=int,
@@ -147,7 +147,7 @@ def create_chunk(size, dtype, voxel_offset):
     yield task
 
 
-@cli.command('read-tif')
+@main.command('read-tif')
 @click.option(
     '--name', type=str, default='read-tif', help='read tif file from local disk.')
 @click.option(
@@ -177,7 +177,7 @@ def read_file(name, file_name, offset, chunk_name):
     yield task
 
 
-@cli.command('read-h5')
+@main.command('read-h5')
 @click.option(
     '--name', type=str, default='read-h5', help='read file from local disk.')
 @click.option(
@@ -213,7 +213,7 @@ def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_n
     yield task
 
 
-@cli.command('generate-task')
+@main.command('generate-task')
 @click.option(
     '--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
 @click.option(
@@ -231,7 +231,7 @@ def generate_task(offset, shape):
     yield task
 
 
-@cli.command('fetch-task')
+@main.command('fetch-task')
 @click.option('--queue-name', type=str, default=None, help='sqs queue name')
 @click.option(
     '--visibility-timeout',
@@ -257,7 +257,7 @@ def fetch_task(queue_name, visibility_timeout):
         yield task
 
 
-@cli.command('write-h5')
+@main.command('write-h5')
 @click.option('--name', type=str, default='write-h5', help='name of operator')
 @click.option(
     '--file-name',
@@ -276,7 +276,7 @@ def write_h5(tasks, name, file_name):
         yield task
 
 
-@cli.command('save-images')
+@main.command('save-images')
 @click.option(
     '--name', type=str, default='save-image', help='name of operator')
 @click.option(
@@ -296,7 +296,7 @@ def save_images(tasks, name, output_path):
         yield task
 
 
-@cli.command('delete-task-in-queue')
+@main.command('delete-task-in-queue')
 @click.option(
     '--name',
     type=str,
@@ -316,7 +316,7 @@ def delete_task_in_queue(tasks, name):
                     task_handle, queue))
 
 
-@cli.command('cutout')
+@main.command('cutout')
 @click.option(
     '--name', type=str, default='cutout', help='name of this operator')
 @click.option('--volume-path', type=str, required=True, help='volume path')
@@ -374,7 +374,7 @@ def cutout(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
         yield task
 
 
-@cli.command('downsample-upload')
+@main.command('downsample-upload')
 @click.option(
     '--name', type=str, default='downsample-upload', help='name of operator')
 @click.option('--volume-path', type=str, help='path of output volume')
@@ -412,7 +412,7 @@ def downsample_upload(tasks, name, volume_path, start_mip, stop_mip,
         yield task
 
 
-@cli.command('normalize-section-contrast')
+@main.command('normalize-section-contrast')
 @click.option(
     '--name',
     type=str,
@@ -469,7 +469,7 @@ def normalize_contrast_contrast(tasks, name, levels_path, mip,
         yield task
 
 
-@cli.command('normalize-section-shang')
+@main.command('normalize-section-shang')
 @click.option(
     '--name',
     type=str,
@@ -512,7 +512,7 @@ def normalize_section_shang(tasks, name, nominalmin, nominalmax,
         yield task
 
 
-@cli.command('custom-operator')
+@main.command('custom-operator')
 @click.option(
     '--name', type=str, default='custom-operator-1', help='name of operator.')
 @click.option('--opprogram', type=str, help='python file to call.')
@@ -537,7 +537,7 @@ def custom_operator(tasks, name, opprogram, args):
         yield task
 
 
-@cli.command('copy-var')
+@main.command('copy-var')
 @click.option('--name', type=str, default='copy-var-1', help='name of step')
 @click.option(
     '--from-name',
@@ -556,7 +556,7 @@ def copy_var(tasks, name, from_name, to_name):
         yield task
 
 
-@cli.command('inference')
+@main.command('inference')
 @click.option(
     '--name', type=str, default='inference', help='name of this operator')
 @click.option(
@@ -654,7 +654,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
         yield task
 
 
-@cli.command('mask')
+@main.command('mask')
 @click.option('--name', type=str, default='mask', help='name of this operator')
 @click.option(
     '--volume-path', type=str, required=True, help='mask volume path')
@@ -710,7 +710,7 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing,
         yield task
 
 
-@cli.command('crop-margin')
+@main.command('crop-margin')
 @click.option(
     '--name', type=str, default='crop-margin', help='name of this operator')
 @click.option(
@@ -736,7 +736,7 @@ def crop_margin(tasks, name, margin_size):
         yield task
 
 
-@cli.command('mesh')
+@main.command('mesh')
 @click.option('--name', type=str, default='mesh', help='name of operator')
 @click.option(
     '--chunk-name',
@@ -795,7 +795,7 @@ def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
         yield task
 
 
-@cli.command('save')
+@main.command('save')
 @click.option('--name', type=str, default='save', help='name of this operator')
 @click.option('--volume-path', type=str, required=True, help='volume path')
 @click.option(
@@ -844,7 +844,7 @@ def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
         yield task
 
 
-@cli.command('cloud-watch')
+@main.command('cloud-watch')
 @click.option(
     '--name', type=str, default='cloud-watch', help='name of this operator')
 @click.option(
@@ -864,7 +864,7 @@ def cloud_watch(tasks, name, log_name):
         yield task
 
 
-@cli.command('view')
+@main.command('view')
 @click.option('--name', type=str, default='view', help='name of this operator')
 @click.option(
     '--image-chunk-name',
@@ -888,7 +888,7 @@ def view(tasks, name, image_chunk_name, segmentation_chunk_name):
         yield task
 
 
-@cli.command('neuroglancer')
+@main.command('neuroglancer')
 @click.option(
     '--name', type=str, default='neuroglancer', help='name of this operator')
 @click.option(
@@ -911,4 +911,4 @@ def neuroglancer(tasks, name, voxel_size):
 
 
 if __name__ == '__main__':
-    cli()
+    main()

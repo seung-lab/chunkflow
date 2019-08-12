@@ -1,3 +1,3 @@
-from chunkflow.flow import cli
+from chunkflow.flow.flow import main
 
-cli()
+main()
