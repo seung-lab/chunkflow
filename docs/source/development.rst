@@ -19,7 +19,7 @@ Install with development mode (preferably in a python virtual environment)::
 Release
 ***********
 
-#. Update version number. The version number is defined in `VERSION.txt`, increase the version number before releasing. 
+#. Update version number. The version number is defined in `chunkflow/__version__.py`, increase the version number before releasing. 
 
 #. Create a new release in PyPi.
 
