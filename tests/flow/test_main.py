@@ -6,7 +6,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import generate_random_string, Bbox
 import os, shutil
 
-from chunkflow.flow.operators import *
+from chunkflow.flow.flow import *
 
 
 class TestInferencePipeline(unittest.TestCase):
@@ -131,6 +131,7 @@ class TestInferencePipeline(unittest.TestCase):
             patch_overlap=self.patch_overlap,
             framework='identity',
             batch_size=5)
+        print(inference_operator.compute_device)
         chunk = inference_operator(chunk)
         print('after inference: {}'.format(chunk.slices))
 
