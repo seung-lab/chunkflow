@@ -33,7 +33,9 @@ class InferenceOperator(OperatorBase):
             patch_overlap=patch_overlap,
             output_key=output_key,
             num_output_channels=num_output_channels,
+            original_num_output_channels=original_num_output_channels,
             batch_size=batch_size,
+            bump=bump,
             mask_output_chunk=mask_output_chunk,
             framework='identity',
             verbose=verbose)
