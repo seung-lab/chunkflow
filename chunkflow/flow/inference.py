@@ -37,7 +37,7 @@ class InferenceOperator(OperatorBase):
             batch_size=batch_size,
             bump=bump,
             mask_output_chunk=mask_output_chunk,
-            framework='identity',
+            framework=framework,
             verbose=verbose)
 
     def __call__(self, chunk):
