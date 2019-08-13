@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from .base import PatchEngine
 
 
-class PytorchMultitask(PatchEngine):
+class PyTorchMultitask(PatchEngine):
     def __init__(self,
                  convnet_model,
                  convnet_weight_path,
