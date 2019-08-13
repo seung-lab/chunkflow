@@ -10,3 +10,4 @@ neuroglancer
 tinybrain
 zmesh
 tifffile
+waterzed
