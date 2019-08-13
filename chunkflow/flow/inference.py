@@ -24,18 +24,7 @@ class InferenceOperator(OperatorBase):
                  name: str = 'inference'):
 
         super().__init__(name=name, verbose=verbose)
-
-        self.convnet_model = convnet_model
-        self.convnet_weight_path = convnet_weight_path
-        self.patch_size = patch_size
-        self.output_key = output_key
-        self.num_output_channels = num_output_channels
-        self.original_num_output_channels = original_num_output_channels
-        self.patch_overlap = patch_overlap
         self.framework = framework
-        self.batch_size = batch_size
-        self.bump = bump
-        self.mask_output_chunk = mask_output_chunk
 
         self.engine = Engine(
             convnet_model,
