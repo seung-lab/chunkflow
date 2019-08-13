@@ -236,7 +236,7 @@ class Engine(object):
                                       self.convnet_weight_path)
         elif self.framework == 'pytorch':
             from .patch_engine.pytorch import PyTorch
-            self.patch_engine = Pytorch(
+            self.patch_engine = PyTorch(
                 self.patch_size,
                 self.patch_overlap,
                 self.convnet_model,
