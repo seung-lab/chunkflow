@@ -38,8 +38,10 @@ class InferenceOperator(OperatorBase):
         self.mask_output_chunk = mask_output_chunk
 
         self.engine = Engine(
-            patch_size,
-            patch_overlap,
+            convnet_model,
+            convnet_weight_path,
+            patch_size=patch_size,
+            patch_overlap=patch_overlap,
             output_key=output_key,
             num_output_channels=num_output_channels,
             batch_size=batch_size,
