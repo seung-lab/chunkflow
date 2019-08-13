@@ -9,10 +9,10 @@ from chunkflow.lib import load_source
 
 class PyTorch(PatchEngine):
     def __init__(self,
-                 patch_size: Union[tuple, list],
-                 patch_overlap: Union[tuple, list],
                  model_file_name: str,
                  weight_file_name: str,
+                 patch_size: Union[tuple, list],
+                 patch_overlap: Union[tuple, list],
                  use_batch_norm: bool = True,
                  is_static_batch_norm: bool = False,
                  output_key: str = 'affinity',
