@@ -1,18 +1,23 @@
-import neuroglancer
+import neuroglancer as ng
 import numpy as np
 
 from .base import OperatorBase
 
 
 class NeuroglancerOperator(OperatorBase):
-    def __init__(self, name: str = 'neuroglancer', verbose: bool = True):
+    def __init__(self, name: str = 'neuroglancer', verbose: bool = True,
+                 port: int=None, voxel_size: tuple=(1,1,1)):
         super().__init__(name=name, verbose=verbose)
+        self.port = port
+        self.voxel_size = voxel_size
 
-    def __call__(self, chunks, voxel_size=(1, 1, 1)):
+    def __call__(self, chunks):
         """
         chunks: (list/tuple) multiple chunks 
         """
-        viewer = neuroglancer.Viewer()
+        ng.set_static_content_source(url='https://neuromancer-seung-import.appspot.com') 
+        ng.set_server_bind_address(bind_port=self.port)
+        viewer = ng.Viewer()
 
         with viewer.txn() as s:
             for idx, chunk in enumerate(chunks):
@@ -22,12 +27,12 @@ class NeuroglancerOperator(OperatorBase):
                 #chunk = np.asfortranarray(chunk)
                 s.layers.append(
                     name='chunk-{}'.format(idx),
-                    layer=neuroglancer.LocalVolume(
+                    layer=ng.LocalVolume(
                         data=chunk,
-                        voxel_size=voxel_size[::-1],
+                        voxel_size=self.voxel_size[::-1],
                         # offset is in nm, not voxels
                         offset=list(o * v for o, v in zip(
-                            global_offset[::-1][-3:], voxel_size[::-1])),
+                            global_offset[::-1][-3:], self.voxel_size[::-1])),
                     ),
                     shader=get_shader(chunk),
                 )

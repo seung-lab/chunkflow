@@ -891,21 +891,25 @@ def view(tasks, name, image_chunk_name, segmentation_chunk_name):
 @click.option(
     '--name', type=str, default='neuroglancer', help='name of this operator')
 @click.option(
-    '--voxel-size',
+    '--voxel-size', '-v',
     nargs=3,
     type=int,
     default=(1, 1, 1),
     help='voxel size of chunk')
+@click.option(
+    '--port', '-p',
+    type=int,
+    default=None,
+    help='port to use')
 @operator
-def neuroglancer(tasks, name, voxel_size):
+def neuroglancer(tasks, name, voxel_size, port):
     """[operator] Visualize the chunk using neuroglancer."""
-    state['operators'][name] = NeuroglancerOperator(name=name)
+    state['operators'][name] = NeuroglancerOperator(name=name, port=port, 
+                                                    voxel_size=voxel_size)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name]([
-                task['chunk'],
-            ], voxel_size=voxel_size)
+            state['operators'][name]([task['chunk']])
         yield task
 
 
