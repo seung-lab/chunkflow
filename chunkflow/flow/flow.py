@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import click
-from functools import update_wrapper
+from functools import wraps, update_wrapper
 from time import time
 import numpy as np
 from cloudvolume.lib import Bbox
@@ -92,31 +92,30 @@ def process_commands(operators, verbose, mip):
             pass
 
 
-def operator(f):
+def operator(func):
     """Help decorator to rewrite a function so that it returns another function from it."""
-
-    def new_func(*args, **kwargs):
+    
+    @wraps(func)
+    def wrapper(*args, **kwargs):
         def operator(stream):
-            return f(stream, *args, **kwargs)
-
+            return func(stream, *args, **kwargs)
         return operator
 
-    return update_wrapper(new_func, f)
+    return wrapper
 
 
-def generator(f):
-    """Similar to the :func:`operator` but passes through old values unchanged and does not pass 
-    through the values as parameter.
+def generator(func):
+    """Similar to the :func:`operator` but passes through old values unchanged and does not pass through the values as parameter.
     """
 
     @operator
     def new_func(stream, *args, **kwargs):
         for item in stream:
             yield item
-        for item in f(*args, **kwargs):
+        for item in func(*args, **kwargs):
             yield item
 
-    return update_wrapper(new_func, f)
+    return update_wrapper(new_func, func)
 
 
 @main.command('create-chunk')

@@ -56,7 +56,8 @@ Note that the random image center is blacked out.
 
 Input and Output
 =================
-
+I/O of Local Image
+-------------------
 Now let's play with some real data! You can download the data from `CREMI <https://cremi.org/>`_ challenge website. Let's use the `Dataset A <https://cremi.org/static/data/sample_A_20160501.hdf>`_ for now. 
 
 Run this command and open the link in your browser::
@@ -69,6 +70,17 @@ Change the file path if you put your image in some other places. You should see 
 
 .. |cremi_image| image:: _static/image/cremi_image.png
 
+Cutout/Save a Chunk from Large Scale Volume in Cloud Storage
+-------------------------------------------------------------
+We use CloudVolume_ to perform cutout/saving of chunks in a large scale volumemetric dataset. To be convenient, we use local file system in this tutorial. To use cloud storage, you can just setup the authentication following the documentation of CloudVolume_ and replace the path to cloud storage. You can create a volume and ingest the image stack to the volume::
+
+   chunkflow read-h5 --file-name sample_A_20160501.hdf --dataset-path /volumes/raw save --volume-path file:///tmp/your/key/path 
+
+Now you can cutout the image chunk from the volume::
+
+   chunkflow generate-task --offset 0 0 0 --shape 4 64 64 cutout --volume-path file:///tmp/your/key/path write-h5 --file-name /tmp/cutout_chunk.h5
+
+.. _CloudVolume: https://github.com/seung-lab/cloud-volume
 
 Convolutional Network Inference
 ================================
