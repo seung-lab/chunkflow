@@ -34,12 +34,6 @@ class PyTorch(PatchEngine):
         state_dict = chkpt['state_dict'] if 'state_dict' in chkpt else chkpt
         self.net.load_state_dict(state_dict)
 
-        #model_dict = self.net.state_dict()
-        #state_dict = {k:v for k, v in state_dict.items() if k in model_dict}
-        #model_dict.update(state_dict)
-        #self.net.load_state_dict(model_dict)
-        #self.net = self.net.train()
-
         if self.is_gpu:
             self.net = self.net.cuda()
             self.net = torch.nn.DataParallel(
@@ -77,13 +71,13 @@ class PyTorch(PatchEngine):
                 input_patch = input_patch.cuda()
             
             # the network input and output should be dict
-            output_patch = self.net(input_patch)[0]
-            
+            output_patch = self.net(input_patch)
+
             # only transfer required channels to cpu
             # use narrow function to avoid copy.
-            output_patch = output_patch.narrow(1, 0, self.num_output_channels)
             output_patch = self.post_process(output_patch)
-            output_patch = torch.sigmoid(output_patch)
+            #output_patch = output_patch.narrow(1, 0, self.num_output_channels)
+            #output_patch = torch.sigmoid(output_patch)
             
             #import h5py
             #with h5py.File('/tmp/patch.h5', "w") as f:
