@@ -21,7 +21,7 @@ Image
 
 Flow
 ------------
-.. automodule:: chunkflow.flow.main
+.. automodule:: chunkflow.flow.flow
    :members:
 
 Operators
