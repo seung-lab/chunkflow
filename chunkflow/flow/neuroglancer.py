@@ -24,6 +24,7 @@ class NeuroglancerOperator(OperatorBase):
                 global_offset = chunk.global_offset
                 #chunk = np.transpose(chunk)
                 chunk = np.ascontiguousarray(chunk)
+
                 #chunk = np.asfortranarray(chunk)
                 s.layers.append(
                     name='chunk-{}'.format(idx),
@@ -42,7 +43,7 @@ class NeuroglancerOperator(OperatorBase):
 
 
 def get_shader(chunk):
-    if chunk.ndim == 3:
+    if chunk.ndim == 3 or chunk.shape[0]==1:
         # this is a image
         return """void main() {
     emitGrayscale(toNormalized(getDataValue()));

@@ -112,8 +112,8 @@ class Engine(object):
 
         self.output_chunk_mask = np.zeros(self.input_size[-3:], np.float32)
         for patch_slices in self.patch_slice_list:
-            # accumulate weights
-            self.output_chunk_mask[patch_slices] += self.patch_engine.mask
+            # accumulate weights using the patch mask in RAM
+            self.output_chunk_mask[patch_slices] += self.patch_engine.mask_numpy
         # normalize weight, so accumulated inference result multiplies
         # this mask will result in 1
         self.output_chunk_mask = 1.0 / self.output_chunk_mask
@@ -186,7 +186,7 @@ class Engine(object):
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
             output_patch = self.patch_engine(self.input_patch_buffer)
-
+            
             if self.verbose:
                 assert output_patch.ndim == 5
                 end = time.time()
@@ -199,8 +199,9 @@ class Engine(object):
                 # the remaining channels are dropped
                 output_buffer[(
                     (slice(self.num_output_channels)),
-                    *slices)] += output_patch[batch_idx, :self.
-                                              num_output_channels, :, :, :]
+                    *slices)] += output_patch[batch_idx, 
+                                              :self.num_output_channels, 
+                                              :, :, :]
 
             if self.verbose:
                 end = time.time()
@@ -209,6 +210,13 @@ class Engine(object):
         if self.verbose:
             print("Inference of whole chunk takes %3f sec" %
                   (time.time() - chunk_time_start))
+        
+        #import h5py
+        #with h5py.File('/tmp/output_buffer.h5', "w") as f:
+        #    f['main'] = output_buffer
+        #with h5py.File('/tmp/output_chunk_mask.h5', "w") as f:
+        #    f['main'] = self.output_chunk_mask
+        #breakpoint() 
 
         if self.mask_output_chunk:
             output_buffer *= self.output_chunk_mask
@@ -241,12 +249,11 @@ class Engine(object):
                 self.patch_overlap,
                 self.convnet_model,
                 self.convnet_weight_path,
-                output_key=self.output_key,
                 num_output_channels=self.num_output_channels)
         elif self.framework == 'pytorch-multitask':
             # currently only this type of task support mask in device
             from .patch_engine.pytorch_multitask import PyTorchMultitask
-            self.patch_engine = PytorchMultitask(
+            self.patch_engine = PyTorchMultitask(
                 self.patch_size,
                 self.patch_overlap,
                 self.convnet_model,

@@ -26,6 +26,7 @@ from .save import SaveOperator
 from .save_images import SaveImagesOperator
 from .view import ViewOperator
 from .write_h5 import WriteH5Operator
+from .write_tif import WriteTIFOperator
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
@@ -267,6 +268,25 @@ def fetch_task(queue_name, visibility_timeout):
 def write_h5(tasks, name, file_name):
     """[operator] Write chunk to HDF5 file."""
     state['operators'][name] = WriteH5Operator()
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            state['operators'][name](task['chunk'], file_name)
+        # keep the pipeline going
+        yield task
+
+
+@main.command('write-tif')
+@click.option('--name', type=str, default='write-tif', help='name of operator')
+@click.option(
+    '--file-name',
+    type=str,
+    required=True,
+    help='file name of tif file, the extention should be .tif or .tiff')
+@operator
+def write_tif(tasks, name, file_name):
+    """[operator] Write chunk as a TIF file."""
+    state['operators'][name] = WriteTIFOperator()
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
