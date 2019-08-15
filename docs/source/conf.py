@@ -27,7 +27,7 @@ author = 'Jingpeng Wu'
 #
 # The short X.Y version.
 PACKAGE_DIR = path.dirname(path.abspath(__file__))
-VERSIONFILE = path.join("chunkflow/__version__.py")
+VERSIONFILE = path.join(PACKAGE_DIR, "chunkflow/__version__.py")
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)

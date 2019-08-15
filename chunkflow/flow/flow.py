@@ -32,9 +32,6 @@ from .write_tif import WriteTIFOperator
 state = {'operators': {}}
 
 
-# initialize task with some default values
-task = {'skip': False, 'log': {'timer': {}}}
-
 
 def handle_task_skip(task, name):
     if task['skip'] and task['skip_to'] == name:
@@ -78,8 +75,8 @@ def process_commands(operators, verbose, mip):
     returns a function we can chain them together to feed one 
     into the other, similar to how a pipe on unix works.
     """
-    # Start with an empty iterable
-    stream = ()
+    # initialize task with some default values
+    stream = ({'skip': False, 'log': {'timer': {}}},)
 
     # Pipe it through all stream operators.
     for operator in operators:
@@ -97,10 +94,13 @@ def operator(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         def operator(stream):
-            return func(stream, *args, **kwargs)
+            for item in stream:
+                breakpoint()
+                yield func(item, *tuple(kwargs.values()))
         return operator
 
     return wrapper
+
 
 def generator(func):
     """Similar to the :func:`operator` but passes through old values unchanged and does not pass through the values as parameter.
@@ -108,12 +108,14 @@ def generator(func):
 
     @operator
     def new_func(stream, *args, **kwargs):
+        breakpoint()
         for item in stream:
             yield item
-        for item in func(*args, **kwargs):
+        for item in func(stream, *args, **kwargs):
             yield item
 
     return update_wrapper(new_func, func)
+
 
 @main.command('create-chunk')
 @click.option(
@@ -133,10 +135,11 @@ def generator(func):
     nargs=3,
     default=(0, 0, 0),
     help='offset in voxel number.')
-@generator
-def create_chunk(size, dtype, voxel_offset):
+@operator
+def create_chunk(task, size, dtype, voxel_offset):
     """Create a fake chunk for easy test."""
     create_chunk_operator = CreateChunkOperator()
+    print("creating chunk...")
     task['chunk'] = create_chunk_operator(
         size=size, dtype=dtype, voxel_offset=voxel_offset)
     yield task
@@ -147,7 +150,7 @@ def create_chunk(size, dtype, voxel_offset):
     '--name', type=str, default='read-tif', help='read tif file from local disk.')
 @click.option(
     '--file-name',
-    type=str,
+    type=click.Path(exists=True, dir_okay=False),
     required=True,
     help='read chunk from file, support .h5 and .tif')
 @click.option(
@@ -161,8 +164,8 @@ def create_chunk(size, dtype, voxel_offset):
     type=str,
     default='chunk',
     help='chunk name in the global state')
-@generator
-def read_file(name, file_name, offset, chunk_name):
+@operator
+def read_file(task: dict, name: str, file_name: str, offset: tuple, chunk_name: str):
     """Read tiff files."""
     read_tif_operator = ReadTIFOperator()
     start = time()
@@ -195,13 +198,13 @@ def read_file(name, file_name, offset, chunk_name):
     type=str,
     default='chunk',
     help='chunk name in the global state')
-@generator
-def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
+@operator
+def read_h5(task: dict, name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
     """Read HDF5 files."""
     read_h5_operator = ReadH5Operator()
     start = time()
     task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
-                                          global_offset=offset)
+                                        global_offset=offset)
     task['log']['timer'][name] = time() - start
     yield task
 
@@ -211,8 +214,10 @@ def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_n
     '--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
 @click.option(
     '--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
+@click.option(
+    '--infinite/--only-one', default=False, help="infinite task for tests")
 @generator
-def generate_task(offset, shape):
+def generate_task(task, offset, shape):
     """Create a task."""
     # no queue name specified
     # will only run one task
@@ -233,8 +238,8 @@ def generate_task(offset, shape):
     'visibility timeout of sqs queue; default is using the timeout of the queue.'
 )
 @generator
-def fetch_task(queue_name, visibility_timeout):
-    """[generator] Fetch task from queue."""
+def fetch_task(task, queue_name, visibility_timeout):
+    """Fetch task from queue."""
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
     task['queue'] = queue
     for task_handle, output_bbox_str in queue:
