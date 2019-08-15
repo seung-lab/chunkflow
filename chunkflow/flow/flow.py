@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+pngs#!/usr/bin/env python
 import click
-from functools import wraps, update_wrapper
+from functools import wraps
 from time import time
 import numpy as np
 from cloudvolume.lib import Bbox
@@ -23,7 +23,7 @@ from .custom_operator import CustomOperator
 from .read_tif import ReadTIFOperator
 from .read_h5 import ReadH5Operator
 from .save import SaveOperator
-from .save_images import SaveImagesOperator
+from .save_pngs import SavePNGsOperator
 from .view import ViewOperator
 from .write_h5 import WriteH5Operator
 from .write_tif import WriteTIFOperator
@@ -32,10 +32,8 @@ from .write_tif import WriteTIFOperator
 state = {'operators': {}}
 
 
-def initialize_task():
-    # initialize task with some default values
-    task = {'skip': False, 'log': {'timer': {}}}
-    return task
+# initialize task with some default values
+task = {'skip': False, 'log': {'timer': {}}}
 
 
 def handle_task_skip(task, name):
@@ -99,24 +97,12 @@ def operator(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         def operator(stream):
-            return func(stream, *args, **kwargs)
+            if stream:
+                for item in stream:
+                    return func(item, *args, **kwargs)
         return operator
 
     return wrapper
-
-
-def generator(func):
-    """Similar to the :func:`operator` but passes through old values unchanged and does not pass through the values as parameter.
-    """
-
-    @operator
-    def new_func(stream, *args, **kwargs):
-        for item in stream:
-            yield item
-        for item in func(*args, **kwargs):
-            yield item
-
-    return update_wrapper(new_func, func)
 
 
 @main.command('create-chunk')
@@ -137,10 +123,9 @@ def generator(func):
     nargs=3,
     default=(0, 0, 0),
     help='offset in voxel number.')
-@generator
+@operator
 def create_chunk(size, dtype, voxel_offset):
-    """[generator] Create a fake chunk for easy test."""
-    task = initialize_task()
+    """Create a fake chunk for easy test."""
     create_chunk_operator = CreateChunkOperator()
     task['chunk'] = create_chunk_operator(
         size=size, dtype=dtype, voxel_offset=voxel_offset)
@@ -166,10 +151,9 @@ def create_chunk(size, dtype, voxel_offset):
     type=str,
     default='chunk',
     help='chunk name in the global state')
-@generator
+@operator
 def read_file(name, file_name, offset, chunk_name):
-    """[generator] Read tiff files."""
-    task = initialize_task()
+    """Read tiff files."""
     read_tif_operator = ReadTIFOperator()
     start = time()
     task[chunk_name] = read_tif_operator(file_name, global_offset=offset)
@@ -201,10 +185,9 @@ def read_file(name, file_name, offset, chunk_name):
     type=str,
     default='chunk',
     help='chunk name in the global state')
-@generator
+@operator
 def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
-    """[generator] Read HDF5 files."""
-    task = initialize_task()
+    """Read HDF5 files."""
     read_h5_operator = ReadH5Operator()
     start = time()
     task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
@@ -218,10 +201,9 @@ def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_n
     '--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
 @click.option(
     '--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
-@generator
+@operator
 def generate_task(offset, shape):
-    """[generator] Create a task."""
-    task = initialize_task()
+    """Create a task."""
     # no queue name specified
     # will only run one task
     stop = np.asarray(offset) + np.asarray(shape)
@@ -240,10 +222,9 @@ def generate_task(offset, shape):
     help=
     'visibility timeout of sqs queue; default is using the timeout of the queue.'
 )
-@generator
+@operator
 def fetch_task(queue_name, visibility_timeout):
     """[generator] Fetch task from queue."""
-    task = initialize_task()
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
     task['queue'] = queue
     for task_handle, output_bbox_str in queue:
@@ -266,7 +247,7 @@ def fetch_task(queue_name, visibility_timeout):
     help='file name of hdf5 file, the extention should be .h5')
 @operator
 def write_h5(tasks, name, file_name):
-    """[operator] Write chunk to HDF5 file."""
+    """Write chunk to HDF5 file."""
     state['operators'][name] = WriteH5Operator()
     for task in tasks:
         handle_task_skip(task, name)
@@ -285,7 +266,7 @@ def write_h5(tasks, name, file_name):
     help='file name of tif file, the extention should be .tif or .tiff')
 @operator
 def write_tif(tasks, name, file_name):
-    """[operator] Write chunk as a TIF file."""
+    """Write chunk as a TIF file."""
     state['operators'][name] = WriteTIFOperator()
     for task in tasks:
         handle_task_skip(task, name)
@@ -295,17 +276,17 @@ def write_tif(tasks, name, file_name):
         yield task
 
 
-@main.command('save-images')
+@main.command('save-pngs')
 @click.option(
-    '--name', type=str, default='save-image', help='name of operator')
+    '--name', type=str, default='save-pngs', help='name of operator')
 @click.option(
     '--output-path',
     type=str,
-    default='./saved_images/',
+    default='./saved_pngs/',
     help='output path of saved 2d images formated as png.')
 @operator
-def save_images(tasks, name, output_path):
-    """[operator] Save as 2D PNG images."""
+def save_pngs(tasks, name, output_path):
+    """Save as 2D PNG images."""
     state['operators'][name] = SaveImagesOperator(
         output_path=output_path, name=name)
     for task in tasks:
@@ -323,7 +304,7 @@ def save_images(tasks, name, output_path):
     help='name of this operator')
 @operator
 def delete_task_in_queue(tasks, name):
-    """[operator] Delete the task in queue."""
+    """Delete the task in queue."""
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
@@ -372,7 +353,7 @@ def delete_task_in_queue(tasks, name):
 @operator
 def cutout(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
                validate_mip, blackout_sections, chunk_name):
-    """[operator] Cutout chunk from volume."""
+    """Cutout chunk from volume."""
     state['operators'][name] = CutoutOperator(
         volume_path,
         mip=state['mip'],
@@ -413,7 +394,7 @@ def cutout(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
 @operator
 def downsample_upload(tasks, name, volume_path, start_mip, stop_mip,
                           fill_missing):
-    """[operator] Downsample chunk and upload to volume."""
+    """Downsample chunk and upload to volume."""
     state['operators'][name] = DownsampleUploadOperator(
         volume_path,
         input_mip=state['mip'],
@@ -465,7 +446,7 @@ def downsample_upload(tasks, name, volume_path, start_mip, stop_mip,
 @operator
 def normalize_contrast_contrast(tasks, name, levels_path, mip,
                                     clip_fraction, minval, maxval):
-    """[operator] Normalize the section contrast using precomputed histograms."""
+    """Normalize the section contrast using precomputed histograms."""
     if mip is None:
         mip = state['mip']
     if levels_path is None:
@@ -512,7 +493,7 @@ def normalize_contrast_contrast(tasks, name, levels_path, mip,
 @operator
 def normalize_section_shang(tasks, name, nominalmin, nominalmax,
                                 clipvalues):
-    """[operator] Normalize voxel values based on slice min/max within the chunk, Shang's method.
+    """Normalize voxel values based on slice min/max within the chunk, Shang's method.
     The transformed chunk has floating point values.
     """
 
@@ -538,7 +519,7 @@ def normalize_section_shang(tasks, name, nominalmin, nominalmax,
 @click.option('--args', type=str, default='', help='args to pass in')
 @operator
 def custom_operator(tasks, name, opprogram, args):
-    """[operator] Custom operation on the chunk.
+    """Custom operation on the chunk.
     The custom python file should contain a callable named "op_call" such that 
     a call of `op_call(chunk, args)` can be made to operate on the chunk.
     """
@@ -566,7 +547,7 @@ def custom_operator(tasks, name, opprogram, args):
 @click.option('--to-name', type=str, default='chunk', help='New variable name')
 @operator
 def copy_var(tasks, name, from_name, to_name):
-    """[operator] Copy a variable to a new name.
+    """Copy a variable to a new name.
     """
     for task in tasks:
         handle_task_skip(task, name)
@@ -644,7 +625,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
                   patch_overlap, output_key, original_num_output_channels,
                   num_output_channels, framework, batch_size, bump,
                   mask_output_chunk):
-    """[operator] Perform convolutional network inference for chunks."""
+    """Perform convolutional network inference for chunks."""
     state['operators'][name] = InferenceOperator(
         convnet_model,
         convnet_weight_path,
@@ -696,7 +677,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
 @operator
 def mask(tasks, name, volume_path, mip, inverse, fill_missing,
              check_all_zero, skip_to):
-    """[operator] Mask the chunk. The mask could be in higher mip level and we
+    """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
     state['operators'][name] = MaskOperator(
@@ -741,7 +722,7 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing,
     'The default is None and will use the output_bbox ' + 'as croping range.')
 @operator
 def crop_margin(tasks, name, margin_size):
-    """[operator] Crop the margin of chunk."""
+    """Crop the margin of chunk."""
     state['operators'][name] = CropMarginOperator(
         margin_size=margin_size, verbose=state['verbose'], name=name)
 
@@ -797,7 +778,7 @@ def crop_margin(tasks, name, margin_size):
 @operator
 def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
              simplification_factor, max_simplification_error, manifest):
-    """[operator] perform meshing for segmentation chunk."""
+    """Perform meshing for segmentation chunk."""
     state['operators'][name] = MeshOperator(
         output_path,
         output_format,
@@ -835,7 +816,7 @@ def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
     'the thumbnail is a downsampled and quantized version of the chunk.')
 @operator
 def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
-    """[operator] Save chunk to volume."""
+    """Save chunk to volume."""
     state['operators'][name] = SaveOperator(
         volume_path,
         state['mip'],
@@ -873,7 +854,7 @@ def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
     help='name of the speedometer')
 @operator
 def cloud_watch(tasks, name, log_name):
-    """[operator] Real time speedometer in AWS CloudWatch."""
+    """Real time speedometer in AWS CloudWatch."""
     state['operators'][name] = CloudWatchOperator(
         log_name=log_name, name=name, verbose=state['verbose'])
     for task in tasks:
@@ -897,7 +878,7 @@ def cloud_watch(tasks, name, log_name):
     help='segmentation chunk name in the global state')
 @operator
 def view(tasks, name, image_chunk_name, segmentation_chunk_name):
-    """[operator] Visualize the chunk using cloudvolume view in browser."""
+    """Visualize the chunk using cloudvolume view in browser."""
     state['operators'][name] = ViewOperator(name=name)
     for task in tasks:
         handle_task_skip(task, name)
@@ -923,7 +904,7 @@ def view(tasks, name, image_chunk_name, segmentation_chunk_name):
     help='port to use')
 @operator
 def neuroglancer(tasks, name, voxel_size, port):
-    """[operator] Visualize the chunk using neuroglancer."""
+    """Visualize the chunk using neuroglancer."""
     state['operators'][name] = NeuroglancerOperator(name=name, port=port, 
                                                     voxel_size=voxel_size)
     for task in tasks:
