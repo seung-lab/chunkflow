@@ -10,12 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
+from os import path
+import re
 import sys
-#sys.path.insert(0, os.path.abspath('.'))
-#sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath('../..'))
-import chunkflow
+sys.path.insert(0, path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
 
@@ -28,7 +26,24 @@ author = 'Jingpeng Wu'
 # built documents.
 #
 # The short X.Y version.
-version = chunkflow.__version__
+VERSIONFILE = "../../chunkflow/__version__.py"
+verstrline = open(VERSIONFILE, "rt").read()
+VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+mo = re.search(VSRE, verstrline, re.M)
+if mo:
+    verstr = mo.group(1)
+else:
+    verstr = '0.0.0'
+
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+# The short X.Y version.
+version = verstr
+# The full version, including alpha/beta/rc tags.
+release = verstr
+
 # The full version, including alpha/beta/rc tags.
 #release = chunkflow.__release__
 

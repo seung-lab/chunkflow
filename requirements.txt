@@ -9,4 +9,5 @@ tifffile
 neuroglancer
 tinybrain
 zmesh
+pybind11
 tifffile
