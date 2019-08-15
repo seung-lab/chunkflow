@@ -1,4 +1,4 @@
-pngs#!/usr/bin/env python
+#!/usr/bin/env python
 import click
 from functools import wraps
 from time import time
