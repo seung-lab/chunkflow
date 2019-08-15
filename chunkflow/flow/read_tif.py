@@ -16,6 +16,7 @@ class ReadTIFOperator(OperatorBase):
             print('read from file: {}'.format(file_name))
 
         _, file_extension = path.splitext(file_name)
+        assert 'tif' in file_extension
         arr = tifffile.imread(file_name)
 
         return Chunk(arr, global_offset=global_offset)

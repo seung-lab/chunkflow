@@ -5,13 +5,12 @@ import os
 import numpy as np
 
 from cloudvolume.lib import save_images
-from chunkflow.chunk import Chunk
 
 
-class SaveImagesOperator(OperatorBase):
+class SavePNGsOperator(OperatorBase):
     def __init__(self,
                  output_path: str = './saved_images/',
-                 name: str = 'save-images',
+                 name: str = 'save-pngs',
                  verbose: bool = True):
         super().__init__(name=name, verbose=verbose)
 
@@ -27,6 +26,7 @@ class SaveImagesOperator(OperatorBase):
         warn('Note that the saved image will be transposed!')
         image = np.transpose(chunk)
 
-        # currently cloudvolume save_images do not work with specific channel for 4D array
+        # currently cloudvolume save_images do not work with specific
+        # channel for 4D array
         # https://github.com/seung-lab/cloud-volume/issues/206
         save_images(image, directory=self.output_path)

@@ -14,6 +14,8 @@ class PatchEngine(object):
 
         # prepare patch mask
         self.mask = PatchMask(patch_size, patch_overlap)
+        # keep a version in cpu for making chunk mask
+        self.mask_numpy = self.mask
 
     def __call__(self, patch: np.ndarray) -> np.ndarray:
         r"""This method should be inherited for real implementation

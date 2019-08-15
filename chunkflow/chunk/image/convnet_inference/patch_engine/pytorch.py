@@ -15,7 +15,6 @@ class PyTorch(PatchEngine):
                  weight_file_name: str,
                  use_batch_norm: bool = True,
                  is_static_batch_norm: bool = False,
-                 output_key: str = 'affinity',
                  num_output_channels: int = 3,
                  mask: np.ndarray = None):
         super().__init__(patch_size, patch_overlap)
@@ -27,46 +26,74 @@ class PyTorch(PatchEngine):
         else:
             self.is_gpu = False
 
-        self.net_source = load_source(model_file_name)
-        self.net = self.net_source.InstantiatedModel
+        net_source = load_source(model_file_name)
+        self.net = net_source.InstantiatedModel
+        #self.net.load(weight_file_name)
+
+        chkpt = torch.load(weight_file_name)
+        state_dict = chkpt['state_dict'] if 'state_dict' in chkpt else chkpt
+        self.net.load_state_dict(state_dict)
+
+        #model_dict = self.net.state_dict()
+        #state_dict = {k:v for k, v in state_dict.items() if k in model_dict}
+        #model_dict.update(state_dict)
+        #self.net.load_state_dict(model_dict)
+        #self.net = self.net.train()
 
         if self.is_gpu:
-            self.net.load_state_dict(torch.load(weight_file_name))
-            self.net.cuda()
+            self.net = self.net.cuda()
             self.net = torch.nn.DataParallel(
                 self.net, device_ids=range(torch.cuda.device_count()))
-        else:
-            self.net.load_state_dict(
-                torch.load(weight_file_name, map_location='cpu'))
+
+        # Print model's state_dict
+        #print("Model's state_dict:")
+        #for param_tensor in self.net.state_dict():
+        #    print(param_tensor, "\t", self.net.state_dict()[param_tensor].size())
 
         if use_batch_norm and is_static_batch_norm:
             self.net.eval()
 
-    def __call__(self, patch):
+        if hasattr(net_source, "pre_process"):
+            self.pre_process = net_source.pre_process
+        else:
+            self.pre_process = self._identity
+
+        if hasattr(net_source, "post_process"):
+            self.post_process = net_source.post_process
+        else:
+            self.post_process = self._identity
+        
+    def _identity(self, patch):
+        return patch
+
+    def __call__(self, input_patch):
         # make sure that the patch is 5d ndarray
-        patch = self._reshape_patch(patch)
+        input_patch = self._reshape_patch(input_patch)
 
         with torch.no_grad():
-            if hasattr(self.net_source, 'pre_process'):
-                patch = self.net_source.pre_process(patch)
-            in_v = torch.from_numpy(patch)
+            input_patch = self.pre_process(input_patch)
+            input_patch = torch.from_numpy(input_patch)
             if self.is_gpu:
-                in_v = in_v.cuda()
-
-            output_v = self.net(in_v)
-            if hasattr(self.net_source, 'post_process'):
-                output_patch = self.net_source.post_process(output_v)
-            else:  # backward compatibility
-                # this net returns a list, but has one output
-                output_v = output_v[0]
-                # the network output do not have sigmoid function
-                output_patch = torch.sigmoid(output_v)
-
+                input_patch = input_patch.cuda()
+            
+            # the network input and output should be dict
+            output_patch = self.net(input_patch)[0]
+            
             # only transfer required channels to cpu
-            output_patch = output_patch[:, 0:self.num_output_channels, :, :]
+            # use narrow function to avoid copy.
+            output_patch = output_patch.narrow(1, 0, self.num_output_channels)
+            output_patch = self.post_process(output_patch)
+            output_patch = torch.sigmoid(output_patch)
+            
+            #import h5py
+            #with h5py.File('/tmp/patch.h5', "w") as f:
+            #    f['main'] = output_patch[0,:,:,:,:].data.cpu().numpy()
+            
             # mask in gpu/cpu
             output_patch *= self.mask
+             
             if self.is_gpu:
                 # transfer to cpu
-                output_patch = output_patch.data.cpu().numpy()
+                output_patch = output_patch.data.cpu()
+            output_patch = output_patch.numpy()
             return output_patch
