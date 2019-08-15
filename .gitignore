@@ -20,4 +20,5 @@ docs/build/
 *generated/
 build/
 data/
+*.so
 tmp/
