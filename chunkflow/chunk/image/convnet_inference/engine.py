@@ -235,8 +235,8 @@ class Engine(object):
                                       self.convnet_model,
                                       self.convnet_weight_path)
         elif self.framework == 'pytorch':
-            from .patch_engine.pytorch import Pytorch
-            self.patch_engine = Pytorch(
+            from .patch_engine.pytorch import PyTorch
+            self.patch_engine = PyTorch(
                 self.patch_size,
                 self.patch_overlap,
                 self.convnet_model,
@@ -245,7 +245,7 @@ class Engine(object):
                 num_output_channels=self.num_output_channels)
         elif self.framework == 'pytorch-multitask':
             # currently only this type of task support mask in device
-            from .patch_engine.pytorch_multitask import PytorchMultitask
+            from .patch_engine.pytorch_multitask import PyTorchMultitask
             self.patch_engine = PytorchMultitask(
                 self.patch_size,
                 self.patch_overlap,
