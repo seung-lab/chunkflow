@@ -1,3 +1,4 @@
+include requirements.txt
 exclude .travis.yml
 exclude dist
 exclude chunkflow.egg-info
