@@ -7,47 +7,12 @@ chunkflow
 
 Chunk operations for large scale 3D image dataset processing
 
-# Introduction
-3D image dataset could be too large to be processed in a single computer, and distributed processing was required. In most cases, the image dataset could be choped to chunks and distributed to computers for processing. This package provide a framework to perform distributed chunk processing for large scale 3D image dataset. For each task in a single machine, it has a few composable chunk operators for flexible real world usage, including convolutional network inference and meshing of segmentation.
+# Motivation
+Benefited from the rapid development of microscopy technologies, we can acquire large scale 3D volumetric datasets with both high resolution and large field of view. These 3D image datasets are too big to be processed in a single computer, and distributed processing is required. In most cases, the image dataset could be choped to chunks with/without overlap and distributed to computers for processing. This package provide a framework to perform distributed chunk processing for large scale 3D image dataset. For each task in a single machine, it has a few composable chunk operators for flexible real world usage.
 
 ## Features
-- Decoupled frontend and backend. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication. 
 - Composable Commandline interface. The chunk operators could be freely composed in commandline for flexible usage. This is also super useful for tests and experiments.
-
-# Usage
-
-## Installation
-This package was registered in PyPi, just run a simple command to install:
-```
-pip install chunkflow
-```
-
-or download and install manually:
-```
-pip install .
-```
-Note that do not install using `python setup.py install` since some packages are not installable using it.
-
-## Run unittest
-```
-python -m unittest
-```
-
-## Get Help
-`chunkflow --help`
-
-get help for commands: `chunkflow command --help`
-
-## Examples
-The commands could be composed and used flexiblly. The first command should be a generator though.
-```
-chunkflow create-chunk view
-chunkflow create-chunk 
-```
-A Typical pipeline to run ConvNet inference is something like:
-```
-chunkflow --verbose fetch-task --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT cutout --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 4 64 64 inference --convnet-model=your-model-name --convnet-weight-path=path/of/net/weight --patch-size 20 256 256 --patch-overlap 4 64 64 --output-key your-output-key --framework='identity' --batch-size 2 crop-margin save --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 4 --create-thumbnail delete-task-in-queue
-```
+- Decoupled frontend and backend. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication. 
 
 ## Some Typical Operators
 - [x] Convolutional Network Inference. Currently, we support [PyTorch](https://pytorch.org) and [pznet](https://github.com/supersergiy/znnphi_interface)

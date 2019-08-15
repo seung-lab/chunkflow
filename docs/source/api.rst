@@ -21,7 +21,7 @@ Image
 
 Flow
 ------------
-.. automodule:: chunkflow.flow.main
+.. automodule:: chunkflow.flow.flow
    :members:
 
 Operators
@@ -62,7 +62,10 @@ Operators
 .. autoclass:: chunkflow.flow.normalize_section_shang.NormalizeSectionShangOperator
    :members:
 
-.. autoclass:: chunkflow.flow.read_file.ReadFileOperator
+.. autoclass:: chunkflow.flow.read_h5.ReadH5Operator
+   :members:
+
+.. autoclass:: chunkflow.flow.read_tif.ReadTIFOperator
    :members:
 
 .. autoclass:: chunkflow.flow.save.SaveOperator
