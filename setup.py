@@ -6,14 +6,16 @@ import re
 import setuptools
 from shutil import move
 
-with open('requirements.txt') as f:
+PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+with open(os.path.join(PACKAGE_DIR, 'requirements.txt')) as f:
     requirements = f.read().splitlines()
     requirements = [l for l in requirements if not l.startswith('#')]
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-VERSIONFILE = "chunkflow/__version__.py"
+VERSIONFILE = os.path.join(PACKAGE_DIR, "chunkflow/__version__.py")
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)
