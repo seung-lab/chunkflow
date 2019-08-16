@@ -15,6 +15,18 @@ import re
 import sys
 sys.path.insert(0, path.abspath('../..'))
 
+# mock some modules
+from unittest.mock import MagicMock
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+MOCK_MODULES = ['waterz', 'libchunkflow']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
+
 # -- Project information -----------------------------------------------------
 
 project = 'chunkflow'
