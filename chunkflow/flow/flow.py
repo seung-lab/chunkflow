@@ -186,7 +186,7 @@ def fetch_task(queue_name, visibility_timeout):
 def create_chunk(tasks, size, dtype, voxel_offset, output_chunk_name):
     """Create a fake chunk for easy test."""
     create_chunk_operator = CreateChunkOperator()
-    print("creating chunk...")
+    print("creating chunk: ", output_chunk_name)
     for task in tasks:
         task[output_chunk_name] = create_chunk_operator(
             size=size, dtype=dtype, voxel_offset=voxel_offset)
@@ -197,7 +197,7 @@ def create_chunk(tasks, size, dtype, voxel_offset, output_chunk_name):
 @click.option(
     '--name', type=str, default='read-tif', help='read tif file from local disk.')
 @click.option(
-    '--file-name',
+    '--file-name', '-f',
     type=click.Path(exists=True, dir_okay=False),
     required=True,
     help='read chunk from file, support .h5 and .tif')
@@ -229,12 +229,12 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
 @click.option(
     '--name', type=str, default='read-h5', help='read file from local disk.')
 @click.option(
-    '--file-name',
+    '--file-name', '-f',
     type=str,
     required=True,
     help='read chunk from file, support .h5 and .tif')
 @click.option(
-    '--dataset-path',
+    '--dataset-path', '-d',
     type=str,
     default='/main',
     help='the dataset path inside HDF5 file.')
@@ -266,7 +266,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
 @main.command('write-h5')
 @click.option('--name', type=str, default='write-h5', help='name of operator')
 @click.option(
-    '--file-name',
+    '--file-name', '-f',
     type=str,
     required=True,
     help='file name of hdf5 file, the extention should be .h5')
@@ -285,7 +285,7 @@ def write_h5(tasks, name, file_name):
 @main.command('write-tif')
 @click.option('--name', type=str, default='write-tif', help='name of operator')
 @click.option(
-    '--file-name',
+    '--file-name', '-f',
     type=str,
     required=True,
     help='file name of tif file, the extention should be .tif or .tiff')
@@ -305,7 +305,7 @@ def write_tif(tasks, name, file_name):
 @click.option(
     '--name', type=str, default='save-pngs', help='name of operator')
 @click.option(
-    '--output-path',
+    '--output-path', '-o',
     type=str,
     default='./saved_pngs/',
     help='output path of saved 2d images formated as png.')
@@ -344,21 +344,25 @@ def delete_task_in_queue(tasks, name):
 @main.command('cutout')
 @click.option(
     '--name', type=str, default='cutout', help='name of this operator')
-@click.option('--volume-path', type=str, required=True, help='volume path')
-@click.option('--mip', type=int, default=None, help='mip level of the cutout.')
+@click.option('--volume-path', '-v', type=str, required=True, help='volume path')
+@click.option('--mip', '-m', type=int, default=None, help='mip level of the cutout.')
 @click.option(
     '--expand-margin-size', '-e',
     type=int,
     nargs=3,
     default=(0, 0, 0),
     help='include surrounding regions of output bounding box.')
+@click.option('--start', '-s', type=int, nargs=3, default=None,
+              help='chunk offset in volume.')
+@click.option('--stop', '-p', type=int, nargs=3, default=None,
+              help='chunk stop coordinate.')
 @click.option(
     '--fill-missing/--no-fill-missing',
     default=False,
     help='fill the missing chunks in input volume with zeros ' +
     'or not, default is false')
 @click.option(
-    '--validate-mip', '-v',
+    '--validate-mip',
     type=int,
     default=None,
     help='validate chunk using higher mip level')
@@ -376,12 +380,14 @@ def delete_task_in_queue(tasks, name):
     ' operators by default operates on a variable named "chunk" but'
     ' sometimes you may need to have a secondary volume to work on.')
 @operator
-def cutout(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
-               validate_mip, blackout_sections, output_chunk_name):
+def cutout(tasks, name, volume_path, mip, start, stop, expand_margin_size, 
+           fill_missing, validate_mip, blackout_sections, output_chunk_name):
     """Cutout chunk from volume."""
+    if mip is None:
+        mip = state['mip']
     state['operators'][name] = CutoutOperator(
         volume_path,
-        mip=state['mip'],
+        mip=mip,
         expand_margin_size=expand_margin_size,
         verbose=state['verbose'],
         fill_missing=fill_missing,
@@ -391,10 +397,20 @@ def cutout(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
 
     for task in tasks:
         handle_task_skip(task, name)
+        if start is None and stop is None:
+            bbox = task['output_bbox']
+        else:
+            # use bounding box of volume
+            if stop is None:
+                stop = state['operators'][name].vol.mip_bounds(mip).maxpt
+            if start is None:
+                start = state['operators'][name].vol.mip_bounds(mip).minpt
+            bbox = Bbox(start, stop)
+
         if not task['skip']:
             start = time()
             assert output_chunk_name not in task
-            task[output_chunk_name] = state['operators'][name](task['output_bbox'])
+            task[output_chunk_name] = state['operators'][name](bbox)
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
         yield task

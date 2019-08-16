@@ -78,9 +78,26 @@ We use CloudVolume_ to perform cutout/saving of chunks in a large scale volumeme
 
 Now you can cutout the image chunk from the volume::
 
-   chunkflow generate-task --offset 0 0 0 --shape 4 64 64 cutout --volume-path file:///tmp/your/key/path write-h5 --file-name /tmp/cutout_chunk.h5
+   chunkflow cutout --volume-path file:///tmp/your/key/path --start 0 0 0 --stop 128 512 512 write-h5 --file-name /tmp/cutout_chunk.h5
 
 .. _CloudVolume: https://github.com/seung-lab/cloud-volume
+
+
+Evaluation of Segmentation
+==========================
+You can read two segmentation volumes and compare them::
+
+   chunkflow read-tif --file-name groundtruth.tif -o gt read-tif --file-name /tmp/segmentation.tif -o seg evaluate-segmentation -g gt -s seg
+
+The result will print out in terminal::
+
+   Rand split: 0.958776
+   Rand merge: 0.978602
+   VOI split: 0.300484
+   VOI merge: 0.143631
+
+Of course, you can replace the `read-tif` operator to other reading operators, such as `read-h5` and `cutout`.
+
 
 Convolutional Network Inference
 ================================
