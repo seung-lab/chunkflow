@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import click
-from functools import wraps
+from functools import wraps, update_wrapper
 from time import time
 import numpy as np
 from cloudvolume.lib import Bbox
@@ -98,6 +98,67 @@ def operator(func):
     return wrapper
 
 
+def generator(func):
+    """Similar to the :func:`operator` but passes through old values unchanged 
+    and does not pass through the values as parameter.
+    """
+
+    @operator
+    def new_func(stream, *args, **kwargs):
+        for item in stream:
+            yield item
+        for item in func(*args, **kwargs):
+            yield item
+
+    return update_wrapper(new_func, func)
+
+
+@main.command('generate-task')
+@click.option(
+    '--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
+@click.option(
+    '--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
+@generator
+def generate_task(offset, shape):
+    """Create a task."""
+    # no queue name specified
+    # will only run one task
+    stop = np.asarray(offset) + np.asarray(shape)
+    output_bbox = Bbox.from_list([*offset, *stop])
+    print("creating task: ", output_bbox.to_filename())
+    task = INITIAL_TASK
+    task['output_bbox'] = output_bbox
+    task['log']['output_bbox'] = output_bbox.to_filename()
+    yield task
+
+
+@main.command('fetch-task')
+@click.option('--queue-name', type=str, default=None, help='sqs queue name')
+@click.option(
+    '--visibility-timeout',
+    type=int,
+    default=None,
+    help=
+    'visibility timeout of sqs queue; default is using the timeout of the queue.'
+)
+@generator
+def fetch_task(queue_name, visibility_timeout):
+    """Fetch task from queue."""
+    # This operator is actually a generator, 
+    # it replaces old tasks to a completely new tasks and loop over it!
+    queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
+    task = INITIAL_TASK
+    task['queue'] = queue
+    for task_handle, output_bbox_str in queue:
+        print('get task: ', output_bbox_str)
+        output_bbox = Bbox.from_filename(output_bbox_str)
+        # record the task handle to delete after the processing
+        task['task_handle'] = task_handle
+        task['output_bbox'] = output_bbox
+        task['log']['output_bbox'] = output_bbox.to_filename()
+        yield task
+
+
 @main.command('create-chunk')
 @click.option(
     '--size',
@@ -190,54 +251,6 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple, 
         task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
                                             global_offset=offset)
         task['log']['timer'][name] = time() - start
-        yield task
-
-
-@main.command('generate-task')
-@click.option(
-    '--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
-@click.option(
-    '--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
-@click.option(
-    '--infinite/--only-one', default=False, help="infinite task for tests")
-@operator
-def generate_task(tasks, offset, shape):
-    """Create a task."""
-    # no queue name specified
-    # will only run one task
-    stop = np.asarray(offset) + np.asarray(shape)
-    output_bbox = Bbox.from_list([*offset, *stop])
-    for task in tasks:
-        task['output_bbox'] = output_bbox
-        task['log']['output_bbox'] = output_bbox.to_filename()
-        yield task
-
-
-@main.command('fetch-task')
-@click.option('--queue-name', type=str, default=None, help='sqs queue name')
-@click.option(
-    '--visibility-timeout',
-    type=int,
-    default=None,
-    help=
-    'visibility timeout of sqs queue; default is using the timeout of the queue.'
-)
-@operator
-def fetch_task(tasks, queue_name, visibility_timeout):
-    """Fetch task from queue."""
-    # This operator is actually a generator, 
-    # it replaces old tasks to a completely new tasks and loop over it!
-    queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
-    task = INITIAL_TASK
-    task['queue'] = queue
-    for task_handle, output_bbox_str in queue:
-        print('get task: ', output_bbox_str)
-        output_bbox = Bbox.from_filename(output_bbox_str)
-        # record the task handle to delete after the processing
-        task['task_handle'] = task_handle
-        task['output_bbox'] = output_bbox
-        task['log'] = {'timer': {}}
-        task['log']['output_bbox'] = output_bbox.to_filename()
         yield task
 
 

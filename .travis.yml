@@ -1,5 +1,6 @@
 language: python 
 python:
+- '3.4'
 - '3.5'
 - '3.6'
 - '3.7-dev'
@@ -14,7 +15,8 @@ install:
 - pip install pytest-cov # to get .coverage report via pytest
 
 script:
-- coverage run --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-h5 --file-name=/tmp/img.h5
+- coverage run --source=./chunkflow chunkflow generate-task
+- coverage run -a --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-h5 --file-name=/tmp/img.h5
 - if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 - coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 - pytest --cov-append --cov=./chunkflow ./tests --verbose
@@ -24,4 +26,4 @@ after_success:
 
 matrix:
   allow_failures:
-  - python: '3.7-dev'
+  - python: '3.4'
