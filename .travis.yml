@@ -15,6 +15,7 @@ install:
 
 script:
 - coverage run --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-h5 --file-name=/tmp/img.h5
+- if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 - coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 - pytest --cov-append --cov=./chunkflow ./tests --verbose
 

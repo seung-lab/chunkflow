@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import click
-from functools import wraps, update_wrapper
+from functools import wraps
 from time import time
 import numpy as np
 from cloudvolume.lib import Bbox
@@ -30,10 +30,7 @@ from .write_tif import WriteTIFOperator
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
-
-
-# initialize task with some default values
-task = {'skip': False, 'log': {'timer': {}}}
+INITIAL_TASK = {'skip': False, 'log': {'timer': {}}}
 
 
 def handle_task_skip(task, name):
@@ -78,8 +75,8 @@ def process_commands(operators, verbose, mip):
     returns a function we can chain them together to feed one 
     into the other, similar to how a pipe on unix works.
     """
-    # Start with an empty iterable
-    stream = ()
+    # It turns out that a tuple will not work correctly! 
+    stream = [INITIAL_TASK,]
 
     # Pipe it through all stream operators.
     for operator in operators:
@@ -93,27 +90,13 @@ def process_commands(operators, verbose, mip):
 
 def operator(func):
     """Help decorator to rewrite a function so that it returns another function from it."""
-    
     @wraps(func)
     def wrapper(*args, **kwargs):
         def operator(stream):
             return func(stream, *args, **kwargs)
         return operator
-
     return wrapper
 
-def generator(func):
-    """Similar to the :func:`operator` but passes through old values unchanged and does not pass through the values as parameter.
-    """
-
-    @operator
-    def new_func(stream, *args, **kwargs):
-        for item in stream:
-            yield item
-        for item in func(*args, **kwargs):
-            yield item
-
-    return update_wrapper(new_func, func)
 
 @main.command('create-chunk')
 @click.option(
@@ -133,13 +116,15 @@ def generator(func):
     nargs=3,
     default=(0, 0, 0),
     help='offset in voxel number.')
-@generator
-def create_chunk(size, dtype, voxel_offset):
+@operator
+def create_chunk(tasks, size, dtype, voxel_offset):
     """Create a fake chunk for easy test."""
     create_chunk_operator = CreateChunkOperator()
-    task['chunk'] = create_chunk_operator(
-        size=size, dtype=dtype, voxel_offset=voxel_offset)
-    yield task
+    print("creating chunk...")
+    for task in tasks:
+        task['chunk'] = create_chunk_operator(
+            size=size, dtype=dtype, voxel_offset=voxel_offset)
+        yield task
 
 
 @main.command('read-tif')
@@ -147,7 +132,7 @@ def create_chunk(size, dtype, voxel_offset):
     '--name', type=str, default='read-tif', help='read tif file from local disk.')
 @click.option(
     '--file-name',
-    type=str,
+    type=click.Path(exists=True, dir_okay=False),
     required=True,
     help='read chunk from file, support .h5 and .tif')
 @click.option(
@@ -161,14 +146,15 @@ def create_chunk(size, dtype, voxel_offset):
     type=str,
     default='chunk',
     help='chunk name in the global state')
-@generator
-def read_file(name, file_name, offset, chunk_name):
+@operator
+def read_tif(tasks, name: str, file_name: str, offset: tuple, chunk_name: str):
     """Read tiff files."""
     read_tif_operator = ReadTIFOperator()
-    start = time()
-    task[chunk_name] = read_tif_operator(file_name, global_offset=offset)
-    task['log']['timer'][name] = time() - start
-    yield task
+    for task in tasks:
+        start = time()
+        task[chunk_name] = read_tif_operator(file_name, global_offset=offset)
+        task['log']['timer'][name] = time() - start
+        yield task
 
 
 @main.command('read-h5')
@@ -195,15 +181,16 @@ def read_file(name, file_name, offset, chunk_name):
     type=str,
     default='chunk',
     help='chunk name in the global state')
-@generator
-def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
+@operator
+def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
     """Read HDF5 files."""
     read_h5_operator = ReadH5Operator()
-    start = time()
-    task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
-                                          global_offset=offset)
-    task['log']['timer'][name] = time() - start
-    yield task
+    for task in tasks:
+        start = time()
+        task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
+                                            global_offset=offset)
+        task['log']['timer'][name] = time() - start
+        yield task
 
 
 @main.command('generate-task')
@@ -211,16 +198,19 @@ def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_n
     '--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
 @click.option(
     '--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
-@generator
-def generate_task(offset, shape):
+@click.option(
+    '--infinite/--only-one', default=False, help="infinite task for tests")
+@operator
+def generate_task(tasks, offset, shape):
     """Create a task."""
     # no queue name specified
     # will only run one task
     stop = np.asarray(offset) + np.asarray(shape)
     output_bbox = Bbox.from_list([*offset, *stop])
-    task['output_bbox'] = output_bbox
-    task['log']['output_bbox'] = output_bbox.to_filename()
-    yield task
+    for task in tasks:
+        task['output_bbox'] = output_bbox
+        task['log']['output_bbox'] = output_bbox.to_filename()
+        yield task
 
 
 @main.command('fetch-task')
@@ -232,10 +222,13 @@ def generate_task(offset, shape):
     help=
     'visibility timeout of sqs queue; default is using the timeout of the queue.'
 )
-@generator
-def fetch_task(queue_name, visibility_timeout):
-    """[generator] Fetch task from queue."""
+@operator
+def fetch_task(tasks, queue_name, visibility_timeout):
+    """Fetch task from queue."""
+    # This operator is actually a generator, 
+    # it replaces old tasks to a completely new tasks and loop over it!
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
+    task = INITIAL_TASK
     task['queue'] = queue
     for task_handle, output_bbox_str in queue:
         print('get task: ', output_bbox_str)
