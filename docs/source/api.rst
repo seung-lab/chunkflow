@@ -71,13 +71,16 @@ Operators
 .. autoclass:: chunkflow.flow.save.SaveOperator
    :members:
 
-.. autoclass:: chunkflow.flow.save_images.SaveImagesOperator
+.. autoclass:: chunkflow.flow.save_pngs.SavePNGsOperator
    :members:
 
 .. autoclass:: chunkflow.flow.view.ViewOperator
    :members:
 
 .. autoclass:: chunkflow.flow.write_h5.WriteH5Operator
+   :members:
+
+.. autoclass:: chunkflow.flow.write_tif.WriteTIFOperator
    :members:
 
 

@@ -13,7 +13,7 @@ class WriteH5Operator(OperatorBase):
         assert '.h5' in file_name
 
         if self.verbose:
-            print('write chunk to file: {}'.format(file_name))
+            print('write chunk to file: ', file_name)
         if os.path.exists(file_name):
             os.remove(file_name)
 

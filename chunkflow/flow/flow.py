@@ -30,10 +30,7 @@ from .write_tif import WriteTIFOperator
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
-
-
-# initialize task with some default values
-task = {'skip': False, 'log': {'timer': {}}}
+INITIAL_TASK = {'skip': False, 'log': {'timer': {}}}
 
 
 def handle_task_skip(task, name):
@@ -78,8 +75,8 @@ def process_commands(operators, verbose, mip):
     returns a function we can chain them together to feed one 
     into the other, similar to how a pipe on unix works.
     """
-    # Start with an empty iterable
-    stream = ()
+    # It turns out that a tuple will not work correctly! 
+    stream = [INITIAL_TASK,]
 
     # Pipe it through all stream operators.
     for operator in operators:
@@ -93,16 +90,13 @@ def process_commands(operators, verbose, mip):
 
 def operator(func):
     """Help decorator to rewrite a function so that it returns another function from it."""
-    
     @wraps(func)
     def wrapper(*args, **kwargs):
         def operator(stream):
-            if stream:
-                for item in stream:
-                    return func(item, *args, **kwargs)
+            return func(stream, *args, **kwargs)
         return operator
-
     return wrapper
+
 
 @main.command('create-chunk')
 @click.option(
@@ -123,12 +117,14 @@ def operator(func):
     default=(0, 0, 0),
     help='offset in voxel number.')
 @operator
-def create_chunk(size, dtype, voxel_offset):
+def create_chunk(tasks, size, dtype, voxel_offset):
     """Create a fake chunk for easy test."""
     create_chunk_operator = CreateChunkOperator()
-    task['chunk'] = create_chunk_operator(
-        size=size, dtype=dtype, voxel_offset=voxel_offset)
-    yield task
+    print("creating chunk...")
+    for task in tasks:
+        task['chunk'] = create_chunk_operator(
+            size=size, dtype=dtype, voxel_offset=voxel_offset)
+        yield task
 
 
 @main.command('read-tif')
@@ -136,7 +132,7 @@ def create_chunk(size, dtype, voxel_offset):
     '--name', type=str, default='read-tif', help='read tif file from local disk.')
 @click.option(
     '--file-name',
-    type=str,
+    type=click.Path(exists=True, dir_okay=False),
     required=True,
     help='read chunk from file, support .h5 and .tif')
 @click.option(
@@ -151,13 +147,14 @@ def create_chunk(size, dtype, voxel_offset):
     default='chunk',
     help='chunk name in the global state')
 @operator
-def read_file(name, file_name, offset, chunk_name):
+def read_tif(tasks, name: str, file_name: str, offset: tuple, chunk_name: str):
     """Read tiff files."""
     read_tif_operator = ReadTIFOperator()
-    start = time()
-    task[chunk_name] = read_tif_operator(file_name, global_offset=offset)
-    task['log']['timer'][name] = time() - start
-    yield task
+    for task in tasks:
+        start = time()
+        task[chunk_name] = read_tif_operator(file_name, global_offset=offset)
+        task['log']['timer'][name] = time() - start
+        yield task
 
 
 @main.command('read-h5')
@@ -185,14 +182,15 @@ def read_file(name, file_name, offset, chunk_name):
     default='chunk',
     help='chunk name in the global state')
 @operator
-def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
+def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
     """Read HDF5 files."""
     read_h5_operator = ReadH5Operator()
-    start = time()
-    task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
-                                          global_offset=offset)
-    task['log']['timer'][name] = time() - start
-    yield task
+    for task in tasks:
+        start = time()
+        task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
+                                            global_offset=offset)
+        task['log']['timer'][name] = time() - start
+        yield task
 
 
 @main.command('generate-task')
@@ -200,16 +198,19 @@ def read_h5(name: str, file_name: str, dataset_path: str, offset: tuple, chunk_n
     '--offset', type=int, nargs=3, default=(0, 0, 0), help='output offset')
 @click.option(
     '--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
+@click.option(
+    '--infinite/--only-one', default=False, help="infinite task for tests")
 @operator
-def generate_task(offset, shape):
+def generate_task(tasks, offset, shape):
     """Create a task."""
     # no queue name specified
     # will only run one task
     stop = np.asarray(offset) + np.asarray(shape)
     output_bbox = Bbox.from_list([*offset, *stop])
-    task['output_bbox'] = output_bbox
-    task['log']['output_bbox'] = output_bbox.to_filename()
-    yield task
+    for task in tasks:
+        task['output_bbox'] = output_bbox
+        task['log']['output_bbox'] = output_bbox.to_filename()
+        yield task
 
 
 @main.command('fetch-task')
@@ -222,9 +223,12 @@ def generate_task(offset, shape):
     'visibility timeout of sqs queue; default is using the timeout of the queue.'
 )
 @operator
-def fetch_task(queue_name, visibility_timeout):
-    """[generator] Fetch task from queue."""
+def fetch_task(tasks, queue_name, visibility_timeout):
+    """Fetch task from queue."""
+    # This operator is actually a generator, 
+    # it replaces old tasks to a completely new tasks and loop over it!
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
+    task = INITIAL_TASK
     task['queue'] = queue
     for task_handle, output_bbox_str in queue:
         print('get task: ', output_bbox_str)
@@ -286,7 +290,7 @@ def write_tif(tasks, name, file_name):
 @operator
 def save_pngs(tasks, name, output_path):
     """Save as 2D PNG images."""
-    state['operators'][name] = SaveImagesOperator(
+    state['operators'][name] = SavePNGsOperator(
         output_path=output_path, name=name)
     for task in tasks:
         handle_task_skip(task, name)
