@@ -21,13 +21,13 @@ class Segmentation(Chunk):
         obj = Chunk(array, global_offset=global_offset, *kwargs).view(cls)
         return obj
 
-    def compare(self, other):
+    def evaluate(self, groundtruth):
         if not np.issubdtype(self.dtype, np.uint64):
             this = self.astype(np.uint64)
         else:
             this = self
 
-        if not np.issubdtype(other.dtype, np.uint64):
-            other = other.astype(np.uint64)
+        if not np.issubdtype(groundtruth.dtype, np.uint64):
+            groundtruth = groundtruth.astype(np.uint64)
 
-        return evaluate(this, other)
+        return evaluate(this, groundtruth)
