@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import click
-from functools import wraps, update_wrapper
+from functools import wraps
 from time import time
 import numpy as np
 from cloudvolume.lib import Bbox
@@ -30,7 +30,7 @@ from .write_tif import WriteTIFOperator
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
-
+INITIAL_TASK = {'skip': False, 'log': {'timer': {}}}
 
 
 def handle_task_skip(task, name):
@@ -75,8 +75,8 @@ def process_commands(operators, verbose, mip):
     returns a function we can chain them together to feed one 
     into the other, similar to how a pipe on unix works.
     """
-    # initialize task with some default values
-    stream = ({'skip': False, 'log': {'timer': {}}},)
+    # It turns out that a tuple will not work correctly! 
+    stream = [INITIAL_TASK,]
 
     # Pipe it through all stream operators.
     for operator in operators:
@@ -90,31 +90,12 @@ def process_commands(operators, verbose, mip):
 
 def operator(func):
     """Help decorator to rewrite a function so that it returns another function from it."""
-    
     @wraps(func)
     def wrapper(*args, **kwargs):
         def operator(stream):
-            for item in stream:
-                breakpoint()
-                yield func(item, *tuple(kwargs.values()))
+            return func(stream, *args, **kwargs)
         return operator
-
     return wrapper
-
-
-def generator(func):
-    """Similar to the :func:`operator` but passes through old values unchanged and does not pass through the values as parameter.
-    """
-
-    @operator
-    def new_func(stream, *args, **kwargs):
-        breakpoint()
-        for item in stream:
-            yield item
-        for item in func(stream, *args, **kwargs):
-            yield item
-
-    return update_wrapper(new_func, func)
 
 
 @main.command('create-chunk')
@@ -136,13 +117,14 @@ def generator(func):
     default=(0, 0, 0),
     help='offset in voxel number.')
 @operator
-def create_chunk(task, size, dtype, voxel_offset):
+def create_chunk(tasks, size, dtype, voxel_offset):
     """Create a fake chunk for easy test."""
     create_chunk_operator = CreateChunkOperator()
     print("creating chunk...")
-    task['chunk'] = create_chunk_operator(
-        size=size, dtype=dtype, voxel_offset=voxel_offset)
-    yield task
+    for task in tasks:
+        task['chunk'] = create_chunk_operator(
+            size=size, dtype=dtype, voxel_offset=voxel_offset)
+        yield task
 
 
 @main.command('read-tif')
@@ -165,13 +147,14 @@ def create_chunk(task, size, dtype, voxel_offset):
     default='chunk',
     help='chunk name in the global state')
 @operator
-def read_file(task: dict, name: str, file_name: str, offset: tuple, chunk_name: str):
+def read_tif(tasks, name: str, file_name: str, offset: tuple, chunk_name: str):
     """Read tiff files."""
     read_tif_operator = ReadTIFOperator()
-    start = time()
-    task[chunk_name] = read_tif_operator(file_name, global_offset=offset)
-    task['log']['timer'][name] = time() - start
-    yield task
+    for task in tasks:
+        start = time()
+        task[chunk_name] = read_tif_operator(file_name, global_offset=offset)
+        task['log']['timer'][name] = time() - start
+        yield task
 
 
 @main.command('read-h5')
@@ -199,14 +182,15 @@ def read_file(task: dict, name: str, file_name: str, offset: tuple, chunk_name: 
     default='chunk',
     help='chunk name in the global state')
 @operator
-def read_h5(task: dict, name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
+def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
     """Read HDF5 files."""
     read_h5_operator = ReadH5Operator()
-    start = time()
-    task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
-                                        global_offset=offset)
-    task['log']['timer'][name] = time() - start
-    yield task
+    for task in tasks:
+        start = time()
+        task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
+                                            global_offset=offset)
+        task['log']['timer'][name] = time() - start
+        yield task
 
 
 @main.command('generate-task')
@@ -216,16 +200,17 @@ def read_h5(task: dict, name: str, file_name: str, dataset_path: str, offset: tu
     '--shape', type=int, nargs=3, default=(0, 0, 0), help='output shape')
 @click.option(
     '--infinite/--only-one', default=False, help="infinite task for tests")
-@generator
-def generate_task(task, offset, shape):
+@operator
+def generate_task(tasks, offset, shape):
     """Create a task."""
     # no queue name specified
     # will only run one task
     stop = np.asarray(offset) + np.asarray(shape)
     output_bbox = Bbox.from_list([*offset, *stop])
-    task['output_bbox'] = output_bbox
-    task['log']['output_bbox'] = output_bbox.to_filename()
-    yield task
+    for task in tasks:
+        task['output_bbox'] = output_bbox
+        task['log']['output_bbox'] = output_bbox.to_filename()
+        yield task
 
 
 @main.command('fetch-task')
@@ -237,10 +222,13 @@ def generate_task(task, offset, shape):
     help=
     'visibility timeout of sqs queue; default is using the timeout of the queue.'
 )
-@generator
-def fetch_task(task, queue_name, visibility_timeout):
+@operator
+def fetch_task(tasks, queue_name, visibility_timeout):
     """Fetch task from queue."""
+    # This operator is actually a generator, 
+    # it replaces old tasks to a completely new tasks and loop over it!
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
+    task = INITIAL_TASK
     task['queue'] = queue
     for task_handle, output_bbox_str in queue:
         print('get task: ', output_bbox_str)
