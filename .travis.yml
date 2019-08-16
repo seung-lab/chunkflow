@@ -1,6 +1,5 @@
 language: python 
 python:
-- '3.4'
 - '3.5'
 - '3.6'
 - '3.7-dev'
@@ -19,6 +18,7 @@ install:
 
 script:
 - coverage run --source=./chunkflow chunkflow generate-task
+- coverage run --source=./chunkflow chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
 - coverage run -a --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 read-h5 --file-name=/tmp/img.h5
 - if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 - coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
@@ -27,6 +27,6 @@ script:
 after_success:
 - coveralls 
 
-matrix:
-  allow_failures:
-  - python: '3.4'
+  #matrix:
+  #  allow_failures:
+  #  - python: '3.4'

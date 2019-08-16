@@ -6,6 +6,8 @@ import numpy as np
 from cloudvolume.lib import Bbox
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
+from chunkflow.chunk.segmentation import Segmentation 
+
 
 # import operator functions
 from .cloud_watch import CloudWatchOperator
@@ -177,13 +179,16 @@ def fetch_task(queue_name, visibility_timeout):
     nargs=3,
     default=(0, 0, 0),
     help='offset in voxel number.')
+@click.option(
+    '--output-chunk-name', '-o',
+    type = str, default="chunk", help="name of created chunk")
 @operator
-def create_chunk(tasks, size, dtype, voxel_offset):
+def create_chunk(tasks, size, dtype, voxel_offset, output_chunk_name):
     """Create a fake chunk for easy test."""
     create_chunk_operator = CreateChunkOperator()
     print("creating chunk...")
     for task in tasks:
-        task['chunk'] = create_chunk_operator(
+        task[output_chunk_name] = create_chunk_operator(
             size=size, dtype=dtype, voxel_offset=voxel_offset)
         yield task
 
@@ -203,17 +208,19 @@ def create_chunk(tasks, size, dtype, voxel_offset):
     callback=default_none,
     help='global offset of this chunk')
 @click.option(
-    '--chunk-name',
+    '--output-chunk-name', '-o',
     type=str,
     default='chunk',
     help='chunk name in the global state')
 @operator
-def read_tif(tasks, name: str, file_name: str, offset: tuple, chunk_name: str):
+def read_tif(tasks, name: str, file_name: str, offset: tuple, 
+             output_chunk_name: str):
     """Read tiff files."""
     read_tif_operator = ReadTIFOperator()
     for task in tasks:
         start = time()
-        task[chunk_name] = read_tif_operator(file_name, global_offset=offset)
+        assert output_chunk_name not in task
+        task[output_chunk_name] = read_tif_operator(file_name, global_offset=offset)
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -238,18 +245,20 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple, chunk_name: str):
     callback=default_none,
     help='global offset of this chunk')
 @click.option(
-    '--chunk-name',
+    '--output-chunk-name', '-o',
     type=str,
     default='chunk',
     help='chunk name in the global state')
 @operator
-def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple, chunk_name: str):
+def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple, 
+            output_chunk_name: str):
     """Read HDF5 files."""
     read_h5_operator = ReadH5Operator()
     for task in tasks:
         start = time()
-        task[chunk_name] = read_h5_operator(file_name, dataset_path=dataset_path, 
-                                            global_offset=offset)
+        assert output_chunk_name not in task
+        task[output_chunk_name] = read_h5_operator(
+            file_name, dataset_path=dataset_path, global_offset=offset)
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -338,7 +347,7 @@ def delete_task_in_queue(tasks, name):
 @click.option('--volume-path', type=str, required=True, help='volume path')
 @click.option('--mip', type=int, default=None, help='mip level of the cutout.')
 @click.option(
-    '--expand-margin-size',
+    '--expand-margin-size', '-e',
     type=int,
     nargs=3,
     default=(0, 0, 0),
@@ -349,7 +358,7 @@ def delete_task_in_queue(tasks, name):
     help='fill the missing chunks in input volume with zeros ' +
     'or not, default is false')
 @click.option(
-    '--validate-mip',
+    '--validate-mip', '-v',
     type=int,
     default=None,
     help='validate chunk using higher mip level')
@@ -360,7 +369,7 @@ def delete_task_in_queue(tasks, name):
     'the section ids json file should named blackout_section_ids.json.' +
     'default is False.')
 @click.option(
-    '--chunk-name',
+    '--output-chunk-name', '-o',
     type=str,
     default='chunk',
     help='Variable name to store the cutout to for later retrieval. Chunkflow'
@@ -368,7 +377,7 @@ def delete_task_in_queue(tasks, name):
     ' sometimes you may need to have a secondary volume to work on.')
 @operator
 def cutout(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
-               validate_mip, blackout_sections, chunk_name):
+               validate_mip, blackout_sections, output_chunk_name):
     """Cutout chunk from volume."""
     state['operators'][name] = CutoutOperator(
         volume_path,
@@ -384,9 +393,28 @@ def cutout(tasks, name, volume_path, mip, expand_margin_size, fill_missing,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[chunk_name] = state['operators'][name](task['output_bbox'])
+            assert output_chunk_name not in task
+            task[output_chunk_name] = state['operators'][name](task['output_bbox'])
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
+        yield task
+
+
+@main.command('evaluate-segmentation')
+@click.option(
+    '--name', type=str, default="evaluate-segmentation", help="name of operator")
+@click.option(
+    "--segmentation-chunk-name", "-s", type=str, default="chunk", 
+    help="chunk name of segmentation")
+@click.option(
+    "--groundtruth-chunk-name", "-g", type=str, default="groundtruth")
+@operator
+def evaluate_segmenation(tasks, name, segmentation_chunk_name, 
+                         groundtruth_chunk_name):
+    for task in tasks:
+        seg = Segmentation(task[segmentation_chunk_name])
+        gt = Segmentation(task[groundtruth_chunk_name])
+        seg.evaluate(gt)
         yield task
 
 
