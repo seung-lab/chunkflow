@@ -4,6 +4,7 @@
 *.swp
 *.dat
 *.sh
+*.so
 *secret.json
 .coverage
 dist/
