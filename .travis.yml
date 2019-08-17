@@ -1,37 +1,33 @@
-language: python 
+language: python
 python:
 - '3.5'
 - '3.6'
-- '3.7-dev'
-
+- 3.7-dev
 install:
 - sudo find /usr -name '*.pyc' -delete
-# numpy have to be installed using pip, otherwise there is an error using neuroglancer
 - sudo apt update
 - pip install .
-- python setup.py install  
+- python setup.py install
 - pip install pytest
 - pip install coveralls
-- pip install pytest-cov # to get .coverage report via pytest
-
+- pip install pytest-cov
 script:
 - coverage run --source=./chunkflow chunkflow generate-task
-- coverage run --source=./chunkflow chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
-- coverage run -a --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 
+- coverage run --source=./chunkflow chunkflow create-chunk -o seg create-chunk -o
+  gt evaluate-segmentation -s seg -g gt
+- coverage run -a --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5
 - if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 - coverage run -a --source=./chunkflow chunkflow read-h5 --file-name=/tmp/img.h5
-- coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
+- coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference
+  --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 - pytest --cov-append --cov=./chunkflow ./tests --verbose
-
 after_success:
-- coveralls 
-
-  #matrix:
-  #  allow_failures:
-  #  - python: '3.4'
-  #
+- coveralls
 deploy:
   provider: pypi
+  user: jingpengw
+  password:
+    secure: JxxmWSXvpKte2Imkf3pNHbMf3WuqRUTPv5/aA1N2BL1reF7NDe+ZvSQejO3Ft5q/bs/cteh/1VvAjEBboWECqy01BnR7SemOS9TkQLSiSPxB/TnUp+YD3tSULxaMXC7dS0yX3hxSG+ZtQyLWdcPHmneWL251NYQHr1ErIidr0BSRezbVb9BE4E2paGO+ypyTQCzYcHL9inlRrkMjWkgtfrlz0UT9cRlQYQHaU/uAw6q4VogetuF1oCt+QmDpfrUAQpsx5IA6mjlqqVmZNRYe38tK7QSEA8hfdTjOgNpFqeyFtmXn7k8zoRNwcZt7d96zcnAMlZLU4bLgnfqw6GppXKVgt+hr1a/HSm44s3A4HUCwQuCr5y7C0hbCWW0Jqn7oPFwtnHbCww0yoNqMN9p+wXc5CI8o82o3BsqIYlAMemz26FdR13OdZ5/ubpadLaQt5cSaO5G8TC6R1AFCR6j5aZnB2lSCR6iHKvtNEJ0lZVRf5iUQmXl91K3WJA9YqyFE3D9eGqBnul4M52LDPXRypWFFQSP33mUnqPQ65PvH6LIUYA2Vluid5GqHuLnIEghmzjt3s8XdKK+rTmBn6CxTpp0/wK4PmYEhYL+LzjFdbE71hyEf3+1Jg9oQfKaITWg3wIkvD8+QCkjh4PGtipe9xk9x882QjuSoyJt71xJHs50=
   on:
     tags: true
-  distributions: "sdist bdist_wheel"
+  distributions: sdist bdist_wheel
