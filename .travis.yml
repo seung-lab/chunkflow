@@ -26,6 +26,6 @@ script:
 after_success:
 - coveralls 
 
-  #matrix:
-  #  allow_failures:
-  #  - python: '3.4'
+#matrix:
+#  allow_failures:
+#  - python: '3.4'
