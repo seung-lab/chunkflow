@@ -29,3 +29,9 @@ after_success:
   #matrix:
   #  allow_failures:
   #  - python: '3.4'
+  #
+deploy:
+  provider: pypi
+  on:
+    tags: true
+  distributions: "sdist bdist_wheel"
