@@ -8,8 +8,6 @@ install:
 - sudo find /usr -name '*.pyc' -delete
 # numpy have to be installed using pip, otherwise there is an error using neuroglancer
 - sudo apt update
-# the waterz package need boost multiarray
-- sudo apt install libboost-dev
 - pip install .
 - python setup.py install  
 - pip install pytest
