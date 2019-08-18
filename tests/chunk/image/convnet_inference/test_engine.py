@@ -10,21 +10,20 @@ def test_aligned_input_chunk():
     patch_overlap = (4, 64, 64)
     num_output_channels = 2
 
-    block_inference_engine = Engine(
-        None,
-        None,
-        patch_size=patch_size,
-        patch_overlap=patch_overlap,
-        num_output_channels=num_output_channels,
-        framework='identity',
-        batch_size=5,
-        mask_output_chunk=False)
+    block_inference_engine = Engine(None,
+                                    None,
+                                    patch_size=patch_size,
+                                    patch_overlap=patch_overlap,
+                                    num_output_channels=num_output_channels,
+                                    framework='identity',
+                                    batch_size=5,
+                                    mask_output_chunk=False)
 
-    image = np.random.randint(
-        1,
-        255,
-        size=(28 * 2 + 4, (256 - 64) * 2 + 64, (256 - 64) * 2 + 64),
-        dtype=np.uint8)
+    image = np.random.randint(1,
+                              255,
+                              size=(28 * 2 + 4, (256 - 64) * 2 + 64,
+                                    (256 - 64) * 2 + 64),
+                              dtype=np.uint8)
     image = Chunk(image)
     output = block_inference_engine(image)
     # only use the first channel to check correctness
@@ -50,22 +49,20 @@ def test_non_aligned_input_chunk():
     patch_overlap = (4, 64, 64)
     num_output_channels = 2
 
-    block_inference_engine = Engine(
-        None,
-        None,
-        patch_size=patch_size,
-        patch_overlap=patch_overlap,
-        num_output_channels=num_output_channels,
-        batch_size=5,
-        framework='identity',
-        mask_output_chunk=True)
+    block_inference_engine = Engine(None,
+                                    None,
+                                    patch_size=patch_size,
+                                    patch_overlap=patch_overlap,
+                                    num_output_channels=num_output_channels,
+                                    batch_size=5,
+                                    framework='identity',
+                                    mask_output_chunk=True)
 
-    image = np.random.randint(
-        1,
-        255,
-        size=(28 * 2 + 4 + 6, (256 - 64) * 2 + 64 + 7,
-              (256 - 64) * 2 + 64 + 9),
-        dtype=np.uint8)
+    image = np.random.randint(1,
+                              255,
+                              size=(28 * 2 + 4 + 6, (256 - 64) * 2 + 64 + 7,
+                                    (256 - 64) * 2 + 64 + 9),
+                              dtype=np.uint8)
     image = Chunk(image)
     output = block_inference_engine(image)
     # only use the first channel to check correctness

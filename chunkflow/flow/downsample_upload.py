@@ -17,7 +17,6 @@ class DownsampleUploadOperator(OperatorBase):
     Image: uint8, floating
     Segmentation: uint16, uint32, uint64,...
     """
-
     def __init__(self,
                  volume_path: str,
                  input_mip: int = 0,
@@ -37,13 +36,12 @@ class DownsampleUploadOperator(OperatorBase):
 
         vols = dict()
         for mip in range(start_mip, stop_mip):
-            vols[mip] = CloudVolume(
-                volume_path,
-                fill_missing=fill_missing,
-                bounded=False,
-                autocrop=True,
-                mip=mip,
-                progress=verbose)
+            vols[mip] = CloudVolume(volume_path,
+                                    fill_missing=fill_missing,
+                                    bounded=False,
+                                    autocrop=True,
+                                    mip=mip,
+                                    progress=verbose)
 
         self.vols = vols
         self.input_mip = input_mip
@@ -60,11 +58,13 @@ class DownsampleUploadOperator(OperatorBase):
         chunk2 = np.reshape(chunk2, (*chunk2.shape, 1))
 
         if np.issubdtype(chunk.dtype, np.floating) or chunk.dtype == np.uint8:
-            pyramid = tinybrain.downsample_with_averaging(
-                chunk2, factor=(2, 2, 1), num_mips=num_mips)
+            pyramid = tinybrain.downsample_with_averaging(chunk2,
+                                                          factor=(2, 2, 1),
+                                                          num_mips=num_mips)
         else:
-            pyramid = tinybrain.downsample_segmentation(
-                chunk2, factor=(2, 2, 1), num_mips=num_mips)
+            pyramid = tinybrain.downsample_segmentation(chunk2,
+                                                        factor=(2, 2, 1),
+                                                        num_mips=num_mips)
 
         for mip in range(self.start_mip, self.stop_mip):
             downsampled_chunk = pyramid[mip - self.input_mip]

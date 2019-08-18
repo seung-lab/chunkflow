@@ -2,7 +2,12 @@ language: python
 python:
 - '3.5'
 - '3.6'
-- 3.7-dev
+
+matrix:
+  include:
+    - python: "3.7"
+      dist: xenial  # required for Python >= 3.7 (travis-ci/travis-ci#9069)
+
 install:
 - sudo find /usr -name '*.pyc' -delete
 - sudo apt update
@@ -25,6 +30,7 @@ after_success:
 - coveralls
 deploy:
   provider: pypi
+  skip_existing: false
   user: jingpengw
   password:
     secure: CZ6IGaVJX+nSZ2mb9U4VMo72ivjtlMQpWONM+VkmbcS85bqAcX58cjaEoD1cZd2e2Bpf6BZVfq+K5BE7I1GsSzQDCFDmT3xRqDLtwF/9S9PU9OfQfbgwuH7kjDMQu9K5e5M8+/JTTECjeU3e7uwskJrdf6qg6vNzcoyhZi6mTR4K0g9hq12eaPYAx07ZoBTJzO8dM7mhLA9IsNGAc7PjSpuwbLy1kzWN+icLZiYnMcVs3FCCSN5Xegyye0h74Mc3n3kopOQiVLXTRTlYlQm9Y3SHp5tRcsCm2/2g/lKaJRsQlncZMd91s01fkJv6TWUXZR3NyxefQUNhB/rQeNIeGc81ppWN2DCmcrDWoQw7sA/B63M0u5Oaw5uvu7u+zF3QDjMe+1MgxA9AxQkno4X6h1xXBuMViSmoyP+mhyJiN8clQYO4wHGyc0VMi7W0o+YWn7jiUZxy8VHAD1FAsBGi3URIpvErODeNbQsDciaZiixA/3pvrSeN3JdMQqtQ5gzqegB3arVetupXbmyk0jmCIUEAxfw3KC+6kURVWNGW7M0p7A6QPo6H4tXtopMGK2MRc/deRfSo6LjHrmGK16QdEdPAaieuWRVbHDjoAXyUxQlGB91v4Rk04/aS7vu5xurrJGp35VPRavRpg5vKPzEPPPi7UHCjQfo4bUYBainUzw8=

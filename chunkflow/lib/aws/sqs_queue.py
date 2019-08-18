@@ -6,7 +6,6 @@ from cloudvolume.secrets import aws_credentials
 
 class SQSQueue(object):
     """upload/fetch messages using AWS Simple Queue Services."""
-
     def __init__(self,
                  queue_name: str,
                  visibility_timeout: int = None,
@@ -92,12 +91,12 @@ class SQSQueue(object):
         receipt_handle:
             a random string as a handle of the message in queue.
         """
-        self.client.delete_message(
-            QueueUrl=self.queue_url, ReceiptHandle=receipt_handle)
+        self.client.delete_message(QueueUrl=self.queue_url,
+                                   ReceiptHandle=receipt_handle)
 
     def _send_entry_list(self, entry_list: list):
-        resp = self.client.send_message_batch(
-            QueueUrl=self.queue_url, Entries=entry_list)
+        resp = self.client.send_message_batch(QueueUrl=self.queue_url,
+                                              Entries=entry_list)
         # the failed list should be empty
         assert 'Failed' not in resp
         entry_list.clear()

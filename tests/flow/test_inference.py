@@ -11,14 +11,13 @@ def test_inference():
     patch_size = (10, 128, 128)
 
     image = CreateChunkOperator()(size=input_size, dtype='uint8')
-    inference_operator = InferenceOperator(
-        None,
-        None,
-        patch_size=patch_size,
-        output_key='affinity',
-        num_output_channels=3,
-        patch_overlap=patch_overlap,
-        framework='identity')
+    inference_operator = InferenceOperator(None,
+                                           None,
+                                           patch_size=patch_size,
+                                           output_key='affinity',
+                                           num_output_channels=3,
+                                           patch_overlap=patch_overlap,
+                                           framework='identity')
     output = inference_operator(image)
 
     # ignore the cropping region

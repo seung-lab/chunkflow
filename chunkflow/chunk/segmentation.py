@@ -9,7 +9,6 @@ class Segmentation(Chunk):
     """
     a chunk of segmentation volume.
     """
-
     def __new__(cls, array, **kwargs):
         if 'global_offset' in kwargs:
             global_offset = kwargs['global_offset']

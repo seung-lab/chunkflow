@@ -5,8 +5,11 @@ from .base import OperatorBase
 
 
 class NeuroglancerOperator(OperatorBase):
-    def __init__(self, name: str = 'neuroglancer', verbose: bool = True,
-                 port: int=None, voxel_size: tuple=(1,1,1)):
+    def __init__(self,
+                 name: str = 'neuroglancer',
+                 verbose: bool = True,
+                 port: int = None,
+                 voxel_size: tuple = (1, 1, 1)):
         super().__init__(name=name, verbose=verbose)
         self.port = port
         self.voxel_size = voxel_size
@@ -15,7 +18,8 @@ class NeuroglancerOperator(OperatorBase):
         """
         chunks: (list/tuple) multiple chunks 
         """
-        ng.set_static_content_source(url='https://neuromancer-seung-import.appspot.com') 
+        ng.set_static_content_source(
+            url='https://neuromancer-seung-import.appspot.com')
         ng.set_server_bind_address(bind_port=self.port)
         viewer = ng.Viewer()
 
@@ -43,7 +47,7 @@ class NeuroglancerOperator(OperatorBase):
 
 
 def get_shader(chunk):
-    if chunk.ndim == 3 or chunk.shape[0]==1:
+    if chunk.ndim == 3 or chunk.shape[0] == 1:
         # this is a image
         return """void main() {
     emitGrayscale(toNormalized(getDataValue()));

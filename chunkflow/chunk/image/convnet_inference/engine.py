@@ -17,7 +17,6 @@ class Engine(object):
         Engine
     convnet inference for a whole block. the patches should aligned with the block size.
     """
-
     def __init__(self,
                  convnet_model: str,
                  convnet_weight_path: str,
@@ -80,11 +79,10 @@ class Engine(object):
         """
         self.patch_slice_list = []
         # the step is the stride, so the end of aligned patch is input_size - patch_overlap
-        for oz in tqdm(
-                range(0, self.input_size[0] - self.patch_overlap[0],
-                      self.stride[0]),
-                disable=not self.verbose,
-                desc='ConvNet Inferece: '):
+        for oz in tqdm(range(0, self.input_size[0] - self.patch_overlap[0],
+                             self.stride[0]),
+                       disable=not self.verbose,
+                       desc='ConvNet Inferece: '):
             if oz + self.patch_size[0] > self.input_size[0]:
                 oz = self.input_size[0] - self.patch_size[0]
                 assert oz >= 0
@@ -113,7 +111,8 @@ class Engine(object):
         self.output_chunk_mask = np.zeros(self.input_size[-3:], np.float32)
         for patch_slices in self.patch_slice_list:
             # accumulate weights using the patch mask in RAM
-            self.output_chunk_mask[patch_slices] += self.patch_engine.mask_numpy
+            self.output_chunk_mask[
+                patch_slices] += self.patch_engine.mask_numpy
         # normalize weight, so accumulated inference result multiplies
         # this mask will result in 1
         self.output_chunk_mask = 1.0 / self.output_chunk_mask
@@ -165,10 +164,9 @@ class Engine(object):
             chunk_time_start = time.time()
 
         # iterate the offset list
-        for i in tqdm(
-                range(0, len(self.patch_slice_list), self.batch_size),
-                disable=not self.verbose,
-                desc='ConvNet Inference ...'):
+        for i in tqdm(range(0, len(self.patch_slice_list), self.batch_size),
+                      disable=not self.verbose,
+                      desc='ConvNet Inference ...'):
             if self.verbose:
                 start = time.time()
 
@@ -186,7 +184,7 @@ class Engine(object):
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
             output_patch = self.patch_engine(self.input_patch_buffer)
-            
+
             if self.verbose:
                 assert output_patch.ndim == 5
                 end = time.time()
@@ -199,9 +197,8 @@ class Engine(object):
                 # the remaining channels are dropped
                 output_buffer[(
                     (slice(self.num_output_channels)),
-                    *slices)] += output_patch[batch_idx, 
-                                              :self.num_output_channels, 
-                                              :, :, :]
+                    *slices)] += output_patch[batch_idx, :self.
+                                              num_output_channels, :, :, :]
 
             if self.verbose:
                 end = time.time()
@@ -210,13 +207,13 @@ class Engine(object):
         if self.verbose:
             print("Inference of whole chunk takes %3f sec" %
                   (time.time() - chunk_time_start))
-        
+
         #import h5py
         #with h5py.File('/tmp/output_buffer.h5', "w") as f:
         #    f['main'] = output_buffer
         #with h5py.File('/tmp/output_chunk_mask.h5', "w") as f:
         #    f['main'] = self.output_chunk_mask
-        #breakpoint() 
+        #breakpoint()
 
         if self.mask_output_chunk:
             output_buffer *= self.output_chunk_mask
@@ -232,8 +229,8 @@ class Engine(object):
     def _create_output_buffer(self, input_chunk):
         output_buffer = np.zeros(
             (self.num_output_channels, ) + input_chunk.shape, dtype=np.float32)
-        return Chunk(
-            output_buffer, global_offset=(0, ) + input_chunk.global_offset)
+        return Chunk(output_buffer,
+                     global_offset=(0, ) + input_chunk.global_offset)
 
     def _prepare_patch_engine(self):
         # prepare for inference

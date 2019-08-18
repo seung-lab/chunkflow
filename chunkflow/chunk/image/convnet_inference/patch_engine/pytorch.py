@@ -36,8 +36,9 @@ class PyTorch(PatchEngine):
 
         if self.is_gpu:
             self.net = self.net.cuda()
-            self.net = torch.nn.DataParallel(
-                self.net, device_ids=range(torch.cuda.device_count()))
+            self.net = torch.nn.DataParallel(self.net,
+                                             device_ids=range(
+                                                 torch.cuda.device_count()))
 
         # Print model's state_dict
         #print("Model's state_dict:")
@@ -56,7 +57,7 @@ class PyTorch(PatchEngine):
             self.post_process = net_source.post_process
         else:
             self.post_process = self._identity
-        
+
     def _identity(self, patch):
         return patch
 
@@ -69,7 +70,7 @@ class PyTorch(PatchEngine):
             input_patch = torch.from_numpy(input_patch)
             if self.is_gpu:
                 input_patch = input_patch.cuda()
-            
+
             # the network input and output should be dict
             output_patch = self.net(input_patch)
 
@@ -78,14 +79,14 @@ class PyTorch(PatchEngine):
             output_patch = self.post_process(output_patch)
             #output_patch = output_patch.narrow(1, 0, self.num_output_channels)
             #output_patch = torch.sigmoid(output_patch)
-            
+
             #import h5py
             #with h5py.File('/tmp/patch.h5', "w") as f:
             #    f['main'] = output_patch[0,:,:,:,:].data.cpu().numpy()
-            
+
             # mask in gpu/cpu
             output_patch *= self.mask
-             
+
             if self.is_gpu:
                 # transfer to cpu
                 output_patch = output_patch.data.cpu()

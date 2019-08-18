@@ -27,13 +27,12 @@ class CutoutOperator(OperatorBase):
         self.validate_mip = validate_mip
         self.blackout_sections = blackout_sections
 
-        self.vol = CloudVolume(
-            self.volume_path,
-            bounded=False,
-            fill_missing=self.fill_missing,
-            progress=self.verbose,
-            mip=self.mip,
-            parallel=False)
+        self.vol = CloudVolume(self.volume_path,
+                               bounded=False,
+                               fill_missing=self.fill_missing,
+                               progress=self.verbose,
+                               mip=self.mip,
+                               parallel=False)
 
         if blackout_sections:
             with Storage(volume_path) as stor:
@@ -41,13 +40,12 @@ class CutoutOperator(OperatorBase):
                     'blackout_section_ids.json')['section_ids']
 
         if self.validate_mip:
-            self.validate_vol = CloudVolume(
-                self.volume_path,
-                bounded=False,
-                fill_missing=self.fill_missing,
-                progress=self.verbose,
-                mip=self.validate_mip,
-                parallel=False)
+            self.validate_vol = CloudVolume(self.volume_path,
+                                            bounded=False,
+                                            fill_missing=self.fill_missing,
+                                            progress=self.verbose,
+                                            mip=self.validate_mip,
+                                            parallel=False)
 
     def __call__(self, output_bbox):
 
@@ -120,8 +118,8 @@ class CutoutOperator(OperatorBase):
 
         # factor3 follows xyz order in CloudVolume
         factor3 = np.array([
-            2**(self.validate_mip - chunk_mip), 2**
-            (self.validate_mip - chunk_mip), 1
+            2**(self.validate_mip - chunk_mip), 2
+            **(self.validate_mip - chunk_mip), 1
         ],
                            dtype=np.int32)
         clamped_offset = tuple(go + f - (go - vo) % f for go, vo, f in zip(
@@ -137,8 +135,9 @@ class CutoutOperator(OperatorBase):
         # transform to xyz order
         clamped_input = np.transpose(clamped_input)
         # get the corresponding bounding box for validation
-        validate_bbox = self.vol.bbox_to_mip(
-            clamped_bbox, mip=chunk_mip, to_mip=self.validate_mip)
+        validate_bbox = self.vol.bbox_to_mip(clamped_bbox,
+                                             mip=chunk_mip,
+                                             to_mip=self.validate_mip)
         #validate_bbox = clamped_bbox // factor3
 
         # downsample the input using avaraging

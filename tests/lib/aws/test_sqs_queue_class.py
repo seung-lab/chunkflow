@@ -9,8 +9,9 @@ class TestSQSQueue(unittest.TestCase):
         # use small fetch_wait_time_seconds to make the test faster
         # we should use 20 seconds in production run to use long pull
         # see more details in the class documentation.
-        self.queue = SQSQueue(
-            queue_name, wait_if_empty=None, fetch_wait_time_seconds=1)
+        self.queue = SQSQueue(queue_name,
+                              wait_if_empty=None,
+                              fetch_wait_time_seconds=1)
 
     def test_send_and_receive_message_list(self):
         print('start sending messages...')

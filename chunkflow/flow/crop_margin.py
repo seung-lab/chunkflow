@@ -7,7 +7,6 @@ class CropMarginOperator(OperatorBase):
     crop chunk margin. The margin size should be the same 
     in both side in each dimension.
     """
-
     def __init__(self,
                  margin_size=None,
                  verbose: bool = True,

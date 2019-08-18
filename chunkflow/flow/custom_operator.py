@@ -10,7 +10,6 @@ class CustomOperator(OperatorBase):
     r"""
     Chunk operation using a custom python file.
     """
-
     def __init__(self,
                  opprogram: str = None,
                  args: str = None,
