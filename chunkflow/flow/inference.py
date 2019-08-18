@@ -7,7 +7,6 @@ class InferenceOperator(OperatorBase):
     bump: (str) bump function of mask. {wu, zung} 
             this only works with the pytorch-multitask backend.
     """
-
     def __init__(self,
                  convnet_model: str,
                  convnet_weight_path: str,

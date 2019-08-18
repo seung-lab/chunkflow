@@ -7,7 +7,6 @@ class PatchEngine(object):
     
     the input patch is a 
     """
-
     def __init__(self, patch_size, patch_overlap):
         self.patch_size = patch_size
         self.patch_overlap = patch_overlap

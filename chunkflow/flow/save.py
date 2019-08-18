@@ -32,28 +32,27 @@ class SaveOperator(OperatorBase):
         self.create_thumbnail = create_thumbnail
         self.mip = mip
 
-        self.volume = CloudVolume(
-            volume_path,
-            fill_missing=True,
-            bounded=False,
-            autocrop=True,
-            mip=mip,
-            parallel=nproc,
-            progress=verbose)
+        self.volume = CloudVolume(volume_path,
+                                  fill_missing=True,
+                                  bounded=False,
+                                  autocrop=True,
+                                  mip=mip,
+                                  parallel=nproc,
+                                  progress=verbose)
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')
             self.log_storage = Storage(log_path)
 
         if create_thumbnail:
-            self.thumbnail_volume = CloudVolume(
-                os.path.join(volume_path, 'thumbnail'),
-                compress='gzip',
-                fill_missing=True,
-                bounded=False,
-                autocrop=True,
-                mip=mip,
-                progress=verbose)
+            self.thumbnail_volume = CloudVolume(os.path.join(
+                volume_path, 'thumbnail'),
+                                                compress='gzip',
+                                                fill_missing=True,
+                                                bounded=False,
+                                                autocrop=True,
+                                                mip=mip,
+                                                progress=verbose)
 
     def create_chunk_with_zeros(self, bbox):
         """Create a fake all zero chunk"""
@@ -106,15 +105,14 @@ class SaveOperator(OperatorBase):
         image = np.transpose(image)
         image_bbox = Bbox.from_slices(chunk.slices[::-1][:3])
 
-        downsample_and_upload(
-            image,
-            image_bbox,
-            self.thumbnail_volume,
-            Vec(*(image.shape)),
-            mip=self.mip,
-            axis='z',
-            skip_first=True,
-            only_last_mip=True)
+        downsample_and_upload(image,
+                              image_bbox,
+                              self.thumbnail_volume,
+                              Vec(*(image.shape)),
+                              mip=self.mip,
+                              axis='z',
+                              skip_first=True,
+                              only_last_mip=True)
 
     def _upload_log(self, log, output_bbox):
         assert log
@@ -124,7 +122,7 @@ class SaveOperator(OperatorBase):
             print('uploaded log: ', log)
 
         # write to google cloud storage
-        self.log_storage.put_file(
-            file_path=output_bbox.to_filename() + '.json',
-            content=json.dumps(log),
-            content_type='application/json')
+        self.log_storage.put_file(file_path=output_bbox.to_filename() +
+                                  '.json',
+                                  content=json.dumps(log),
+                                  content_type='application/json')

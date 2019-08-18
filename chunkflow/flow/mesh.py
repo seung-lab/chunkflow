@@ -13,7 +13,6 @@ from .base import OperatorBase
 
 class MeshOperator(OperatorBase):
     """Create mesh files from segmentation."""
-
     def __init__(self,
                  output_path: str,
                  output_format: str,

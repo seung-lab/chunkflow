@@ -14,7 +14,6 @@ class NormalizeSectionContrastOperator(OperatorBase):
     Note that this operator was modified from Will's ContrastNormalizationTask in igneous:
     https://github.com/seung-lab/igneous/blob/master/igneous/tasks.py#L735
     """
-
     def __init__(self,
                  levels_path: str,
                  mip: int,

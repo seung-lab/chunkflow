@@ -17,7 +17,6 @@ class Chunk(np.ndarray):
     :param global_offset: the offset of this array chunk
     :return: a new chunk with array data and global offset
     """
-
     def __new__(cls, array: np.ndarray, global_offset: tuple = None):
         if global_offset is None:
             global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
