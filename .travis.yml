@@ -2,12 +2,10 @@ language: python
 python:
 - '3.5'
 - '3.6'
-
 matrix:
   include:
-    - python: "3.7"
-      dist: xenial  # required for Python >= 3.7 (travis-ci/travis-ci#9069)
-
+  - python: '3.7'
+    dist: xenial
 install:
 - sudo find /usr -name '*.pyc' -delete
 - sudo apt update
@@ -33,7 +31,7 @@ deploy:
   skip_existing: false
   user: jingpengw
   password:
-    secure: CZ6IGaVJX+nSZ2mb9U4VMo72ivjtlMQpWONM+VkmbcS85bqAcX58cjaEoD1cZd2e2Bpf6BZVfq+K5BE7I1GsSzQDCFDmT3xRqDLtwF/9S9PU9OfQfbgwuH7kjDMQu9K5e5M8+/JTTECjeU3e7uwskJrdf6qg6vNzcoyhZi6mTR4K0g9hq12eaPYAx07ZoBTJzO8dM7mhLA9IsNGAc7PjSpuwbLy1kzWN+icLZiYnMcVs3FCCSN5Xegyye0h74Mc3n3kopOQiVLXTRTlYlQm9Y3SHp5tRcsCm2/2g/lKaJRsQlncZMd91s01fkJv6TWUXZR3NyxefQUNhB/rQeNIeGc81ppWN2DCmcrDWoQw7sA/B63M0u5Oaw5uvu7u+zF3QDjMe+1MgxA9AxQkno4X6h1xXBuMViSmoyP+mhyJiN8clQYO4wHGyc0VMi7W0o+YWn7jiUZxy8VHAD1FAsBGi3URIpvErODeNbQsDciaZiixA/3pvrSeN3JdMQqtQ5gzqegB3arVetupXbmyk0jmCIUEAxfw3KC+6kURVWNGW7M0p7A6QPo6H4tXtopMGK2MRc/deRfSo6LjHrmGK16QdEdPAaieuWRVbHDjoAXyUxQlGB91v4Rk04/aS7vu5xurrJGp35VPRavRpg5vKPzEPPPi7UHCjQfo4bUYBainUzw8=
-  on:
-    tags: true
+    secure: W20x3KuW8ziG7aAif+CwfDoCyoMMsylsnZka/YxHNfIv6FVcYLbY2Xb9PPqta2KE0oVObi8WI25ff7VGqfS3Rk2EX5IYrFz6KXhTzThtkUxP5r6geDm0X28+OCPlCiDH8xIjUoW92duHA1QQyqsekuClVCRsotT0r1wFBFLUVmHHxe7v5987HdEtc4kjCQtlnIkxlVSpe3taGHp5Ju7X9vGc0hDja7w9xRECsj4NHY39FxWVdwLijvKoulMB80CgCIHNHP9Q/fHJEYgVrvf4g9wL5z2HyoDn0vZuyl61ZwAf2XVFJp5zN+6UIU2csnm4C6Y1YOZyV4j7CcZiT78/zEy7nWOiPZcraPUiuIMZbsoLKCXLrrtdDrpa1rCsA1rcnguXJtNAXu9JqbpPsHEx/Ed8TPvPoCOapvbFTDVkdDEPXctvKciakvjd+x9FyJxP1UcFwDHVTvkFsz3++tezj6oPIczO2k1f+0Zjtz+ShpiMClzItKHwTsuoghgBK8Y7chW5YfE59N5a+XOaYenL1r33s6aaLCnnS4eLEHcZb1pK0JYBlPsScN7t/s0Z2Bgox+90O3NA7c9voyXr8nBdRUbNX+Vw3BWZqCYw5N7CNpnlvAga0Y7UUP2AvfwN01U7wEIYGoyA3ZLwGYr5q2UlR3MwPdUUauZ1IYEEf9d2Xl0=
+    #on:
+    #  tags: true
   distributions: sdist bdist_wheel
