@@ -256,10 +256,8 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               nargs=3,
               callback=default_none,
               help='global offset of this chunk')
-@click.option('--output-chunk-name',
-              '-o',
-              type=str,
-              default='chunk',
+@click.option('--output-chunk-name', '-o',
+              type=str, default='chunk',
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
@@ -279,11 +277,10 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
 @main.command('write-h5')
 @click.option('--name', type=str, default='write-h5', help='name of operator')
 @click.option('--input-chunk-name', '-i',
-              type=click.Path(dir_okay=False, resolve_path=True),
-              default='chunk', help='input chunk name')
+              type=str, default='chunk', help='input chunk name')
 @click.option('--file-name',
               '-f',
-              type=str,
+              type=click.Path(dir_okay=False, resolve_path=True),
               required=True,
               help='file name of hdf5 file, the extention should be .h5')
 @operator
