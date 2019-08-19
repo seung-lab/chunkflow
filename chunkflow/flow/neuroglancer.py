@@ -1,3 +1,4 @@
+from typing import Union
 import neuroglancer as ng
 import numpy as np
 
@@ -14,9 +15,10 @@ class NeuroglancerOperator(OperatorBase):
         self.port = port
         self.voxel_size = voxel_size
 
-    def __call__(self, chunks):
+    def __call__(self, chunks: dict):
         """
-        chunks: (list/tuple) multiple chunks 
+        Parameters:
+        chunks: multiple chunks 
         """
         ng.set_static_content_source(
             url='https://neuromancer-seung-import.appspot.com')
@@ -24,40 +26,19 @@ class NeuroglancerOperator(OperatorBase):
         viewer = ng.Viewer()
 
         with viewer.txn() as s:
-            for idx, chunk in enumerate(chunks):
+            for chunk_name, chunk in chunks.items():
                 global_offset = chunk.global_offset
-                #chunk = np.transpose(chunk)
                 chunk = np.ascontiguousarray(chunk)
 
-                #chunk = np.asfortranarray(chunk)
                 s.layers.append(
-                    name='chunk-{}'.format(idx),
+                    name=chunk_name,
                     layer=ng.LocalVolume(
                         data=chunk,
                         voxel_size=self.voxel_size[::-1],
                         # offset is in nm, not voxels
                         offset=list(o * v for o, v in zip(
-                            global_offset[::-1][-3:], self.voxel_size[::-1])),
-                    ),
-                    shader=get_shader(chunk),
+                            global_offset[::-1][-3:], self.voxel_size[::-1])))
                 )
         print('Open this url in browser: ')
         print(viewer)
         input('Press Enter to exit neuroglancer.')
-
-
-def get_shader(chunk):
-    if chunk.ndim == 3 or chunk.shape[0] == 1:
-        # this is a image
-        return """void main() {
-    emitGrayscale(toNormalized(getDataValue()));
-}"""
-    elif chunk.ndim == 4 and chunk.shape[0] == 3:
-        # this is affinitymap
-        return """void main() {
-    emitRGB(vec3(toNormalized(getDataValue(0)),
-                 toNormalized(getDataValue(1)),
-                 toNormalized(getDataValue(2))));
-}"""
-    else:
-        raise ValueError('only support image and affinitymap now.')

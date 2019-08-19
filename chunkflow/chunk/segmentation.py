@@ -2,7 +2,6 @@ __doc__ = """Image chunk class"""
 
 import numpy as np
 from .base import Chunk
-from waterz import evaluate
 
 
 class Segmentation(Chunk):
@@ -21,6 +20,7 @@ class Segmentation(Chunk):
         return obj
 
     def evaluate(self, groundtruth):
+        from waterz import evaluate
         if not np.issubdtype(self.dtype, np.uint64):
             this = self.astype(np.uint64)
         else:

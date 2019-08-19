@@ -72,14 +72,13 @@ class PyTorch(PatchEngine):
                 input_patch = input_patch.cuda()
 
             # the network input and output should be dict
-            output_patch = self.net(input_patch)
+            net_output = self.net(input_patch)
 
-            # only transfer required channels to cpu
-            # use narrow function to avoid copy.
-            output_patch = self.post_process(output_patch)
-            #output_patch = output_patch.narrow(1, 0, self.num_output_channels)
-            #output_patch = torch.sigmoid(output_patch)
+            # get the required output patch from network 
+            # The processing depends on network model and application
+            output_patch = self.post_process(net_output)
 
+            # save patch for debug
             #import h5py
             #with h5py.File('/tmp/patch.h5', "w") as f:
             #    f['main'] = output_patch[0,:,:,:,:].data.cpu().numpy()

@@ -12,6 +12,8 @@ from chunkflow.chunk.segmentation import Segmentation
 from .cloud_watch import CloudWatchOperator
 from .create_chunk import CreateChunkOperator
 from .crop_margin import CropMarginOperator
+from .custom_operator import CustomOperator
+from .connected_components import ConnectedComponentsOperator
 from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
 from .inference import InferenceOperator
@@ -20,7 +22,6 @@ from .mesh import MeshOperator
 from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
-from .custom_operator import CustomOperator
 from .read_tif import ReadTIFOperator
 from .read_h5 import ReadH5Operator
 from .save import SaveOperator
@@ -54,7 +55,7 @@ def default_none(ctx, param, value):
 @click.group(chain=True)
 @click.option('--verbose/--quiet',
               default=True,
-              help='print informations or not, default is quiet.')
+              help='print informations or not, default is verbose.')
 @click.option('--mip',
               type=int,
               default=0,
@@ -62,9 +63,7 @@ def default_none(ctx, param, value):
 # the code design is from:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 def main(verbose, mip):
-    """This script processes a chunk in a pipe. 
-    One command feeds into the next.
-    """
+    """Compose operators and create your own pipeline."""
     state['verbose'] = verbose
     state['mip'] = mip
     pass
@@ -256,10 +255,8 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               nargs=3,
               callback=default_none,
               help='global offset of this chunk')
-@click.option('--output-chunk-name',
-              '-o',
-              type=str,
-              default='chunk',
+@click.option('--output-chunk-name', '-o',
+              type=str, default='chunk',
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
@@ -278,59 +275,63 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
 
 @main.command('write-h5')
 @click.option('--name', type=str, default='write-h5', help='name of operator')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name')
 @click.option('--file-name',
               '-f',
-              type=str,
+              type=click.Path(dir_okay=False, resolve_path=True),
               required=True,
               help='file name of hdf5 file, the extention should be .h5')
 @operator
-def write_h5(tasks, name, file_name):
+def write_h5(tasks, name, input_chunk_name, file_name):
     """Write chunk to HDF5 file."""
     state['operators'][name] = WriteH5Operator()
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task['chunk'], file_name)
-        # keep the pipeline going
+            state['operators'][name](task[input_chunk_name], file_name)
         yield task
 
 
 @main.command('write-tif')
 @click.option('--name', type=str, default='write-tif', help='name of operator')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name')
 @click.option(
     '--file-name',
     '-f',
-    type=str,
+    type=click.Path(dir_okay=False, resolve_path=True),
     required=True,
     help='file name of tif file, the extention should be .tif or .tiff')
 @operator
-def write_tif(tasks, name, file_name):
+def write_tif(tasks, name, input_chunk_name, file_name):
     """Write chunk as a TIF file."""
     state['operators'][name] = WriteTIFOperator()
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task['chunk'], file_name)
+            state['operators'][name](task[input_chunk_name], file_name)
         # keep the pipeline going
         yield task
 
 
 @main.command('save-pngs')
 @click.option('--name', type=str, default='save-pngs', help='name of operator')
+@click.option('--input-chunk-name', '-i', type=click.Path(dir_okay=True, resolve_path=True))
 @click.option('--output-path',
               '-o',
               type=str,
               default='./saved_pngs/',
               help='output path of saved 2d images formated as png.')
 @operator
-def save_pngs(tasks, name, output_path):
+def save_pngs(tasks, name, input_chunk_name, output_path):
     """Save as 2D PNG images."""
     state['operators'][name] = SavePNGsOperator(output_path=output_path,
                                                 name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task['chunk'])
+            state['operators'][name](task[input_chunk_name])
         yield task
 
 
@@ -462,10 +463,13 @@ def cutout(tasks, name, volume_path, mip, start, stop, expand_margin_size,
 @operator
 def evaluate_segmenation(tasks, name, segmentation_chunk_name,
                          groundtruth_chunk_name):
+    """compute split/merge error using rand index
+     and variation of information.
+    """
     for task in tasks:
         seg = Segmentation(task[segmentation_chunk_name])
-        gt = Segmentation(task[groundtruth_chunk_name])
-        seg.evaluate(gt)
+        groundtruth = Segmentation(task[groundtruth_chunk_name])
+        seg.evaluate(groundtruth)
         yield task
 
 
@@ -474,6 +478,8 @@ def evaluate_segmenation(tasks, name, segmentation_chunk_name,
               type=str,
               default='downsample-upload',
               help='name of operator')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name')
 @click.option('--volume-path', type=str, help='path of output volume')
 @click.option('--start-mip',
               type=int,
@@ -483,15 +489,14 @@ def evaluate_segmenation(tasks, name, segmentation_chunk_name,
     '--stop-mip',
     type=int,
     default=5,
-    help=
-    'stop mip level. the indexing follows python style and the last index is exclusive.'
-)
+    help='stop mip level. the indexing follows python style and ' +
+    'the last index is exclusive.')
 @click.option('--fill-missing/--no-fill-missing',
               default=True,
               help='fill missing or not when there is all zero blocks.')
 @operator
-def downsample_upload(tasks, name, volume_path, start_mip, stop_mip,
-                      fill_missing):
+def downsample_upload(tasks, name, input_chunk_name, volume_path, 
+                      start_mip, stop_mip, fill_missing):
     """Downsample chunk and upload to volume."""
     state['operators'][name] = DownsampleUploadOperator(
         volume_path,
@@ -505,7 +510,7 @@ def downsample_upload(tasks, name, volume_path, start_mip, stop_mip,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task['chunk'] = state['operators'][name](task['chunk'])
+            state['operators'][name](task[input_chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -603,10 +608,14 @@ def normalize_section_shang(tasks, name, nominalmin, nominalmax, clipvalues):
               type=str,
               default='custom-operator-1',
               help='name of operator.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default='chunk', help='output chunk name')
 @click.option('--opprogram', type=str, help='python file to call.')
 @click.option('--args', type=str, default='', help='args to pass in')
 @operator
-def custom_operator(tasks, name, opprogram, args):
+def custom_operator(tasks, name, input_chunk_name, output_chunk_name, opprogram, args):
     """Custom operation on the chunk.
     The custom python file should contain a callable named "op_call" such that 
     a call of `op_call(chunk, args)` can be made to operate on the chunk.
@@ -615,14 +624,43 @@ def custom_operator(tasks, name, opprogram, args):
     state['operators'][name] = CustomOperator(opprogram=opprogram,
                                               args=args,
                                               name=name)
-    print('Received args for ', name, ':', args)
+    if state['verbose']:
+        print('Received args for ', name, ':', args)
 
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task['chunk'] = state['operators'][name](task['chunk'])
+            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
             task['log']['timer'][name] = time() - start
+        yield task
+
+
+@main.command('connected-components')
+@click.option('--name', type=str, default='connected-components', 
+              help='threshold a map and get the labels.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default='chunk', help='output chunk name')
+@click.option('--threshold', '-t', type=float, default=0.5,
+              help='threshold to cut the map.')
+@click.option('--connectivity', '-c', 
+              type=click.Choice([6, 18, 26]),
+              default=26, help='number of neighboring voxels used.')
+@operator 
+def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
+                         threshold, connectivity):
+    """Threshold the map to get a segmentation."""
+    state['operators'][name] = ConnectedComponentsOperator(name=name, 
+                                                           threshold=threshold, 
+                                                           connectivity=connectivity)
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            start = time()
+            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+            task['log']['timer']['name'] = time() - start
         yield task
 
 
@@ -649,20 +687,20 @@ def copy_var(tasks, name, from_name, to_name):
               type=str,
               default='inference',
               help='name of this operator')
-@click.option('--convnet-model',
+@click.option('--convnet-model', '-m',
               type=str,
               default=None,
               help='convnet model path or type.')
-@click.option('--convnet-weight-path',
+@click.option('--convnet-weight-path', '-w',
               type=str,
               default=None,
               help='convnet weight path')
-@click.option('--patch-size',
+@click.option('--patch-size', '-s',
               type=int,
               nargs=3,
               default=(20, 256, 256),
               help='patch size')
-@click.option('--patch-overlap',
+@click.option('--patch-overlap', '-v',
               type=int,
               nargs=3,
               default=(4, 64, 64),
@@ -680,16 +718,16 @@ def copy_var(tasks, name, from_name, to_name):
     +
     ' final output channels, such as other neighboring edges in affinity map to enhance '
     + 'net generalization capability.')
-@click.option('--num-output-channels',
+@click.option('--num-output-channels', '-c',
               type=int,
               default=3,
               help='number of output channels')
-@click.option('--framework',
+@click.option('--framework', '-f',
               type=click.Choice(
                   ['identity', 'pznet', 'pytorch', 'pytorch-multitask']),
               default='pytorch-multitask',
               help='inference framework')
-@click.option('--batch-size',
+@click.option('--batch-size', '-b',
               type=int,
               default=1,
               help='mini batch size of input patch.')
@@ -703,11 +741,21 @@ def copy_var(tasks, name, from_name, to_name):
     default=False,
     help='mask output chunk will make the whole chunk like one output patch. '
     + 'This will also work with non-aligned chunk size.')
+@click.option(
+    '--input-chunk-name', '-i',
+    type=str,
+    default='chunk',
+    help='input chunk name')
+@click.option(
+    '--output-chunk-name', '-o',
+    type=str,
+    default='chunk',
+    help='output chunk name')
 @operator
 def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
               patch_overlap, output_key, original_num_output_channels,
               num_output_channels, framework, batch_size, bump,
-              mask_output_chunk):
+              mask_output_chunk, input_chunk_name, output_chunk_name):
     """Perform convolutional network inference for chunks."""
     state['operators'][name] = InferenceOperator(
         convnet_model,
@@ -730,7 +778,10 @@ def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
             if 'log' not in task:
                 task['log'] = {'timer': {}}
             start = time()
-            task['chunk'] = state['operators'][name](task['chunk'])
+
+            task[output_chunk_name] = state['operators'][name](
+                task[input_chunk_name])
+
             task['log']['timer'][name] = time() - start
             task['log']['compute_device'] = state['operators'][
                 name].compute_device
@@ -797,26 +848,29 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero,
               type=str,
               default='crop-margin',
               help='name of this operator')
-@click.option('--margin-size',
+@click.option('--margin-size', '-m',
               type=int,
               nargs=3,
               default=None,
               help='crop the chunk margin. ' +
               'The default is None and will use the output_bbox ' +
               'as croping range.')
+@click.option('--chunk-name', '-c',
+              type=str,
+              default='chunk',
+              help='input and output chunk name.')
 @operator
-def crop_margin(tasks, name, margin_size):
+def crop_margin(tasks, name, margin_size, chunk_name):
     """Crop the margin of chunk."""
     state['operators'][name] = CropMarginOperator(margin_size=margin_size,
                                                   verbose=state['verbose'],
                                                   name=name)
-
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task['chunk'] = state['operators'][name](
-                task['chunk'], output_bbox=task['output_bbox'])
+            task[chunk_name] = state['operators'][name](
+                task[chunk_name], output_bbox=task.get('output_bbox', None))
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -976,16 +1030,22 @@ def view(tasks, name, image_chunk_name, segmentation_chunk_name):
               default=(1, 1, 1),
               help='voxel size of chunk')
 @click.option('--port', '-p', type=int, default=None, help='port to use')
+@click.option('--chunk-names', '-c', type=str, default='chunk', 
+              help='a list of chunk names separated by comma.')
 @operator
-def neuroglancer(tasks, name, voxel_size, port):
+def neuroglancer(tasks, name, voxel_size, port, chunk_names):
     """Visualize the chunk using neuroglancer."""
     state['operators'][name] = NeuroglancerOperator(name=name,
                                                     port=port,
                                                     voxel_size=voxel_size)
     for task in tasks:
+        chunks = dict()
+        for chunk_name in chunk_names.split(","):
+            chunks[chunk_name] = task[chunk_name]
+
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name]([task['chunk']])
+            state['operators'][name](chunks)
         yield task
 
 
