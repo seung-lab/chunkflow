@@ -134,7 +134,7 @@ In order to provide a general interface for broader application, the ConvNet mod
 
    If you do not define the pre_process and post_process function, it will automatically be replaced as identity function and do not do any transformation.
 
-Synapse Cleft Detection
+Synaptic Cleft Detection
 ------------------------
 With only one command, you can perform the inference to produce cleft map and visualize it::
 
@@ -159,8 +159,8 @@ You should see segmentation overlayed with image:
 
 Of course, you can add a writing operator, such as ``write-tif``, before the ``neuroglancer`` operator to save the segmentation.
 
-Cell Boundary Detection
------------------------
+Dense Neuron Segmentation
+-------------------------
 
 
 
