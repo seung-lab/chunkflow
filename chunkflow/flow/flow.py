@@ -12,6 +12,8 @@ from chunkflow.chunk.segmentation import Segmentation
 from .cloud_watch import CloudWatchOperator
 from .create_chunk import CreateChunkOperator
 from .crop_margin import CropMarginOperator
+from .custom_operator import CustomOperator
+from .connected_components import ConnectedComponentsOperator
 from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
 from .inference import InferenceOperator
@@ -20,7 +22,6 @@ from .mesh import MeshOperator
 from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
-from .custom_operator import CustomOperator
 from .read_tif import ReadTIFOperator
 from .read_h5 import ReadH5Operator
 from .save import SaveOperator
@@ -609,10 +610,14 @@ def normalize_section_shang(tasks, name, nominalmin, nominalmax, clipvalues):
               type=str,
               default='custom-operator-1',
               help='name of operator.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default='chunk', help='output chunk name')
 @click.option('--opprogram', type=str, help='python file to call.')
 @click.option('--args', type=str, default='', help='args to pass in')
 @operator
-def custom_operator(tasks, name, opprogram, args):
+def custom_operator(tasks, name, input_chunk_name, output_chunk_name, opprogram, args):
     """Custom operation on the chunk.
     The custom python file should contain a callable named "op_call" such that 
     a call of `op_call(chunk, args)` can be made to operate on the chunk.
@@ -621,14 +626,43 @@ def custom_operator(tasks, name, opprogram, args):
     state['operators'][name] = CustomOperator(opprogram=opprogram,
                                               args=args,
                                               name=name)
-    print('Received args for ', name, ':', args)
+    if state['verbose']:
+        print('Received args for ', name, ':', args)
 
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task['chunk'] = state['operators'][name](task['chunk'])
+            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
             task['log']['timer'][name] = time() - start
+        yield task
+
+
+@main.command('connected-components')
+@click.option('--name', type=str, default='connected-components', 
+              help='threshold a map and get the labels.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default='chunk', help='output chunk name')
+@click.option('--threshold', '-t', type=float, default=0.5,
+              help='threshold to cut the map.')
+@click.option('--connectivity', '-c', 
+              type=click.Choice([6, 18, 26]),
+              default=26, help='number of neighboring voxels used.')
+@operator 
+def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
+                         threshold, connectivity):
+    """Threshold the map to get a segmentation."""
+    state['operators'][name] = ConnectedComponentsOperator(name=name, 
+                                                           threshold=threshold, 
+                                                           connectivity=connectivity)
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            start = time()
+            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+            task['log']['timer']['name'] = time() - start
         yield task
 
 

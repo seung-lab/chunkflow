@@ -147,8 +147,19 @@ You can see the image with output synapse cleft map:
 .. |cleft| image:: _static/image/cleft.png
 
 
+You can also apply a threshold to get a segmentation of the cleft map::
+
+   chunkflow read-tif -f "$IMAGE_PATH" -o image read-tif -f cleft.tif -o cleft connected-components -i cleft -o seg -t 0.1 neuroglancer -p 33333 -c image,seg -v 30 6 6
+
+You should see segmentation overlayed with image::
+
+|cleft_label|
+
+.. |cleft_label| image:: _static/image/cleft_label.png
+
 Cell Boundary Detection
 -----------------------
+
 
 
 Distributed Computation

@@ -1,16 +1,19 @@
 ChangeLog history
 =================
 
-# chunkflow 0.1.0 (2019-xx-xx)
+# chunkflow 0.5.7 (2019-xx-xx)
 ## Breaking Changes
 
 ## Deprecations 
 
 ## Features
+- neuroglancer operator works with multiple chunks (https://github.com/seung-lab/chunkflow/pull/123)
+- add connected components operator
 
 ## Bug Fixes 
 
 ## Improved Documentation 
+- tutorial for cleft and cell boundary detection (https://github.com/seung-lab/chunkflow/pull/123)
 
 # chunkflow 0.2.6 (2019-03-11)
 ## Breaking Changes

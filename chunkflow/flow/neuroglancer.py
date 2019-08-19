@@ -37,27 +37,8 @@ class NeuroglancerOperator(OperatorBase):
                         voxel_size=self.voxel_size[::-1],
                         # offset is in nm, not voxels
                         offset=list(o * v for o, v in zip(
-                            global_offset[::-1][-3:], self.voxel_size[::-1])),
-                    ),
-                    shader=get_shader(chunk),
+                            global_offset[::-1][-3:], self.voxel_size[::-1])))
                 )
         print('Open this url in browser: ')
         print(viewer)
         input('Press Enter to exit neuroglancer.')
-
-
-def get_shader(chunk):
-    if chunk.ndim == 3 or chunk.shape[0] == 1:
-        # this is a image
-        return """void main() {
-    emitGrayscale(toNormalized(getDataValue()));
-}"""
-    elif chunk.ndim == 4 and chunk.shape[0] == 3:
-        # this is affinitymap
-        return """void main() {
-    emitRGB(vec3(toNormalized(getDataValue(0)),
-                 toNormalized(getDataValue(1)),
-                 toNormalized(getDataValue(2))));
-}"""
-    else:
-        raise ValueError('only support image and affinitymap now.')

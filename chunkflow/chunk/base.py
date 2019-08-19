@@ -54,11 +54,31 @@ class Chunk(np.ndarray):
             slice(o, o + s) for o, s in zip(self.global_offset, self.shape))
 
     @property
+    def is_image(self) -> bool:
+        return self.ndim == 3 and self.dtype == np.uint8
+
+    @property 
+    def is_segmentation(self) -> bool:
+        return self.ndim == 3 and np.issubdtype(self.dtype, np.integer) and self.dtype != np.uint8
+
+    @property
+    def is_affinity_map(self) -> bool:
+        return self.ndim == 4 and np.dtype == np.float32
+
+    @property
     def bbox(self) -> Bbox:
         """
         :getter: the cloudvolume bounding box in the big volume
         """
         return Bbox.from_delta(self.global_offset, self.shape)
+
+    def squeeze_channel(self) -> np.ndarray:
+        """given a 4D array, squeeze the channel axis."""
+        assert self.ndim == 4
+        axis = 0
+        arr = np.squeeze(self, axis=0)
+        global_offset = self.global_offset[:axis] + self.global_offset[axis+1:]
+        return Chunk(arr, global_offset=global_offset)
 
     def where(self, mask: np.ndarray) -> tuple:
         """
