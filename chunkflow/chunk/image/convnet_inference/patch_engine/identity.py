@@ -9,7 +9,6 @@ class Identity(PatchEngine):
     return the same output with the input 
     this class was only used for tests 
     """
-
     def __init__(self, patch_size, patch_overlap, num_output_channels=1):
         super().__init__(patch_size, patch_overlap)
         self.num_output_channels = num_output_channels

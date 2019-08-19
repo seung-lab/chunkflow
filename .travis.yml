@@ -1,34 +1,40 @@
-language: python 
+language: python
 python:
 - '3.5'
 - '3.6'
-- '3.7-dev'
-
+matrix:
+  include:
+  - python: '3.7'
+    dist: xenial
 install:
 - sudo find /usr -name '*.pyc' -delete
-# numpy have to be installed using pip, otherwise there is an error using neuroglancer
 - sudo apt update
-# the waterz package need boost multiarray
-- sudo apt install libboost-dev
 - pip install .
-- python setup.py install  
+- python setup.py install
 - pip install pytest
 - pip install coveralls
-- pip install pytest-cov # to get .coverage report via pytest
-
+- pip install pytest-cov
 script:
 - coverage run --source=./chunkflow chunkflow generate-task
-# remove this test because we are not requiring waterz package in default and it is not included in our requirements.txt since readthedocs docker do not have libboost-dev package.
-#- coverage run --source=./chunkflow chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
-- coverage run -a --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 
+- coverage run --source=./chunkflow chunkflow create-chunk -o seg create-chunk -o
+  gt evaluate-segmentation -s seg -g gt
+- coverage run -a --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5
 - if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 - coverage run -a --source=./chunkflow chunkflow read-h5 --file-name=/tmp/img.h5
-- coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
+- coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference
+  --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 - pytest --cov-append --cov=./chunkflow ./tests --verbose
-
 after_success:
-- coveralls 
+- coveralls
 
-  #matrix:
-  #  allow_failures:
-  #  - python: '3.4'
+# deploy section is not working due to credential issue
+#deploy:
+#  provider: pypi
+#  skip_existing: false
+#  user: jingpengw
+#  password:
+#    secure: W20x3KuW8ziG7aAif+CwfDoCyoMMsylsnZka/YxHNfIv6FVcYLbY2Xb9PPqta2KE0oVObi8WI25ff7VGqfS3Rk2EX5IYrFz6KXhTzThtkUxP5r6geDm0X28+OCPlCiDH8xIjUoW92duHA1QQyqsekuClVCRsotT0r1wFBFLUVmHHxe7v5987HdEtc4kjCQtlnIkxlVSpe3taGHp5Ju7X9vGc0hDja7w9xRECsj4NHY39FxWVdwLijvKoulMB80CgCIHNHP9Q/fHJEYgVrvf4g9wL5z2HyoDn0vZuyl61ZwAf2XVFJp5zN+6UIU2csnm4C6Y1YOZyV4j7CcZiT78/zEy7nWOiPZcraPUiuIMZbsoLKCXLrrtdDrpa1rCsA1rcnguXJtNAXu9JqbpPsHEx/Ed8TPvPoCOapvbFTDVkdDEPXctvKciakvjd+x9FyJxP1UcFwDHVTvkFsz3++tezj6oPIczO2k1f+0Zjtz+ShpiMClzItKHwTsuoghgBK8Y7chW5YfE59N5a+XOaYenL1r33s6aaLCnnS4eLEHcZb1pK0JYBlPsScN7t/s0Z2Bgox+90O3NA7c9voyXr8nBdRUbNX+Vw3BWZqCYw5N7CNpnlvAga0Y7UUP2AvfwN01U7wEIYGoyA3ZLwGYr5q2UlR3MwPdUUauZ1IYEEf9d2Xl0=
+#  on:
+#    tags: true
+#    all_branches: true
+#  distributions: sdist bdist_wheel

@@ -26,12 +26,11 @@ class MaskOperator(OperatorBase):
         self.volume_path = volume_path
         self.check_all_zero = check_all_zero
 
-        self.mask_vol = CloudVolume(
-            volume_path,
-            bounded=False,
-            fill_missing=fill_missing,
-            progress=verbose,
-            mip=mask_mip)
+        self.mask_vol = CloudVolume(volume_path,
+                                    bounded=False,
+                                    fill_missing=fill_missing,
+                                    progress=verbose,
+                                    mip=mask_mip)
 
         if verbose:
             print("mask chunk at mip {} using {}".format(
@@ -91,8 +90,9 @@ class MaskOperator(OperatorBase):
             np.multiply(chunk, mask, out=chunk)
         elif chunk.ndim == mask.ndim + 1:
             for channel in range(chunk.shape[0]):
-                np.multiply(
-                    chunk[channel, :, :, :], mask, out=chunk[channel, :, :, :])
+                np.multiply(chunk[channel, :, :, :],
+                            mask,
+                            out=chunk[channel, :, :, :])
         else:
             raise ValueError('invalid chunk or mask dimension.')
         return chunk

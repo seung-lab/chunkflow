@@ -10,7 +10,6 @@ Welcome to chunkflow's documentation!
 .. toctree::
   :maxdepth: 2
   
-  whats_new
   install
   tutorial
   api

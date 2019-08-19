@@ -22,7 +22,8 @@ mo = re.search(VSRE, verstrline, re.M)
 if mo:
     version = mo.group(1)
 else:
-    raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
+    raise RuntimeError("Unable to find version string in %s." %
+                       (VERSIONFILE, ))
 
 
 class get_pybind_include(object):
@@ -30,7 +31,6 @@ class get_pybind_include(object):
     The purpose of this class is to postpone importing pybind11
     until it is actually installed, so that the ``get_include()``
     method can be invoked. """
-
     def __init__(self, user=False):
         self.user = user
 
@@ -53,8 +53,7 @@ ext_modules = [
             '-O3',
             # this is not working
             #'-o chunkflow/lib/libchunkflow.so'
-        ]
-    ),
+        ]),
 ]
 
 
@@ -111,17 +110,20 @@ class BuildExt(build_ext):
             opts.append(arg)
 
         if ct == 'unix':
-            opts.append('-DVERSION_INFO="%s"' % self.distribution.get_version())
+            opts.append('-DVERSION_INFO="%s"' %
+                        self.distribution.get_version())
             opts.append(cpp_flag(self.compiler))
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
         elif ct == 'msvc':
-            opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
+            opts.append('/DVERSION_INFO=\\"%s\\"' %
+                        self.distribution.get_version())
         for ext in self.extensions:
             ext.extra_compile_args = opts
             ext.extra_link_args = link_opts
 
         build_ext.build_extensions(self)
+
 
 setup(
     name='chunkflow',
@@ -132,16 +134,11 @@ setup(
     version=version,
     author='Jingpeng Wu',
     author_email='jingpeng.wu@gmail.com',
-    packages=find_packages(exclude=[
-        'tests', 
-        'bin', 
-        'docker', 
-        'kubernetes'
-    ]),
+    packages=find_packages(exclude=['tests', 'bin', 'docker', 'kubernetes']),
     url='https://github.com/seung-lab/chunkflow',
     install_requires=requirements,
-    tests_require = [
-    'pytest',
+    tests_require=[
+        'pytest',
     ],
     ext_modules=ext_modules,
     entry_points='''

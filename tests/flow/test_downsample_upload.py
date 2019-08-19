@@ -23,16 +23,17 @@ class TestDownsampleUpload(unittest.TestCase):
         chunk = Chunk(img, global_offset=[2, 32, 32])
         # save the input to disk
         volume_path = 'file:///tmp/test/cutout/' + generate_random_string()
-        CloudVolume.from_numpy(
-            np.transpose(img),
-            vol_path=volume_path,
-            voxel_offset=(32, 32, 2),
-            chunk_size=(32, 32, 4),
-            max_mip=4,
-            layer_type='segmentation')
+        CloudVolume.from_numpy(np.transpose(img),
+                               vol_path=volume_path,
+                               voxel_offset=(32, 32, 2),
+                               chunk_size=(32, 32, 4),
+                               max_mip=4,
+                               layer_type='segmentation')
 
-        operator = DownsampleUploadOperator(
-            volume_path, input_mip=0, start_mip=1, stop_mip=4)
+        operator = DownsampleUploadOperator(volume_path,
+                                            input_mip=0,
+                                            start_mip=1,
+                                            stop_mip=4)
         operator(chunk)
         shutil.rmtree('/tmp/test')
 

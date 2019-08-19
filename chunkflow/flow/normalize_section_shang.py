@@ -9,7 +9,6 @@ class NormalizeSectionShangOperator(OperatorBase):
     """Contrast Correction based on section min/max within the chunk, 
     Shang's method.
     """
-
     def __init__(self,
                  nominalmin: float = None,
                  nominalmax: float = None,

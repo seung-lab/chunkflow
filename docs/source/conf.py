@@ -68,7 +68,7 @@ autodoc_mock_imports = ["waterz", "libchunkflow"]
 extensions = [
     #'sphinx.ext.autosummary',
     'sphinx.ext.autodoc',
-    'sphinx.ext.viewcode', # This will add links to source code to autodoc
+    'sphinx.ext.viewcode',  # This will add links to source code to autodoc
     'sphinx.ext.githubpages',
     #'sphinx.ext.linkcode', # This is similar to viewcode but links to external source -> need to define a function for this
     'sphinx.ext.napoleon',
@@ -85,7 +85,6 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
-
 
 # -- Options for HTML output -------------------------------------------------
 

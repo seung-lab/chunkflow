@@ -234,10 +234,9 @@ def downsample_segmentation_2d(data, factor, sparse):
         data = odd_to_even2d(data)
         shape3d = np.array(data.shape[:3])
 
-    output = np.zeros(
-        shape=(int(data.shape[0] / 2), int(data.shape[1] / 2), data.shape[2],
-               data.shape[3]),
-        dtype=data.dtype)
+    output = np.zeros(shape=(int(data.shape[0] / 2), int(data.shape[1] / 2),
+                             data.shape[2], data.shape[3]),
+                      dtype=data.dtype)
 
     if sparse:
         for z in range(data.shape[2]):

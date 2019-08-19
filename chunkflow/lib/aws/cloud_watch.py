@@ -5,7 +5,6 @@ from cloudvolume.secrets import aws_credentials
 
 class CloudWatch:
     """monitor time elapsed of each operator using AWS CloudWatch."""
-
     def __init__(self, log_name: str, credentials: dict = None):
         """
         Parameters
@@ -59,5 +58,5 @@ class CloudWatch:
             })
 
         # submit the metric data
-        self.client.put_metric_data(
-            Namespace=self.log_name, MetricData=metric_data)
+        self.client.put_metric_data(Namespace=self.log_name,
+                                    MetricData=metric_data)

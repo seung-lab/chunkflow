@@ -11,3 +11,4 @@ tinybrain
 zmesh
 pybind11
 tifffile
+waterz

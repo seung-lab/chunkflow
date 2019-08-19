@@ -47,22 +47,21 @@ class TestInferencePipeline(unittest.TestCase):
         # save the input to disk
         self.input_volume_path = 'file:///tmp/input/' + generate_random_string(
         )
-        CloudVolume.from_numpy(
-            np.transpose(self.img), vol_path=self.input_volume_path)
+        CloudVolume.from_numpy(np.transpose(self.img),
+                               vol_path=self.input_volume_path)
 
         # create input mask volume
         input_mask = np.ones(self.input_size, dtype=np.bool)
         self.input_mask_volume_path = 'file:///tmp/input-mask/' + generate_random_string(
         )
-        CloudVolume.from_numpy(
-            np.transpose(input_mask),
-            vol_path=self.input_mask_volume_path,
-            max_mip=self.input_mask_mip)
+        CloudVolume.from_numpy(np.transpose(input_mask),
+                               vol_path=self.input_mask_volume_path,
+                               max_mip=self.input_mask_mip)
         input_mask = np.ones(self.input_mask_size, dtype=np.bool)
         # will mask out the [:2, :8, :8] since it is in mip 1
         input_mask[:(4 + 2), :(64 // 2 + 8 // 2), :(64 // 2 + 8 // 2)] = False
-        input_mask_vol = CloudVolume(
-            self.input_mask_volume_path, mip=self.input_mask_mip)
+        input_mask_vol = CloudVolume(self.input_mask_volume_path,
+                                     mip=self.input_mask_mip)
         input_mask_vol[:, :, :] = np.transpose(input_mask)
 
         # create output layer
@@ -81,28 +80,26 @@ class TestInferencePipeline(unittest.TestCase):
         output_mask = np.ones(self.output_size, dtype=np.bool)
         self.output_mask_volume_path = 'file:///tmp/output-mask/' + generate_random_string(
         )
-        CloudVolume.from_numpy(
-            np.transpose(output_mask),
-            vol_path=self.output_mask_volume_path,
-            max_mip=self.output_mask_mip,
-            voxel_offset=self.cropping_margin_size[::-1])
+        CloudVolume.from_numpy(np.transpose(output_mask),
+                               vol_path=self.output_mask_volume_path,
+                               max_mip=self.output_mask_mip,
+                               voxel_offset=self.cropping_margin_size[::-1])
         # this is the higher mip level mask, so this time we are using the real size
         output_mask = np.ones(self.output_mask_size, dtype=np.bool)
         # will mask out the [-2:, -8:, -8:] since it is in mip 2
         output_mask[-2:, -8 // 4:, -8 // 4:] = False
-        output_mask_vol = CloudVolume(
-            self.output_mask_volume_path, mip=self.output_mask_mip)
+        output_mask_vol = CloudVolume(self.output_mask_volume_path,
+                                      mip=self.output_mask_mip)
         output_mask_vol[:, :, :] = np.transpose(output_mask)
 
         # create volume for output thumbnail
         self.thumbnail_volume_path = os.path.join(self.output_volume_path,
                                                   'thumbnail')
         thumbnail = np.asarray(out, dtype='uint8')
-        CloudVolume.from_numpy(
-            np.transpose(thumbnail),
-            vol_path=self.thumbnail_volume_path,
-            voxel_offset=self.cropping_margin_size[::-1],
-            max_mip=4)
+        CloudVolume.from_numpy(np.transpose(thumbnail),
+                               vol_path=self.thumbnail_volume_path,
+                               voxel_offset=self.cropping_margin_size[::-1],
+                               max_mip=4)
 
     def test_inference_pipeline(self):
         # run pipeline by composing functions
@@ -114,11 +111,10 @@ class TestInferencePipeline(unittest.TestCase):
         chunk = cutout_operator(self.output_bbox)
 
         print('mask input...')
-        mask_input_operator = MaskOperator(
-            self.input_mask_volume_path,
-            self.input_mask_mip,
-            self.mip,
-            inverse=False)
+        mask_input_operator = MaskOperator(self.input_mask_volume_path,
+                                           self.input_mask_mip,
+                                           self.mip,
+                                           inverse=False)
         chunk = mask_input_operator(chunk)
 
         print('run convnet inference...')
@@ -136,26 +132,24 @@ class TestInferencePipeline(unittest.TestCase):
         print('after inference: {}'.format(chunk.slices))
 
         print('crop the marging...')
-        crop_margin_operator = CropMarginOperator(
-            margin_size=(0, ) + self.cropping_margin_size)
+        crop_margin_operator = CropMarginOperator(margin_size=(0, ) +
+                                                  self.cropping_margin_size)
         chunk = crop_margin_operator(chunk, output_bbox=self.output_bbox)
         print('after crop: {}'.format(chunk.slices))
 
         print('mask the output...')
-        mask_output_operator = MaskOperator(
-            self.output_mask_volume_path,
-            self.output_mask_mip,
-            self.mip,
-            inverse=False)
+        mask_output_operator = MaskOperator(self.output_mask_volume_path,
+                                            self.output_mask_mip,
+                                            self.mip,
+                                            inverse=False)
         chunk = mask_output_operator(chunk)
         print('after masking: {}'.format(chunk.slices))
 
         print('save to output volume...')
-        save_operator = SaveOperator(
-            self.output_volume_path,
-            self.mip,
-            upload_log=False,
-            create_thumbnail=True)
+        save_operator = SaveOperator(self.output_volume_path,
+                                     self.mip,
+                                     upload_log=False,
+                                     create_thumbnail=True)
         save_operator(chunk)
         print('after saving: {}'.format(chunk.slices))
 

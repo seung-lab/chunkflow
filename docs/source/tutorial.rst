@@ -101,7 +101,19 @@ Of course, you can replace the `read-tif` operator to other reading operators, s
 
 Convolutional Network Inference
 ================================
+Given a trained convolution network model, it can process small patches of image and output a map, such as synapse cleft or boundary map. Due to the missing context around patch boundary, we normally need to reweight the patch. We trust the central region more and trust the marginal region less. The `inference` operator performs reweighting of patches and blend them together automatically, so the input chunk size can be arbitrary without patch alignment. The only restriction is the RAM size. After blending, the output chunk will looks like a single patch and could be used for further processing.
 
+Synapse cleft detection
+------------------------
+With only one command, you can perform the inference to produce cleft map and visualize it::
+
+   chunkflow read-tif -f "$IMAGE_PATH" -o image inference --convnet-model model.py --convnet-weight-path weight.chkpt --patch-size 18 192 192 --patch-overlap 4 64 64 --framework pytorch --batch-size 6 --bump wu --num-output-channels 1 --mask-output-chunk -i image -o cleft write-tif -i cleft -f cleft.tif neuroglancer -c image,cleft -p 33333 -v 30 6 6
+
+You can see the image with output synapse cleft map:
+
+|cleft|
+
+.. |cleft| image:: _static/image/cleft.png
 
 
 Distributed Computation

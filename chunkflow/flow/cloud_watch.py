@@ -12,7 +12,6 @@ class CloudWatchOperator(OperatorBase):
     :return: the timer result will be uploaded to AWS CloudWatch 
         and nothing will return here.
     """
-
     def __init__(self,
                  log_name: str = 'chunkflow',
                  name: str = 'cloud-watch',
