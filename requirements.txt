@@ -12,3 +12,4 @@ zmesh
 pybind11
 tifffile
 waterz
+connected-components-3d
