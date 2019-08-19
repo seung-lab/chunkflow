@@ -22,3 +22,4 @@ build/
 data/
 *.so
 tmp/
+docs/source/tutorial/*
