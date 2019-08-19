@@ -17,7 +17,6 @@ You'll see a list like this:
 |operator_list|
 
 .. |operator_list| image:: _static/image/operator_list.png
-    :width: 600
 
 We keeps adding more and more operators, you might see more operators than this list. You can get help for each operator by typing `chunkflow operator --help`, such as::
 
@@ -37,7 +36,6 @@ open the link and you should see a image volume in browser:
 |random_image_in_cloudvolume_viewer|
 
 .. |random_image_in_cloudvolume_viewer| image:: _static/image/random_image_in_cloudvolume_viewer.png
-    :width: 600
 
 Neuroglancer
 ---------------------------------
@@ -50,7 +48,6 @@ open the link and you should see it:
 |random_image_in_neuroglancer|
 
 .. |random_image_in_neuroglancer| image:: _static/image/random_image_in_neuroglancer.png
-    :width: 600
 
 Note that the random image center is blacked out.
 
@@ -103,7 +100,41 @@ Convolutional Network Inference
 ================================
 Given a trained convolution network model, it can process small patches of image and output a map, such as synapse cleft or boundary map. Due to the missing context around patch boundary, we normally need to reweight the patch. We trust the central region more and trust the marginal region less. The `inference` operator performs reweighting of patches and blend them together automatically, so the input chunk size can be arbitrary without patch alignment. The only restriction is the RAM size. After blending, the output chunk will looks like a single patch and could be used for further processing.
 
-Synapse cleft detection
+.. note::
+   If there is GPU and cuda available, chunkflow will automatically use GPU for both inference and reweighting.
+
+In order to provide a general interface for broader application, the ConvNet model should be instantiated, called `InstantiatedModel`, with all of it's parameter setup inside. Chunkflow also provide a interface for customized preprocessing and postprocessing. You can define `pre_process` and `post_process` function to add your specialized operations. This is an example of code:
+
+.. code-block:: python
+   
+   def pre_process(input_patch):
+      # we do not need to do anything, 
+      # just transfer input patch to net
+      net_input = input_patch
+      return net_input
+
+   def post_process(net_output):                                
+      # the net output is a list of 5D tensor, 
+      # and there is only one element. 
+      output_patch = net_output[0]
+      # the output patch is a 5D tensor with dimension of batch, channel, z, y, x
+      # there is only one channel, so we drop it.
+      # use narrow function to avoid memory copy. 
+      output_patch = output_patch.narrow(1, 0, 1)
+      # We need to apply sigmoid function to get the softmax result
+      output_patch = torch.sigmoid(output_patch)               
+      return output_patch                                      
+                                                             
+   in_dim = 1                                                   
+   output_spec = OrderedDict(psd_label=1)
+   depth = 3                                                    
+   InstantiatedModel = Model(in_dim, output_spec, depth)        
+
+.. note::
+
+   If you do not define the pre_process and post_process function, it will automatically be replaced as identity function and do not do any transformation.
+
+Synapse Cleft Detection
 ------------------------
 With only one command, you can perform the inference to produce cleft map and visualize it::
 
@@ -114,6 +145,10 @@ You can see the image with output synapse cleft map:
 |cleft|
 
 .. |cleft| image:: _static/image/cleft.png
+
+
+Cell Boundary Detection
+-----------------------
 
 
 Distributed Computation
