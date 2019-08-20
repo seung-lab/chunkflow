@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-import click
-from functools import wraps, update_wrapper
+from functools import update_wrapper, wraps
 from time import time
 import numpy as np
+import click
 from cloudvolume.lib import Bbox
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk.segmentation import Segmentation
 
 # import operator functions
+from .agglomerate import AgglomerateOperator
 from .cloud_watch import CloudWatchOperator
 from .create_chunk import CreateChunkOperator
 from .crop_margin import CropMarginOperator
@@ -33,6 +34,7 @@ from .write_tif import WriteTIFOperator
 # global dict to hold the operators and parameters
 state = {'operators': {}}
 INITIAL_TASK = {'skip': False, 'log': {'timer': {}}}
+DEFAULT_CHUNK_NAME = 'chunk'
 
 
 def handle_task_skip(task, name):
@@ -169,7 +171,47 @@ def fetch_task(queue_name, visibility_timeout):
         yield task
 
 
+@main.command('agglomerate')
+@click.option('--name', type=str, default='create-chunk', help='name of operator')
+@click.option('--threshold', '-t',
+              type=float, default=0.7, help='agglomeration threshold')
+@click.option('--aff-threshold-low', '-l',
+              type=float, default=0.0001, help='low threshold for watershed')
+@click.option('--aff-threshold-high', '-h',
+              type=float, default=0.9999, help='high threshold for watershed')
+@click.option('--fragments-chunk-name', '-f',
+              type=str, default=None, help='optional fragments/supervoxel chunk to use.')
+@click.option('--scoring-function', '-s',
+              type=str, default='OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>',
+              help='A C++ type string specifying the edge scoring function to use.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
+@operator
+def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
+                fragments_chunk_name, scoring_function, input_chunk_name, output_chunk_name):
+    state['operators'][name] = AgglomerateOperator(name=name, verbose=state['verbose'],
+                                                   threshold=threshold, 
+                                                   aff_threshold_low=aff_threshold_low,
+                                                   aff_threshold_high=aff_threshold_high,
+                                                   scoring_function=scoring_function)
+    for task in tasks:
+        if fragments_chunk_name and fragments_chunk_name in task:
+            fragments = task[fragments_chunk_name]
+        else:
+            fragments = None 
+        
+        task[output_chunk_name] = state['operators'][name](
+            task[input_chunk_name], fragments=fragments)
+        yield task
+
+
 @main.command('create-chunk')
+@click.option('--name',
+              type=str,
+              default='create-chunk',
+              help='name of operator')
 @click.option('--size',
               type=int,
               nargs=3,
@@ -191,12 +233,12 @@ def fetch_task(queue_name, visibility_timeout):
               default="chunk",
               help="name of created chunk")
 @operator
-def create_chunk(tasks, size, dtype, voxel_offset, output_chunk_name):
+def create_chunk(tasks, name, size, dtype, voxel_offset, output_chunk_name):
     """Create a fake chunk for easy test."""
-    create_chunk_operator = CreateChunkOperator()
+    state['operators'][name] = CreateChunkOperator()
     print("creating chunk: ", output_chunk_name)
     for task in tasks:
-        task[output_chunk_name] = create_chunk_operator(
+        task[output_chunk_name] = state['operators'][name](
             size=size, dtype=dtype, voxel_offset=voxel_offset)
         yield task
 
