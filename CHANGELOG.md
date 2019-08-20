@@ -9,6 +9,7 @@ ChangeLog history
 ## Features
 - neuroglancer operator works with multiple chunks (https://github.com/seung-lab/chunkflow/pull/123)
 - add connected components operator
+- add iterative mean agglomeration operator, including watershed computation.
 
 ## Bug Fixes 
 
