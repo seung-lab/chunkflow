@@ -27,18 +27,20 @@ class PyTorch(PatchEngine):
             self.is_gpu = False
 
         net_source = load_source(model_file_name)
-        self.net = net_source.InstantiatedModel
-        #self.net.load(weight_file_name)
 
-        chkpt = torch.load(weight_file_name)
-        state_dict = chkpt['state_dict'] if 'state_dict' in chkpt else chkpt
-        self.net.load_state_dict(state_dict)
+        if hasattr(net_source, "load_model"):
+            self.net = net_source.load_model(weight_file_name)
+        else:
+            self.net = net_source.InstantiatedModel
+            chkpt = torch.load(weight_file_name)
+            state_dict = chkpt['state_dict'] if 'state_dict' in chkpt else chkpt
+            self.net.load_state_dict(state_dict)
 
         if self.is_gpu:
             self.net = self.net.cuda()
-            self.net = torch.nn.DataParallel(self.net,
-                                             device_ids=range(
-                                                 torch.cuda.device_count()))
+            # data parallel do not work with old emvision net
+            #self.net = torch.nn.DataParallel(
+            #    self.net, device_ids=range(torch.cuda.device_count()))
 
         # Print model's state_dict
         #print("Model's state_dict:")
@@ -51,12 +53,16 @@ class PyTorch(PatchEngine):
         if hasattr(net_source, "pre_process"):
             self.pre_process = net_source.pre_process
         else:
-            self.pre_process = self._identity
+            self.pre_process = self._pre_process
 
         if hasattr(net_source, "post_process"):
             self.post_process = net_source.post_process
         else:
             self.post_process = self._identity
+
+    def _pre_process(self, input_patch):
+        net_input = torch.from_numpy(input_patch)
+        return net_input
 
     def _identity(self, patch):
         return patch
@@ -64,15 +70,13 @@ class PyTorch(PatchEngine):
     def __call__(self, input_patch):
         # make sure that the patch is 5d ndarray
         input_patch = self._reshape_patch(input_patch)
+        if self.is_gpu:
+            input_patch = torch.from_numpy(input_patch).cuda()
 
         with torch.no_grad():
-            input_patch = self.pre_process(input_patch)
-            input_patch = torch.from_numpy(input_patch)
-            if self.is_gpu:
-                input_patch = input_patch.cuda()
-
+            net_input = self.pre_process(input_patch)
             # the network input and output should be dict
-            net_output = self.net(input_patch)
+            net_output = self.net(net_input)
 
             # get the required output patch from network 
             # The processing depends on network model and application

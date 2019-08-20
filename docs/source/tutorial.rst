@@ -138,7 +138,7 @@ Synapse Cleft Detection
 ------------------------
 With only one command, you can perform the inference to produce cleft map and visualize it::
 
-   chunkflow read-tif -f "$IMAGE_PATH" -o image inference --convnet-model model.py --convnet-weight-path weight.chkpt --patch-size 18 192 192 --patch-overlap 4 64 64 --framework pytorch --batch-size 6 --bump wu --num-output-channels 1 --mask-output-chunk -i image -o cleft write-tif -i cleft -f cleft.tif neuroglancer -c image,cleft -p 33333 -v 30 6 6
+   chunkflow read-tif -f path/of/image.tif -o image inference --convnet-model model.py --convnet-weight-path weight.chkpt --patch-size 18 192 192 --patch-overlap 4 64 64 --framework pytorch --batch-size 6 --bump wu --num-output-channels 1 --mask-output-chunk -i image -o cleft write-tif -i cleft -f cleft.tif neuroglancer -c image,cleft -p 33333 -v 30 6 6
 
 You can see the image with output synapse cleft map:
 
@@ -149,7 +149,7 @@ You can see the image with output synapse cleft map:
 
 You can also apply a threshold to get a segmentation of the cleft map::
 
-   chunkflow read-tif -f "$IMAGE_PATH" -o image read-tif -f cleft.tif -o cleft connected-components -i cleft -o seg -t 0.1 neuroglancer -p 33333 -c image,seg -v 30 6 6
+   chunkflow read-tif -f path/of/image.tif -o image read-tif -f cleft.tif -o cleft connected-components -i cleft -o seg -t 0.1 neuroglancer -p 33333 -c image,seg -v 30 6 6
 
 You should see segmentation overlayed with image::
 
