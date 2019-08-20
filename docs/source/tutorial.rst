@@ -178,10 +178,13 @@ You can perform mean affinity segmentation with one single command::
 
    chunkflow read-h5 --file-name affs.h5 -o affs agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif read-tif --file-name image.tif -o image neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 
+You should be able to see the image, affinity map and segmentation in neuroglancer. Overlay the segmentation with the image looks like this:
+
 |image_seg|
 
 .. |image_seg| image:: _static/image/image_seg.png
 
+If the computation takes too long, you can decrease the ``aff-threshold-high`` to create bigger supervoxels or decrease the ``threshold`` to merge less watershed domains.
 
 Distributed Computation
 ************************
