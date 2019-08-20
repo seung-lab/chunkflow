@@ -161,7 +161,15 @@ Of course, you can add a writing operator, such as ``write-tif``, before the ``n
 
 Dense Neuron Segmentation
 -------------------------
+With a boundary detection network, we can perform boundary detection with one single command:: 
 
+    chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o aff write-h5 -i aff --file-name aff.h5 neuroglancer -c image,aff -p 33333 -v 30 6 6
+
+|image_aff|
+
+.. |image_aff| image:: _static/image/image_aff.png
+
+The boundary map is also saved in ``aff.h5`` file and could be used in later processing.
 
 
 Distributed Computation
