@@ -55,7 +55,7 @@ def default_none(ctx, param, value):
 @click.group(chain=True)
 @click.option('--verbose/--quiet',
               default=True,
-              help='print informations or not, default is quiet.')
+              help='print informations or not, default is verbose.')
 @click.option('--mip',
               type=int,
               default=0,
@@ -63,9 +63,7 @@ def default_none(ctx, param, value):
 # the code design is from:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 def main(verbose, mip):
-    """This script processes a chunk in a pipe. 
-    One command feeds into the next.
-    """
+    """Compose operators and create your own pipeline."""
     state['verbose'] = verbose
     state['mip'] = mip
     pass

@@ -18,7 +18,7 @@ You'll see a list like this:
 
 .. |operator_list| image:: _static/image/operator_list.png
 
-We keeps adding more and more operators, you might see more operators than this list. You can get help for each operator by typing `chunkflow operator --help`, such as::
+We keeps adding more and more operators, you might see more operators than this list. You can get help for each operator by typing ``chunkflow operator --help``, such as::
 
     chunkflow create-chunk --help
 
@@ -93,17 +93,17 @@ The result will print out in terminal::
    VOI split: 0.300484
    VOI merge: 0.143631
 
-Of course, you can replace the `read-tif` operator to other reading operators, such as `read-h5` and `cutout`.
+Of course, you can replace the ``read-tif`` operator to other reading operators, such as ``read-h5`` and ``cutout``.
 
 
 Convolutional Network Inference
 ================================
-Given a trained convolution network model, it can process small patches of image and output a map, such as synapse cleft or boundary map. Due to the missing context around patch boundary, we normally need to reweight the patch. We trust the central region more and trust the marginal region less. The `inference` operator performs reweighting of patches and blend them together automatically, so the input chunk size can be arbitrary without patch alignment. The only restriction is the RAM size. After blending, the output chunk will looks like a single patch and could be used for further processing.
+Given a trained convolution network model, it can process small patches of image and output a map, such as synapse cleft or boundary map. Due to the missing context around patch boundary, we normally need to reweight the patch. We trust the central region more and trust the marginal region less. The ``inference`` operator performs reweighting of patches and blend them together automatically, so the input chunk size can be arbitrary without patch alignment. The only restriction is the RAM size. After blending, the output chunk will looks like a single patch and could be used for further processing.
 
 .. note::
    If there is GPU and cuda available, chunkflow will automatically use GPU for both inference and reweighting.
 
-In order to provide a general interface for broader application, the ConvNet model should be instantiated, called `InstantiatedModel`, with all of it's parameter setup inside. Chunkflow also provide a interface for customized preprocessing and postprocessing. You can define `pre_process` and `post_process` function to add your specialized operations. This is an example of code:
+In order to provide a general interface for broader application, the ConvNet model should be instantiated, called ``InstantiatedModel``, with all of it's parameter setup inside. Chunkflow also provide a interface for customized preprocessing and postprocessing. You can define ``pre_process`` and ``post_process`` function to add your specialized operations. This is an example of code:
 
 .. code-block:: python
    
@@ -134,7 +134,7 @@ In order to provide a general interface for broader application, the ConvNet mod
 
    If you do not define the pre_process and post_process function, it will automatically be replaced as identity function and do not do any transformation.
 
-Synapse Cleft Detection
+Synaptic Cleft Detection
 ------------------------
 With only one command, you can perform the inference to produce cleft map and visualize it::
 
@@ -151,14 +151,16 @@ You can also apply a threshold to get a segmentation of the cleft map::
 
    chunkflow read-tif -f path/of/image.tif -o image read-tif -f cleft.tif -o cleft connected-components -i cleft -o seg -t 0.1 neuroglancer -p 33333 -c image,seg -v 30 6 6
 
-You should see segmentation overlayed with image::
+You should see segmentation overlayed with image:
 
 |cleft_label|
 
 .. |cleft_label| image:: _static/image/cleft_label.png
 
-Cell Boundary Detection
------------------------
+Of course, you can add a writing operator, such as ``write-tif``, before the ``neuroglancer`` operator to save the segmentation.
+
+Dense Neuron Segmentation
+-------------------------
 
 
 
