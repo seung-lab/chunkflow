@@ -32,22 +32,6 @@ Release
 
     If you would like to include/exclude some files/folders, please edit the MANIFEST.in file.
 
-Build Docker Image
-==================
-
-All the docker images are automatically built and is available in the DockerHub_. The ``latest`` tag is the image built from the ``master`` branch. The ``base`` tag is a base ubuntu image, and the ``pytorch`` and ``pznet`` tag contains ``pytorch`` and ``pznet`` inference backends respectively. 
-
-.. _DockerHub: https://hub.docker.com/r/seunglab/chunkflow
-
-You can also manually build docker images locally. The docker files is organized hierarchically. The ``docker/base/Dockerfile`` is a basic one, and the ``docker/inference/pytorch/Dockerfile`` and ``docker/inference/pznet/Dockerfile`` contains pytorch and pznet respectively for ConvNet inference. 
-
-After building the base images, you can start building chunkflow image with different backends. You can just modify the base choice in the Dockerfile and then build it:
-
-.. code-block:: docker
-
-    # backend: base | pytorch | pznet | pytorch-cuda9
-    ARG BACKEND=pytorch 
-
 Documentation
 ***************
 We use `Sphinx`_ with `reStructuredText`_ to make documentation. You can make it locally for tests::

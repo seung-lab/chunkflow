@@ -4,8 +4,8 @@ Tutorial
 ##############
 
 
-Composable Commandline Interface
-*********************************
+Composable Operators Pipeline in Single Machine
+***********************************************
 You can compose operators and create your own pipeline flexibly. The operators could be reused in different applications.
 
 You can get a list of available operators by::
@@ -186,8 +186,28 @@ You should be able to see the image, affinity map and segmentation in neuroglanc
 
 If the computation takes too long, you can decrease the ``aff-threshold-high`` to create bigger supervoxels or decrease the ``threshold`` to merge less watershed domains.
 
-Distributed Computation
-************************
+Of course, you can also combine the two setups to one single command::
+    
+    chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
+
+Distributed Computation in both Local and Cloud
+*************************************************
+
+Build Docker Image
+==================
+
+All the docker images are automatically built and is available in the DockerHub_. The ``latest`` tag is the image built from the ``master`` branch. The ``base`` tag is a base ubuntu image, and the ``pytorch`` and ``pznet`` tag contains ``pytorch`` and ``pznet`` inference backends respectively. 
+
+.. _DockerHub: https://hub.docker.com/r/seunglab/chunkflow
+
+You can also manually build docker images locally. The docker files is organized hierarchically. The ``docker/base/Dockerfile`` is a basic one, and the ``docker/inference/pytorch/Dockerfile`` and ``docker/inference/pznet/Dockerfile`` contains pytorch and pznet respectively for ConvNet inference. 
+
+After building the base images, you can start building chunkflow image with different backends. You can just modify the base choice in the Dockerfile and then build it:
+
+.. code-block:: docker
+
+    # backend: base | pytorch | pznet | pytorch-cuda9
+    ARG BACKEND=pytorch 
 
 Deploy in Local Computers
 ===========================
