@@ -8,6 +8,25 @@ from chunkflow.lib import load_source
 
 
 class PyTorch(PatchEngine):
+    """perform inference for an image patch using pytorch.
+    Parameters
+    ----------
+    patch_size: size of input/output patch size. We assume that 
+        the input and output patch size is the same. 
+    patch_overlap: overlap of neighboring patches.
+    model_file_name: file name of model
+    weight_file_name: file name of trained weight.
+    use_batch_norm: use batch normalization or not.
+    is_static_batch_norm: whether the batch norm is static or instance level?
+    num_output_channels: number of output channels.
+    mask: the weight mask applied to output patch.
+    
+    You can make some customized processing in your model file. 
+    You can define `load_model` function to customize your way of 
+    loading model. This is useful for loading some models trained using
+    old version pytorch (<=0.4.0). You can also define `pre_process` 
+    and `post_process` function to insert your own customized processing.
+    """
     def __init__(self,
                  patch_size: Union[tuple, list],
                  patch_overlap: Union[tuple, list],
