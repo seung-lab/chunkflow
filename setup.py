@@ -9,8 +9,13 @@ from shutil import move
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 with open(os.path.join(PACKAGE_DIR, 'requirements.txt')) as f:
-    requirements = f.read().splitlines()
-    requirements = [l for l in requirements if not l.startswith('#')]
+    install_requires = f.read().splitlines()
+    install_requires = [l for l in install_requires if not l.startswith('#')]
+
+with open(os.path.join(PACKAGE_DIR, 'tests-requirements.txt')) as f:
+    tests_require = f.read().splitlines()
+    tests_require = [l for l in tests_require if not l.startswith('#')]
+
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -136,10 +141,8 @@ setup(
     author_email='jingpeng.wu@gmail.com',
     packages=find_packages(exclude=['tests', 'bin', 'docker', 'kubernetes']),
     url='https://github.com/seung-lab/chunkflow',
-    install_requires=requirements,
-    tests_require=[
-        'pytest',
-    ],
+    install_requires=install_requires,
+    tests_require=tests_require,
     ext_modules=ext_modules,
     entry_points='''
         [console_scripts]
