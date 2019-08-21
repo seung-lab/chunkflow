@@ -8,7 +8,7 @@ chunkflow
 
 Chunk operations for large scale 3D image dataset processing
 
-Perform Convolutional net inference to segment 3D image volume with one command:
+Perform Convolutional net inference to segment 3D image volume with one single command!
 ```shell
 chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 ```
@@ -18,12 +18,12 @@ you can see your 3D image and segmentation in [Neuroglancer](https://github.com/
 
 We have more operators that can be composed flexiblly, checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
 
-## Features
+# Features
 - **Composable** operators. The chunk operators could be freely composed in commandline for flexible usage.
 - **Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
 - All operations support **3D** image volumes.
 
-## Some Typical Operators
+# Some Typical Operators
 - Convolutional Network Inference. Currently, we support [PyTorch](https://pytorch.org) and [pznet](https://github.com/supersergiy/znnphi_interface)
 - Image segmentation using watershed and mean affinity agglomeration.
 - Image segmentation using connected component.
@@ -33,7 +33,7 @@ We have more operators that can be composed flexiblly, checkout our [Documentati
 - Evaluation of segmentation using rand index and variation of information.
 
 # Citation
-If you used this tool and is writing a paper, please cite this paper:
+If you used this tool and is writing a paper, please cite this [paper](https://arxiv.org/abs/1904.10489):
 ```bibtex
 @article{wu2019chunkflow,
   title={Chunkflow: Distributed Hybrid Cloud Processing of Large 3D Images by Convolutional Nets},
