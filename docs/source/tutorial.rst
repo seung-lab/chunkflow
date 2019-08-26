@@ -103,7 +103,7 @@ Given a trained convolution network model, it can process small patches of image
 .. note::
    If there is GPU and cuda available, chunkflow will automatically use GPU for both inference and reweighting.
 
-In order to provide a general interface for broader application, the ConvNet model should be instantiated, called ``InstantiatedModel``, with all of it's parameter setup inside. Chunkflow also provide a interface for customized preprocessing and postprocessing. You can define ``pre_process`` and ``post_process`` function to add your specialized operations. This is an example of code:
+In order to provide a general interface for broader application, the ConvNet model should be instantiated, called ``InstantiatedModel``, with all of it's parameter setup inside. Chunkflow also provide a interface for customized preprocessing and postprocessing. You can define ``pre_process`` and ``post_process`` function to add your specialized operations. You can also define your own ``load_model`` function, and make some special loading operation, which is useful to load model trained with old version of pytorch (version<=0.4.0). This is an example of code:
 
 .. code-block:: python
    
