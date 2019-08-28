@@ -52,21 +52,18 @@ class Chunk(np.ndarray):
     @classmethod
     def create_random(cls, size: tuple = (64, 64, 64),
                       dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0)):
-        def _make_black_box():
-            slices = tuple(slice(s // 4, -s // 4) for s in size)
-            cls[slices] = 0
 
         if np.issubdtype(dtype, np.floating):
-            chunk = np.random.rand(*size).astype(dtype)
-            a = np.zeros(size, dtype=np.uint8)
+            #chunk = np.random.rand(*size).astype(dtype)
+            chunk = np.zeros(size, dtype=np.uint8)
             ix, iy, iz = np.meshgrid(
                 *[np.linspace(0, 1, n) for n in a.shape[1:]], indexing='ij')
-            a[:, :, :] = np.abs(np.sin(4 * (ix + iy))) * 255
-            _make_black_box()
+            chunk[:, :, :] = np.abs(np.sin(4 * (ix + iy))) * 255
             return cls(chunk, global_offset=voxel_offset)
         elif dtype == np.uint8:
             chunk = np.random.randint(0, 256, size=size, dtype=dtype)
-            _make_black_box()
+            black_slices = tuple(slice(s // 4, -s // 4) for s in size)
+            chunk[black_slices] = 0
             return cls(chunk, global_offset=voxel_offset)
         elif np.issubdtype(dtype, np.integer):
             raise NotImplementedError()

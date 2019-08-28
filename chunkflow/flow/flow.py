@@ -232,7 +232,7 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, output_chunk_name):
     print("creating chunk: ", output_chunk_name)
     for task in tasks:
         task[output_chunk_name] = Chunk.create_random(
-            size=size, dtype=dtype, voxel_offset=voxel_offset)
+            size=size, dtype=np.dtype(dtype), voxel_offset=voxel_offset)
         yield task
 
 
