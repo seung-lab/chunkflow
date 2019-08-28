@@ -50,25 +50,27 @@ class Chunk(np.ndarray):
         return Chunk(array, global_offset=global_offset)
     
     @classmethod
-    def create_random(cls, size: tuple = (64, 64, 64),
-                      dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0)):
+    def create(cls, size: tuple = (64, 64, 64),
+               dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0)):
+        if isinstance(dtype, str):
+            dtype = np.dtype(dtype)
 
-        if np.issubdtype(dtype, np.floating):
-            #chunk = np.random.rand(*size).astype(dtype)
-            chunk = np.zeros(size, dtype=np.uint8)
-            ix, iy, iz = np.meshgrid(
-                *[np.linspace(0, 1, n) for n in a.shape[1:]], indexing='ij')
-            chunk[:, :, :] = np.abs(np.sin(4 * (ix + iy))) * 255
-            return cls(chunk, global_offset=voxel_offset)
-        elif dtype == np.uint8:
-            chunk = np.random.randint(0, 256, size=size, dtype=dtype)
-            black_slices = tuple(slice(s // 4, -s // 4) for s in size)
-            chunk[black_slices] = 0
-            return cls(chunk, global_offset=voxel_offset)
-        elif np.issubdtype(dtype, np.integer):
-            raise NotImplementedError()
+        ix, iy, iz = np.meshgrid(*[np.linspace(0, 1, n) for 
+                                   n in size[-3:]], indexing='ij')
+        chunk = np.abs(np.sin(4 * (ix + iy)))
+        if len(size) == 4:
+            chunk = np.expand_dims(chunk, axis=0)
+            chunk = np.repeat(chunk, size[0], axis=0)
+            
+
+        if dtype == np.uint8:
+            chunk = (chunk * 255).astype( dtype )
+        elif np.issubdtype(dtype, np.floating):
+            chunk = chunk.astype(dtype)
         else:
             raise NotImplementedError()
+
+        return cls(chunk, global_offset=voxel_offset)
 
     @classmethod
     def from_tif(cls, file_name: str, global_offset: tuple=None):
@@ -150,19 +152,20 @@ class Chunk(np.ndarray):
         return Chunk(arr, global_offset=global_offset)
     
     def crop_margin(self, margin_size: tuple = None, output_bbox: Bbox=None):
-        if len(margin_size) == 3 and self.ndim == 4:
-            margin_size = (0,) + margin_size
 
         if margin_size:
-            if self.ndim == 3 and len(margin_size) == 3:
-                chunk = self[margin_size[0]:chunk.shape[0] - margin_size[0],
-                              margin_size[1]:chunk.shape[1] - margin_size[1],
-                              margin_size[2]:chunk.shape[2] - margin_size[2]]
+            if len(margin_size) == 3 and self.ndim == 4:
+                margin_size = (0,) + margin_size
+
+            if self.ndim == 3:
+                chunk = self[margin_size[0]:self.shape[0] - margin_size[0],
+                             margin_size[1]:self.shape[1] - margin_size[1],
+                             margin_size[2]:self.shape[2] - margin_size[2]]
             elif self.ndim == 4:
-                chunk = self[margin_size[0]:chunk.shape[0] - margin_size[0],
-                              margin_size[1]:chunk.shape[1] - margin_size[1],
-                              margin_size[2]:chunk.shape[2] - margin_size[2],
-                              margin_size[3]:chunk.shape[3] - margin_size[3]]
+                chunk = self[margin_size[0]:self.shape[0] - margin_size[0],
+                             margin_size[1]:self.shape[1] - margin_size[1],
+                             margin_size[2]:self.shape[2] - margin_size[2],
+                             margin_size[3]:self.shape[3] - margin_size[3]]
             else:
                 raise ValueError('the array dimension can only by 3 or 4.')
             global_offset = tuple(
@@ -170,7 +173,7 @@ class Chunk(np.ndarray):
             return Chunk(chunk, global_offset=global_offset)
         else:
             print('automatically crop the chunk to output bounding box.')
-            return chunk.cutout(output_bbox.to_slices())
+            return self.cutout(output_bbox.to_slices())
     
     def connected_component(self, threshold: float = 0.5, 
                             connectivity: int = 26):
