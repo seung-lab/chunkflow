@@ -1,4 +1,8 @@
+import os
+import h5py
 import numpy as np
+import tifffile
+import cc3d
 from cloudvolume.lib import Bbox
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
@@ -44,6 +48,74 @@ class Chunk(np.ndarray):
         """
         global_offset = (bbox.minpt.z, bbox.minpt.y, bbox.minpt.x)
         return Chunk(array, global_offset=global_offset)
+    
+    @classmethod
+    def create_random(cls, size: tuple = (64, 64, 64),
+                      dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0)):
+        def _make_black_box():
+            slices = tuple(slice(s // 4, -s // 4) for s in size)
+            cls[slices] = 0
+
+        if np.issubdtype(dtype, np.floating):
+            chunk = np.random.rand(*size).astype(dtype)
+            a = np.zeros(size, dtype=np.uint8)
+            ix, iy, iz = np.meshgrid(
+                *[np.linspace(0, 1, n) for n in a.shape[1:]], indexing='ij')
+            a[:, :, :] = np.abs(np.sin(4 * (ix + iy))) * 255
+            _make_black_box()
+            return cls(chunk, global_offset=voxel_offset)
+        elif dtype == np.uint8:
+            chunk = np.random.randint(0, 256, size=size, dtype=dtype)
+            _make_black_box()
+            return cls(chunk, global_offset=voxel_offset)
+        elif np.issubdtype(dtype, np.integer):
+            raise NotImplementedError()
+        else:
+            raise NotImplementedError()
+
+    @classmethod
+    def from_tif(cls, file_name: str, global_offset: tuple=None):
+        arr = tifffile.imread(file_name)
+
+        return cls(arr, global_offset=global_offset)
+    
+    def to_tif(self, file_name: str, global_offset: tuple=None):
+        print('write chunk to file: ', file_name)
+        tifffile.imwrite(file_name, data=self)
+
+    @classmethod
+    def from_h5(cls, file_name: str,
+                dataset_path: str = '/main',
+                global_offset: tuple = None):
+
+        assert os.path.exists(file_name)
+        assert h5py.is_hdf5(file_name)
+
+        print('read from HDF5 file: {}'.format(file_name))
+
+        global_offset_path = os.path.join(os.path.dirname(file_name),
+                                       'global_offset')
+        with h5py.File(file_name) as f:
+            arr = np.asarray(f[dataset_path])
+
+            if global_offset is None:
+                if global_offset_path in f:
+                    global_offset = tuple(f[global_offset_path])
+
+        print('global offset: {}'.format(global_offset))
+
+        return cls(arr, global_offset=global_offset)
+
+    def to_h5(self, file_name: str):
+        assert '.h5' in file_name
+
+        print('write chunk to file: ', file_name)
+        if os.path.exists(file_name):
+            os.remove(file_name)
+
+        with h5py.File(file_name) as f:
+            f.create_dataset('/main', data=self)
+            f.create_dataset('/global_offset', data=self.global_offset)
 
     @property
     def slices(self) -> tuple:
@@ -79,6 +151,37 @@ class Chunk(np.ndarray):
         arr = np.squeeze(self, axis=0)
         global_offset = self.global_offset[:axis] + self.global_offset[axis+1:]
         return Chunk(arr, global_offset=global_offset)
+    
+    def crop_margin(self, margin_size: tuple = None, output_bbox: Bbox=None):
+        if len(margin_size) == 3 and self.ndim == 4:
+            margin_size = (0,) + margin_size
+
+        if margin_size:
+            if self.ndim == 3 and len(margin_size) == 3:
+                chunk = self[margin_size[0]:chunk.shape[0] - margin_size[0],
+                              margin_size[1]:chunk.shape[1] - margin_size[1],
+                              margin_size[2]:chunk.shape[2] - margin_size[2]]
+            elif self.ndim == 4:
+                chunk = self[margin_size[0]:chunk.shape[0] - margin_size[0],
+                              margin_size[1]:chunk.shape[1] - margin_size[1],
+                              margin_size[2]:chunk.shape[2] - margin_size[2],
+                              margin_size[3]:chunk.shape[3] - margin_size[3]]
+            else:
+                raise ValueError('the array dimension can only by 3 or 4.')
+            global_offset = tuple(
+                o + m for o, m in zip(chunk.global_offset, margin_size))
+            return Chunk(chunk, global_offset=global_offset)
+        else:
+            print('automatically crop the chunk to output bounding box.')
+            return chunk.cutout(output_bbox.to_slices())
+    
+    def connected_component(self, threshold: float = 0.5, 
+                            connectivity: int = 26):
+        """threshold the map chunk and get connected components."""
+        global_offset = self.global_offset
+        seg = self > threshold
+        seg = cc3d.connected_components(seg, connectivity=connectivity)
+        return Chunk(seg, global_offset=global_offset)
 
     def where(self, mask: np.ndarray) -> tuple:
         """

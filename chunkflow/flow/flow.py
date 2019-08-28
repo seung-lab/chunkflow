@@ -6,15 +6,13 @@ import click
 from cloudvolume.lib import Bbox
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
+from chunkflow.chunk import Chunk
 from chunkflow.chunk.segmentation import Segmentation
 
 # import operator functions
 from .agglomerate import AgglomerateOperator
 from .cloud_watch import CloudWatchOperator
-from .create_chunk import CreateChunkOperator
-from .crop_margin import CropMarginOperator
 from .custom_operator import CustomOperator
-from .connected_components import ConnectedComponentsOperator
 from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
 from .inference import InferenceOperator
@@ -23,13 +21,9 @@ from .mesh import MeshOperator
 from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
-from .read_tif import ReadTIFOperator
-from .read_h5 import ReadH5Operator
 from .save import SaveOperator
 from .save_pngs import SavePNGsOperator
 from .view import ViewOperator
-from .write_h5 import WriteH5Operator
-from .write_tif import WriteTIFOperator
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
@@ -172,7 +166,7 @@ def fetch_task(queue_name, visibility_timeout):
 
 
 @main.command('agglomerate')
-@click.option('--name', type=str, default='create-chunk', help='name of operator')
+@click.option('--name', type=str, default='agglomerate', help='name of operator')
 @click.option('--threshold', '-t',
               type=float, default=0.7, help='agglomeration threshold')
 @click.option('--aff-threshold-low', '-l',
@@ -235,10 +229,9 @@ def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
 @operator
 def create_chunk(tasks, name, size, dtype, voxel_offset, output_chunk_name):
     """Create a fake chunk for easy test."""
-    state['operators'][name] = CreateChunkOperator()
     print("creating chunk: ", output_chunk_name)
     for task in tasks:
-        task[output_chunk_name] = state['operators'][name](
+        task[output_chunk_name] = Chunk.create_random(
             size=size, dtype=dtype, voxel_offset=voxel_offset)
         yield task
 
@@ -267,11 +260,10 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, output_chunk_name):
 def read_tif(tasks, name: str, file_name: str, offset: tuple,
              output_chunk_name: str):
     """Read tiff files."""
-    read_tif_operator = ReadTIFOperator()
     for task in tasks:
         start = time()
         assert output_chunk_name not in task
-        task[output_chunk_name] = read_tif_operator(file_name,
+        task[output_chunk_name] = Chunk.from_tif(file_name,
                                                     global_offset=offset)
         task['log']['timer'][name] = time() - start
         yield task
@@ -304,13 +296,12 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
 def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
             output_chunk_name: str):
     """Read HDF5 files."""
-    read_h5_operator = ReadH5Operator()
     for task in tasks:
         start = time()
         assert output_chunk_name not in task
-        task[output_chunk_name] = read_h5_operator(file_name,
-                                                   dataset_path=dataset_path,
-                                                   global_offset=offset)
+        task[output_chunk_name] = Chunk.from_h5(file_name,
+                                                dataset_path=dataset_path,
+                                                global_offset=offset)
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -327,11 +318,10 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
 @operator
 def write_h5(tasks, name, input_chunk_name, file_name):
     """Write chunk to HDF5 file."""
-    state['operators'][name] = WriteH5Operator()
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task[input_chunk_name], file_name)
+            task[input_chunk_name].to_h5(file_name)
         yield task
 
 
@@ -339,23 +329,18 @@ def write_h5(tasks, name, input_chunk_name, file_name):
 @click.option('--name', type=str, default='write-tif', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
-@click.option(
-    '--file-name',
-    '-f',
-    type=click.Path(dir_okay=False, resolve_path=True),
-    required=True,
+@click.option('--file-name', '-f',
+    type=click.Path(dir_okay=False, resolve_path=True), required=True,
     help='file name of tif file, the extention should be .tif or .tiff')
 @operator
 def write_tif(tasks, name, input_chunk_name, file_name):
     """Write chunk as a TIF file."""
-    state['operators'][name] = WriteTIFOperator()
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task[input_chunk_name], file_name)
+            task[input_chunk_name].to_tif(file_name)
         # keep the pipeline going
         yield task
-
 
 @main.command('save-pngs')
 @click.option('--name', type=str, default='save-pngs', help='name of operator')
@@ -694,14 +679,12 @@ def custom_operator(tasks, name, input_chunk_name, output_chunk_name, opprogram,
 def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
                          threshold, connectivity):
     """Threshold the map to get a segmentation."""
-    state['operators'][name] = ConnectedComponentsOperator(name=name, 
-                                                           threshold=threshold, 
-                                                           connectivity=connectivity)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+            task[output_chunk_name] = task[input_chunk_name].connected_component(
+                threshold=threshold, connectivity=connectivity)
             task['log']['timer']['name'] = time() - start
         yield task
 
@@ -891,28 +874,29 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero,
               default='crop-margin',
               help='name of this operator')
 @click.option('--margin-size', '-m',
-              type=int,
-              nargs=3,
-              default=None,
+              type=int, nargs=3, default=None,
               help='crop the chunk margin. ' +
               'The default is None and will use the output_bbox ' +
               'as croping range.')
-@click.option('--chunk-name', '-c',
-              type=str,
-              default='chunk',
-              help='input and output chunk name.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name.')
+@click.option('--output-chunk-name', '-o',
+              type=str, default='chunk', help='output chunk name.')
 @operator
-def crop_margin(tasks, name, margin_size, chunk_name):
+def crop_margin(tasks, name, margin_size, 
+                input_chunk_name, output_chunk_name):
     """Crop the margin of chunk."""
-    state['operators'][name] = CropMarginOperator(margin_size=margin_size,
-                                                  verbose=state['verbose'],
-                                                  name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[chunk_name] = state['operators'][name](
-                task[chunk_name], output_bbox=task.get('output_bbox', None))
+            if margin_size:
+                task[output_chunk_name] = task[input_chunk_name].crop_margin(
+                    margin_size=margin_size)
+            else:
+                # use the output bbox for croping 
+                task[output_chunk_name] = task[
+                    input_chunk_name].cutout(task['output_bbox'].to_slices())
             task['log']['timer'][name] = time() - start
         yield task
 
