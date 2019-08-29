@@ -132,9 +132,7 @@ class TestInferencePipeline(unittest.TestCase):
         print('after inference: {}'.format(chunk.slices))
 
         print('crop the marging...')
-        crop_margin_operator = CropMarginOperator(margin_size=(0, ) +
-                                                  self.cropping_margin_size)
-        chunk = crop_margin_operator(chunk, output_bbox=self.output_bbox)
+        chunk = chunk.crop_margin(output_bbox=self.output_bbox)
         print('after crop: {}'.format(chunk.slices))
 
         print('mask the output...')
