@@ -3,10 +3,19 @@
 Tutorial
 ##############
 
+Use Chunkflow as a Python Library
+**********************************
+Chunkflow is a python library and all the operators can be used a python function. You can start using it with:
 
-Composable Operators Pipeline in Single Machine
-***********************************************
-You can compose operators and create your own pipeline flexibly. The operators could be reused in different applications.
+.. code-block:: python
+
+   import chunkflow
+
+For the full list of api functions, please checkout the :ref:`api`.
+
+Composable Command Line Interface
+*****************************************************************
+Chunkflow also provide a composable command line interface. You can compose operators and create your own pipeline flexibly for your specific application. The operators could be reused in different applications.
 
 You can get a list of available operators by::
     
@@ -21,6 +30,9 @@ You'll see a list like this:
 We keeps adding more and more operators, you might see more operators than this list. You can get help for each operator by typing ``chunkflow operator --help``, such as::
 
     chunkflow create-chunk --help
+
+
+Now let's play with some operators.
 
 Visualization of a Chunk
 ==========================
@@ -190,6 +202,7 @@ Of course, you can also combine the two setups to one single command::
     
     chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 
+
 Distributed Computation in both Local and Cloud
 *************************************************
 We use AWS SQS_ queue to decouple task producing and managing frontend and the computational heavy backend. In the frontend, you can produce a bunch of tasks to AWS SQS queue, and the tasks are managed in AWS SQS. Then, you can launch any number of chunkflow workers in **both** local and cloud. You can even mix using multiple cloud instances. Actually, you can use **any** computer with internet connection and AWS authentication **at the same time**. This hybrid cloud architecture enables maximum computational resources usage.
@@ -216,7 +229,7 @@ After building the base images, you can start building chunkflow image with diff
 
 Produce Tasks and Ingest to AWS SQS Queue
 =========================================
-You can use the ``generate-tasks`` to generate tasks. It will ingest the tasks to a AWS SQS_ queue if you define the 
+You can use the ``generate-tasks`` to generate tasks. It will ingest the tasks to a AWS SQS_ queue if you define the ``queue-name`` parameter::
    
    chunkflow generate-tasks --chunk-size 128 1024 1024 --grid-size 2 2 2 --stride 128 1024 1024 --queue-name chunkflow
 
@@ -228,7 +241,7 @@ Log in your AWS console, and check the ``chunkflow`` queue, you should see your 
 
 Deploy in Local Computers
 ===========================
-You can fetch the task from SQS queue, and perform the computation locally. You can compose the operations to create your pipeline. Here is a simple example:
+You can fetch the task from SQS queue, and perform the computation locally. You can compose the operations to create your pipeline. Here is a simple example::
 
    chunkflow --verbose --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 cutout --volume-path=my-volume-path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save --volume-path="my/output/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
   
@@ -243,7 +256,7 @@ Kubernetes_ is the most popular docker container orchestration platform, and is 
 
 Performance Analysis
 =====================
-You can use ``log-summary`` to give a brief summary of operator performance:
+You can use ``log-summary`` to give a brief summary of operator performance::
 
    chunkflow log-summary --log-dir /tmp/log --output-size 156 1280 1280
 
