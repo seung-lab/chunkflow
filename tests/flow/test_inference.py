@@ -1,7 +1,7 @@
 import numpy as np
 
+from chunkflow.chunk import Chunk
 from chunkflow.flow.inference import InferenceOperator
-from chunkflow.flow.create_chunk import CreateChunkOperator
 
 
 def test_inference():
@@ -10,7 +10,7 @@ def test_inference():
     patch_overlap = (2, 32, 32)
     patch_size = (10, 128, 128)
 
-    image = CreateChunkOperator()(size=input_size, dtype='uint8')
+    image = Chunk.create(size=input_size, dtype='uint8')
     inference_operator = InferenceOperator(None,
                                            None,
                                            patch_size=patch_size,

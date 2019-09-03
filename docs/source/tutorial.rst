@@ -4,8 +4,8 @@ Tutorial
 ##############
 
 
-Composable Commandline Interface
-*********************************
+Composable Operators Pipeline in Single Machine
+***********************************************
 You can compose operators and create your own pipeline flexibly. The operators could be reused in different applications.
 
 You can get a list of available operators by::
@@ -103,7 +103,7 @@ Given a trained convolution network model, it can process small patches of image
 .. note::
    If there is GPU and cuda available, chunkflow will automatically use GPU for both inference and reweighting.
 
-In order to provide a general interface for broader application, the ConvNet model should be instantiated, called ``InstantiatedModel``, with all of it's parameter setup inside. Chunkflow also provide a interface for customized preprocessing and postprocessing. You can define ``pre_process`` and ``post_process`` function to add your specialized operations. This is an example of code:
+In order to provide a general interface for broader application, the ConvNet model should be instantiated, called ``InstantiatedModel``, with all of it's parameter setup inside. Chunkflow also provide a interface for customized preprocessing and postprocessing. You can define ``pre_process`` and ``post_process`` function to add your specialized operations. You can also define your own ``load_model`` function, and make some special loading operation, which is useful to load model trained with old version of pytorch (version<=0.4.0). This is an example of code:
 
 .. code-block:: python
    
@@ -164,7 +164,7 @@ Dense Neuron Segmentation
 
 We used a ConvNet trained using SNEMI3D_ dataset, you can download the data from the website. Then, we can perform boundary detection with one single command:: 
 
-    chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o aff write-h5 -i aff --file-name aff.h5 neuroglancer -c image,aff -p 33333 -v 30 6 6
+    chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 neuroglancer -c image,affs -p 33333 -v 30 6 6
 
 .. _SNEMI3D: http://brainiac2.mit.edu/SNEMI3D/home
 
@@ -172,11 +172,42 @@ We used a ConvNet trained using SNEMI3D_ dataset, you can download the data from
 
 .. |image_aff| image:: _static/image/image_aff.png
 
-The boundary map is also saved in ``aff.h5`` file and could be used in later processing.
+The boundary map is also saved in ``affs.h5`` file and could be used in later processing. The affinitymap array axis is ``channel,z,y,x``, and the channel order is ``x,y,z`` for our model output, meaning the first channel is ``x`` direction. 
 
+You can perform mean affinity segmentation with one single command::
 
-Distributed Computation
-************************
+   chunkflow read-h5 --file-name affs.h5 -o affs agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif read-tif --file-name image.tif -o image neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
+
+You should be able to see the image, affinity map and segmentation in neuroglancer. Overlay the segmentation with the image looks like this:
+
+|image_seg|
+
+.. |image_seg| image:: _static/image/image_seg.png
+
+If the computation takes too long, you can decrease the ``aff-threshold-high`` to create bigger supervoxels or decrease the ``threshold`` to merge less watershed domains.
+
+Of course, you can also combine the two setups to one single command::
+    
+    chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
+
+Distributed Computation in both Local and Cloud
+*************************************************
+
+Build Docker Image
+==================
+
+All the docker images are automatically built and is available in the DockerHub_. The ``latest`` tag is the image built from the ``master`` branch. The ``base`` tag is a base ubuntu image, and the ``pytorch`` and ``pznet`` tag contains ``pytorch`` and ``pznet`` inference backends respectively. 
+
+.. _DockerHub: https://hub.docker.com/r/seunglab/chunkflow
+
+You can also manually build docker images locally. The docker files is organized hierarchically. The ``docker/base/Dockerfile`` is a basic one, and the ``docker/inference/pytorch/Dockerfile`` and ``docker/inference/pznet/Dockerfile`` contains pytorch and pznet respectively for ConvNet inference. 
+
+After building the base images, you can start building chunkflow image with different backends. You can just modify the base choice in the Dockerfile and then build it:
+
+.. code-block:: docker
+
+    # backend: base | pytorch | pznet | pytorch-cuda9
+    ARG BACKEND=pytorch 
 
 Deploy in Local Computers
 ===========================

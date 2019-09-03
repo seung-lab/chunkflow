@@ -4,12 +4,7 @@ import os
 import shutil
 
 from chunkflow.chunk import Chunk
-
-from chunkflow.flow.read_h5 import ReadH5Operator
-from chunkflow.flow.write_h5 import WriteH5Operator
 from chunkflow.flow.save_pngs import SavePNGsOperator
-from chunkflow.flow.read_tif import ReadTIFOperator
-from chunkflow.flow.write_tif import WriteTIFOperator
 
 
 def read_write_h5(chunk):
@@ -18,8 +13,9 @@ def read_write_h5(chunk):
     if os.path.exists(file_name):
         os.remove(file_name)
 
-    WriteH5Operator()(chunk, file_name)
-    chunk2 = ReadH5Operator()(file_name)
+    chunk.to_h5(file_name)
+
+    chunk2 = Chunk.from_h5(file_name)
     assert np.alltrue(chunk == chunk2)
     assert chunk.global_offset == chunk2.global_offset
     os.remove(file_name)
@@ -31,9 +27,9 @@ def read_write_tif(chunk):
     file_name = 'test.tif'
     if os.path.exists(file_name):
         os.remove(file_name)
-
-    WriteTIFOperator()(chunk, file_name)
-    chunk2 = ReadTIFOperator()(file_name)
+    
+    chunk.to_tif(file_name)
+    chunk2 = Chunk.from_tif(file_name)
     assert np.alltrue(chunk == chunk2)
     os.remove(file_name)
 
