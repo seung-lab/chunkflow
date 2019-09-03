@@ -32,12 +32,6 @@ Operators
 .. autoclass:: chunkflow.flow.cloud_watch.CloudWatchOperator
    :members:
 
-.. autoclass:: chunkflow.flow.create_chunk.CreateChunkOperator
-   :members:
-
-.. autoclass:: chunkflow.flow.crop_margin.CropMarginOperator
-   :members:
-
 .. autoclass:: chunkflow.flow.cutout.CutoutOperator
    :members:
 
@@ -62,12 +56,6 @@ Operators
 .. autoclass:: chunkflow.flow.normalize_section_shang.NormalizeSectionShangOperator
    :members:
 
-.. autoclass:: chunkflow.flow.read_h5.ReadH5Operator
-   :members:
-
-.. autoclass:: chunkflow.flow.read_tif.ReadTIFOperator
-   :members:
-
 .. autoclass:: chunkflow.flow.save.SaveOperator
    :members:
 
@@ -75,12 +63,6 @@ Operators
    :members:
 
 .. autoclass:: chunkflow.flow.view.ViewOperator
-   :members:
-
-.. autoclass:: chunkflow.flow.write_h5.WriteH5Operator
-   :members:
-
-.. autoclass:: chunkflow.flow.write_tif.WriteTIFOperator
    :members:
 
 

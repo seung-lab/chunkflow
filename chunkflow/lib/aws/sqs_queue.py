@@ -2,6 +2,7 @@ import boto3
 import hashlib
 from time import sleep
 from cloudvolume.secrets import aws_credentials
+from cloudvolume.lib import Bbox
 
 
 class SQSQueue(object):
@@ -113,6 +114,9 @@ class SQSQueue(object):
         # the maximum number in a batch is 10
         task_entries = []
         for message in message_list:
+            if isinstance(message, Bbox):
+                message = message.to_filename()
+
             entry = {'Id': message, 'MessageBody': message}
             task_entries.append(entry)
 

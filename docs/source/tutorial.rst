@@ -192,13 +192,18 @@ Of course, you can also combine the two setups to one single command::
 
 Distributed Computation in both Local and Cloud
 *************************************************
+We use AWS SQS_ queue to decouple task producing and managing frontend and the computational heavy backend. In the frontend, you can produce a bunch of tasks to AWS SQS queue, and the tasks are managed in AWS SQS. Then, you can launch any number of chunkflow workers in **both** local and cloud. You can even mix using multiple cloud instances. Actually, you can use **any** computer with internet connection and AWS authentication **at the same time**. This hybrid cloud architecture enables maximum computational resources usage.
+
+.. _SQS: https://aws.amazon.com/sqs/
 
 Build Docker Image
 ==================
+It is recommended to use Docker_ image for deployment in both local and cloud. Docker image contains all the computational environments for chunkflow and ensures that the operations are all consistent.
 
 All the docker images are automatically built and is available in the DockerHub_. The ``latest`` tag is the image built from the ``master`` branch. The ``base`` tag is a base ubuntu image, and the ``pytorch`` and ``pznet`` tag contains ``pytorch`` and ``pznet`` inference backends respectively. 
 
 .. _DockerHub: https://hub.docker.com/r/seunglab/chunkflow
+.. _Docker: https://www.docker.com/
 
 You can also manually build docker images locally. The docker files is organized hierarchically. The ``docker/base/Dockerfile`` is a basic one, and the ``docker/inference/pytorch/Dockerfile`` and ``docker/inference/pznet/Dockerfile`` contains pytorch and pznet respectively for ConvNet inference. 
 
@@ -209,8 +214,41 @@ After building the base images, you can start building chunkflow image with diff
     # backend: base | pytorch | pznet | pytorch-cuda9
     ARG BACKEND=pytorch 
 
+Produce Tasks and Ingest to AWS SQS Queue
+=========================================
+You can use the ``generate-tasks`` to generate tasks. It will ingest the tasks to a AWS SQS_ queue if you define the 
+   
+   chunkflow generate-tasks --chunk-size 128 1024 1024 --grid-size 2 2 2 --stride 128 1024 1024 --queue-name chunkflow
+
+Log in your AWS console, and check the ``chunkflow`` queue, you should see your tasks there like this:
+
+|tasks_in_sqs|
+
+.. |tasks_in_sqs| image:: _static/image/tasks_in_sqs.png
+
 Deploy in Local Computers
 ===========================
+You can fetch the task from SQS queue, and perform the computation locally. You can compose the operations to create your pipeline. Here is a simple example:
+
+   chunkflow --verbose --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 cutout --volume-path=my-volume-path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save --volume-path="my/output/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
+  
+With a local cluster, you can also use your cluster scheduler to run multiple processes and perform distributed computation.
 
 Deploy to Kubernetes Cluster in Cloud
 ======================================
+Kubernetes_ is the most popular docker container orchestration platform, and is supported in most of public cloud computing platforms, including AWS, Google Cloud, and Microsoft Azure. You can use our `template
+<https://github.com/seung-lab/chunkflow/blob/master/distributed/kubernetes/deploy.yml>`_ to deploy chunkflow to your Kubernetes cluster. You can checkout the Kubernetes_ documentation for the detailed usage. 
+
+.. Kubernetes: https://kubernetes.io
+
+Performance Analysis
+=====================
+You can use ``log-summary`` to give a brief summary of operator performance:
+
+   chunkflow log-summary --log-dir /tmp/log --output-size 156 1280 1280
+
+You should see the summary like this:
+
+|log_summary|
+
+.. |log_summary| image:: _static/image/log_summary.png
