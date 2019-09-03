@@ -252,7 +252,7 @@ Deploy to Kubernetes Cluster in Cloud
 Kubernetes_ is the most popular docker container orchestration platform, and is supported in most of public cloud computing platforms, including AWS, Google Cloud, and Microsoft Azure. You can use our `template
 <https://github.com/seung-lab/chunkflow/blob/master/distributed/kubernetes/deploy.yml>`_ to deploy chunkflow to your Kubernetes cluster. You can checkout the Kubernetes_ documentation for the detailed usage. 
 
-.. Kubernetes: https://kubernetes.io
+.. _Kubernetes: https://kubernetes.io
 
 Performance Analysis
 =====================

@@ -1,18 +1,18 @@
 .. _api:
 
 API Reference
-=============
+***************
 
 Unless otherwise stated below functions are available at top level import,
 i.e. after ``import chunkflow``.
 
 Chunk
-------------
+=======
 .. autoclass:: chunkflow.chunk.Chunk
    :members:
 
 Image
-~~~~~~~
+---------
 .. automodule:: chunkflow.chunk.image
    :members:
 
@@ -20,12 +20,12 @@ Image
    :members:
 
 Flow
-------------
+===========
 .. automodule:: chunkflow.flow.flow
    :members:
 
 Operators
-~~~~~~~~~~
+------------
 .. automodule:: chunkflow.flow
    :members:
 
@@ -67,13 +67,13 @@ Operators
 
 
 Lib
---------------------
+=========
 
 .. automodule:: chunkflow.lib
    :members:
 
 AWS
-~~~~~~~~~~~~~~~~~~~
+------------
 .. automodule:: chunkflow.lib.aws.cloud_watch
    :members:
 
