@@ -132,14 +132,14 @@ class BuildExt(build_ext):
 
 setup(
     name='chunkflow',
-    description='Large Scale 3d Convolution Net Inference',
+    description='Composable image chunk operators to create pipeline for distributed computation.',
     long_description=long_description,
     long_description_content_type="text/markdown",
     license='Apache License 2.0',
     version=version,
     author='Jingpeng Wu',
     author_email='jingpeng.wu@gmail.com',
-    packages=find_packages(exclude=['tests', 'bin', 'docker', 'kubernetes']),
+    packages=find_packages(exclude=['bin', 'docker', 'kubernetes']),
     url='https://github.com/seung-lab/chunkflow',
     install_requires=install_requires,
     tests_require=tests_require,
@@ -147,8 +147,6 @@ setup(
     entry_points='''
         [console_scripts]
         chunkflow=chunkflow.flow.flow:main
-        produce-tasks=chunkflow.flow.produce_tasks:main
-        log-stats=chunkflow.flow.log_stats:main
     ''',
     cmdclass={'build_ext': BuildExt},
     classifiers=[

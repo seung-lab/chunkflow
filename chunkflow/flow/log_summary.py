@@ -18,7 +18,7 @@ def load_log(log_dir):
 
     for file_name in tqdm(os.listdir(log_dir), desc='loading log files'):
         complete_file_name = os.path.join(log_dir, file_name)
-        #     print('file name: {}'.format(complete_file_name))
+        # print('file name: {}'.format(complete_file_name))
         with open(complete_file_name) as f:
             d = json.load(f)
 
@@ -53,8 +53,6 @@ def load_log(log_dir):
 def print_log_statistics(df, output_size=None):
     grouped_df = df.groupby('compute_device')
 
-    #import pdb; pdb.set_trace()
-
     print('\n\ngrouped dataframe')
     print(grouped_df)
 
@@ -70,28 +68,3 @@ def print_log_statistics(df, output_size=None):
 
     print('\n\nsummation of time (hour):')
     print(grouped_df.sum() / 3600)
-
-
-@click.command()
-@click.option('--log-dir',
-              '-l',
-              type=click.Path(exists=True, dir_okay=True, readable=True),
-              default='./log',
-              help='directory of json log files.')
-@click.option(
-    '--output-size',
-    '-s',
-    type=int,
-    nargs=3,
-    default=None,
-    help='output size for each task. will be used for computing speed.')
-def main(log_dir, output_size):
-    """
-    The log directory.
-    """
-    df = load_log(log_dir)
-    print_log_statistics(df, output_size=output_size)
-
-
-if __name__ == '__main__':
-    main()

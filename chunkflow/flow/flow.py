@@ -3,8 +3,10 @@ from functools import update_wrapper, wraps
 from time import time
 import numpy as np
 import click
-from cloudvolume.lib import Bbox
+from tqdm import tqdm
+from itertools import product
 
+from cloudvolume.lib import Bbox
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.segmentation import Segmentation
@@ -15,6 +17,7 @@ from .cloud_watch import CloudWatchOperator
 from .custom_operator import CustomOperator
 from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
+from .log_summary import load_log, print_log_statistics
 from .inference import InferenceOperator
 from .mask import MaskOperator
 from .mesh import MeshOperator
@@ -113,40 +116,56 @@ def generator(func):
     return update_wrapper(new_func, func)
 
 
-@main.command('generate-task')
-@click.option('--offset',
-              type=int,
-              nargs=3,
-              default=(0, 0, 0),
-              help='output offset')
-@click.option('--shape',
-              type=int,
-              nargs=3,
-              default=(0, 0, 0),
-              help='output shape')
+@main.command('generate-tasks')
+@click.option('--start', '-s',
+              type=int, default=(0, 0, 0), nargs=3,
+              help='(z y x), start of the chunks')
+@click.option('--stride', '-r',
+                type=int, default=(0, 0, 0), nargs=3, help='stride of chunks')
+@click.option('--chunk-size', '-c',
+              type=int, required=True, nargs=3,
+              help='(z y x), size/shape of chunks')
+@click.option('--grid-size', '-g',
+              type=int, default=(1, 1, 1), nargs=3,
+              help='(z y x), grid size of output blocks')
+@click.option('--queue-name', '-q',
+              type=str, default=None, help='sqs queue name')
 @generator
-def generate_task(offset, shape):
-    """Create a task."""
-    # no queue name specified
-    # will only run one task
-    stop = np.asarray(offset) + np.asarray(shape)
-    output_bbox = Bbox.from_list([*offset, *stop])
-    print("creating task: ", output_bbox.to_filename())
-    task = INITIAL_TASK
-    task['output_bbox'] = output_bbox
-    task['log']['output_bbox'] = output_bbox.to_filename()
-    yield task
+def generate_tasks(start, stride, chunk_size, grid_size, queue_name):
+    """Generate tasks."""
+    start = np.asarray(start)
+    stride = np.asarray(stride)
+    chunk_size = np.asarray(chunk_size)
+    if np.product(grid_size) > 1:
+        # the stride should not be all zero if there is more than one chunks
+        assert np.any(stride > 0)
+
+    bboxes = []
+    for (z, y, x) in tqdm(product(range(grid_size[0]), range(grid_size[1]),
+                                                        range(grid_size[2]))):
+
+        chunk_start = start + np.asarray((z, y, x)) * stride
+        chunk_stop = chunk_start + chunk_size
+        bbox = Bbox.from_list([*chunk_start, *chunk_stop])
+        bboxes.append( bbox )
+
+    if queue_name is not None:
+        queue = SQSQueue(queue_name)
+        queue.send_message_list(bboxes)
+    else:
+        for bbox in bboxes:
+            task = INITIAL_TASK
+            task['output_bbox'] = bbox
+            task['log']['output_bbox'] = bbox.to_filename()
+            yield task
 
 
 @main.command('fetch-task')
-@click.option('--queue-name', type=str, default=None, help='sqs queue name')
-@click.option(
-    '--visibility-timeout',
-    type=int,
-    default=None,
-    help=
-    'visibility timeout of sqs queue; default is using the timeout of the queue.'
-)
+@click.option('--queue-name', '-q', 
+                type=str, default=None, help='sqs queue name')
+@click.option('--visibility-timeout', '-v',
+    type=int, default=None, 
+    help='visibility timeout of sqs queue; default is using the timeout of the queue.')
 @generator
 def fetch_task(queue_name, visibility_timeout):
     """Fetch task from queue."""
@@ -490,8 +509,7 @@ def cutout(tasks, name, volume_path, mip, start, stop, expand_margin_size,
 @operator
 def evaluate_segmenation(tasks, name, segmentation_chunk_name,
                          groundtruth_chunk_name):
-    """compute split/merge error using rand index
-     and variation of information.
+    """Evaluate segmentation by split/merge error.
     """
     for task in tasks:
         seg = Segmentation(task[segmentation_chunk_name])
@@ -541,6 +559,22 @@ def downsample_upload(tasks, name, input_chunk_name, volume_path,
             task['log']['timer'][name] = time() - start
         yield task
 
+
+@main.command('log-summary')
+@click.option('--log-dir', '-l',
+              type=click.Path(exists=True, dir_okay=True, readable=True),
+              default='./log', help='directory of json log files.')
+@click.option('--output-size', '-s', type=int, nargs=3, default=None,
+    help='output size for each task. will be used for computing speed.')
+@generator
+def log_summary(log_dir, output_size):
+    """Compute the statistics of large scale run."""
+    df = load_log(log_dir)
+    print_log_statistics(df, output_size=output_size)
+
+    task = INITIAL_TASK
+    yield task
+        
 
 @main.command('normalize-section-contrast')
 @click.option('--name',
@@ -956,21 +990,15 @@ def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
 
 @main.command('save')
 @click.option('--name', type=str, default='save', help='name of this operator')
-@click.option('--volume-path', type=str, required=True, help='volume path')
+@click.option('--volume-path', '-v', type=str, required=True, help='volume path')
 @click.option('--upload-log/--no-upload-log',
-              default=True,
-              help='the log will be put inside volume-path')
-@click.option(
-    '--nproc',
-    type=int,
-    default=0,
+              default=True, help='the log will be put inside volume-path')
+@click.option('--nproc', '-p', 
+    type=int, default=0,
     help='number of processes, negative means using all the cores, ' +
-    '0/1 means turning off multiple processing, ' +
-    'n>1 means using n processes')
-@click.option(
-    '--create-thumbnail/--no-create-thumbnail',
-    default=False,
-    help='create thumbnail or not. ' +
+    '0/1 means turning off multiple processing, n>1 means using n processes')
+@click.option('--create-thumbnail/--no-create-thumbnail',
+    default=False, help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
 @operator
 def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):

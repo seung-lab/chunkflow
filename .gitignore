@@ -22,4 +22,5 @@ build/
 data/
 *.so
 tmp/
-docs/source/tutorial/*
+docs/source/tutorial/
+docs/source/_build/
