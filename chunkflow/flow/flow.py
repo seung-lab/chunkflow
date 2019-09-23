@@ -204,6 +204,7 @@ def fetch_task(queue_name, visibility_timeout):
 @operator
 def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
                 fragments_chunk_name, scoring_function, input_chunk_name, output_chunk_name):
+    """Watershed and agglomeration to segment affinity map."""
     state['operators'][name] = AgglomerateOperator(name=name, verbose=state['verbose'],
                                                    threshold=threshold, 
                                                    aff_threshold_low=aff_threshold_low,
