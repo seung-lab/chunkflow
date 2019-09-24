@@ -156,8 +156,8 @@ def generate_tasks(start, stride, chunk_size, grid_size, queue_name):
     else:
         for bbox in bboxes:
             task = INITIAL_TASK
-            task['output_bbox'] = bbox
-            task['log']['output_bbox'] = bbox.to_filename()
+            task['bbox'] = bbox
+            task['log']['bbox'] = bbox.to_filename()
             yield task
 
 
@@ -175,13 +175,13 @@ def fetch_task(queue_name, visibility_timeout):
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
     task = INITIAL_TASK
     task['queue'] = queue
-    for task_handle, output_bbox_str in queue:
-        print('get task: ', output_bbox_str)
-        output_bbox = Bbox.from_filename(output_bbox_str)
+    for task_handle, bbox_str in queue:
+        print('get task: ', bbox_str)
+        bbox = Bbox.from_filename(bbox_str)
         # record the task handle to delete after the processing
         task['task_handle'] = task_handle
-        task['output_bbox'] = output_bbox
-        task['log']['output_bbox'] = output_bbox.to_filename()
+        task['bbox'] = bbox
+        task['log']['bbox'] = bbox.to_filename()
         yield task
 
 
@@ -476,7 +476,7 @@ def cutout(tasks, name, volume_path, mip, start, stop, expand_margin_size,
     for task in tasks:
         handle_task_skip(task, name)
         if start is None and stop is None:
-            bbox = task['output_bbox']
+            bbox = task['bbox']
         else:
             # use bounding box of volume
             if stop is None:
@@ -891,7 +891,7 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero,
             if check_all_zero:
                 # skip following operators since the mask is all zero after required inverse
                 task['skip'] = state['operators'][name].is_all_zero(
-                    task['output_bbox'])
+                    task['bbox'])
                 if task['skip']:
                     print('the mask of {} is all zero, will skip to {}'.format(
                         name, skip_to))
@@ -912,8 +912,7 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero,
 @click.option('--margin-size', '-m',
               type=int, nargs=3, default=None,
               help='crop the chunk margin. ' +
-              'The default is None and will use the output_bbox ' +
-              'as croping range.')
+              'The default is None and will use the bbox as croping range.')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name.')
 @click.option('--output-chunk-name', '-o',
@@ -932,7 +931,7 @@ def crop_margin(tasks, name, margin_size,
             else:
                 # use the output bbox for croping 
                 task[output_chunk_name] = task[
-                    input_chunk_name].cutout(task['output_bbox'].to_slices())
+                    input_chunk_name].cutout(task['bbox'].to_slices())
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -1030,13 +1029,13 @@ def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
             task['skip'] = False
             # create fake chunk to save
             task['chunk'] = state['operators'][name].create_chunk_with_zeros(
-                task['output_bbox'])
+                task['bbox'])
 
         if not task['skip']:
             # the time elapsed was recorded internally
             state['operators'][name](task['chunk'],
                                      log=task.get('log', {'timer': {}}),
-                                     output_bbox=task.get('output_bbox', None))
+                                     output_bbox=task.get('bbox', None))
             task['output_volume_path'] = volume_path
         yield task
 
