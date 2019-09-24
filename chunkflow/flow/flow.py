@@ -3,9 +3,7 @@ from functools import update_wrapper, wraps
 from time import time
 import numpy as np
 import click
-from tqdm import tqdm
 import json
-from itertools import product
 
 from cloudvolume.lib import Bbox
 from chunkflow.lib.aws.sqs_queue import SQSQueue
@@ -15,6 +13,7 @@ from chunkflow.chunk.segmentation import Segmentation
 # import operator functions
 from .agglomerate import AgglomerateOperator
 from .cloud_watch import CloudWatchOperator
+from .create_bounding_boxes import create_bounding_boxes
 from .custom_operator import CustomOperator
 from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
@@ -34,12 +33,10 @@ state = {'operators': {}}
 INITIAL_TASK = {'skip': False, 'log': {'timer': {}}}
 DEFAULT_CHUNK_NAME = 'chunk'
 
-
 def handle_task_skip(task, name):
     if task['skip'] and task['skip_to'] == name:
         # have already skipped to target operator
         task['skip'] = False
-
 
 def default_none(ctx, param, value):
     """
@@ -77,9 +74,7 @@ def process_commands(operators, verbose, mip):
     into the other, similar to how a pipe on unix works.
     """
     # It turns out that a tuple will not work correctly!
-    stream = [
-        INITIAL_TASK,
-    ]
+    stream = [ INITIAL_TASK, ]
 
     # Pipe it through all stream operators.
     for operator in operators:
@@ -118,38 +113,27 @@ def generator(func):
 
 
 @main.command('generate-tasks')
+@click.option('--layer-path', '-l',
+              type=str, default=None, help='dataset layer path to fetch dataset information.')
+@click.option('--mip', '-m',
+              type=int, default=0, help='mip level of the dataset layer.')
 @click.option('--start', '-s',
-              type=int, default=(0, 0, 0), nargs=3,
+              type=int, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
-@click.option('--stride', '-r',
-                type=int, default=(0, 0, 0), nargs=3, help='stride of chunks')
+@click.option('--overlap', '-o',
+                type=int, default=(0, 0, 0), nargs=3, help='overlap of chunks')
 @click.option('--chunk-size', '-c',
-              type=int, required=True, nargs=3,
-              help='(z y x), size/shape of chunks')
+              type=int, required=True, nargs=3, help='(z y x), size/shape of chunks')
 @click.option('--grid-size', '-g',
-              type=int, default=(1, 1, 1), nargs=3,
+              type=int, default=None, nargs=3, callback=default_none,
               help='(z y x), grid size of output blocks')
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
 @generator
-def generate_tasks(start, stride, chunk_size, grid_size, queue_name):
+def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue_name):
     """Generate tasks."""
-    start = np.asarray(start)
-    stride = np.asarray(stride)
-    chunk_size = np.asarray(chunk_size)
-    if np.product(grid_size) > 1:
-        # the stride should not be all zero if there is more than one chunks
-        assert np.any(stride > 0)
-
-    bboxes = []
-    for (z, y, x) in tqdm(product(range(grid_size[0]), range(grid_size[1]),
-                                                        range(grid_size[2]))):
-
-        chunk_start = start + np.asarray((z, y, x)) * stride
-        chunk_stop = chunk_start + chunk_size
-        bbox = Bbox.from_list([*chunk_start, *chunk_stop])
-        bboxes.append( bbox )
-
+    bboxes = create_bounding_boxes(chunk_size, overlap=overlap, layer_path=layer_path,
+                                    start=start, mip=mip, grid_size=grid_size)
     if queue_name is not None:
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
@@ -167,15 +151,14 @@ def generate_tasks(start, stride, chunk_size, grid_size, queue_name):
 @click.option('--visibility-timeout', '-v',
     type=int, default=None, 
     help='visibility timeout of sqs queue; default is using the timeout of the queue.')
-@generator
-def fetch_task(queue_name, visibility_timeout):
+@operator
+def fetch_task(tasks, queue_name, visibility_timeout):
     """Fetch task from queue."""
     # This operator is actually a generator,
     # it replaces old tasks to a completely new tasks and loop over it!
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
-    task = INITIAL_TASK
-    task['queue'] = queue
-    for task_handle, bbox_str in queue:
+    for task in tasks:
+        task_handle, bbox_str = queue.handle_and_message
         print('get task: ', bbox_str)
         bbox = Bbox.from_filename(bbox_str)
         # record the task handle to delete after the processing
@@ -404,58 +387,31 @@ def delete_task_in_queue(tasks, name):
 
 @main.command('cutout')
 @click.option('--name',
-              type=str,
-              default='cutout',
-              help='name of this operator')
-@click.option('--volume-path',
-              '-v',
-              type=str,
-              required=True,
-              help='volume path')
-@click.option('--mip',
-              '-m',
-              type=int,
-              default=None,
-              help='mip level of the cutout.')
-@click.option('--expand-margin-size',
-              '-e',
-              type=int,
-              nargs=3,
-              default=(0, 0, 0),
+              type=str, default='cutout', help='name of this operator')
+@click.option('--volume-path', '-v',
+              type=str, required=True, help='volume path')
+@click.option('--mip', '-m',
+              type=int, default=None, help='mip level of the cutout.')
+@click.option('--expand-margin-size', '-e',
+              type=int, nargs=3, default=(0, 0, 0),
               help='include surrounding regions of output bounding box.')
-@click.option('--start',
-              '-s',
-              type=int,
-              nargs=3,
-              default=None,
+@click.option('--start', '-s',
+              type=int, nargs=3, default=None, callback=default_none,
               help='chunk offset in volume.')
-@click.option('--stop',
-              '-p',
-              type=int,
-              nargs=3,
-              default=None,
+@click.option('--stop', '-p',
+              type=int, nargs=3, default=None, callback=default_none,
               help='chunk stop coordinate.')
 @click.option('--fill-missing/--no-fill-missing',
-              default=False,
-              help='fill the missing chunks in input volume with zeros ' +
+              default=False, help='fill the missing chunks in input volume with zeros ' +
               'or not, default is false')
-@click.option('--validate-mip',
-              type=int,
-              default=None,
-              help='validate chunk using higher mip level')
-@click.option(
-    '--blackout-sections/--no-blackout-sections',
-    default=False,
-    help='blackout some sections. ' +
-    'the section ids json file should named blackout_section_ids.json.' +
-    'default is False.')
-@click.option(
-    '--output-chunk-name',
-    '-o',
-    type=str,
-    default='chunk',
-    help='Variable name to store the cutout to for later retrieval. Chunkflow'
-    ' operators by default operates on a variable named "chunk" but'
+@click.option('--validate-mip', 
+              type=int, default=None, help='validate chunk using higher mip level')
+@click.option('--blackout-sections/--no-blackout-sections',
+    default=False, help='blackout some sections. ' +
+    'the section ids json file should named blackout_section_ids.json. default is False.')
+@click.option('--output-chunk-name', '-o',
+    type=str, default='chunk', help='Variable name to store the cutout to for later retrieval.'
+    + 'Chunkflow operators by default operates on a variable named "chunk" but' +
     ' sometimes you may need to have a secondary volume to work on.')
 @operator
 def cutout(tasks, name, volume_path, mip, start, stop, expand_margin_size,
@@ -522,32 +478,28 @@ def evaluate_segmenation(tasks, name, segmentation_chunk_name,
 
 @main.command('downsample-upload')
 @click.option('--name',
-              type=str,
-              default='downsample-upload',
-              help='name of operator')
+              type=str, default='downsample-upload', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
-@click.option('--volume-path', type=str, help='path of output volume')
-@click.option('--start-mip',
-              type=int,
-              default=0,
-              help='the start uploading mip level.')
-@click.option(
-    '--stop-mip',
-    type=int,
-    default=5,
-    help='stop mip level. the indexing follows python style and ' +
+@click.option('--volume-path', '-v', type=str, help='path of output volume')
+@click.option('--chunk-mip', '-c', type=int, default=None, help='input chunk mip level')
+@click.option('--start-mip', '-s', 
+    type=int, default=None, help='the start uploading mip level.')
+@click.option('--stop-mip', '-p',
+    type=int, default=5, help='stop mip level. the indexing follows python style and ' +
     'the last index is exclusive.')
 @click.option('--fill-missing/--no-fill-missing',
-              default=True,
-              help='fill missing or not when there is all zero blocks.')
+              default=True, help='fill missing or not when there is all zero blocks.')
 @operator
 def downsample_upload(tasks, name, input_chunk_name, volume_path, 
-                      start_mip, stop_mip, fill_missing):
+                      chunk_mip, start_mip, stop_mip, fill_missing):
     """Downsample chunk and upload to volume."""
+    if chunk_mip is None:
+        chunk_mip = state['mip']
+
     state['operators'][name] = DownsampleUploadOperator(
         volume_path,
-        input_mip=state['mip'],
+        chunk_mip=chunk_mip,
         start_mip=start_mip,
         stop_mip=stop_mip,
         fill_missing=fill_missing,
@@ -566,7 +518,8 @@ def downsample_upload(tasks, name, input_chunk_name, volume_path,
 @click.option('--log-dir', '-l',
               type=click.Path(exists=True, dir_okay=True, readable=True),
               default='./log', help='directory of json log files.')
-@click.option('--output-size', '-s', type=int, nargs=3, default=None,
+@click.option('--output-size', '-s', 
+    type=int, nargs=3, default=None, callback=default_none,
     help='output size for each task. will be used for computing speed.')
 @generator
 def log_summary(log_dir, output_size):
@@ -910,7 +863,7 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero,
               default='crop-margin',
               help='name of this operator')
 @click.option('--margin-size', '-m',
-              type=int, nargs=3, default=None,
+              type=int, nargs=3, default=None, callback=default_none,
               help='crop the chunk margin. ' +
               'The default is None and will use the bbox as croping range.')
 @click.option('--input-chunk-name', '-i',
