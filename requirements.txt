@@ -13,3 +13,4 @@ tifffile
 waterz
 pandas
 zmesh
+fastremap
