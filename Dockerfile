@@ -50,4 +50,4 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     && echo "export LANG=C.UTF-8" >> $HOME/.bashrc \
     && echo "export PYTHONPATH=$HOME/workspace/chunkflow:\$PYTHONPATH" >> $HOME/.bashrc  
 
-WORKDIR $HOME/workspace/chunkflow/bin
+WORKDIR $HOME/workspace/
