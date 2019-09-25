@@ -239,20 +239,31 @@ Log in your AWS console, and check the ``chunkflow`` queue, you should see your 
 
 .. |tasks_in_sqs| image:: _static/image/tasks_in_sqs.png
 
+Chunkflow also provide a smart way to produce tasks using the existing dataset information. If we would like to process the whole dataset, we only need to define the mip level, and chunk size, all other parameters could be automatically computed based on the dataset information, such as volume start offset and shape. This is a simple example::
+
+   chunkflow generate-tasks -l gs://my/dataset/path -m 0 -o 0 0 0 -c 112 2048 2048 -q my-queue
+
 Deploy in Local Computers
 ===========================
-You can fetch the task from SQS queue, and perform the computation locally. You can compose the operations to create your pipeline. Here is a simple example::
+You can fetch the task from SQS queue, and perform the computation locally. You can compose the operations to create your pipeline. 
 
-   chunkflow --verbose --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 cutout --volume-path=my-volume-path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save --volume-path="my/output/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
+Here is a simple example to downsample the dataset with multiple resolutions::
+
+   chunkflow --mip 0 fetch-task -q my-queue cutout -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5
+
+Here is a complex example to perform convolutional inference::
+
+   chunkflow --verbose --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 cutout --volume-path="s3://my/image/volume/path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save --volume-path="file://my/output/volume/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
   
 With a local cluster, you can also use your cluster scheduler to run multiple processes and perform distributed computation.
 
 Deploy to Kubernetes Cluster in Cloud
 ======================================
 Kubernetes_ is the most popular docker container orchestration platform, and is supported in most of public cloud computing platforms, including AWS, Google Cloud, and Microsoft Azure. You can use our `template
-<https://github.com/seung-lab/chunkflow/blob/master/distributed/kubernetes/deploy.yml>`_ to deploy chunkflow to your Kubernetes cluster. You can checkout the Kubernetes_ documentation for the detailed usage. 
+<https://github.com/seung-lab/chunkflow/blob/master/distributed/kubernetes/deploy.yml>`_ to deploy chunkflow to your Kubernetes cluster. Just replace the composed command you would like to use in the yaml file. For creating cluster in cloud and usage, please check our `wikipedia page
+<https://github.com/seung-lab/chunkflow/wiki/Kubernetes-in-Cloud>`_. You can checkout the `Kubernetes documentation
+<https://kubernetes.io>`_ for more detailed usage. 
 
-.. _Kubernetes: https://kubernetes.io
 
 Performance Analysis
 =====================
