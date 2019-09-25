@@ -4,6 +4,7 @@ from time import time
 import numpy as np
 import click
 import json
+from copy import deepcopy
 
 from cloudvolume.lib import Bbox
 from chunkflow.lib.aws.sqs_queue import SQSQueue
@@ -57,7 +58,7 @@ def default_none(ctx, param, value):
               type=int,
               default=0,
               help='default mip level of chunks.')
-# the code design is from:
+# the code design is based on:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 def main(verbose, mip):
     """Compose operators and create your own pipeline."""
@@ -74,7 +75,7 @@ def process_commands(operators, verbose, mip):
     into the other, similar to how a pipe on unix works.
     """
     # It turns out that a tuple will not work correctly!
-    stream = [ INITIAL_TASK, ]
+    stream = [ deepcopy(INITIAL_TASK), ]
 
     # Pipe it through all stream operators.
     for operator in operators:
@@ -104,8 +105,6 @@ def generator(func):
     """
     @operator
     def new_func(stream, *args, **kwargs):
-        for item in stream:
-            yield item
         for item in func(*args, **kwargs):
             yield item
 
@@ -139,7 +138,7 @@ def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue
         queue.send_message_list(bboxes)
     else:
         for bbox in bboxes:
-            task = INITIAL_TASK
+            task = deepcopy(INITIAL_TASK)
             task['bbox'] = bbox
             task['log']['bbox'] = bbox.to_filename()
             yield task
@@ -151,17 +150,18 @@ def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue
 @click.option('--visibility-timeout', '-v',
     type=int, default=None, 
     help='visibility timeout of sqs queue; default is using the timeout of the queue.')
-@operator
-def fetch_task(tasks, queue_name, visibility_timeout):
+@generator
+def fetch_task(queue_name, visibility_timeout):
     """Fetch task from queue."""
     # This operator is actually a generator,
     # it replaces old tasks to a completely new tasks and loop over it!
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
-    for task in tasks:
-        task_handle, bbox_str = queue.handle_and_message
+    for task_handle, bbox_str in queue:
         print('get task: ', bbox_str)
         bbox = Bbox.from_filename(bbox_str)
         # record the task handle to delete after the processing
+        task = deepcopy(INITIAL_TASK)
+        task['queue'] = queue
         task['task_handle'] = task_handle
         task['bbox'] = bbox
         task['log']['bbox'] = bbox.to_filename()
@@ -395,10 +395,10 @@ def delete_task_in_queue(tasks, name):
 @click.option('--expand-margin-size', '-e',
               type=int, nargs=3, default=(0, 0, 0),
               help='include surrounding regions of output bounding box.')
-@click.option('--start', '-s',
+@click.option('--chunk-start', '-s',
               type=int, nargs=3, default=None, callback=default_none,
               help='chunk offset in volume.')
-@click.option('--stop', '-p',
+@click.option('--chunk-stop', '-p',
               type=int, nargs=3, default=None, callback=default_none,
               help='chunk stop coordinate.')
 @click.option('--fill-missing/--no-fill-missing',
@@ -414,7 +414,7 @@ def delete_task_in_queue(tasks, name):
     + 'Chunkflow operators by default operates on a variable named "chunk" but' +
     ' sometimes you may need to have a secondary volume to work on.')
 @operator
-def cutout(tasks, name, volume_path, mip, start, stop, expand_margin_size,
+def cutout(tasks, name, volume_path, mip, chunk_start, chunk_stop, expand_margin_size,
            fill_missing, validate_mip, blackout_sections, output_chunk_name):
     """Cutout chunk from volume."""
     if mip is None:
@@ -431,15 +431,15 @@ def cutout(tasks, name, volume_path, mip, start, stop, expand_margin_size,
 
     for task in tasks:
         handle_task_skip(task, name)
-        if start is None and stop is None:
+        if chunk_start is None and chunk_stop is None:
             bbox = task['bbox']
         else:
             # use bounding box of volume
-            if stop is None:
-                stop = state['operators'][name].vol.mip_bounds(mip).maxpt
-            if start is None:
-                start = state['operators'][name].vol.mip_bounds(mip).minpt
-            bbox = Bbox(start, stop)
+            if chunk_start is None:
+                chunk_start = state['operators'][name].vol.mip_bounds(mip).minpt
+            if chunk_stop is None:
+                chunk_stop = state['operators'][name].vol.mip_bounds(mip).maxpt
+            bbox = Bbox(chunk_start, chunk_stop)
 
         if not task['skip']:
             start = time()
@@ -527,7 +527,7 @@ def log_summary(log_dir, output_size):
     df = load_log(log_dir)
     print_log_statistics(df, output_size=output_size)
 
-    task = INITIAL_TASK
+    task = deepcopy(INITIAL_TASK)
     yield task
         
 
