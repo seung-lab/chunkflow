@@ -1,5 +1,5 @@
 # backend: base | pytorch | pznet | pytorch-cuda9
-ARG BACKEND=pytorch 
+ARG BACKEND=base 
 
 FROM seunglab/chunkflow:${BACKEND}
 
@@ -50,4 +50,4 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     && echo "export LANG=C.UTF-8" >> $HOME/.bashrc \
     && echo "export PYTHONPATH=$HOME/workspace/chunkflow:\$PYTHONPATH" >> $HOME/.bashrc  
 
-WORKDIR $HOME/workspace/chunkflow/bin
+WORKDIR $HOME/workspace/

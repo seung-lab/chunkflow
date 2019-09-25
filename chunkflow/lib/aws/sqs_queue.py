@@ -3,7 +3,7 @@ import hashlib
 from time import sleep
 from cloudvolume.secrets import aws_credentials
 from cloudvolume.lib import Bbox
-
+from tqdm import tqdm
 
 class SQSQueue(object):
     """upload/fetch messages using AWS Simple Queue Services."""
@@ -63,6 +63,21 @@ class SQSQueue(object):
                 WaitTimeSeconds=self.fetch_wait_time_seconds)
         return resp
 
+    def _check_md5(self, resp):
+        body = resp['Messages'][0]['Body']
+        md5_of_body = resp['Messages'][0]['MD5OfBody']
+        assert md5_of_body == hashlib.md5(body.encode('utf-8')).hexdigest()
+        assert body is not None
+
+    @property
+    def handle_and_message(self):
+        resp = self._receive_message()
+        self._check_md5(resp)
+        receipt_handle = resp['Messages'][0]['ReceiptHandle']
+        assert isinstance(receipt_handle, str)
+        body = resp['Messages'][0]['Body']
+        return receipt_handle, body
+
     def __next__(self):
         resp = self._receive_message()
         if 'Messages' not in resp:
@@ -77,12 +92,10 @@ class SQSQueue(object):
             else:
                 raise StopIteration
         else:
+            self._check_md5(resp)
             receipt_handle = resp['Messages'][0]['ReceiptHandle']
-            body = resp['Messages'][0]['Body']
-            md5_of_body = resp['Messages'][0]['MD5OfBody']
-            assert md5_of_body == hashlib.md5(body.encode('utf-8')).hexdigest()
             assert isinstance(receipt_handle, str)
-            assert body is not None
+            body = resp['Messages'][0]['Body']
             return receipt_handle, body
 
     def delete(self, receipt_handle: str):
@@ -113,7 +126,7 @@ class SQSQueue(object):
         '''
         # the maximum number in a batch is 10
         task_entries = []
-        for message in message_list:
+        for message in tqdm(message_list, desc='sending messages to sqs queue: '):
             if isinstance(message, Bbox):
                 message = message.to_filename()
 

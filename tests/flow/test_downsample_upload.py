@@ -31,7 +31,7 @@ class TestDownsampleUpload(unittest.TestCase):
                                layer_type='segmentation')
 
         operator = DownsampleUploadOperator(volume_path,
-                                            input_mip=0,
+                                            chunk_mip=0,
                                             start_mip=1,
                                             stop_mip=4)
         operator(chunk)

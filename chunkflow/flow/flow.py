@@ -3,8 +3,8 @@ from functools import update_wrapper, wraps
 from time import time
 import numpy as np
 import click
-from tqdm import tqdm
-from itertools import product
+import json
+from copy import deepcopy
 
 from cloudvolume.lib import Bbox
 from chunkflow.lib.aws.sqs_queue import SQSQueue
@@ -14,6 +14,7 @@ from chunkflow.chunk.segmentation import Segmentation
 # import operator functions
 from .agglomerate import AgglomerateOperator
 from .cloud_watch import CloudWatchOperator
+from .create_bounding_boxes import create_bounding_boxes
 from .custom_operator import CustomOperator
 from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
@@ -33,14 +34,12 @@ state = {'operators': {}}
 INITIAL_TASK = {'skip': False, 'log': {'timer': {}}}
 DEFAULT_CHUNK_NAME = 'chunk'
 
-
 def handle_task_skip(task, name):
     if task['skip'] and task['skip_to'] == name:
         # have already skipped to target operator
         task['skip'] = False
 
-
-def default_none(ctx, param, value):
+def default_none(ctx, _, value):
     """
     click currently can not use None with tuple type 
     it will return an empty tuple if the default=None 
@@ -49,7 +48,8 @@ def default_none(ctx, param, value):
     """
     if not value:
         return None
-
+    else:
+        return value
 
 @click.group(chain=True)
 @click.option('--verbose/--quiet',
@@ -59,7 +59,7 @@ def default_none(ctx, param, value):
               type=int,
               default=0,
               help='default mip level of chunks.')
-# the code design is from:
+# the code design is based on:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 def main(verbose, mip):
     """Compose operators and create your own pipeline."""
@@ -76,9 +76,7 @@ def process_commands(operators, verbose, mip):
     into the other, similar to how a pipe on unix works.
     """
     # It turns out that a tuple will not work correctly!
-    stream = [
-        INITIAL_TASK,
-    ]
+    stream = [ deepcopy(INITIAL_TASK), ]
 
     # Pipe it through all stream operators.
     for operator in operators:
@@ -108,8 +106,6 @@ def generator(func):
     """
     @operator
     def new_func(stream, *args, **kwargs):
-        for item in stream:
-            yield item
         for item in func(*args, **kwargs):
             yield item
 
@@ -117,46 +113,35 @@ def generator(func):
 
 
 @main.command('generate-tasks')
+@click.option('--layer-path', '-l',
+              type=str, default=None, help='dataset layer path to fetch dataset information.')
+@click.option('--mip', '-m',
+              type=int, default=0, help='mip level of the dataset layer.')
 @click.option('--start', '-s',
-              type=int, default=(0, 0, 0), nargs=3,
+              type=int, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
-@click.option('--stride', '-r',
-                type=int, default=(0, 0, 0), nargs=3, help='stride of chunks')
+@click.option('--overlap', '-o',
+                type=int, default=(0, 0, 0), nargs=3, help='overlap of chunks')
 @click.option('--chunk-size', '-c',
-              type=int, required=True, nargs=3,
-              help='(z y x), size/shape of chunks')
+              type=int, required=True, nargs=3, help='(z y x), size/shape of chunks')
 @click.option('--grid-size', '-g',
-              type=int, default=(1, 1, 1), nargs=3,
+              type=int, default=None, nargs=3, callback=default_none,
               help='(z y x), grid size of output blocks')
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
 @generator
-def generate_tasks(start, stride, chunk_size, grid_size, queue_name):
+def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue_name):
     """Generate tasks."""
-    start = np.asarray(start)
-    stride = np.asarray(stride)
-    chunk_size = np.asarray(chunk_size)
-    if np.product(grid_size) > 1:
-        # the stride should not be all zero if there is more than one chunks
-        assert np.any(stride > 0)
-
-    bboxes = []
-    for (z, y, x) in tqdm(product(range(grid_size[0]), range(grid_size[1]),
-                                                        range(grid_size[2]))):
-
-        chunk_start = start + np.asarray((z, y, x)) * stride
-        chunk_stop = chunk_start + chunk_size
-        bbox = Bbox.from_list([*chunk_start, *chunk_stop])
-        bboxes.append( bbox )
-
+    bboxes = create_bounding_boxes(chunk_size, overlap=overlap, layer_path=layer_path,
+                                    start=start, mip=mip, grid_size=grid_size)
     if queue_name is not None:
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
     else:
         for bbox in bboxes:
-            task = INITIAL_TASK
-            task['output_bbox'] = bbox
-            task['log']['output_bbox'] = bbox.to_filename()
+            task = deepcopy(INITIAL_TASK)
+            task['bbox'] = bbox
+            task['log']['bbox'] = bbox.to_filename()
             yield task
 
 
@@ -172,15 +157,15 @@ def fetch_task(queue_name, visibility_timeout):
     # This operator is actually a generator,
     # it replaces old tasks to a completely new tasks and loop over it!
     queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
-    task = INITIAL_TASK
-    task['queue'] = queue
-    for task_handle, output_bbox_str in queue:
-        print('get task: ', output_bbox_str)
-        output_bbox = Bbox.from_filename(output_bbox_str)
+    for task_handle, bbox_str in queue:
+        print('get task: ', bbox_str)
+        bbox = Bbox.from_filename(bbox_str)
         # record the task handle to delete after the processing
+        task = deepcopy(INITIAL_TASK)
+        task['queue'] = queue
         task['task_handle'] = task_handle
-        task['output_bbox'] = output_bbox
-        task['log']['output_bbox'] = output_bbox.to_filename()
+        task['bbox'] = bbox
+        task['log']['bbox'] = bbox.to_filename()
         yield task
 
 
@@ -403,61 +388,34 @@ def delete_task_in_queue(tasks, name):
 
 @main.command('cutout')
 @click.option('--name',
-              type=str,
-              default='cutout',
-              help='name of this operator')
-@click.option('--volume-path',
-              '-v',
-              type=str,
-              required=True,
-              help='volume path')
-@click.option('--mip',
-              '-m',
-              type=int,
-              default=None,
-              help='mip level of the cutout.')
-@click.option('--expand-margin-size',
-              '-e',
-              type=int,
-              nargs=3,
-              default=(0, 0, 0),
+              type=str, default='cutout', help='name of this operator')
+@click.option('--volume-path', '-v',
+              type=str, required=True, help='volume path')
+@click.option('--mip', '-m',
+              type=int, default=None, help='mip level of the cutout.')
+@click.option('--expand-margin-size', '-e',
+              type=int, nargs=3, default=(0, 0, 0),
               help='include surrounding regions of output bounding box.')
-@click.option('--start',
-              '-s',
-              type=int,
-              nargs=3,
-              default=None,
+@click.option('--chunk-start', '-s',
+              type=int, nargs=3, default=None, callback=default_none,
               help='chunk offset in volume.')
-@click.option('--stop',
-              '-p',
-              type=int,
-              nargs=3,
-              default=None,
+@click.option('--chunk-stop', '-p',
+              type=int, nargs=3, default=None, callback=default_none,
               help='chunk stop coordinate.')
 @click.option('--fill-missing/--no-fill-missing',
-              default=False,
-              help='fill the missing chunks in input volume with zeros ' +
+              default=False, help='fill the missing chunks in input volume with zeros ' +
               'or not, default is false')
-@click.option('--validate-mip',
-              type=int,
-              default=None,
-              help='validate chunk using higher mip level')
-@click.option(
-    '--blackout-sections/--no-blackout-sections',
-    default=False,
-    help='blackout some sections. ' +
-    'the section ids json file should named blackout_section_ids.json.' +
-    'default is False.')
-@click.option(
-    '--output-chunk-name',
-    '-o',
-    type=str,
-    default='chunk',
-    help='Variable name to store the cutout to for later retrieval. Chunkflow'
-    ' operators by default operates on a variable named "chunk" but'
+@click.option('--validate-mip', 
+              type=int, default=None, help='validate chunk using higher mip level')
+@click.option('--blackout-sections/--no-blackout-sections',
+    default=False, help='blackout some sections. ' +
+    'the section ids json file should named blackout_section_ids.json. default is False.')
+@click.option('--output-chunk-name', '-o',
+    type=str, default='chunk', help='Variable name to store the cutout to for later retrieval.'
+    + 'Chunkflow operators by default operates on a variable named "chunk" but' +
     ' sometimes you may need to have a secondary volume to work on.')
 @operator
-def cutout(tasks, name, volume_path, mip, start, stop, expand_margin_size,
+def cutout(tasks, name, volume_path, mip, chunk_start, chunk_stop, expand_margin_size,
            fill_missing, validate_mip, blackout_sections, output_chunk_name):
     """Cutout chunk from volume."""
     if mip is None:
@@ -474,15 +432,15 @@ def cutout(tasks, name, volume_path, mip, start, stop, expand_margin_size,
 
     for task in tasks:
         handle_task_skip(task, name)
-        if start is None and stop is None:
-            bbox = task['output_bbox']
+        if chunk_start is None and chunk_stop is None:
+            bbox = task['bbox']
         else:
             # use bounding box of volume
-            if stop is None:
-                stop = state['operators'][name].vol.mip_bounds(mip).maxpt
-            if start is None:
-                start = state['operators'][name].vol.mip_bounds(mip).minpt
-            bbox = Bbox(start, stop)
+            if chunk_start is None:
+                chunk_start = state['operators'][name].vol.mip_bounds(mip).minpt
+            if chunk_stop is None:
+                chunk_stop = state['operators'][name].vol.mip_bounds(mip).maxpt
+            bbox = Bbox(chunk_start, chunk_stop)
 
         if not task['skip']:
             start = time()
@@ -521,32 +479,28 @@ def evaluate_segmenation(tasks, name, segmentation_chunk_name,
 
 @main.command('downsample-upload')
 @click.option('--name',
-              type=str,
-              default='downsample-upload',
-              help='name of operator')
+              type=str, default='downsample-upload', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
-@click.option('--volume-path', type=str, help='path of output volume')
-@click.option('--start-mip',
-              type=int,
-              default=0,
-              help='the start uploading mip level.')
-@click.option(
-    '--stop-mip',
-    type=int,
-    default=5,
-    help='stop mip level. the indexing follows python style and ' +
+@click.option('--volume-path', '-v', type=str, help='path of output volume')
+@click.option('--chunk-mip', '-c', type=int, default=None, help='input chunk mip level')
+@click.option('--start-mip', '-s', 
+    type=int, default=None, help='the start uploading mip level.')
+@click.option('--stop-mip', '-p',
+    type=int, default=5, help='stop mip level. the indexing follows python style and ' +
     'the last index is exclusive.')
 @click.option('--fill-missing/--no-fill-missing',
-              default=True,
-              help='fill missing or not when there is all zero blocks.')
+              default=True, help='fill missing or not when there is all zero blocks.')
 @operator
 def downsample_upload(tasks, name, input_chunk_name, volume_path, 
-                      start_mip, stop_mip, fill_missing):
+                      chunk_mip, start_mip, stop_mip, fill_missing):
     """Downsample chunk and upload to volume."""
+    if chunk_mip is None:
+        chunk_mip = state['mip']
+
     state['operators'][name] = DownsampleUploadOperator(
         volume_path,
-        input_mip=state['mip'],
+        chunk_mip=chunk_mip,
         start_mip=start_mip,
         stop_mip=stop_mip,
         fill_missing=fill_missing,
@@ -565,7 +519,8 @@ def downsample_upload(tasks, name, input_chunk_name, volume_path,
 @click.option('--log-dir', '-l',
               type=click.Path(exists=True, dir_okay=True, readable=True),
               default='./log', help='directory of json log files.')
-@click.option('--output-size', '-s', type=int, nargs=3, default=None,
+@click.option('--output-size', '-s', 
+    type=int, nargs=3, default=None, callback=default_none,
     help='output size for each task. will be used for computing speed.')
 @generator
 def log_summary(log_dir, output_size):
@@ -573,7 +528,7 @@ def log_summary(log_dir, output_size):
     df = load_log(log_dir)
     print_log_statistics(df, output_size=output_size)
 
-    task = INITIAL_TASK
+    task = deepcopy(INITIAL_TASK)
     yield task
         
 
@@ -890,7 +845,7 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero,
             if check_all_zero:
                 # skip following operators since the mask is all zero after required inverse
                 task['skip'] = state['operators'][name].is_all_zero(
-                    task['output_bbox'])
+                    task['bbox'])
                 if task['skip']:
                     print('the mask of {} is all zero, will skip to {}'.format(
                         name, skip_to))
@@ -909,10 +864,9 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero,
               default='crop-margin',
               help='name of this operator')
 @click.option('--margin-size', '-m',
-              type=int, nargs=3, default=None,
+              type=int, nargs=3, default=None, callback=default_none,
               help='crop the chunk margin. ' +
-              'The default is None and will use the output_bbox ' +
-              'as croping range.')
+              'The default is None and will use the bbox as croping range.')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name.')
 @click.option('--output-chunk-name', '-o',
@@ -931,54 +885,65 @@ def crop_margin(tasks, name, margin_size,
             else:
                 # use the output bbox for croping 
                 task[output_chunk_name] = task[
-                    input_chunk_name].cutout(task['output_bbox'].to_slices())
+                    input_chunk_name].cutout(task['bbox'].to_slices())
             task['log']['timer'][name] = time() - start
         yield task
 
 
 @main.command('mesh')
 @click.option('--name', type=str, default='mesh', help='name of operator')
-@click.option('--chunk-name',
+@click.option('--chunk-name', '-c',
               type=str,
               default='chunk',
               help='name of chunk needs to be meshed.')
-@click.option('--voxel-size',
+@click.option('--voxel-size', '-v',
               type=int,
               nargs=3,
               default=(40, 4, 4),
               help='voxel size of the segmentation. zyx order.')
 @click.option(
-    '--output-path',
+    '--output-path', '-o',
     type=str,
     default='file:///tmp/mesh/',
     help='output path of meshes, follow the protocol rule of CloudVolume. \
               The path will be adjusted if there is a info file with precomputed format.'
 )
-@click.option('--output-format',
+@click.option('--output-format', '-f',
               type=click.Choice(['ply', 'obj', 'precomputed']),
               default='ply',
               help='output format, could be one of ply|obj|precomputed.')
-@click.option('--simplification-factor',
+@click.option('--simplification-factor', '-s',
               type=int,
               default=100,
               help='mesh simplification factor.')
-@click.option('--max-simplification-error',
+@click.option('--max-simplification-error', '-m',
               type=int,
               default=8,
               help='max simplification error.')
+@click.option('--dust-threshold', '-d',
+              type=int, default=None, 
+              help='do not mesh segments with voxel number less than threshold.')
+@click.option('--ids', '-i',
+              type=str, default=None, 
+              help='a list of segment ids to mesh. This is for sparse meshing. The ids should be separated by comma without space, such as "34,56,78,90"')
 @click.option('--manifest/--no-manifest',
-              default=False,
-              help='create manifest file or not.')
+              default=False, help='create manifest file or not.')
 @operator
 def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
-         simplification_factor, max_simplification_error, manifest):
+         simplification_factor, max_simplification_error, dust_threshold, 
+         ids, manifest):
     """Perform meshing for segmentation chunk."""
+    if ids:
+        ids = set([int(id) for id in ids.split(',')])
+
     state['operators'][name] = MeshOperator(
         output_path,
         output_format,
         voxel_size=voxel_size,
         simplification_factor=simplification_factor,
         max_simplification_error=max_simplification_error,
+        dust_threshold=dust_threshold,
+        ids = ids,
         manifest=manifest)
     for task in tasks:
         handle_task_skip(task, name)
@@ -1018,13 +983,13 @@ def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
             task['skip'] = False
             # create fake chunk to save
             task['chunk'] = state['operators'][name].create_chunk_with_zeros(
-                task['output_bbox'])
+                task['bbox'])
 
         if not task['skip']:
             # the time elapsed was recorded internally
             state['operators'][name](task['chunk'],
                                      log=task.get('log', {'timer': {}}),
-                                     output_bbox=task.get('output_bbox', None))
+                                     output_bbox=task.get('bbox', None))
             task['output_volume_path'] = volume_path
         yield task
 
