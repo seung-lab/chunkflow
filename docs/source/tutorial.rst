@@ -249,7 +249,7 @@ You can fetch the task from SQS queue, and perform the computation locally. You 
 
 Here is a simple example to downsample the dataset with multiple resolutions::
 
-   chunkflow --mip 0 fetch-task -q my-queue cutout -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5
+   chunkflow --mip 0 fetch-task -q my-queue cutout -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5 delete-task-in-queue
 
 Here is a complex example to perform convolutional inference::
 
