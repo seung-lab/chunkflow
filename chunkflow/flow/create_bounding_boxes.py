@@ -22,9 +22,9 @@ def create_bounding_boxes(chunk_size:tuple, overlap: tuple=(0,0,0),
         volume_size = dataset_shape
     else:
         start = Vec(*start)
-        volume_size = dataset_shape - (start - dataset_offset)
 
     if grid_size is None:
+        volume_size = dataset_shape - (start - dataset_offset)
         grid_size = (volume_size-overlap) // stride + 1
 
     # the stride should not be zero if there is more than one chunks

@@ -39,7 +39,7 @@ def handle_task_skip(task, name):
         # have already skipped to target operator
         task['skip'] = False
 
-def default_none(ctx, param, value):
+def default_none(ctx, _, value):
     """
     click currently can not use None with tuple type 
     it will return an empty tuple if the default=None 
@@ -48,7 +48,8 @@ def default_none(ctx, param, value):
     """
     if not value:
         return None
-
+    else:
+        return value
 
 @click.group(chain=True)
 @click.option('--verbose/--quiet',
