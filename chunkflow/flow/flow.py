@@ -3,7 +3,6 @@ from functools import update_wrapper, wraps
 from time import time
 import numpy as np
 import click
-import json
 from copy import deepcopy
 
 from cloudvolume.lib import Bbox
@@ -910,7 +909,7 @@ def crop_margin(tasks, name, margin_size,
 )
 @click.option('--output-format', '-f',
               type=click.Choice(['ply', 'obj', 'precomputed']),
-              default='ply',
+              default='precomputed',
               help='output format, could be one of ply|obj|precomputed.')
 @click.option('--simplification-factor', '-s',
               type=int,
@@ -918,7 +917,7 @@ def crop_margin(tasks, name, margin_size,
               help='mesh simplification factor.')
 @click.option('--max-simplification-error', '-m',
               type=int,
-              default=8,
+              default=40,
               help='max simplification error.')
 @click.option('--dust-threshold', '-d',
               type=int, default=None, 

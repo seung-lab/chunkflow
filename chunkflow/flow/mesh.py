@@ -9,6 +9,7 @@ import fastremap
 from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
 
+from chunkflow.chunk import Chunk
 from .base import OperatorBase
 
 
@@ -121,6 +122,16 @@ class MeshOperator(OperatorBase):
             map_func = np.vectorize(do_map)
             seg = map_func(seg)
         return seg
+    
+    def _get_file_name(self, bbox, obj_id):
+        if self.output_format == 'precomputed':
+            return '{}:0:{}'.format(obj_id, seg.bbox)
+        elif self.output_format == 'ply':
+            return '{}.ply'.format(obj_id)
+        elif self.output_format == 'obj':
+            return '{}.obj'.format(obj_id)
+        else:
+            raise ValueError('unsupported format!')
 
     def __call__(self, seg: np.ndarray):
         """Meshing the segmentation.
@@ -130,9 +141,11 @@ class MeshOperator(OperatorBase):
         seg:
             3D segmentation volume.
         """
-        assert isinstance(seg, np.ndarray)
+        assert isinstance(seg, Chunk)
         assert seg.ndim == 3
         assert np.issubdtype(seg.dtype, np.integer)
+        
+        bbox = seg.bbox
 
         if self.verbose:
             print('remove dust segments')
@@ -147,10 +160,13 @@ class MeshOperator(OperatorBase):
 
         if self.verbose:
             print('write mesh to storage...')
+
+
         with self.storage as stor:
             for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
                 data = self._get_mesh_data(obj_id)
-                stor.put_file(str(obj_id), data)
+                file_name = self._get_file_name(bbox, obj_id)
+                stor.put_file(file_name, data)
 
                 # create manifest file
                 if self.manifest:
