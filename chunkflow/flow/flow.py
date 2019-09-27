@@ -3,7 +3,6 @@ from functools import update_wrapper, wraps
 from time import time
 import numpy as np
 import click
-from copy import deepcopy
 
 from cloudvolume.lib import Bbox
 from chunkflow.lib.aws.sqs_queue import SQSQueue
@@ -30,7 +29,10 @@ from .view import ViewOperator
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
-INITIAL_TASK = {'skip': False, 'log': {'timer': {}}}
+
+def get_initial_task():
+    return {'skip': False, 'log': {'timer': {}}}
+
 DEFAULT_CHUNK_NAME = 'chunk'
 
 def handle_task_skip(task, name):
@@ -75,7 +77,7 @@ def process_commands(operators, verbose, mip):
     into the other, similar to how a pipe on unix works.
     """
     # It turns out that a tuple will not work correctly!
-    stream = [ deepcopy(INITIAL_TASK), ]
+    stream = [ get_initial_task(), ]
 
     # Pipe it through all stream operators.
     for operator in operators:
@@ -132,13 +134,13 @@ def generator(func):
 def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue_name):
     """Generate tasks."""
     bboxes = create_bounding_boxes(chunk_size, overlap=overlap, layer_path=layer_path,
-                                    start=start, mip=mip, grid_size=grid_size)
+                    start=start, mip=mip, grid_size=grid_size, verbose=state['verbose'])
     if queue_name is not None:
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
     else:
         for bbox in bboxes:
-            task = deepcopy(INITIAL_TASK)
+            task = get_initial_task()
             task['bbox'] = bbox
             task['log']['bbox'] = bbox.to_filename()
             yield task
@@ -160,7 +162,7 @@ def fetch_task(queue_name, visibility_timeout):
         print('get task: ', bbox_str)
         bbox = Bbox.from_filename(bbox_str)
         # record the task handle to delete after the processing
-        task = deepcopy(INITIAL_TASK)
+        task = get_initial_task() 
         task['queue'] = queue
         task['task_handle'] = task_handle
         task['bbox'] = bbox
@@ -527,7 +529,7 @@ def log_summary(log_dir, output_size):
     df = load_log(log_dir)
     print_log_statistics(df, output_size=output_size)
 
-    task = deepcopy(INITIAL_TASK)
+    task = get_initial_task()
     yield task
         
 

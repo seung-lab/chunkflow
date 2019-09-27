@@ -148,11 +148,12 @@ class MeshOperator(OperatorBase):
         bbox = seg.bbox
 
         if self.verbose:
-            print('remove dust segments')
-        seg = self._remove_dust(seg)
-        if self.verbose:
             print('only keep selected segment ids, and remove others.')
         seg = self._only_keep_selected(seg)
+        
+        if self.verbose:
+            print('remove dust segments')
+        seg = self._remove_dust(seg)
 
         if self.verbose:
             print('computing meshes from segmentation...')
