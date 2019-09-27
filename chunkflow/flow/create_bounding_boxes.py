@@ -5,7 +5,8 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
 
 def create_bounding_boxes(chunk_size:tuple, overlap: tuple=(0,0,0),
-                    start:tuple=None, layer_path: str=None, mip:int=0, grid_size: tuple=None):
+                    start:tuple=None, layer_path: str=None, mip:int=0, 
+                    grid_size: tuple=None, verbose: bool=True):
     if layer_path:
         vol = CloudVolume(layer_path, mip=mip)
         # dataset shape as z,y,x
@@ -31,7 +32,13 @@ def create_bounding_boxes(chunk_size:tuple, overlap: tuple=(0,0,0),
     for g, s in zip(grid_size, stride):
         if g > 1:
             assert s > 0
-    
+
+    if verbose:
+        print('\nstart: ', start)
+        print('stride: ', stride)
+        print('grid size: ', grid_size)
+        print('chunk_size: ', chunk_size, '\n')
+
     bboxes = []
     for (z, y, x) in tqdm(product(range(grid_size[0]), range(grid_size[1]),
                                                        range(grid_size[2]))):
