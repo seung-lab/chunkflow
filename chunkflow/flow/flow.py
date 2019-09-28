@@ -20,6 +20,7 @@ from .log_summary import load_log, print_log_statistics
 from .inference import InferenceOperator
 from .mask import MaskOperator
 from .mesh import MeshOperator
+from .mesh_manifest import MeshManifestOperator
 from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
@@ -384,7 +385,7 @@ def delete_task_in_queue(tasks, name):
             queue.delete(task_handle)
             if state['verbose']:
                 print('deleted task {} in queue: {}'.format(
-                    task_handle, queue))
+                    task_handle, queue.queue_name))
 
 
 @main.command('cutout')
@@ -954,6 +955,27 @@ def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
             task['log']['timer'][name] = time() - start
         yield task
 
+@main.command('mesh-manifest')
+@click.option('--name', type=str, default='mesh-manifest', help='name of operator')
+@click.option('--input-name', '-i', type=str, default='prefix', help='input key name in task.')
+@click.option('--prefix', '-p', type=str, default=None, help='prefix of meshes.')
+@click.option('--volume-path', '-v', type=str, required=True, help='cloudvolume path of dataset layer.' + 
+              ' The mesh directory will be automatically figure out using the info file.')
+@operator
+def mesh_manifest(tasks, name, input_name, prefix, volume_path):
+    """Generate mesh manifest files."""
+    state['operators'][name] = MeshManifestOperator(volume_path)
+    if prefix:
+        state['operators'][name](prefix)
+    else:
+        for task in tasks:
+            handle_task_skip(task, name)
+            if not task['skip']:
+                start = time()
+                state['operators'][name](task[input_name])
+                task['log']['timer'][name] = time() - start
+            yield task
+   
 
 @main.command('save')
 @click.option('--name', type=str, default='save', help='name of this operator')

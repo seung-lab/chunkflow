@@ -105,6 +105,9 @@ class MeshOperator(OperatorBase):
         """
         this function is adopted from igneous.
         """
+        if self.verbose:
+            print('remove dust segments')
+
         if self.dust_threshold or self.ids:
             segids, voxel_nums = np.unique(seg, return_counts=True)
             dust_segids = [sid for sid, ct in 
@@ -114,18 +117,19 @@ class MeshOperator(OperatorBase):
         return seg
 
     def _only_keep_selected(self, seg: np.ndarray):
+        if self.verbose:
+            print('only keep selected segment ids, and remove others.')
+
         # precompute the remap function
         if self.ids:
-            segids = set(np.unique(seg))
-            ids = self.ids.intersection( segids )
-            do_map = lambda x: x if x in ids else 0
-            map_func = np.vectorize(do_map)
-            seg = map_func(seg)
+            #segids = set(np.unique(seg))
+            #ids = self.ids.intersection( segids )
+            seg = fastremap.mask_except(seg, list(self.ids), in_place=True)
         return seg
     
     def _get_file_name(self, bbox, obj_id):
         if self.output_format == 'precomputed':
-            return '{}:0:{}'.format(obj_id, seg.bbox)
+            return '{}:0:{}'.format(obj_id, bbox.to_filename())
         elif self.output_format == 'ply':
             return '{}.ply'.format(obj_id)
         elif self.output_format == 'obj':
@@ -147,12 +151,11 @@ class MeshOperator(OperatorBase):
         
         bbox = seg.bbox
 
-        if self.verbose:
-            print('only keep selected segment ids, and remove others.')
         seg = self._only_keep_selected(seg)
-        
-        if self.verbose:
-            print('remove dust segments')
+        if np.all(seg==0):
+            if self.verbose:
+                print('no segmentation id is selected!')
+            return
         seg = self._remove_dust(seg)
 
         if self.verbose:
@@ -161,18 +164,16 @@ class MeshOperator(OperatorBase):
 
         if self.verbose:
             print('write mesh to storage...')
+        for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
+            # print('object id: ', obj_id)
+            data = self._get_mesh_data(obj_id)
+            file_name = self._get_file_name(bbox, obj_id)
+            self.storage.put_file(file_name, data)
 
-
-        with self.storage as stor:
-            for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
-                data = self._get_mesh_data(obj_id)
-                file_name = self._get_file_name(bbox, obj_id)
-                stor.put_file(file_name, data)
-
-                # create manifest file
-                if self.manifest:
-                    stor.put_file('{}:0'.format(obj_id),
-                                  json.dumps({'fragments': [str(obj_id)]}))
+            # create manifest file
+            if self.manifest:
+                self.storage.put_file('{}:0'.format(obj_id),
+                                json.dumps({'fragments': [str(obj_id)]}))
 
         # release memory
         self.mesher.clear()
