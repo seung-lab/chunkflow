@@ -24,7 +24,7 @@ class DownsampleUploadOperator(OperatorBase):
                  stop_mip: int = 5,
                  fill_missing: bool = True,
                  name='downsample-upload',
-                 verbose: bool = True):
+                 verbose: bool = False):
         """
         volume_path: (str) path of volume
         chunk_mip: (int) the mip level of input chunk

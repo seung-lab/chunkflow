@@ -527,7 +527,8 @@ def downsample_upload(tasks, name, input_chunk_name, volume_path,
         start_mip=start_mip,
         stop_mip=stop_mip,
         fill_missing=fill_missing,
-        name=name)
+        name=name,
+        verbose=state['verbose'])
 
     for task in tasks:
         handle_task_skip(task, name)
