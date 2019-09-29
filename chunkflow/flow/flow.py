@@ -404,9 +404,8 @@ def delete_task_in_queue(tasks, name):
             queue = task['queue']
             task_handle = task['task_handle']
             queue.delete(task_handle)
-            if state['verbose']:
-                print('deleted task {} in queue: {}'.format(
-                    task_handle, queue.queue_name))
+            print('deleted task {} in queue: {}'.format(
+                task_handle, queue.queue_name))
 
 
 @main.command('cutout')
