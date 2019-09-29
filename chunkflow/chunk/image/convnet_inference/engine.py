@@ -10,7 +10,7 @@ from warnings import warn
 from typing import Union
 
 from chunkflow.chunk import Chunk
-
+from chunkflow.chunk.affinity_map import AffinityMap
 
 class Engine(object):
     """
@@ -224,7 +224,7 @@ class Engine(object):
             output_buffer,
             1.0001,
             err_msg='output buffer should not be greater than 1')
-        return output_buffer
+        return AffinityMap(output_buffer)
 
     def _create_output_buffer(self, input_chunk):
         output_buffer = np.zeros(

@@ -7,6 +7,7 @@ import click
 from cloudvolume.lib import Bbox
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
+from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 
 # import operator functions
@@ -146,6 +147,26 @@ def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue
             task['log']['bbox'] = bbox.to_filename()
             yield task
 
+@main.command('cloud-watch')
+@click.option('--name',
+              type=str,
+              default='cloud-watch',
+              help='name of this operator')
+@click.option('--log-name',
+              type=str,
+              default='chunkflow',
+              help='name of the speedometer')
+@operator
+def cloud_watch(tasks, name, log_name):
+    """Real time speedometer in AWS CloudWatch."""
+    state['operators'][name] = CloudWatchOperator(log_name=log_name,
+                                                  name=name,
+                                                  verbose=state['verbose'])
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            state['operators'][name](task['log'])
+        yield task
 
 @main.command('fetch-task')
 @click.option('--queue-name', '-q', 
@@ -975,7 +996,50 @@ def mesh_manifest(tasks, name, input_name, prefix, volume_path):
                 state['operators'][name](task[input_name])
                 task['log']['timer'][name] = time() - start
             yield task
-   
+ 
+@main.command('neuroglancer')
+@click.option('--name',
+              type=str,
+              default='neuroglancer',
+              help='name of this operator')
+@click.option('--voxel-size',
+              '-v',
+              nargs=3,
+              type=int,
+              default=(1, 1, 1),
+              help='voxel size of chunk')
+@click.option('--port', '-p', type=int, default=None, help='port to use')
+@click.option('--chunk-names', '-c', type=str, default='chunk', 
+              help='a list of chunk names separated by comma.')
+@operator
+def neuroglancer(tasks, name, voxel_size, port, chunk_names):
+    """Visualize the chunk using neuroglancer."""
+    state['operators'][name] = NeuroglancerOperator(name=name,
+                                                    port=port,
+                                                    voxel_size=voxel_size)
+    for task in tasks:
+        chunks = dict()
+        for chunk_name in chunk_names.split(","):
+            chunks[chunk_name] = task[chunk_name]
+
+        handle_task_skip(task, name)
+        if not task['skip']:
+            state['operators'][name](chunks)
+        yield task
+
+@main.command('quantize')
+@click.option('--name', type=str, default='quantize', help='name of this operator')
+@click.option('--input-chunk-name', type=str, default='chunk', help = 'input chunk name')
+@click.option('--output-chunk-name', type=str, default='chunk', help= 'output chunk name')
+@operator
+def quantize(tasks, name, input_chunk_name, output_chunk_name):
+    """Quantize affinity map."""
+    for task in tasks:
+        aff = task[input_chunk_name]
+        assert isinstance(aff, AffinityMap)
+        quantized_image = aff.quantize()
+        task[output_chunk_name] = quantized_image
+        yield task
 
 @main.command('save')
 @click.option('--name', type=str, default='save', help='name of this operator')
@@ -1016,29 +1080,6 @@ def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
             task['output_volume_path'] = volume_path
         yield task
 
-
-@main.command('cloud-watch')
-@click.option('--name',
-              type=str,
-              default='cloud-watch',
-              help='name of this operator')
-@click.option('--log-name',
-              type=str,
-              default='chunkflow',
-              help='name of the speedometer')
-@operator
-def cloud_watch(tasks, name, log_name):
-    """Real time speedometer in AWS CloudWatch."""
-    state['operators'][name] = CloudWatchOperator(log_name=log_name,
-                                                  name=name,
-                                                  verbose=state['verbose'])
-    for task in tasks:
-        handle_task_skip(task, name)
-        if not task['skip']:
-            state['operators'][name](task['log'])
-        yield task
-
-
 @main.command('view')
 @click.option('--name', type=str, default='view', help='name of this operator')
 @click.option('--image-chunk-name',
@@ -1060,36 +1101,6 @@ def view(tasks, name, image_chunk_name, segmentation_chunk_name):
                                      seg=segmentation_chunk_name)
         yield task
 
-
-@main.command('neuroglancer')
-@click.option('--name',
-              type=str,
-              default='neuroglancer',
-              help='name of this operator')
-@click.option('--voxel-size',
-              '-v',
-              nargs=3,
-              type=int,
-              default=(1, 1, 1),
-              help='voxel size of chunk')
-@click.option('--port', '-p', type=int, default=None, help='port to use')
-@click.option('--chunk-names', '-c', type=str, default='chunk', 
-              help='a list of chunk names separated by comma.')
-@operator
-def neuroglancer(tasks, name, voxel_size, port, chunk_names):
-    """Visualize the chunk using neuroglancer."""
-    state['operators'][name] = NeuroglancerOperator(name=name,
-                                                    port=port,
-                                                    voxel_size=voxel_size)
-    for task in tasks:
-        chunks = dict()
-        for chunk_name in chunk_names.split(","):
-            chunks[chunk_name] = task[chunk_name]
-
-        handle_task_skip(task, name)
-        if not task['skip']:
-            state['operators'][name](chunks)
-        yield task
 
 
 if __name__ == '__main__':

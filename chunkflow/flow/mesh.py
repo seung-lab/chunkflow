@@ -143,7 +143,7 @@ class MeshOperator(OperatorBase):
         Parameters
         ------------
         seg:
-            3D segmentation volume.
+            3D segmentation chunk.
         """
         assert isinstance(seg, Chunk)
         assert seg.ndim == 3
