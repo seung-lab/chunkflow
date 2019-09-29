@@ -916,52 +916,37 @@ def crop_margin(tasks, name, margin_size,
 @main.command('mesh')
 @click.option('--name', type=str, default='mesh', help='name of operator')
 @click.option('--chunk-name', '-c',
-              type=str,
-              default='chunk',
-              help='name of chunk needs to be meshed.')
-@click.option('--voxel-size', '-v',
-              type=int,
-              nargs=3,
-              default=(40, 4, 4),
-              help='voxel size of the segmentation. zyx order.')
-@click.option(
-    '--output-path', '-o',
-    type=str,
-    default='file:///tmp/mesh/',
+              type=str, default='chunk', help='name of chunk needs to be meshed.')
+@click.option('--mip', '-c',
+    type=int, default=None, help='mip level of segmentation chunk.')
+@click.option('--voxel-size', '-v', type=int, nargs=3, default=None, callback=default_none, 
+    help='voxel size of the segmentation. zyx order.')
+@click.option('--output-path', '-o', type=str, default='file:///tmp/mesh/', 
     help='output path of meshes, follow the protocol rule of CloudVolume. \
-              The path will be adjusted if there is a info file with precomputed format.'
-)
-@click.option('--output-format', '-f',
-              type=click.Choice(['ply', 'obj', 'precomputed']),
-              default='precomputed',
-              help='output format, could be one of ply|obj|precomputed.')
-@click.option('--simplification-factor', '-s',
-              type=int,
-              default=100,
-              help='mesh simplification factor.')
-@click.option('--max-simplification-error', '-m',
-              type=int,
-              default=40,
-              help='max simplification error.')
+              The path will be adjusted if there is a info file with precomputed format.')
+@click.option('--output-format', '-f', type=click.Choice(['ply', 'obj', 'precomputed']), default='precomputed', 
+    help='output format, could be one of ply|obj|precomputed.')
+@click.option('--simplification-factor', '-s', type=int, default=100, help='mesh simplification factor.')
+@click.option('--max-simplification-error', '-m', type=int, default=40, help='max simplification error.')
 @click.option('--dust-threshold', '-d',
-              type=int, default=None, 
-              help='do not mesh segments with voxel number less than threshold.')
-@click.option('--ids', '-i',
-              type=str, default=None, 
+    type=int, default=None, help='do not mesh segments with voxel number less than threshold.')
+@click.option('--ids', '-i', type=str, default=None, 
               help='a list of segment ids to mesh. This is for sparse meshing. The ids should be separated by comma without space, such as "34,56,78,90"')
-@click.option('--manifest/--no-manifest',
-              default=False, help='create manifest file or not.')
+@click.option('--manifest/--no-manifest', default=False, help='create manifest file or not.')
 @operator
-def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
+def mesh(tasks, name, chunk_name, mip, voxel_size, output_path, output_format,
          simplification_factor, max_simplification_error, dust_threshold, 
          ids, manifest):
     """Perform meshing for segmentation chunk."""
     if ids:
         ids = set([int(id) for id in ids.split(',')])
+    if mip is None:
+        mip = state['mip']
 
     state['operators'][name] = MeshOperator(
         output_path,
         output_format,
+        mip=mip,
         voxel_size=voxel_size,
         simplification_factor=simplification_factor,
         max_simplification_error=max_simplification_error,

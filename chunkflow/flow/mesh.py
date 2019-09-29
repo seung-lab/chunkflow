@@ -18,7 +18,8 @@ class MeshOperator(OperatorBase):
     def __init__(self,
                  output_path: str,
                  output_format: str,
-                 voxel_size: tuple = (40, 4, 4),
+                 mip: int = None,
+                 voxel_size: tuple = None,
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
                  dust_threshold: int = None,
@@ -57,7 +58,6 @@ class MeshOperator(OperatorBase):
         self.simplification_factor = simplification_factor
         self.max_simplification_error = max_simplification_error
         # zmesh use fortran order, translate zyx to xyz
-        self.mesher = Mesher(voxel_size[::-1])
         self.output_path = output_path
         self.output_format = output_format
         self.dust_threshold = dust_threshold
@@ -71,7 +71,7 @@ class MeshOperator(OperatorBase):
 
         if output_format == 'precomputed':
             # adjust the mesh path according to info
-            vol = CloudVolume(self.output_path)
+            vol = CloudVolume(self.output_path, mip)
             info = vol.info
             if 'mesh' not in info:
                 # add mesh to info and update it
@@ -79,10 +79,14 @@ class MeshOperator(OperatorBase):
                 vol.info = info
                 vol.commit_info()
             mesh_path = os.path.join(output_path, info['mesh'])
+            self.voxel_size = vol.resolution
+            self.mesher = Mesher( vol.resolution )
+        else: 
+            self.mesher = Mesher(voxel_size[::-1])
 
         self.storage = Storage(mesh_path)
 
-    def _get_mesh_data(self, obj_id):
+    def _get_mesh_data(self, obj_id, offset):
         mesh = self.mesher.get_mesh(
             obj_id,
             normals=False,
@@ -92,6 +96,7 @@ class MeshOperator(OperatorBase):
         self.mesher.erase(obj_id)
 
         if self.output_format == 'precomputed':
+            mesh.vertices[:] += offset * self.voxel_size
             data = mesh.to_precomputed()
         elif self.output_format == 'ply':
             data = mesh.to_ply()
@@ -166,9 +171,12 @@ class MeshOperator(OperatorBase):
             print('write mesh to storage...')
         for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
             # print('object id: ', obj_id)
-            data = self._get_mesh_data(obj_id)
+            data = self._get_mesh_data(obj_id, bbox.minpt)
             file_name = self._get_file_name(bbox, obj_id)
-            self.storage.put_file(file_name, data)
+            self.storage.put_file(
+                file_name, data,
+                cache_control=None
+            )
 
             # create manifest file
             if self.manifest:
