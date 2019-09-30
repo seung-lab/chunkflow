@@ -79,7 +79,7 @@ class MeshOperator(OperatorBase):
                 vol.info = info
                 vol.commit_info()
             mesh_path = os.path.join(output_path, info['mesh'])
-            self.voxel_size = vol.resolution
+            self.voxel_size = vol.resolution[::-1]
             self.mesher = Mesher( vol.resolution )
         else: 
             self.mesher = Mesher(voxel_size[::-1])
@@ -96,7 +96,7 @@ class MeshOperator(OperatorBase):
         self.mesher.erase(obj_id)
 
         if self.output_format == 'precomputed':
-            mesh.vertices[:] += offset * self.voxel_size
+            mesh.vertices[:] += offset[::-1] * self.voxel_size[::-1]
             data = mesh.to_precomputed()
         elif self.output_format == 'ply':
             data = mesh.to_ply()
@@ -175,7 +175,8 @@ class MeshOperator(OperatorBase):
             file_name = self._get_file_name(bbox, obj_id)
             self.storage.put_file(
                 file_name, data,
-                cache_control=None
+                cache_control=None,
+                compress='gzip'
             )
 
             # create manifest file

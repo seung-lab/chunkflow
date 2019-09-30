@@ -1,7 +1,7 @@
 import os
-import json
 import re
 from collections import defaultdict
+from time import sleep
 
 from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
@@ -52,9 +52,11 @@ class MeshManifestOperator(OperatorBase):
         for seg_id, frags in id2filenames.items():
             if self.verbose:
                 print('segment id: ', seg_id)
-            self.storage.put_file(
+                print('fragments: ', frags)
+            self.storage.put_json(
                 # level of detail is alway
                 file_path='{}:{}'.format(seg_id, self.lod),
-                content=json.dumps({"fragments": frags}),
-                content_type='application/json',
+                content={"fragments": frags},
             )
+            # the last few hundred files will not be uploaded without sleeping!
+            sleep(0.01)
