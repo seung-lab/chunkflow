@@ -19,16 +19,43 @@ We have more operators that can be composed flexiblly, checkout our [Documentati
 
 # Features
 - **Composable** operators. The chunk operators could be freely composed in commandline for flexible usage.
-- **Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
+- **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
 - All operations support **3D** image volumes.
 
-# Some Typical Operators
-- Convolutional Network Inference. Currently, we support [PyTorch](https://pytorch.org) and [pznet](https://github.com/supersergiy/znnphi_interface)
-- Cutout service. Cutout/save chunk from/to datasets formatted as [neuroglancer precomputed](https://github.com/google/neuroglancer/tree/master/src/neuroglancer/datasource/precomputed) using [cloudvolume](https://github.com/seung-lab/cloud-volume)
-- Visualization using [neuroglancer](https://github.com/google/neuroglancer).
-- Downsample dataset and building meshes from segmentation.
-- Image segmentation using watershed and mean affinity agglomeration.
-- Evaluation of segmentation using rand index and variation of information.
+# Available Operators
+After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the available operators here. We keep adding new operators and will keep update here.
+| Operator Name   | Function |
+| --------------- | -------- |
+| agglomerate     | Watershed and agglomeration to segment affinity map |
+| cloud-watch     | Realtime speedometer in AWS CloudWatch |
+| connected-components | Threshold the boundary map to get a segmentation |
+| copy-var        | Copy a variable to a new name |
+| create-chunk    | Create a fake chunk for easy test |
+| crop-margin     | Crop the margin of a chunk |
+| custom-operator | Import local code as a customized operator |
+| cutout          | Cutout chunk from a local/cloud storage volume |
+| delete-task-in-queue | Delete the task in AWS SQS queue |
+| downsample-upload | Downsample the chunk hierarchically and upload to volume |
+| evaluate-segmentation | Compare segmentation chunks |
+| fetch-task      | Fetch task from AWS SQS queue one by one |
+| generate-tasks  | Generate tasks one by one |
+| inference       | Convolutional net inference |
+| log-summary     | Summary of logs |
+| mask            | Black out the chunk based on another mask chunk |
+| mesh            | Build 3D meshes from segmentation chunk |
+| mesh-manifest   | Collect mesh fragments for object |
+| neuroglancer    | Visualize chunks using neuroglancer |
+| normalize-section-contrast | Normalize image contrast |
+| normalize-section-shang | Normalization algorithm created by Shang |
+| quantize        | Quantize the affinity map |
+| read-h5         | Read HDF5 files |
+| read-tif        | Read TIFF files |
+| save            | Save chunk to local/cloud storage volume |
+| save-pngs       | Save chunk as a serials of png files |
+| view            | Another chunk viewer in browser using CloudVolume |
+| write-h5        | Write chunk as HDF5 file |
+| write-tif       | Write chunk as TIFF file |
+
 
 # Citation
 If you used this tool and is writing a paper, please cite this [paper](https://arxiv.org/abs/1904.10489):
