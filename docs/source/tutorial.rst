@@ -203,22 +203,101 @@ Of course, you can also combine the two setups to one single command::
     chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 
 
-Distributed Computation in both Local and Cloud
+Distributed Computation in Both Local and Cloud
 *************************************************
 We use AWS SQS_ queue to decouple task producing and managing frontend and the computational heavy backend. In the frontend, you can produce a bunch of tasks to AWS SQS queue, and the tasks are managed in AWS SQS. Then, you can launch any number of chunkflow workers in **both** local and cloud. You can even mix using multiple cloud instances. Actually, you can use **any** computer with internet connection and AWS authentication **at the same time**. This hybrid cloud architecture enables maximum computational resources usage.
 
 .. _SQS: https://aws.amazon.com/sqs/
 
-Build Docker Image
-==================
-It is recommended to use Docker_ image for deployment in both local and cloud. Docker image contains all the computational environments for chunkflow and ensures that the operations are all consistent.
 
-All the docker images are automatically built and is available in the DockerHub_. The ``latest`` tag is the image built from the ``master`` branch. The ``base`` tag is a base ubuntu image, and the ``pytorch`` and ``pznet`` tag contains ``pytorch`` and ``pznet`` inference backends respectively. 
+Produce Tasks and Ingest to AWS SQS Queue
+=========================================
+You can use the ``generate-tasks`` to generate tasks. It will ingest the tasks to a AWS SQS_ queue if you define the ``queue-name`` parameter::
+   
+   chunkflow generate-tasks --chunk-size 128 1024 1024 --grid-size 2 2 2 --stride 128 1024 1024 --queue-name my-queue
+
+Log in your AWS console, and check the ``chunkflow`` queue, you should see your tasks there like this:
+
+|tasks_in_sqs|
+
+.. |tasks_in_sqs| image:: _static/image/tasks_in_sqs.png
+
+Chunkflow also provide a smarter way to produce tasks using the existing dataset information. If you would like to process the whole dataset, we only need to define the mip level, and chunk size, all other parameters could be automatically computed based on the dataset information, such as volume start offset and shape. This is a simple example::
+
+   chunkflow generate-tasks -l gs://my/dataset/path -m 0 -o 0 0 0 -c 112 2048 2048 -q my-queue
+
+Deploy in Local Computers
+=========================
+
+You can fetch the task from SQS queue, and perform the computation locally. You can compose the operations to create your pipeline. 
+
+Here is a simple example to downsample the dataset with multiple resolutions::
+
+   chunkflow --mip 0 fetch-task -q my-queue cutout -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5 delete-task-in-queue
+
+After downsampling, you can visualize the dataset with much larger field of view. Here is an `example
+<https://neuroglancer-demo.appspot.com/#!%7B%22layers%22:%5B%7B%22source%22:%22precomputed://gs://neuroglancer-public-data/kasthuri2011/image_color_corrected%22%2C%22type%22:%22image%22%2C%22name%22:%22corrected-image%22%7D%5D%2C%22navigation%22:%7B%22pose%22:%7B%22position%22:%7B%22voxelSize%22:%5B6%2C6%2C30%5D%2C%22voxelCoordinates%22:%5B3890.492431640625%2C7464.080078125%2C1198.0423583984375%5D%7D%7D%2C%22zoomFactor%22:245.12283916194264%7D%2C%22perspectiveOrientation%22:%5B0.1614261269569397%2C-0.412894606590271%2C-0.28569135069847107%2C-0.849611759185791%5D%2C%22perspectiveZoom%22:578.24635639373%2C%22layout%22:%224panel%22%7D>`_. Due to the limit of memory capacity of typical computers, we can not perform hierarchical downsampling from mip 0 to highest mip level in one step, thus we normally do in twice. For the first time, we perform downsampling from mip 0 to mip 5, than perform downsampling from mip 5 to mip 10.
+
+.. note:: If you forget adding the ``delete-task-in-queue`` operator in the end, it will still works, but the task in queue will not be deleted and workers will keep doing the same task! This is good for debug, but not good in production.
+
+Here is an example to generate meshes from segmentation in mip 3::
+
+   chunkflow --mip 3 fetch-task -q my-queue -v 600 cutout -v gs://my/dataset/path --fill-missing mesh --voxel-size 45 5 5 -o gs://my/dataset/path --dust-threshold 100 delete-task-in-queue
+
+The computation will also include a downsampling step for meshes to reduce the number of triangles. The meshing will produce chunked mesh fragments rather than the whole object mesh. Thus, we need another step, called ``mesh-manifest``, to collect the fragments::
+
+   chunkflow mesh-manifest --volume-path gs://my/dataset/path --prefix 7
+
+Normally, we have millions of objects in case of dense reconstruction of Electron Microscopy images. We would like to distribute the collection for speedup. We use ``prefix`` parameter to split the jobs. In the above example, we are only doing mesh manifest for objects start with ``7``. If all the object names start with number, we need to do it from 0 to 9, or from 00 to 99, to cover all the objects. The prefix will determine the number of jobs. If there are billions of objects, we might need to use deeper split, such as from 000 to 999. After the mesh manifest, you should be able to see the 3D objects using neuroglancer, like `this one
+<https://neuroglancer-demo.appspot.com/#!%7B%22layers%22:%5B%7B%22source%22:%22precomputed://gs://neuroglancer-public-data/kasthuri2011/ground_truth%22%2C%22type%22:%22segmentation%22%2C%22selectedAlpha%22:0.63%2C%22notSelectedAlpha%22:0.14%2C%22segments%22:%5B%2213%22%2C%2215%22%2C%222282%22%2C%223189%22%2C%223207%22%2C%223208%22%2C%223224%22%2C%223228%22%2C%223710%22%2C%223758%22%2C%224027%22%2C%22444%22%2C%224651%22%2C%224901%22%2C%224965%22%5D%2C%22skeletonRendering%22:%7B%22mode2d%22:%22lines_and_points%22%2C%22mode3d%22:%22lines%22%7D%2C%22name%22:%22ground_truth%22%7D%5D%2C%22navigation%22:%7B%22pose%22:%7B%22position%22:%7B%22voxelSize%22:%5B6%2C6%2C30%5D%2C%22voxelCoordinates%22:%5B5523.99072265625%2C8538.9384765625%2C1198.0423583984375%5D%7D%7D%2C%22zoomFactor%22:22.573112129999547%7D%2C%22perspectiveOrientation%22:%5B0.15436482429504395%2C-0.9670825004577637%2C0.01203650888055563%2C0.20193573832511902%5D%2C%22perspectiveZoom%22:340.35867907175077%2C%22layout%22:%223d%22%7D>`_.
+
+.. note:: This command will generate meshes for all the objects in the segmentation volume. You can also specify selected object ids using the `--ids` parameter. We normally call it sparse meshing. This is useful if you only need a few objects and will make the computation much faster.
+
+Here is a complex example to perform convolutional inference::
+
+   chunkflow --verbose --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 cutout --volume-path="s3://my/image/volume/path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save --volume-path="file://my/output/volume/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
+
+For more details, you can checkout the `examples folder
+<https://github.com/seung-lab/chunkflow/tree/master/examples>`_ in our repo.
+
+For multiple processing in a single computer, you can use GNU Parallel to launch workers with a delay. For distributed processing in a local cluster, you can also use your cluster scheduler, such as `Slurm Workload Manager
+<https://slurm.schedmd.com/overview.html>`_, to run multiple processes and perform distributed computation.
+
+Deploy to Kubernetes Cluster in Cloud
+======================================
+`Kubernetes
+<https://kubernetes.io/>`_ is the mainstay docker container orchestration platform, and is supported in almost all the public cloud computing platforms, including AWS, Google Cloud, and Microsoft Azure. You can use our `template
+<https://github.com/seung-lab/chunkflow/blob/master/distributed/kubernetes/deploy.yml>`_ to deploy chunkflow to your Kubernetes cluster. Just replace the composed command you would like to use in the yaml file. For creating and managing cluster in cloud and usage, please check our `wikipedia page
+<https://github.com/seung-lab/chunkflow/wiki/Kubernetes-in-Cloud>`_.
+
+To deploy using Kubernetes, you need to use docker image, which contains all the computational environments.
+
+Build Docker Image
+-------------------
+Automatic Update in Docker Hub
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+It is recommended to use Docker_ image for deployment in both local and cloud. Docker image contains all the computational environments for chunkflow and ensures that the operations are all consistent using the same docker image.
+
+All the docker images are automatically built and is available in the DockerHub_. The ``latest`` tag is the image built from the ``master`` branch. The ``base`` tag is a base ubuntu image, and the ``pytorch`` and ``pznet`` tag contains ``pytorch`` and ``pznet`` inference backends respectively. You can simply pull them and start using it::
+
+   sudo docker pull seunglab/chunkflow:latest
 
 .. _DockerHub: https://hub.docker.com/r/seunglab/chunkflow
 .. _Docker: https://www.docker.com/
 
-You can also manually build docker images locally. The docker files is organized hierarchically. The ``docker/base/Dockerfile`` is a basic one, and the ``docker/inference/pytorch/Dockerfile`` and ``docker/inference/pznet/Dockerfile`` contains pytorch and pznet respectively for ConvNet inference. 
+Manual Build Docker Image
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+If you modified the code and would like to manually build docker images locally. The docker files is organized hierarchically. The ``docker/base/Dockerfile`` is a basic one, and the ``docker/inference/pytorch/Dockerfile`` and ``docker/inference/pznet/Dockerfile`` contains pytorch and pznet respectively for ConvNet inference. 
+
+You can build the base image with::
+
+   cd docker/base
+   sudo docker build . -t seunglab/chunkflow:base --no-cache
+
+Similarly, you can also build PyTorch base image::
+
+   cd docker/pytorch
+   sudo docker build . -t seunglab/chunkflow:pytorch --no-cache
 
 After building the base images, you can start building chunkflow image with different backends. You can just modify the base choice in the Dockerfile and then build it:
 
@@ -227,48 +306,9 @@ After building the base images, you can start building chunkflow image with diff
     # backend: base | pytorch | pznet | pytorch-cuda9
     ARG BACKEND=pytorch 
 
-Produce Tasks and Ingest to AWS SQS Queue
-=========================================
-You can use the ``generate-tasks`` to generate tasks. It will ingest the tasks to a AWS SQS_ queue if you define the ``queue-name`` parameter::
-   
-   chunkflow generate-tasks --chunk-size 128 1024 1024 --grid-size 2 2 2 --stride 128 1024 1024 --queue-name chunkflow
+Then you can simply run::
 
-Log in your AWS console, and check the ``chunkflow`` queue, you should see your tasks there like this:
-
-|tasks_in_sqs|
-
-.. |tasks_in_sqs| image:: _static/image/tasks_in_sqs.png
-
-Chunkflow also provide a smart way to produce tasks using the existing dataset information. If we would like to process the whole dataset, we only need to define the mip level, and chunk size, all other parameters could be automatically computed based on the dataset information, such as volume start offset and shape. This is a simple example::
-
-   chunkflow generate-tasks -l gs://my/dataset/path -m 0 -o 0 0 0 -c 112 2048 2048 -q my-queue
-
-Deploy in Local Computers
-===========================
-You can fetch the task from SQS queue, and perform the computation locally. You can compose the operations to create your pipeline. 
-
-Here is a simple example to downsample the dataset with multiple resolutions::
-
-   chunkflow --mip 0 fetch-task -q my-queue cutout -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5 delete-task-in-queue
-
-Here is an example to generate meshes from segmentation in mip 3::
-
-   chunkflow --mip 3 fetch-task -q zfish -v 600 cutout -v gs://neuroglancer/zfish_v1/consensus-20190923 --fill-missing mesh --voxel-size 45 5 5 -o gs://neuroglancer/zfish_v1/consensus-20190923 --dust-threshold 100
-
-.. note:: This command will generate meshes for all the objects in segmentation volume. You can also specify selected segmentation using the `--ids` parameter. We normally call it sparse meshing.
-
-Here is a complex example to perform convolutional inference::
-
-   chunkflow --verbose --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 cutout --volume-path="s3://my/image/volume/path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save --volume-path="file://my/output/volume/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
-  
-With a local cluster, you can also use your cluster scheduler to run multiple processes and perform distributed computation.
-
-Deploy to Kubernetes Cluster in Cloud
-======================================
-Kubernetes_ is the most popular docker container orchestration platform, and is supported in most of public cloud computing platforms, including AWS, Google Cloud, and Microsoft Azure. You can use our `template
-<https://github.com/seung-lab/chunkflow/blob/master/distributed/kubernetes/deploy.yml>`_ to deploy chunkflow to your Kubernetes cluster. Just replace the composed command you would like to use in the yaml file. For creating cluster in cloud and usage, please check our `wikipedia page
-<https://github.com/seung-lab/chunkflow/wiki/Kubernetes-in-Cloud>`_. You can checkout the `Kubernetes documentation
-<https://kubernetes.io>`_ for more detailed usage. 
+   sudo docker build . -t seunglab/chunkflow:latest --no-cache
 
 
 Performance Analysis
