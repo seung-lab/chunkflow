@@ -10,7 +10,7 @@ from warnings import warn
 from typing import Union
 
 from chunkflow.chunk import Chunk
-
+from chunkflow.chunk.affinity_map import AffinityMap
 
 class Engine(object):
     """

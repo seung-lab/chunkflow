@@ -251,6 +251,12 @@ Here is a simple example to downsample the dataset with multiple resolutions::
 
    chunkflow --mip 0 fetch-task -q my-queue cutout -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5 delete-task-in-queue
 
+Here is an example to generate meshes from segmentation in mip 3::
+
+   chunkflow --mip 3 fetch-task -q zfish -v 600 cutout -v gs://neuroglancer/zfish_v1/consensus-20190923 --fill-missing mesh --voxel-size 45 5 5 -o gs://neuroglancer/zfish_v1/consensus-20190923 --dust-threshold 100
+
+.. note:: This command will generate meshes for all the objects in segmentation volume. You can also specify selected segmentation using the `--ids` parameter. We normally call it sparse meshing.
+
 Here is a complex example to perform convolutional inference::
 
    chunkflow --verbose --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 cutout --volume-path="s3://my/image/volume/path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save --volume-path="file://my/output/volume/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue

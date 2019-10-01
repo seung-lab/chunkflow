@@ -33,7 +33,7 @@ class SQSQueue(object):
             region_name=credentials['AWS_DEFAULT_REGION'],
             aws_secret_access_key=credentials['AWS_SECRET_ACCESS_KEY'],
             aws_access_key_id=credentials['AWS_ACCESS_KEY_ID'])
-
+        self.queue_name = queue_name
         resp = self.client.get_queue_url(QueueName=queue_name)
         self.queue_url = resp['QueueUrl']
         self.visibility_timeout = visibility_timeout

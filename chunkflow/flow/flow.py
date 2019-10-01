@@ -7,6 +7,7 @@ import click
 from cloudvolume.lib import Bbox
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
+from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 
 # import operator functions
@@ -20,6 +21,7 @@ from .log_summary import load_log, print_log_statistics
 from .inference import InferenceOperator
 from .mask import MaskOperator
 from .mesh import MeshOperator
+from .mesh_manifest import MeshManifestOperator
 from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
@@ -145,6 +147,26 @@ def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue
             task['log']['bbox'] = bbox.to_filename()
             yield task
 
+@main.command('cloud-watch')
+@click.option('--name',
+              type=str,
+              default='cloud-watch',
+              help='name of this operator')
+@click.option('--log-name',
+              type=str,
+              default='chunkflow',
+              help='name of the speedometer')
+@operator
+def cloud_watch(tasks, name, log_name):
+    """Real time speedometer in AWS CloudWatch."""
+    state['operators'][name] = CloudWatchOperator(log_name=log_name,
+                                                  name=name,
+                                                  verbose=state['verbose'])
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            state['operators'][name](task['log'])
+        yield task
 
 @main.command('fetch-task')
 @click.option('--queue-name', '-q', 
@@ -382,9 +404,8 @@ def delete_task_in_queue(tasks, name):
             queue = task['queue']
             task_handle = task['task_handle']
             queue.delete(task_handle)
-            if state['verbose']:
-                print('deleted task {} in queue: {}'.format(
-                    task_handle, queue))
+            print('deleted task {} in queue: {}'.format(
+                task_handle, queue.queue_name))
 
 
 @main.command('cutout')
@@ -505,7 +526,8 @@ def downsample_upload(tasks, name, input_chunk_name, volume_path,
         start_mip=start_mip,
         stop_mip=stop_mip,
         fill_missing=fill_missing,
-        name=name)
+        name=name,
+        verbose=state['verbose'])
 
     for task in tasks:
         handle_task_skip(task, name)
@@ -894,52 +916,37 @@ def crop_margin(tasks, name, margin_size,
 @main.command('mesh')
 @click.option('--name', type=str, default='mesh', help='name of operator')
 @click.option('--chunk-name', '-c',
-              type=str,
-              default='chunk',
-              help='name of chunk needs to be meshed.')
-@click.option('--voxel-size', '-v',
-              type=int,
-              nargs=3,
-              default=(40, 4, 4),
-              help='voxel size of the segmentation. zyx order.')
-@click.option(
-    '--output-path', '-o',
-    type=str,
-    default='file:///tmp/mesh/',
+              type=str, default='chunk', help='name of chunk needs to be meshed.')
+@click.option('--mip', '-c',
+    type=int, default=None, help='mip level of segmentation chunk.')
+@click.option('--voxel-size', '-v', type=int, nargs=3, default=None, callback=default_none, 
+    help='voxel size of the segmentation. zyx order.')
+@click.option('--output-path', '-o', type=str, default='file:///tmp/mesh/', 
     help='output path of meshes, follow the protocol rule of CloudVolume. \
-              The path will be adjusted if there is a info file with precomputed format.'
-)
-@click.option('--output-format', '-f',
-              type=click.Choice(['ply', 'obj', 'precomputed']),
-              default='precomputed',
-              help='output format, could be one of ply|obj|precomputed.')
-@click.option('--simplification-factor', '-s',
-              type=int,
-              default=100,
-              help='mesh simplification factor.')
-@click.option('--max-simplification-error', '-m',
-              type=int,
-              default=40,
-              help='max simplification error.')
+              The path will be adjusted if there is a info file with precomputed format.')
+@click.option('--output-format', '-f', type=click.Choice(['ply', 'obj', 'precomputed']), default='precomputed', 
+    help='output format, could be one of ply|obj|precomputed.')
+@click.option('--simplification-factor', '-s', type=int, default=100, help='mesh simplification factor.')
+@click.option('--max-simplification-error', '-m', type=int, default=40, help='max simplification error.')
 @click.option('--dust-threshold', '-d',
-              type=int, default=None, 
-              help='do not mesh segments with voxel number less than threshold.')
-@click.option('--ids', '-i',
-              type=str, default=None, 
+    type=int, default=None, help='do not mesh segments with voxel number less than threshold.')
+@click.option('--ids', '-i', type=str, default=None, 
               help='a list of segment ids to mesh. This is for sparse meshing. The ids should be separated by comma without space, such as "34,56,78,90"')
-@click.option('--manifest/--no-manifest',
-              default=False, help='create manifest file or not.')
+@click.option('--manifest/--no-manifest', default=False, help='create manifest file or not.')
 @operator
-def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
+def mesh(tasks, name, chunk_name, mip, voxel_size, output_path, output_format,
          simplification_factor, max_simplification_error, dust_threshold, 
          ids, manifest):
     """Perform meshing for segmentation chunk."""
     if ids:
         ids = set([int(id) for id in ids.split(',')])
+    if mip is None:
+        mip = state['mip']
 
     state['operators'][name] = MeshOperator(
         output_path,
         output_format,
+        mip=mip,
         voxel_size=voxel_size,
         simplification_factor=simplification_factor,
         max_simplification_error=max_simplification_error,
@@ -954,6 +961,70 @@ def mesh(tasks, name, chunk_name, voxel_size, output_path, output_format,
             task['log']['timer'][name] = time() - start
         yield task
 
+@main.command('mesh-manifest')
+@click.option('--name', type=str, default='mesh-manifest', help='name of operator')
+@click.option('--input-name', '-i', type=str, default='prefix', help='input key name in task.')
+@click.option('--prefix', '-p', type=str, default=None, help='prefix of meshes.')
+@click.option('--volume-path', '-v', type=str, required=True, help='cloudvolume path of dataset layer.' + 
+              ' The mesh directory will be automatically figure out using the info file.')
+@operator
+def mesh_manifest(tasks, name, input_name, prefix, volume_path):
+    """Generate mesh manifest files."""
+    state['operators'][name] = MeshManifestOperator(volume_path)
+    if prefix:
+        state['operators'][name](prefix)
+    else:
+        for task in tasks:
+            handle_task_skip(task, name)
+            if not task['skip']:
+                start = time()
+                state['operators'][name](task[input_name])
+                task['log']['timer'][name] = time() - start
+            yield task
+ 
+@main.command('neuroglancer')
+@click.option('--name',
+              type=str,
+              default='neuroglancer',
+              help='name of this operator')
+@click.option('--voxel-size',
+              '-v',
+              nargs=3,
+              type=int,
+              default=(1, 1, 1),
+              help='voxel size of chunk')
+@click.option('--port', '-p', type=int, default=None, help='port to use')
+@click.option('--chunk-names', '-c', type=str, default='chunk', 
+              help='a list of chunk names separated by comma.')
+@operator
+def neuroglancer(tasks, name, voxel_size, port, chunk_names):
+    """Visualize the chunk using neuroglancer."""
+    state['operators'][name] = NeuroglancerOperator(name=name,
+                                                    port=port,
+                                                    voxel_size=voxel_size)
+    for task in tasks:
+        chunks = dict()
+        for chunk_name in chunk_names.split(","):
+            chunks[chunk_name] = task[chunk_name]
+
+        handle_task_skip(task, name)
+        if not task['skip']:
+            state['operators'][name](chunks)
+        yield task
+
+@main.command('quantize')
+@click.option('--name', type=str, default='quantize', help='name of this operator')
+@click.option('--input-chunk-name', type=str, default='chunk', help = 'input chunk name')
+@click.option('--output-chunk-name', type=str, default='chunk', help= 'output chunk name')
+@operator
+def quantize(tasks, name, input_chunk_name, output_chunk_name):
+    """Quantize affinity map."""
+    for task in tasks:
+        aff = task[input_chunk_name]
+        assert isinstance(aff, AffinityMap)
+        quantized_image = aff.quantize()
+        task[output_chunk_name] = quantized_image
+        yield task
 
 @main.command('save')
 @click.option('--name', type=str, default='save', help='name of this operator')
@@ -994,29 +1065,6 @@ def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
             task['output_volume_path'] = volume_path
         yield task
 
-
-@main.command('cloud-watch')
-@click.option('--name',
-              type=str,
-              default='cloud-watch',
-              help='name of this operator')
-@click.option('--log-name',
-              type=str,
-              default='chunkflow',
-              help='name of the speedometer')
-@operator
-def cloud_watch(tasks, name, log_name):
-    """Real time speedometer in AWS CloudWatch."""
-    state['operators'][name] = CloudWatchOperator(log_name=log_name,
-                                                  name=name,
-                                                  verbose=state['verbose'])
-    for task in tasks:
-        handle_task_skip(task, name)
-        if not task['skip']:
-            state['operators'][name](task['log'])
-        yield task
-
-
 @main.command('view')
 @click.option('--name', type=str, default='view', help='name of this operator')
 @click.option('--image-chunk-name',
@@ -1038,36 +1086,6 @@ def view(tasks, name, image_chunk_name, segmentation_chunk_name):
                                      seg=segmentation_chunk_name)
         yield task
 
-
-@main.command('neuroglancer')
-@click.option('--name',
-              type=str,
-              default='neuroglancer',
-              help='name of this operator')
-@click.option('--voxel-size',
-              '-v',
-              nargs=3,
-              type=int,
-              default=(1, 1, 1),
-              help='voxel size of chunk')
-@click.option('--port', '-p', type=int, default=None, help='port to use')
-@click.option('--chunk-names', '-c', type=str, default='chunk', 
-              help='a list of chunk names separated by comma.')
-@operator
-def neuroglancer(tasks, name, voxel_size, port, chunk_names):
-    """Visualize the chunk using neuroglancer."""
-    state['operators'][name] = NeuroglancerOperator(name=name,
-                                                    port=port,
-                                                    voxel_size=voxel_size)
-    for task in tasks:
-        chunks = dict()
-        for chunk_name in chunk_names.split(","):
-            chunks[chunk_name] = task[chunk_name]
-
-        handle_task_skip(task, name)
-        if not task['skip']:
-            state['operators'][name](chunks)
-        yield task
 
 
 if __name__ == '__main__':
