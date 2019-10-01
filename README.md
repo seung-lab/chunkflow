@@ -17,12 +17,12 @@ you can see your 3D image and segmentation in [Neuroglancer](https://github.com/
 
 We have more operators that can be composed flexiblly, checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
 
-# Features
+## Features
 - **Composable** operators. The chunk operators could be freely composed in commandline for flexible usage.
 - **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
 - All operations support **3D** image volumes.
 
-# Available Operators
+## Available Operators
 After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the available operators here. We keep adding new operators and will keep update here.
 
 | Operator Name   | Function |
@@ -58,7 +58,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | write-tif       | Write chunk as TIFF file |
 
 
-# Citation
+## Citation
 If you used this tool and is writing a paper, please cite this [paper](https://arxiv.org/abs/1904.10489):
 ```bibtex
 @article{wu2019chunkflow,
