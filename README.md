@@ -24,11 +24,10 @@ We have more operators that can be composed flexiblly, checkout our [Documentati
 
 # Some Typical Operators
 - Convolutional Network Inference. Currently, we support [PyTorch](https://pytorch.org) and [pznet](https://github.com/supersergiy/znnphi_interface)
-- Image segmentation using watershed and mean affinity agglomeration.
-- Image segmentation using connected component.
 - Cutout service. Cutout/save chunk from/to datasets formatted as [neuroglancer precomputed](https://github.com/google/neuroglancer/tree/master/src/neuroglancer/datasource/precomputed) using [cloudvolume](https://github.com/seung-lab/cloud-volume)
-- Read/write hdf5 and tif files.
 - Visualization using [neuroglancer](https://github.com/google/neuroglancer).
+- Downsample dataset and building meshes from segmentation.
+- Image segmentation using watershed and mean affinity agglomeration.
 - Evaluation of segmentation using rand index and variation of information.
 
 # Citation
