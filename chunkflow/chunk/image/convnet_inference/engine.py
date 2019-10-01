@@ -224,7 +224,7 @@ class Engine(object):
             output_buffer,
             1.0001,
             err_msg='output buffer should not be greater than 1')
-        return AffinityMap(output_buffer)
+        return output_buffer
 
     def _create_output_buffer(self, input_chunk):
         output_buffer = np.zeros(
