@@ -24,6 +24,7 @@ We have more operators that can be composed flexiblly, checkout our [Documentati
 
 # Available Operators
 After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the available operators here. We keep adding new operators and will keep update here.
+
 | Operator Name   | Function |
 | --------------- | -------- |
 | agglomerate     | Watershed and agglomeration to segment affinity map |
