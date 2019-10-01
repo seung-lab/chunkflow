@@ -15,7 +15,7 @@ you can see your 3D image and segmentation in [Neuroglancer](https://github.com/
 
 ![Image_Segmentation](https://github.com/seung-lab/chunkflow/blob/master/docs/source/_static/image/image_seg.png)
 
-We have more operators that can be composed flexiblly, checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
+
 
 ## Features
 - **Composable** operators. The chunk operators could be freely composed in commandline for flexible usage.
@@ -23,7 +23,7 @@ We have more operators that can be composed flexiblly, checkout our [Documentati
 - All operations support **3D** image volumes.
 
 ## Available Operators
-After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the available operators here. We keep adding new operators and will keep update here.
+After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the available operators here. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
 
 | Operator Name   | Function |
 | --------------- | -------- |
