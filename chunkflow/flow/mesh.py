@@ -8,6 +8,7 @@ import fastremap
 
 from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
+from cloudvolume.lib import Bbox
 
 from chunkflow.chunk import Chunk
 from .base import OperatorBase
@@ -134,7 +135,9 @@ class MeshOperator(OperatorBase):
     
     def _get_file_name(self, bbox, obj_id):
         if self.output_format == 'precomputed':
-            return '{}:0:{}'.format(obj_id, bbox.to_filename())
+            # bbox is in z,y,x order, should transform to x,y,z order 
+            bbox2 = Bbox.from_slices(bbox.to_slices()[::-1])
+            return '{}:0:{}'.format(obj_id, bbox2.to_filename())
         elif self.output_format == 'ply':
             return '{}.ply'.format(obj_id)
         elif self.output_format == 'obj':

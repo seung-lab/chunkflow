@@ -108,6 +108,12 @@ class SQSQueue(object):
         self.client.delete_message(QueueUrl=self.queue_url,
                                    ReceiptHandle=receipt_handle)
 
+    def send_message(self, message: str):
+        self.client.send_message(
+            QueueUrl=self.queue_url,
+            MessageBody=message
+        )
+
     def _send_entry_list(self, entry_list: list):
         resp = self.client.send_message_batch(QueueUrl=self.queue_url,
                                               Entries=entry_list)
@@ -126,11 +132,12 @@ class SQSQueue(object):
         '''
         # the maximum number in a batch is 10
         task_entries = []
-        for message in tqdm(message_list, desc='sending messages to sqs queue: '):
+        for mid, message in tqdm(enumerate(message_list), 
+                                 desc='sending messages to sqs queue: '):
             if isinstance(message, Bbox):
                 message = message.to_filename()
 
-            entry = {'Id': message, 'MessageBody': message}
+            entry = {'Id': str(mid), 'MessageBody': message}
             task_entries.append(entry)
 
             # use batch mode to produce tasks
