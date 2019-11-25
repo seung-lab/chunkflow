@@ -3,7 +3,7 @@ ChangeLog history
 
 # chunkflow 0.5.7 (2019-xx-xx)
 ## Breaking Changes
-
+- remove c++ compilation module
 ## Deprecations 
 
 ## Features
