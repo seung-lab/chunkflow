@@ -1,2 +1,4 @@
 yapf
 flake8
+setuptools
+twine

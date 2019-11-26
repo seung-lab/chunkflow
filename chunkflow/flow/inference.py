@@ -10,16 +10,15 @@ class InferenceOperator(OperatorBase):
     def __init__(self,
                  convnet_model: str,
                  convnet_weight_path: str,
-                 patch_size: tuple = (20, 256, 256),
-                 output_key: str = 'affinity',
+                 input_patch_size: tuple = (20, 256, 256),
+                 output_patch_size: tuple = (20, 256, 256),
                  num_output_channels: int = 3,
-                 original_num_output_channels: int = 3,
-                 patch_overlap: tuple = (4, 64, 64),
+                 output_patch_overlap: tuple = (4, 64, 64),
                  framework: str = 'identity',
                  batch_size: int = 1,
                  bump: str = 'wu',
                  mask_output_chunk: bool = False,
-                 verbose: bool = True,
+                 verbose: bool = False,
                  name: str = 'inference'):
 
         super().__init__(name=name, verbose=verbose)
@@ -28,15 +27,14 @@ class InferenceOperator(OperatorBase):
         self.engine = Engine(
             convnet_model,
             convnet_weight_path,
-            patch_size=patch_size,
-            patch_overlap=patch_overlap,
-            output_key=output_key,
+            input_patch_size=input_patch_size,
+            output_patch_size=output_patch_size,
+            output_patch_overlap=output_patch_overlap,
             num_output_channels=num_output_channels,
-            original_num_output_channels=original_num_output_channels,
+            framework=framework,
             batch_size=batch_size,
             bump=bump,
             mask_output_chunk=mask_output_chunk,
-            framework=framework,
             verbose=verbose)
 
     def __call__(self, chunk):

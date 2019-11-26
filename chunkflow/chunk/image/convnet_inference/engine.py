@@ -10,96 +10,110 @@ from warnings import warn
 from typing import Union
 
 from chunkflow.chunk import Chunk
-from chunkflow.chunk.affinity_map import AffinityMap
+# from chunkflow.chunk.affinity_map import AffinityMap
+
+DEFAULT_PATCH_SIZE = (20, 256, 256)
+
 
 class Engine(object):
     """
         Engine
-    convnet inference for a whole block. the patches should aligned with the block size.
+    convnet inference for a whole block. the patches should aligned with
+    the block size.
     """
     def __init__(self,
                  convnet_model: str,
                  convnet_weight_path: str,
-                 patch_size: Union[tuple, list] = (20, 256, 256),
-                 output_key: str = 'affinity',
+                 input_patch_size: Union[tuple, list] = DEFAULT_PATCH_SIZE,
+                 output_patch_size: Union[tuple, list] = DEFAULT_PATCH_SIZE,
                  num_output_channels: int = 3,
-                 original_num_output_channels: int = 3,
-                 patch_overlap: Union[tuple, list] = (4, 64, 64),
+                 output_patch_overlap: Union[tuple, list] = (4, 64, 64),
                  framework: str = 'identity',
                  batch_size: int = 1,
                  bump: str = 'wu',
                  input_size: tuple = None,
                  mask_output_chunk: bool = False,
-                 verbose: bool = True):
+                 verbose: bool = False):
 
-        assert len(patch_overlap) == 3
-        assert len(patch_size) == 3
+        assert len(output_patch_overlap) == 3
+        assert len(input_patch_size) == 3
+        assert len(output_patch_size) == 3
 
         self.convnet_model = convnet_model
         self.convnet_weight_path = convnet_weight_path
-        self.patch_size = patch_size
-        self.output_key = output_key
+        self.input_patch_size = input_patch_size
+        self.output_patch_size = output_patch_size
         self.num_output_channels = num_output_channels
-        self.original_num_output_channels = original_num_output_channels
-        self.patch_overlap = patch_overlap
+        self.output_patch_overlap = output_patch_overlap
         self.framework = framework
         self.batch_size = batch_size
         self.bump = bump
         self.mask_output_chunk = mask_output_chunk
 
         self._prepare_patch_engine()
+        self.output_crop_margin_size = ((osz-isz)//2 for osz, isz in zip(
+                                    input_patch_size, output_patch_size))
+        self.input_patch_overlap = tuple((opo + ocms) for opo, ocms in zip(
+                                            output_patch_overlap,
+                                            self.output_crop_margin_size))
 
-        self.stride = tuple(p - o for p, o in zip(patch_size, patch_overlap))
+        self.input_stride = tuple(p - o for p, o in
+                                  zip(input_patch_size,
+                                      self.input_patch_overlap))
+        self.output_stride = tuple(p - o for p, o in zip(
+                                output_patch_size, self.output_patch_overlap))
 
         self.input_size = input_size
         self.verbose = verbose
 
         self.mask_output_chunk = mask_output_chunk
 
-        # allocate a buffer to avoid redundent memory allocation
-        self.input_patch_buffer = np.zeros((batch_size, 1, *patch_size),
+        # allocate a buffer to avoid redundant memory allocation
+        self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
                                            dtype=np.float32)
 
     def _check_alignment(self):
         if not self.mask_output_chunk:
             if self.verbose:
-                print(
-                    'patches should align with input chunk when not using output chunk mask.'
-                )
+                print('patches should align with input chunk when ' +
+                      'not using output chunk mask.')
             is_align = tuple((i - o) % s == 0 for i, s, o in zip(
-                self.input_size, self.stride, self.patch_overlap))
+                self.input_size, self.input_stride, self.input_patch_overlap))
             # all axis should be aligned
             # the patches should aligned with input size in case
             # we will not mask the output chunk
             assert np.all(is_align)
 
-    def _construct_patch_slice_list(self):
+    def _construct_patch_slices_list(self):
         """
         create the normalization mask and patch bounding box list
         """
-        self.patch_slice_list = []
-        # the step is the stride, so the end of aligned patch is input_size - patch_overlap
-        for oz in tqdm(range(0, self.input_size[0] - self.patch_overlap[0],
-                             self.stride[0]),
-                       disable=not self.verbose,
-                       desc='ConvNet Inferece: '):
-            if oz + self.patch_size[0] > self.input_size[0]:
-                oz = self.input_size[0] - self.patch_size[0]
-                assert oz >= 0
-            for oy in range(0, self.input_size[1] - self.patch_overlap[1],
-                            self.stride[1]):
-                if oy + self.patch_size[1] > self.input_size[1]:
-                    oy = self.input_size[1] - self.patch_size[1]
-                    assert oy >= 0
-                for ox in range(0, self.input_size[2] - self.patch_overlap[2],
-                                self.stride[2]):
-                    if ox + self.patch_size[2] > self.input_size[2]:
-                        ox = self.input_size[2] - self.patch_size[2]
-                        assert ox >= 0
-                    patch_slice = (slice(oz, oz + self.patch_size[0]),
-                                   slice(oy, oy + self.patch_size[1]),
-                                   slice(ox, ox + self.patch_size[2]))
-                    self.patch_slice_list.append(patch_slice)
+        self.patch_slices_list = []
+        # the step is the stride, so the end of aligned patch is
+        # input_size - patch_overlap
+        for iz in tqdm(range(0, self.input_size[0] - self.input_patch_overlap[0], self.input_stride[0]),
+                       disable=not self.verbose, desc='ConvNet Inferece: '):
+            if iz + self.input_patch_size[0] > self.input_size[0]:
+                iz = self.input_size[0] - self.input_patch_size[0]
+                assert iz >= 0
+            oz = iz + self.output_crop_margin_size[0]
+            for iy in range(0, self.input_size[1] - self.input_patch_overlap[1], self.input_stride[1]):
+                if iy + self.input_patch_size[1] > self.input_size[1]:
+                    iy = self.input_size[1] - self.input_patch_size[1]
+                    assert iy >= 0
+                oy = iy + self.output_crop_margin_size[1]
+                for ix in range(0, self.input_size[2] - self.input_patch_overlap[2], self.input_stride[2]):
+                    if ix + self.input_patch_size[2] > self.input_size[2]:
+                        ix = self.input_size[2] - self.input_patch_size[2]
+                        assert ix >= 0
+                    ox = ix + self.output_crop_margin_size[2]
+                    input_patch_slice =  (slice(iz, iz + self.input_patch_size[0]),
+                                          slice(iy, iy + self.input_patch_size[1]),
+                                          slice(ix, ix + self.input_patch_size[2]))
+                    output_patch_slice = (slice(oz, oz + self.output_patch_size[0]),
+                                          slice(oy, oy + self.output_patch_size[1]),
+                                          slice(ox, ox + self.output_patch_size[2]))
+                    self.patch_slices_list.append(input_patch_slice, output_patch_slice)
 
     def _construct_output_chunk_mask(self):
         if not self.mask_output_chunk:
@@ -108,11 +122,10 @@ class Engine(object):
         if self.verbose:
             print('creating output chunk mask...')
 
-        self.output_chunk_mask = np.zeros(self.input_size[-3:], np.float32)
-        for patch_slices in self.patch_slice_list:
+        self.output_chunk_mask = np.zeros(self.output_size[-3:], np.float32)
+        for _, output_patch_slice in self.patch_slices_list:
             # accumulate weights using the patch mask in RAM
-            self.output_chunk_mask[
-                patch_slices] += self.patch_engine.mask_numpy
+            self.output_chunk_mask[output_patch_slice] += self.patch_engine.mask_numpy
         # normalize weight, so accumulated inference result multiplies
         # this mask will result in 1
         self.output_chunk_mask = 1.0 / self.output_chunk_mask
@@ -124,13 +137,15 @@ class Engine(object):
         """
         if self.input_size == input_size:
             print('reusing existing patch offset list and output chunk mask.')
-            assert self.patch_slice_list is not None
+            assert self.patch_slices_list is not None
             assert self.output_chunk_mask is not None
         else:
             if self.input_size is not None:
                 warn('the input size has changed, using new intput size.')
             self.input_size = input_size
-            self._construct_patch_slice_list()
+            self.output_size = tuple(isz-2*ocms for isz, ocms in zip(
+                            input_size, self.output_crop_margin_size))
+            self._construct_patch_slices_list()
             if self.mask_output_chunk:
                 self._construct_output_chunk_mask()
 
@@ -164,15 +179,15 @@ class Engine(object):
             chunk_time_start = time.time()
 
         # iterate the offset list
-        for i in tqdm(range(0, len(self.patch_slice_list), self.batch_size),
+        for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
                       disable=not self.verbose,
                       desc='ConvNet Inference ...'):
             if self.verbose:
                 start = time.time()
 
-            patch_slices = self.patch_slice_list[i:i + self.batch_size]
-            for j, slices in enumerate(patch_slices):
-                self.input_patch_buffer[j, 0, :, :, :] = input_chunk[slices]
+            batch_slices = self.patch_slices_list[i:i + self.batch_size]
+            for batch_idx, slices in enumerate(batch_slices):
+                self.input_patch_buffer[batch_idx, 0, :, :, :] = input_chunk[slices[0]]
 
             if self.verbose:
                 end = time.time()
@@ -192,13 +207,11 @@ class Engine(object):
                       (self.batch_size, end - start))
                 start = end
 
-            for batch_idx, slices in enumerate(patch_slices):
+            for batch_idx, slices in enumerate(batch_slices):
                 # only use the required number of channels
                 # the remaining channels are dropped
-                output_buffer[(
-                    (slice(self.num_output_channels)),
-                    *slices)] += output_patch[batch_idx, :self.
-                                              num_output_channels, :, :, :]
+                output_buffer[(slice(self.num_output_channels), 
+                               *slices[1])] += output_patch[batch_idx, :self.num_output_channels, :, :, :]
 
             if self.verbose:
                 end = time.time()
@@ -236,14 +249,16 @@ class Engine(object):
         # prepare for inference
         if self.framework == 'pznet':
             from .patch_engine.pznet import PZNet
-            self.patch_engine = PZNet(self.patch_size, self.patch_overlap,
-                                      self.convnet_model,
-                                      self.convnet_weight_path)
+            self.patch_engine = PZNet(self.convnet_weight_path)
         elif self.framework == 'pytorch':
             from .patch_engine.pytorch import PyTorch
+            # currently, we do not support pytorch backend with different
+            # input and output patch size and overlap.
+            assert self.input_patch_size == self.output_patch_size
+            assert self.input_patch_overlap == self.output_patch_overlap
             self.patch_engine = PyTorch(
-                self.patch_size,
-                self.patch_overlap,
+                self.input_patch_size,
+                self.input_patch_overlap,
                 self.convnet_model,
                 self.convnet_weight_path,
                 num_output_channels=self.num_output_channels)
@@ -251,21 +266,20 @@ class Engine(object):
             # currently only this type of task support mask in device
             from .patch_engine.pytorch_multitask import PyTorchMultitask
             self.patch_engine = PyTorchMultitask(
-                self.patch_size,
-                self.patch_overlap,
                 self.convnet_model,
                 self.convnet_weight_path,
-                patch_size=self.patch_size,
-                output_key=self.output_key,
-                patch_overlap=self.patch_overlap,
-                original_num_output_channels=self.original_num_output_channels,
+                input_patch_size=self.input_patch_size,
+                output_patch_size=self.output_patch_size,
+                output_patch_overlap=self.output_patch_overlap,
                 num_output_channels=self.num_output_channels,
                 bump=self.bump)
         elif self.framework == 'identity':
             from .patch_engine.identity import Identity
+            assert self.input_patch_size == self.output_patch_size
+            assert self.input_patch_overlap == self.output_patch_overlap
             self.patch_engine = Identity(
-                self.patch_size,
-                self.patch_overlap,
+                self.input_patch_size,
+                self.input_patch_overlap,
                 num_output_channels=self.num_output_channels)
         else:
             raise Exception('invalid inference backend: {}'.format(

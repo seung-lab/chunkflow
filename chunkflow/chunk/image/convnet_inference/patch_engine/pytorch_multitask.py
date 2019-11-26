@@ -10,13 +10,13 @@ class PyTorchMultitask(PatchEngine):
     def __init__(self,
                  convnet_model,
                  convnet_weight_path,
-                 patch_size=(20, 256, 256),
+                 input_patch_size=(20, 256, 256),
+                 output_patch_size=(16, 192, 192),
                  width=(16, 32, 64, 128),
-                 output_key='affinity',
                  original_num_output_channels=3,
                  num_output_channels=3,
                  bump='wu',
-                 patch_overlap=(4, 64, 64)):
+                 output_patch_overlap=(6, 64, 64)):
         """
         this function do masking in gpu for speed up, 
         so we need the patch_overlap information.
@@ -26,24 +26,25 @@ class PyTorchMultitask(PatchEngine):
         # we currently only support two types of model
         assert convnet_model in ('rsunet', 'rsunet_act')
 
-        self.output_key = output_key
+        self.output_key = 'outputs'
 
         d = {
             'model': convnet_model,
             'width': width,
             'in_spec': {
-                'input': (1, *patch_size)
+                'input': (1, *input_patch_size)
             },
             'out_spec': {
-                output_key: (original_num_output_channels, *patch_size)
+                self.output_key: (original_num_output_channels, *output_patch_size)
             },
             'scan_spec': {
-                output_key: (num_output_channels, *patch_size)
+                self.output_key: (num_output_channels, *output_patch_size)
             },
+            'cropsz': (num_output_channels, *output_patch_size),
             'pretrain': True,
             'precomputed': torch.cuda.is_available(),
             'edges': [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
-            'overlap': patch_overlap,
+            'overlap': output_patch_overlap,
             'bump': bump
         }
 

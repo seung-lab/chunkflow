@@ -342,7 +342,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
               '-f',
               type=click.Path(dir_okay=False, resolve_path=True),
               required=True,
-              help='file name of hdf5 file, the extention should be .h5')
+              help='file name of hdf5 file.')
 @operator
 def write_h5(tasks, name, input_chunk_name, file_name):
     """Write chunk to HDF5 file."""
@@ -721,88 +721,48 @@ def copy_var(tasks, name, from_name, to_name):
 
 
 @main.command('inference')
-@click.option('--name',
-              type=str,
-              default='inference',
-              help='name of this operator')
+@click.option('--name', type=str, default='inference', help='name of this operator')
 @click.option('--convnet-model', '-m',
-              type=str,
-              default=None,
-              help='convnet model path or type.')
+              type=str, default=None, help='convnet model path or type.')
 @click.option('--convnet-weight-path', '-w',
-              type=str,
-              default=None,
-              help='convnet weight path')
-@click.option('--patch-size', '-s',
-              type=int,
-              nargs=3,
-              default=(20, 256, 256),
-              help='patch size')
-@click.option('--patch-overlap', '-v',
-              type=int,
-              nargs=3,
-              default=(4, 64, 64),
-              help='patch overlap')
-@click.option('--output-key',
-              type=str,
-              default='affinity',
-              help='key name of output dict')
-@click.option(
-    '--original-num-output-channels',
-    type=int,
-    default=3,
-    help=
-    'number of original output channels. The net could be trained with more than'
-    +
-    ' final output channels, such as other neighboring edges in affinity map to enhance '
-    + 'net generalization capability.')
+              type=str, default=None, help='convnet weight path')
+@click.option('--input-patch-size', '-s',
+              type=int, nargs=3, default=(20, 256, 256), help='patch size')
+@click.option('--output-patch-size', '-s',
+              type=int, nargs=3, default=(20, 256, 256), help='patch size')
+@click.option('--output-patch-overlap', '-v',
+              type=int, nargs=3, default=(4, 64, 64), help='patch overlap')
 @click.option('--num-output-channels', '-c',
-              type=int,
-              default=3,
-              help='number of output channels')
+              type=int, default=3, help='number of output channels')
 @click.option('--framework', '-f',
-              type=click.Choice(
-                  ['identity', 'pznet', 'pytorch', 'pytorch-multitask']),
-              default='pytorch-multitask',
-              help='inference framework')
+              type=click.Choice(['identity', 'pznet', 'pytorch', 'pytorch-multitask']),
+              default='pytorch-multitask', help='inference framework')
 @click.option('--batch-size', '-b',
-              type=int,
-              default=1,
-              help='mini batch size of input patch.')
-@click.option(
-    '--bump',
-    type=click.Choice(['wu', 'zung']),
-    default='wu',
-    help='bump function type. only works with pytorch-multitask backend.')
-@click.option(
-    '--mask-output-chunk/--no-mask-output-chunk',
-    default=False,
-    help='mask output chunk will make the whole chunk like one output patch. '
-    + 'This will also work with non-aligned chunk size.')
-@click.option(
-    '--input-chunk-name', '-i',
-    type=str,
-    default='chunk',
-    help='input chunk name')
-@click.option(
-    '--output-chunk-name', '-o',
-    type=str,
-    default='chunk',
-    help='output chunk name')
+              type=int, default=1, help='mini batch size of input patch.')
+@click.option('--bump',
+              type=click.Choice(['wu', 'zung']), default='wu',
+              help='bump function type. only works with pytorch-multitask backend.')
+@click.option('--mask-output-chunk/--no-mask-output-chunk',
+              default=False, help='mask output chunk will make the whole '
+              + 'chunk like one output patch. '
+              + 'This will also work with non-aligned chunk size.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default='chunk', help='output chunk name')
 @operator
-def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
-              patch_overlap, output_key, original_num_output_channels,
-              num_output_channels, framework, batch_size, bump,
-              mask_output_chunk, input_chunk_name, output_chunk_name):
+def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
+              output_patch_size, output_patch_overlap, num_output_channels, 
+              framework, batch_size, bump, mask_output_chunk, input_chunk_name, 
+              output_chunk_name):
     """Perform convolutional network inference for chunks."""
     state['operators'][name] = InferenceOperator(
         convnet_model,
         convnet_weight_path,
-        patch_size=patch_size,
-        output_key=output_key,
+        input_patch_size=input_patch_size,
+        output_patch_size=output_patch_size,
         num_output_channels=num_output_channels,
-        original_num_output_channels=original_num_output_channels,
-        patch_overlap=patch_overlap,
+        output_patch_overlap=output_patch_overlap,
         framework=framework,
         batch_size=batch_size,
         bump=bump,
@@ -847,8 +807,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
               'check all zero will return boolean result.')
 @click.option('--skip-to', type=str, default='save', help='skip to a operator')
 @operator
-def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero,
-         skip_to):
+def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero, skip_to):
     """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
