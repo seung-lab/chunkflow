@@ -8,10 +8,8 @@ connected-components-3d
 scikit-image>=0.14.2
 h5py
 neuroglancer
-pybind11
 tinybrain
 tifffile
-waterz
 pandas
 zmesh
 fastremap

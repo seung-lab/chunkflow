@@ -1,5 +1,4 @@
 import numpy as np
-from waterz import agglomerate
 
 from chunkflow.chunk import Chunk
 from .base import OperatorBase
@@ -43,6 +42,7 @@ class AgglomerateOperator(OperatorBase):
         affs = np.ascontiguousarray(affs, dtype=np.float32)
 
         # the output is a generator, and the computation is delayed
+        from waterz import agglomerate
         seg_generator = agglomerate(
             affs, [self.threshold], fragments=fragments,
             aff_threshold_low=self.aff_threshold_low,
