@@ -94,7 +94,7 @@ class Chunk(np.ndarray):
 
         global_offset_path = os.path.join(os.path.dirname(file_name),
                                        'global_offset')
-        with h5py.File(file_name) as f:
+        with h5py.File(file_name, 'r') as f:
             arr = np.asarray(f[dataset_path])
 
             if global_offset is None:
@@ -112,7 +112,7 @@ class Chunk(np.ndarray):
         if os.path.exists(file_name):
             os.remove(file_name)
 
-        with h5py.File(file_name) as f:
+        with h5py.File(file_name, 'w') as f:
             f.create_dataset('/main', data=self)
             f.create_dataset('/global_offset', data=self.global_offset)
 

@@ -12,8 +12,8 @@ def test_aligned_input_chunk():
 
     block_inference_engine = Engine(None,
                                     None,
-                                    patch_size=patch_size,
-                                    patch_overlap=patch_overlap,
+                                    patch_size,
+                                    output_patch_overlap=patch_overlap,
                                     num_output_channels=num_output_channels,
                                     framework='identity',
                                     batch_size=5,
@@ -51,8 +51,8 @@ def test_non_aligned_input_chunk():
 
     block_inference_engine = Engine(None,
                                     None,
-                                    patch_size=patch_size,
-                                    patch_overlap=patch_overlap,
+                                    patch_size,
+                                    output_patch_overlap=patch_overlap,
                                     num_output_channels=num_output_channels,
                                     batch_size=5,
                                     framework='identity',

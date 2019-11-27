@@ -12,8 +12,6 @@ from typing import Union
 from chunkflow.chunk import Chunk
 # from chunkflow.chunk.affinity_map import AffinityMap
 
-DEFAULT_PATCH_SIZE = (20, 256, 256)
-
 
 class Engine(object):
     """
@@ -24,8 +22,8 @@ class Engine(object):
     def __init__(self,
                  convnet_model: str,
                  convnet_weight_path: str,
-                 input_patch_size: Union[tuple, list] = DEFAULT_PATCH_SIZE,
-                 output_patch_size: Union[tuple, list] = DEFAULT_PATCH_SIZE,
+                 input_patch_size: Union[tuple, list],
+                 output_patch_size: Union[tuple, list] = None,
                  num_output_channels: int = 3,
                  output_patch_overlap: Union[tuple, list] = (4, 64, 64),
                  framework: str = 'identity',
@@ -34,6 +32,9 @@ class Engine(object):
                  input_size: tuple = None,
                  mask_output_chunk: bool = False,
                  verbose: bool = False):
+
+        if output_patch_size is None:
+            output_patch_size = input_patch_size
 
         assert len(output_patch_overlap) == 3
         assert len(input_patch_size) == 3
@@ -50,8 +51,7 @@ class Engine(object):
         self.bump = bump
         self.mask_output_chunk = mask_output_chunk
 
-        self._prepare_patch_engine()
-        self.output_crop_margin_size = ((osz-isz)//2 for osz, isz in zip(
+        self.output_crop_margin_size = tuple((osz-isz)//2 for osz, isz in zip(
                                     input_patch_size, output_patch_size))
         self.input_patch_overlap = tuple((opo + ocms) for opo, ocms in zip(
                                             output_patch_overlap,
@@ -71,6 +71,10 @@ class Engine(object):
         # allocate a buffer to avoid redundant memory allocation
         self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
                                            dtype=np.float32)
+
+        self.patch_slices_list = []
+
+        self._prepare_patch_engine()
 
     def _check_alignment(self):
         if not self.mask_output_chunk:
@@ -113,7 +117,7 @@ class Engine(object):
                     output_patch_slice = (slice(oz, oz + self.output_patch_size[0]),
                                           slice(oy, oy + self.output_patch_size[1]),
                                           slice(ox, ox + self.output_patch_size[2]))
-                    self.patch_slices_list.append(input_patch_slice, output_patch_slice)
+                    self.patch_slices_list.append((input_patch_slice, output_patch_slice))
 
     def _construct_output_chunk_mask(self):
         if not self.mask_output_chunk:
@@ -279,7 +283,7 @@ class Engine(object):
             assert self.input_patch_overlap == self.output_patch_overlap
             self.patch_engine = Identity(
                 self.input_patch_size,
-                self.input_patch_overlap,
+                self.output_patch_overlap,
                 num_output_channels=self.num_output_channels)
         else:
             raise Exception('invalid inference backend: {}'.format(
