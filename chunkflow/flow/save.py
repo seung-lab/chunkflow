@@ -32,27 +32,28 @@ class SaveOperator(OperatorBase):
         self.create_thumbnail = create_thumbnail
         self.mip = mip
 
-        self.volume = CloudVolume(volume_path,
-                                  fill_missing=True,
-                                  bounded=False,
-                                  autocrop=True,
-                                  mip=mip,
-                                  parallel=nproc,
-                                  progress=verbose)
+        self.volume = CloudVolume(
+            volume_path,
+            fill_missing=True,
+            bounded=False,
+            autocrop=True,
+            mip=mip,
+            parallel=nproc,
+            progress=verbose)
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')
             self.log_storage = Storage(log_path)
 
         if create_thumbnail:
-            self.thumbnail_volume = CloudVolume(os.path.join(
-                volume_path, 'thumbnail'),
-                                                compress='gzip',
-                                                fill_missing=True,
-                                                bounded=False,
-                                                autocrop=True,
-                                                mip=mip,
-                                                progress=verbose)
+            self.thumbnail_volume = CloudVolume(
+                os.path.join(volume_path, 'thumbnail'),
+                compress='gzip',
+                fill_missing=True,
+                bounded=False,
+                autocrop=True,
+                mip=mip,
+                progress=verbose)
 
     def create_chunk_with_zeros(self, bbox):
         """Create a fake all zero chunk"""
@@ -63,13 +64,14 @@ class SaveOperator(OperatorBase):
 
     def __call__(self, chunk, log={'timer': {}}, output_bbox=None):
         start = time.time()
-
         chunk = self._auto_convert_dtype(chunk)
 
-        chunk_slices = chunk.slices
         # transpose czyx to xyzc order
         arr = np.transpose(chunk)
-        self.volume[chunk_slices[::-1]] = arr
+        self.volume[chunk.slices[::-1]] = arr
+        
+        #breakpoint()
+        
 
         if self.create_thumbnail:
             self._create_thumbnail(chunk)
@@ -86,8 +88,7 @@ class SaveOperator(OperatorBase):
         if self.volume.dtype != chunk.dtype:
             float_chunk = chunk.astype(np.float64)
             #chunk = float_chunk / np.iinfo(chunk.dtype).max * np.iinfo(self.volume.dtype).max
-            chunk = float_chunk / np.max(chunk) * np.iinfo(
-                self.volume.dtype).max
+            chunk = float_chunk / np.max(chunk) * np.iinfo(self.volume.dtype).max
             return chunk.astype(self.volume.dtype)
         else:
             return chunk

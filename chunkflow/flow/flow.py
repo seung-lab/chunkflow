@@ -356,7 +356,7 @@ def write_h5(tasks, name, input_chunk_name, file_name):
 @main.command('write-tif')
 @click.option('--name', type=str, default='write-tif', help='name of operator')
 @click.option('--input-chunk-name', '-i',
-              type=str, default='chunk', help='input chunk name')
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--file-name', '-f',
     type=click.Path(dir_okay=False, resolve_path=True), required=True,
     help='file name of tif file, the extention should be .tif or .tiff')
@@ -372,12 +372,10 @@ def write_tif(tasks, name, input_chunk_name, file_name):
 
 @main.command('save-pngs')
 @click.option('--name', type=str, default='save-pngs', help='name of operator')
-@click.option('--input-chunk-name', '-i', type=click.Path(dir_okay=True, resolve_path=True))
-@click.option('--output-path',
-              '-o',
-              type=str,
-              default='./saved_pngs/',
-              help='output path of saved 2d images formated as png.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--output-path', '-o',
+              type=str, default='./saved_pngs/', help='output path of saved 2d images formated as png.')
 @operator
 def save_pngs(tasks, name, input_chunk_name, output_path):
     """Save as 2D PNG images."""
@@ -727,9 +725,9 @@ def copy_var(tasks, name, from_name, to_name):
 @click.option('--convnet-weight-path', '-w',
               type=str, default=None, help='convnet weight path')
 @click.option('--input-patch-size', '-s',
-              type=int, nargs=3, default=(20, 256, 256), help='patch size')
+              type=int, nargs=3, required=True, help='input patch size')
 @click.option('--output-patch-size', '-s',
-              type=int, nargs=3, default=(20, 256, 256), help='patch size')
+              type=int, nargs=3, default=None, callback=default_none, help='output patch size')
 @click.option('--output-patch-overlap', '-v',
               type=int, nargs=3, default=(4, 64, 64), help='patch overlap')
 @click.option('--num-output-channels', '-c',
@@ -988,6 +986,8 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
 @main.command('save')
 @click.option('--name', type=str, default='save', help='name of this operator')
 @click.option('--volume-path', '-v', type=str, required=True, help='volume path')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--upload-log/--no-upload-log',
               default=True, help='the log will be put inside volume-path')
 @click.option('--nproc', '-p', 
@@ -998,7 +998,7 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
     default=False, help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
 @operator
-def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
+def save(tasks, name, volume_path, input_chunk_name, upload_log, nproc, create_thumbnail):
     """Save chunk to volume."""
     state['operators'][name] = SaveOperator(volume_path,
                                             state['mip'],
@@ -1013,12 +1013,12 @@ def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
         if task['skip'] and task['skip_to'] == name:
             task['skip'] = False
             # create fake chunk to save
-            task['chunk'] = state['operators'][name].create_chunk_with_zeros(
+            task[input_chunk_name] = state['operators'][name].create_chunk_with_zeros(
                 task['bbox'])
 
         if not task['skip']:
             # the time elapsed was recorded internally
-            state['operators'][name](task['chunk'],
+            state['operators'][name](task[input_chunk_name],
                                      log=task.get('log', {'timer': {}}),
                                      output_bbox=task.get('bbox', None))
             task['output_volume_path'] = volume_path

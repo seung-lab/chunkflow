@@ -80,17 +80,16 @@ class PyTorch(PatchEngine):
             self.post_process = self._identity
 
     def _pre_process(self, input_patch):
-        net_input = torch.from_numpy(input_patch)
-        return net_input
-
+        if self.is_gpu:
+            input_patch = torch.from_numpy(input_patch).cuda()
+        return input_patch
+    
     def _identity(self, patch):
         return patch
 
     def __call__(self, input_patch):
         # make sure that the patch is 5d ndarray
         input_patch = self._reshape_patch(input_patch)
-        if self.is_gpu:
-            input_patch = torch.from_numpy(input_patch).cuda()
 
         with torch.no_grad():
             net_input = self.pre_process(input_patch)

@@ -131,6 +131,7 @@ class Engine(object):
             # accumulate weights using the patch mask in RAM
             self.output_chunk_mask[output_patch_slice] += self.patch_engine.mask_numpy
         # normalize weight, so accumulated inference result multiplies
+
         # this mask will result in 1
         self.output_chunk_mask = 1.0 / self.output_chunk_mask
 
@@ -142,7 +143,6 @@ class Engine(object):
         if self.input_size == input_size:
             print('reusing existing patch offset list and output chunk mask.')
             assert self.patch_slices_list is not None
-            assert self.output_chunk_mask is not None
         else:
             if self.input_size is not None:
                 warn('the input size has changed, using new intput size.')
@@ -168,7 +168,7 @@ class Engine(object):
         if np.all(input_chunk == 0):
             print('input is all zero, return zero buffer directly')
             return output_buffer
-
+        
         self._check_input_size_and_prepare_data(input_chunk.shape)
         self._check_alignment()
 
