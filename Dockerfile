@@ -1,5 +1,5 @@
 # backend: base | pytorch | pznet | pytorch-cuda9
-ARG BACKEND=base 
+ARG BACKEND=pytorch
 
 FROM seunglab/chunkflow:${BACKEND}
 
@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     && pip install -U pip \
     && hash -r pip \
     && pip install --upgrade setuptools \
-    && pip install numpy setuptools cython tornado==5.0 --no-cache-dir \ 
+    && pip install numpy setuptools cython tornado==5.0 python-dateutil==2.8.0 --no-cache-dir \ 
     # && pip install fpzip --no-binary :all: --no-cache-dir \
     # && git clone --single-branch --depth 1 https://github.com/seung-lab/cloud-volume.git \
     # && pip install --no-cache-dir -r $HOME/workspace/cloud-volume/requirements.txt \

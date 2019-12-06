@@ -7,26 +7,25 @@ from .base import PatchEngine
 
 
 class PyTorchMultitask(PatchEngine):
-    def __init__(self,
-                 convnet_model,
-                 convnet_weight_path,
-                 input_patch_size=(20, 256, 256),
-                 output_patch_size=(16, 192, 192),
-                 width=(16, 32, 64, 128),
-                 original_num_output_channels=3,
-                 num_output_channels=3,
-                 bump='wu',
-                 output_patch_overlap=(6, 64, 64)):
-        """
+    """
         this function do masking in gpu for speed up, 
         so we need the patch_overlap information.
-        """
-        super().__init__()
+    """
+
+    def __init__(self, convnet_model: str, convnet_weight_path: str,
+                 input_patch_size: tuple, output_patch_overlap: tuple,
+                 output_patch_size: tuple = None, 
+                 num_output_channels: int = 1, bump: str='wu'):
+        super().__init__(input_patch_size, output_patch_size,
+                         output_patch_overlap, num_output_channels)
 
         # we currently only support two types of model
         assert convnet_model in ('rsunet', 'rsunet_act')
 
         self.output_key = 'outputs'
+
+        width = (16, 32, 64, 128)
+        original_num_output_channels = 3
 
         d = {
             'model': convnet_model,
@@ -55,13 +54,15 @@ class PyTorchMultitask(PatchEngine):
 
     def __call__(self, patch):
         # make sure that patch is 5d ndarray
-        patch = self._reshape_patch(patch)
+        patch = self._reshape_patch_to_5d(patch)
 
         with torch.no_grad():
             inputs = dict()
             for k in sorted(self.opt.in_spec):
                 # assume that only one input
                 inputs[k] = torch.from_numpy(patch).cuda()
-            outputs = self.net(inputs)
-            output = outputs[self.output_key].cpu().numpy()
+            output = self.net(inputs)[self.output_key]
+            output = self._crop_output_patch(output)
+            output = output.cpu().numpy()
+
             return output
