@@ -34,7 +34,6 @@ class Inferencer(object):
                  verbose: bool = False):
 
         self.batch_size = batch_size
-        self.mask_output_chunk = mask_output_chunk      
         self.input_size = input_size
         self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
@@ -44,7 +43,8 @@ class Inferencer(object):
                                            dtype=np.float32)
 
         self.patch_slices_list = []
-        
+        self.output_buffer = None
+
         self._prepare_patch_inferencer(framework, convnet_model, convnet_weight_path,
                                    input_patch_size, output_patch_size,
                                    output_patch_overlap, num_output_channels,
@@ -93,7 +93,7 @@ class Inferencer(object):
             # we will not mask the output chunk
             assert np.all(is_align)
 
-    def _construct_patch_slices_list(self):
+    def _construct_patch_slices_list(self, input_chunk_offset):
         """
         create the normalization mask and patch bounding box list
         """
@@ -112,16 +112,19 @@ class Inferencer(object):
             if iz + input_patch_size[0] > self.input_size[0]:
                 iz = self.input_size[0] - input_patch_size[0]
                 assert iz >= 0
+            iz += input_chunk_offset[-3]
             oz = iz + output_patch_crop_margin_size[0]
             for iy in range(0, self.input_size[1] - input_patch_overlap[1], input_patch_stride[1]):
                 if iy + input_patch_size[1] > self.input_size[1]:
                     iy = self.input_size[1] - input_patch_size[1]
                     assert iy >= 0
+                iy += input_chunk_offset[-2]
                 oy = iy + output_patch_crop_margin_size[1]
                 for ix in range(0, self.input_size[2] - input_patch_overlap[2], input_patch_stride[2]):
                     if ix + input_patch_size[2] > self.input_size[2]:
                         ix = self.input_size[2] - input_patch_size[2]
                         assert ix >= 0
+                    ix += input_chunk_offset[-1]
                     ox = ix + output_patch_crop_margin_size[2]
                     input_patch_slice =  (slice(iz, iz + input_patch_size[0]),
                                           slice(iy, iy + input_patch_size[1]),
@@ -142,16 +145,38 @@ class Inferencer(object):
         for _, output_patch_slice in self.patch_slices_list:
             # accumulate weights using the patch mask in RAM
             self.output_chunk_mask[output_patch_slice] += self.patch_inferencer.output_patch_mask_numpy
+
         # normalize weight, so accumulated inference result multiplies
 
         # this mask will result in 1
         self.output_chunk_mask = 1.0 / self.output_chunk_mask
+    
+    def _update_output_buffer(self, input_chunk):
 
-    def _check_input_size_and_prepare_data(self, input_size):
+        if self.output_buffer is None:
+            self.output_buffer = np.zeros(
+                (self.patch_inferencer.num_output_channels, ) +
+                self.output_size, dtype=np.float32)
+        else:
+            # we have to make sure that all the value is 0 initially
+            # so we can add patches on it.
+            self.output_buffer.fill(0)
+
+        output_offset = tuple(
+            io + pcms for io, pcms in
+            zip(input_chunk.global_offset,
+                self.patch_inferencer.output_patch_crop_margin_size))
+
+        self.output_buffer = Chunk(self.output_buffer,
+                                   global_offset=(0,) + output_offset)
+        return
+
+    def _check_input_size_and_prepare_data(self, input_chunk):
         """
-        if the input size is consistent with old one, reuse the 
+        if the input size is consistent with old one, reuse the
         patch offset list and output chunk mask. Otherwise, recompute them.
         """
+        input_size = input_chunk.shape
         if self.input_size == input_size:
             print('reusing existing patch offset list and output chunk mask.')
             assert self.patch_slices_list is not None
@@ -164,29 +189,27 @@ class Inferencer(object):
                 isz-2*ocms for isz, ocms in 
                 zip(input_size, self.patch_inferencer.output_patch_crop_margin_size))
 
-            self._construct_patch_slices_list()
-            
+            self._construct_patch_slices_list(input_chunk.global_offset)
+           
             if self.mask_output_chunk:
                 self._construct_output_chunk_mask()
+        
+        self._update_output_buffer(input_chunk)
 
-    def __call__(self,
-                 input_chunk: np.ndarray,
-                 output_buffer: np.ndarray = None):
+
+    def __call__(self, input_chunk: np.ndarray):
         """
         args:
             input_chunk (Chunk): input chunk with global offset
         """
         assert isinstance(input_chunk, Chunk)
-
-        if output_buffer is None:
-            output_buffer = self._create_output_buffer(input_chunk)
+        
+        self._check_input_size_and_prepare_data(input_chunk)
+        self._check_alignment()
 
         if np.all(input_chunk == 0):
             print('input is all zero, return zero buffer directly')
-            return output_buffer
-        
-        self._check_input_size_and_prepare_data(input_chunk.shape)
-        self._check_alignment()
+            return self.output_buffer
 
         if np.issubdtype(input_chunk.dtype, np.integer):
             # normalize to 0-1 value range
@@ -207,7 +230,8 @@ class Inferencer(object):
 
             batch_slices = self.patch_slices_list[i:i + self.batch_size]
             for batch_idx, slices in enumerate(batch_slices):
-                self.input_patch_buffer[batch_idx, 0, :, :, :] = input_chunk[slices[0]]
+                self.input_patch_buffer[
+                    batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0])
 
             if self.verbose:
                 end = time.time()
@@ -230,8 +254,10 @@ class Inferencer(object):
             for batch_idx, slices in enumerate(batch_slices):
                 # only use the required number of channels
                 # the remaining channels are dropped
-                output_buffer[(slice(output_buffer.shape[0]), 
-                               *slices[1])] += output_patch[batch_idx, :, :, :, :]
+                offset = (0,) + tuple(s.start for s in slices[1])
+                output_chunk = Chunk(output_patch[batch_idx, :, :, :, :],
+                                     global_offset=offset)
+                self.output_buffer.blend(output_chunk)
 
             if self.verbose:
                 end = time.time()
@@ -246,24 +272,16 @@ class Inferencer(object):
         #    f['main'] = output_buffer
         #with h5py.File('/tmp/output_chunk_mask.h5', "w") as f:
         #    f['main'] = self.output_chunk_mask
-        #breakpoint()
 
         if self.mask_output_chunk:
-            output_buffer *= self.output_chunk_mask
+            self.output_buffer *= self.output_chunk_mask
 
         # theoretically, all the value of output_buffer should not be greater than 1
         # we use a slightly higher value here to accomondate numerical precision issue
         np.testing.assert_array_less(
-            output_buffer,
+            self.output_buffer,
             1.0001,
             err_msg='output buffer should not be greater than 1')
-        return output_buffer
-
-    def _create_output_buffer(self, input_chunk):
-        output_buffer = np.zeros(
-            (self.patch_inferencer.num_output_channels, ) + input_chunk.shape, 
-            dtype=np.float32)
-        return Chunk(output_buffer,
-                     global_offset=(0, ) + input_chunk.global_offset)
+        return self.output_buffer
 
 

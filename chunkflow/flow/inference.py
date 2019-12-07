@@ -1,5 +1,5 @@
 from .base import OperatorBase
-from chunkflow.chunk.image.convnet_inference.engine import Engine
+from chunkflow.chunk.image.convnet.inferencer import Inferencer
 
 
 class InferenceOperator(OperatorBase):
@@ -24,7 +24,7 @@ class InferenceOperator(OperatorBase):
         super().__init__(name=name, verbose=verbose)
         self.framework = framework
 
-        self.engine = Engine(
+        self.inferencer = Inferencer(
             convnet_model,
             convnet_weight_path,
             input_patch_size,
@@ -41,7 +41,7 @@ class InferenceOperator(OperatorBase):
         """ the chunk size should always be the same 
         and the size is aligned with patch size and patch overlap
         """
-        return self.engine(chunk)
+        return self.inferencer(chunk)
 
     @property
     def compute_device(self):

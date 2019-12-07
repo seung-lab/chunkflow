@@ -63,8 +63,9 @@ def test_aligned_input_chunk_with_croped_patch():
         1, 255,
         size=(14 * 2 + 6, (256 - 96) * 2 + 96, (256 - 96) * 2 + 96), 
         dtype=np.uint8)
-
-    image = Chunk(image)
+    
+    # make sure that it works with arbitrary global offset
+    image = Chunk(image, global_offset=(123, 345, 567))
     output = chunk_inferencer(image)
     # only use the first channel to check correctness
     output = output[0, :, :, :]
@@ -72,9 +73,10 @@ def test_aligned_input_chunk_with_croped_patch():
     
     # we need to crop the patch overlap since the values were changed
     image = image.astype(np.float32) / 255
-    image = image[6:-6, 96:-96, 96:-96]
+
+    image = image[4:-4, 64:-64, 64:-64]
     # output is the same size of image due to non-aligned chunk mask
-    output = output[6:-6, 96:-96, 96:-96]
+    output = output[2:-2, 32:-32, 32:-32]
 
     print('maximum difference: ', np.max(image - output))
 
