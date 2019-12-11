@@ -80,7 +80,14 @@ class Chunk(np.ndarray):
     
     def to_tif(self, file_name: str, global_offset: tuple=None):
         print('write chunk to file: ', file_name)
-        tifffile.imwrite(file_name, data=self)
+        if self.dtype==np.float32:
+            # visualization in float32 is not working correctly in ImageJ
+            # this might not work correctly if you want to save the image as it is!
+            img = self*255 
+            img = img.astype( np.uint8 )
+        else:
+            img = self
+        tifffile.imwrite(file_name, data=img)
 
     @classmethod
     def from_h5(cls, file_name: str,

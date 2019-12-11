@@ -22,7 +22,7 @@ class PyTorchMultitask(PatchInferencerBase):
         # we currently only support two types of model
         assert convnet_model in ('rsunet', 'rsunet_act')
 
-        self.output_key = 'outputs'
+        self.output_key = 'affinity'
 
         width = (16, 32, 64, 128)
         original_num_output_channels = 3
