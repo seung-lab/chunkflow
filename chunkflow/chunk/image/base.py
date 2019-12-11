@@ -2,7 +2,7 @@ __doc__ = """Image chunk class"""
 
 from chunkflow.chunk import Chunk
 from .adjust_grey import normalize_section_shang
-from .convnet_inference.engine import Engine
+from .convnet.inferencer import Inferencer
 
 
 class Image(Chunk):
@@ -20,9 +20,9 @@ class Image(Chunk):
         obj = Chunk(array, global_offset=global_offset, *kwargs).view(cls)
         return obj
 
-    def inference(self, engine: Engine):
+    def inference(self, inferencer: Inferencer):
         """run convolutional net inference for this image chunk"""
-        return engine(self)
+        return inferencer(self)
 
     def normalize_section_shang(self, nominalmin, nominalmax, clipvalues):
         return normalize_section_shang(self, nominalmin, nominalmax,

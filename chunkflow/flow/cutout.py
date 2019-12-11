@@ -73,7 +73,7 @@ class CutoutOperator(OperatorBase):
             chunk = np.squeeze(chunk, axis=0)
         else:
             global_offset = (chunk.shape[0], ) + global_offset
-
+        
         chunk = Chunk(chunk, global_offset=global_offset)
 
         if self.blackout_sections:
@@ -88,6 +88,8 @@ class CutoutOperator(OperatorBase):
         make some sections black.
         this was normally used for the section with bad alignment.
         The ConvNet was supposed to handle them better with black image.
+
+        TODO: make this function as a separate operator
         """
         # current code only works with 3d image
         assert chunk.ndim == 3, "current code assumes that the chunk is 3D image."

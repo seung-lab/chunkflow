@@ -4,7 +4,7 @@ from time import time
 import numpy as np
 import click
 
-from cloudvolume.lib import Bbox
+from cloudvolume.lib import Bbox, Vec
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
@@ -342,7 +342,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
               '-f',
               type=click.Path(dir_okay=False, resolve_path=True),
               required=True,
-              help='file name of hdf5 file, the extention should be .h5')
+              help='file name of hdf5 file.')
 @operator
 def write_h5(tasks, name, input_chunk_name, file_name):
     """Write chunk to HDF5 file."""
@@ -356,7 +356,7 @@ def write_h5(tasks, name, input_chunk_name, file_name):
 @main.command('write-tif')
 @click.option('--name', type=str, default='write-tif', help='name of operator')
 @click.option('--input-chunk-name', '-i',
-              type=str, default='chunk', help='input chunk name')
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--file-name', '-f',
     type=click.Path(dir_okay=False, resolve_path=True), required=True,
     help='file name of tif file, the extention should be .tif or .tiff')
@@ -372,12 +372,10 @@ def write_tif(tasks, name, input_chunk_name, file_name):
 
 @main.command('save-pngs')
 @click.option('--name', type=str, default='save-pngs', help='name of operator')
-@click.option('--input-chunk-name', '-i', type=click.Path(dir_okay=True, resolve_path=True))
-@click.option('--output-path',
-              '-o',
-              type=str,
-              default='./saved_pngs/',
-              help='output path of saved 2d images formated as png.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--output-path', '-o',
+              type=str, default='./saved_pngs/', help='output path of saved 2d images formated as png.')
 @operator
 def save_pngs(tasks, name, input_chunk_name, output_path):
     """Save as 2D PNG images."""
@@ -421,9 +419,9 @@ def delete_task_in_queue(tasks, name):
 @click.option('--chunk-start', '-s',
               type=int, nargs=3, default=None, callback=default_none,
               help='chunk offset in volume.')
-@click.option('--chunk-stop', '-p',
+@click.option('--chunk-size', '-z',
               type=int, nargs=3, default=None, callback=default_none,
-              help='chunk stop coordinate.')
+              help='cutout chunk size.')
 @click.option('--fill-missing/--no-fill-missing',
               default=False, help='fill the missing chunks in input volume with zeros ' +
               'or not, default is false')
@@ -437,7 +435,7 @@ def delete_task_in_queue(tasks, name):
     + 'Chunkflow operators by default operates on a variable named "chunk" but' +
     ' sometimes you may need to have a secondary volume to work on.')
 @operator
-def cutout(tasks, name, volume_path, mip, chunk_start, chunk_stop, expand_margin_size,
+def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin_size,
            fill_missing, validate_mip, blackout_sections, output_chunk_name):
     """Cutout chunk from volume."""
     if mip is None:
@@ -454,15 +452,21 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_stop, expand_margin
 
     for task in tasks:
         handle_task_skip(task, name)
-        if chunk_start is None and chunk_stop is None:
+        if chunk_start is None and chunk_size is None:
             bbox = task['bbox']
         else:
             # use bounding box of volume
             if chunk_start is None:
                 chunk_start = state['operators'][name].vol.mip_bounds(mip).minpt
-            if chunk_stop is None:
+            else:
+                chunk_start = Vec(*chunk_start)
+
+            if chunk_size is None:
                 chunk_stop = state['operators'][name].vol.mip_bounds(mip).maxpt
-            bbox = Bbox(chunk_start, chunk_stop)
+                chunk_size = chunk_stop - chunk_start
+            else:
+                chunk_size = Vec(*chunk_size)
+            bbox = Bbox.from_delta(chunk_start, chunk_size)
 
         if not task['skip']:
             start = time()
@@ -721,88 +725,48 @@ def copy_var(tasks, name, from_name, to_name):
 
 
 @main.command('inference')
-@click.option('--name',
-              type=str,
-              default='inference',
-              help='name of this operator')
+@click.option('--name', type=str, default='inference', help='name of this operator')
 @click.option('--convnet-model', '-m',
-              type=str,
-              default=None,
-              help='convnet model path or type.')
+              type=str, default=None, help='convnet model path or type.')
 @click.option('--convnet-weight-path', '-w',
-              type=str,
-              default=None,
-              help='convnet weight path')
-@click.option('--patch-size', '-s',
-              type=int,
-              nargs=3,
-              default=(20, 256, 256),
-              help='patch size')
-@click.option('--patch-overlap', '-v',
-              type=int,
-              nargs=3,
-              default=(4, 64, 64),
-              help='patch overlap')
-@click.option('--output-key',
-              type=str,
-              default='affinity',
-              help='key name of output dict')
-@click.option(
-    '--original-num-output-channels',
-    type=int,
-    default=3,
-    help=
-    'number of original output channels. The net could be trained with more than'
-    +
-    ' final output channels, such as other neighboring edges in affinity map to enhance '
-    + 'net generalization capability.')
+              type=str, default=None, help='convnet weight path')
+@click.option('--input-patch-size', '-s',
+              type=int, nargs=3, required=True, help='input patch size')
+@click.option('--output-patch-size', '-s',
+              type=int, nargs=3, default=None, callback=default_none, help='output patch size')
+@click.option('--output-patch-overlap', '-v',
+              type=int, nargs=3, default=(4, 64, 64), help='patch overlap')
 @click.option('--num-output-channels', '-c',
-              type=int,
-              default=3,
-              help='number of output channels')
+              type=int, default=3, help='number of output channels')
 @click.option('--framework', '-f',
-              type=click.Choice(
-                  ['identity', 'pznet', 'pytorch', 'pytorch-multitask']),
-              default='pytorch-multitask',
-              help='inference framework')
+              type=click.Choice(['identity', 'pznet', 'pytorch', 'pytorch-multitask']),
+              default='pytorch-multitask', help='inference framework')
 @click.option('--batch-size', '-b',
-              type=int,
-              default=1,
-              help='mini batch size of input patch.')
-@click.option(
-    '--bump',
-    type=click.Choice(['wu', 'zung']),
-    default='wu',
-    help='bump function type. only works with pytorch-multitask backend.')
-@click.option(
-    '--mask-output-chunk/--no-mask-output-chunk',
-    default=False,
-    help='mask output chunk will make the whole chunk like one output patch. '
-    + 'This will also work with non-aligned chunk size.')
-@click.option(
-    '--input-chunk-name', '-i',
-    type=str,
-    default='chunk',
-    help='input chunk name')
-@click.option(
-    '--output-chunk-name', '-o',
-    type=str,
-    default='chunk',
-    help='output chunk name')
+              type=int, default=1, help='mini batch size of input patch.')
+@click.option('--bump',
+              type=click.Choice(['wu', 'zung']), default='wu',
+              help='bump function type. only works with pytorch-multitask backend.')
+@click.option('--mask-output-chunk/--no-mask-output-chunk',
+              default=False, help='mask output chunk will make the whole '
+              + 'chunk like one output patch. '
+              + 'This will also work with non-aligned chunk size.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default='chunk', help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default='chunk', help='output chunk name')
 @operator
-def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
-              patch_overlap, output_key, original_num_output_channels,
-              num_output_channels, framework, batch_size, bump,
-              mask_output_chunk, input_chunk_name, output_chunk_name):
+def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
+              output_patch_size, output_patch_overlap, num_output_channels, 
+              framework, batch_size, bump, mask_output_chunk, input_chunk_name, 
+              output_chunk_name):
     """Perform convolutional network inference for chunks."""
     state['operators'][name] = InferenceOperator(
         convnet_model,
         convnet_weight_path,
-        patch_size=patch_size,
-        output_key=output_key,
+        input_patch_size=input_patch_size,
+        output_patch_size=output_patch_size,
         num_output_channels=num_output_channels,
-        original_num_output_channels=original_num_output_channels,
-        patch_overlap=patch_overlap,
+        output_patch_overlap=output_patch_overlap,
         framework=framework,
         batch_size=batch_size,
         bump=bump,
@@ -847,8 +811,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, patch_size,
               'check all zero will return boolean result.')
 @click.option('--skip-to', type=str, default='save', help='skip to a operator')
 @operator
-def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero,
-         skip_to):
+def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero, skip_to):
     """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
@@ -1029,6 +992,8 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
 @main.command('save')
 @click.option('--name', type=str, default='save', help='name of this operator')
 @click.option('--volume-path', '-v', type=str, required=True, help='volume path')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--upload-log/--no-upload-log',
               default=True, help='the log will be put inside volume-path')
 @click.option('--nproc', '-p', 
@@ -1039,7 +1004,7 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
     default=False, help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
 @operator
-def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
+def save(tasks, name, volume_path, input_chunk_name, upload_log, nproc, create_thumbnail):
     """Save chunk to volume."""
     state['operators'][name] = SaveOperator(volume_path,
                                             state['mip'],
@@ -1054,12 +1019,12 @@ def save(tasks, name, volume_path, upload_log, nproc, create_thumbnail):
         if task['skip'] and task['skip_to'] == name:
             task['skip'] = False
             # create fake chunk to save
-            task['chunk'] = state['operators'][name].create_chunk_with_zeros(
+            task[input_chunk_name] = state['operators'][name].create_chunk_with_zeros(
                 task['bbox'])
 
         if not task['skip']:
             # the time elapsed was recorded internally
-            state['operators'][name](task['chunk'],
+            state['operators'][name](task[input_chunk_name],
                                      log=task.get('log', {'timer': {}}),
                                      output_bbox=task.get('bbox', None))
             task['output_volume_path'] = volume_path

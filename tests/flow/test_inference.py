@@ -8,15 +8,14 @@ def test_inference():
     # compute parameters
     input_size = (18, 224, 224)
     patch_overlap = (2, 32, 32)
-    patch_size = (10, 128, 128)
+    input_patch_size = (10, 128, 128)
 
     image = Chunk.create(size=input_size, dtype='uint8')
     inference_operator = InferenceOperator(None,
                                            None,
-                                           patch_size=patch_size,
-                                           output_key='affinity',
+                                           input_patch_size,
                                            num_output_channels=3,
-                                           patch_overlap=patch_overlap,
+                                           output_patch_overlap=patch_overlap,
                                            framework='identity')
     output = inference_operator(image)
 

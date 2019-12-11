@@ -80,7 +80,14 @@ class Chunk(np.ndarray):
     
     def to_tif(self, file_name: str, global_offset: tuple=None):
         print('write chunk to file: ', file_name)
-        tifffile.imwrite(file_name, data=self)
+        if self.dtype==np.float32:
+            # visualization in float32 is not working correctly in ImageJ
+            # this might not work correctly if you want to save the image as it is!
+            img = self*255 
+            img = img.astype( np.uint8 )
+        else:
+            img = self
+        tifffile.imwrite(file_name, data=img)
 
     @classmethod
     def from_h5(cls, file_name: str,
@@ -94,7 +101,7 @@ class Chunk(np.ndarray):
 
         global_offset_path = os.path.join(os.path.dirname(file_name),
                                        'global_offset')
-        with h5py.File(file_name) as f:
+        with h5py.File(file_name, 'r') as f:
             arr = np.asarray(f[dataset_path])
 
             if global_offset is None:
@@ -112,7 +119,7 @@ class Chunk(np.ndarray):
         if os.path.exists(file_name):
             os.remove(file_name)
 
-        with h5py.File(file_name) as f:
+        with h5py.File(file_name, 'w') as f:
             f.create_dataset('/main', data=self)
             f.create_dataset('/global_offset', data=self.global_offset)
 

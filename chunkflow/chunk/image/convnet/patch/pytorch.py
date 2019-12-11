@@ -3,11 +3,11 @@
 from typing import Union
 import torch
 import numpy as np
-from .base import PatchEngine
+from .base import PatchInferencerBase
 from chunkflow.lib import load_source
 
 
-class PyTorch(PatchEngine):
+class PyTorch(PatchInferencerBase):
     """perform inference for an image patch using pytorch.
     Parameters
     ----------
@@ -27,16 +27,16 @@ class PyTorch(PatchEngine):
     old version pytorch (<=0.4.0). You can also define `pre_process` 
     and `post_process` function to insert your own customized processing.
     """
-    def __init__(self,
-                 patch_size: Union[tuple, list],
-                 patch_overlap: Union[tuple, list],
-                 model_file_name: str,
-                 weight_file_name: str,
+    def __init__(self, convnet_model: str, convnet_weight_path: str,
+                 input_patch_size: tuple, output_patch_overlap: tuple,
+                 output_patch_size: tuple = None, 
                  use_batch_norm: bool = True,
                  is_static_batch_norm: bool = False,
-                 num_output_channels: int = 3,
-                 mask: np.ndarray = None):
-        super().__init__(patch_size, patch_overlap)
+                 num_output_channels: int = 1, bump: str='wu'):
+        assert bump == 'wu'
+        super().__init__(input_patch_size, output_patch_size, 
+                         output_patch_overlap, num_output_channels)
+
         self.num_output_channels = num_output_channels
         if torch.cuda.is_available():
             self.is_gpu = True
@@ -45,13 +45,13 @@ class PyTorch(PatchEngine):
         else:
             self.is_gpu = False
 
-        net_source = load_source(model_file_name)
+        net_source = load_source(convnet_model)
 
         if hasattr(net_source, "load_model"):
-            self.net = net_source.load_model(weight_file_name)
+            self.net = net_source.load_model(convnet_weight_path)
         else:
             self.net = net_source.InstantiatedModel
-            chkpt = torch.load(weight_file_name)
+            chkpt = torch.load(convnet_weight_path)
             state_dict = chkpt['state_dict'] if 'state_dict' in chkpt else chkpt
             self.net.load_state_dict(state_dict)
 
@@ -80,17 +80,16 @@ class PyTorch(PatchEngine):
             self.post_process = self._identity
 
     def _pre_process(self, input_patch):
-        net_input = torch.from_numpy(input_patch)
-        return net_input
-
+        if self.is_gpu:
+            input_patch = torch.from_numpy(input_patch).cuda()
+        return input_patch
+    
     def _identity(self, patch):
         return patch
 
     def __call__(self, input_patch):
         # make sure that the patch is 5d ndarray
         input_patch = self._reshape_patch(input_patch)
-        if self.is_gpu:
-            input_patch = torch.from_numpy(input_patch).cuda()
 
         with torch.no_grad():
             net_input = self.pre_process(input_patch)
@@ -107,7 +106,8 @@ class PyTorch(PatchEngine):
             #    f['main'] = output_patch[0,:,:,:,:].data.cpu().numpy()
 
             # mask in gpu/cpu
-            output_patch *= self.mask
+            output_patch *= self.output_patch_mask
+            output_patch = self._crop_output_patch(output_patch)
 
             if self.is_gpu:
                 # transfer to cpu
