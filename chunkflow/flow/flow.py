@@ -4,7 +4,7 @@ from time import time
 import numpy as np
 import click
 
-from cloudvolume.lib import Bbox
+from cloudvolume.lib import Bbox, Vec
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
@@ -419,9 +419,9 @@ def delete_task_in_queue(tasks, name):
 @click.option('--chunk-start', '-s',
               type=int, nargs=3, default=None, callback=default_none,
               help='chunk offset in volume.')
-@click.option('--chunk-stop', '-p',
+@click.option('--chunk-size', '-z',
               type=int, nargs=3, default=None, callback=default_none,
-              help='chunk stop coordinate.')
+              help='cutout chunk size.')
 @click.option('--fill-missing/--no-fill-missing',
               default=False, help='fill the missing chunks in input volume with zeros ' +
               'or not, default is false')
@@ -435,7 +435,7 @@ def delete_task_in_queue(tasks, name):
     + 'Chunkflow operators by default operates on a variable named "chunk" but' +
     ' sometimes you may need to have a secondary volume to work on.')
 @operator
-def cutout(tasks, name, volume_path, mip, chunk_start, chunk_stop, expand_margin_size,
+def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin_size,
            fill_missing, validate_mip, blackout_sections, output_chunk_name):
     """Cutout chunk from volume."""
     if mip is None:
@@ -452,15 +452,21 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_stop, expand_margin
 
     for task in tasks:
         handle_task_skip(task, name)
-        if chunk_start is None and chunk_stop is None:
+        if chunk_start is None and chunk_size is None:
             bbox = task['bbox']
         else:
             # use bounding box of volume
             if chunk_start is None:
                 chunk_start = state['operators'][name].vol.mip_bounds(mip).minpt
-            if chunk_stop is None:
+            else:
+                chunk_start = Vec(*chunk_start)
+
+            if chunk_size is None:
                 chunk_stop = state['operators'][name].vol.mip_bounds(mip).maxpt
-            bbox = Bbox(chunk_start, chunk_stop)
+                chunk_size = chunk_stop - chunk_start
+            else:
+                chunk_size = Vec(*chunk_size)
+            bbox = Bbox.from_delta(chunk_start, chunk_size)
 
         if not task['skip']:
             start = time()

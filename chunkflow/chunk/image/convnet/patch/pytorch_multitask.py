@@ -3,10 +3,9 @@ import torch
 from pytorch_model.model import load_model
 from types import SimpleNamespace
 
-from .base import PatchEngine
+from .base import PatchInferencerBase
 
-
-class PyTorchMultitask(PatchEngine):
+class PyTorchMultitask(PatchInferencerBase):
     """
         this function do masking in gpu for speed up, 
         so we need the patch_overlap information.
@@ -16,6 +15,7 @@ class PyTorchMultitask(PatchEngine):
                  input_patch_size: tuple, output_patch_overlap: tuple,
                  output_patch_size: tuple = None, 
                  num_output_channels: int = 1, bump: str='wu'):
+        
         super().__init__(input_patch_size, output_patch_size,
                          output_patch_overlap, num_output_channels)
 
@@ -34,16 +34,16 @@ class PyTorchMultitask(PatchEngine):
                 'input': (1, *input_patch_size)
             },
             'out_spec': {
-                self.output_key: (original_num_output_channels, *output_patch_size)
+                self.output_key: (original_num_output_channels, *self.output_patch_size)
             },
             'scan_spec': {
-                self.output_key: (num_output_channels, *output_patch_size)
+                self.output_key: (num_output_channels, *self.output_patch_size)
             },
-            'cropsz': (num_output_channels, *output_patch_size),
+            'cropsz': self.output_patch_size,
             'pretrain': True,
             'precomputed': torch.cuda.is_available(),
             'edges': [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
-            'overlap': output_patch_overlap,
+            'overlap': self.output_patch_overlap,
             'bump': bump
         }
 
@@ -57,12 +57,9 @@ class PyTorchMultitask(PatchEngine):
         patch = self._reshape_patch_to_5d(patch)
 
         with torch.no_grad():
-            inputs = dict()
-            for k in sorted(self.opt.in_spec):
-                # assume that only one input
-                inputs[k] = torch.from_numpy(patch).cuda()
+            inputs = {'input': torch.from_numpy(patch).cuda()}
             output = self.net(inputs)[self.output_key]
-            output = self._crop_output_patch(output)
+            # the model already did the crop, so no need to redo it!
+            # output = self._crop_output_patch(output)
             output = output.cpu().numpy()
-
             return output
