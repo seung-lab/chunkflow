@@ -26,6 +26,7 @@ class Inferencer(object):
                  output_patch_size: Union[tuple, list] = None,
                  num_output_channels: int = 3,
                  output_patch_overlap: Union[tuple, list] = (4, 64, 64),
+                 output_chunk_start_offset: tuple = (0, 0, 0),
                  framework: str = 'identity',
                  batch_size: int = 1,
                  bump: str = 'wu',
@@ -49,7 +50,13 @@ class Inferencer(object):
                                    input_patch_size, output_patch_size,
                                    output_patch_overlap, num_output_channels,
                                    bump)
-
+    
+        if framework in ('pznet', 'identity'):
+            import platform
+            self.compute_device = platform.processor()
+        else:
+            import torch
+            self.compute_device = torch.cuda.get_device_name(0)
     
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, 
                               input_patch_size, output_patch_size, 

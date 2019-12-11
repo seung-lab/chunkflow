@@ -1,8 +1,7 @@
 import numpy as np
 
 from chunkflow.chunk import Chunk
-from chunkflow.flow.inference import InferenceOperator
-
+from chunkflow.chunk.image.convnet.inferencer import Inferencer
 
 def test_inference():
     # compute parameters
@@ -11,7 +10,7 @@ def test_inference():
     input_patch_size = (10, 128, 128)
 
     image = Chunk.create(size=input_size, dtype='uint8')
-    inference_operator = InferenceOperator(None,
+    inference_operator = Inferencer(None,
                                            None,
                                            input_patch_size,
                                            num_output_channels=3,
