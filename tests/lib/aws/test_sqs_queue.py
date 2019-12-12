@@ -11,7 +11,8 @@ class TestSQSQueue(unittest.TestCase):
         # see more details in the class documentation.
         self.queue = SQSQueue(queue_name,
                               wait_if_empty=None,
-                              fetch_wait_time_seconds=1)
+                              fetch_wait_time_seconds=1,
+                              retry_times=3)
 
     def test_send_and_receive_message_list(self):
         print('start sending messages...')
