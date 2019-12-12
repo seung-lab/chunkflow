@@ -75,7 +75,6 @@ def test_aligned_input_chunk_with_croped_patch():
     # we need to crop the patch overlap since the values were changed
     image = image.astype(np.float32) / 255
     
-    breakpoint()
     image = image[4:-4, 64:-64, 64:-64]
     # output is the same size of image due to non-aligned chunk mask
     output = output[2:-2, 32:-32, 32:-32]
