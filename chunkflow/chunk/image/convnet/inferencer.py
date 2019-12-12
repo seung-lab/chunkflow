@@ -26,6 +26,7 @@ class Inferencer(object):
                  output_patch_size: Union[tuple, list] = None,
                  num_output_channels: int = 3,
                  output_patch_overlap: Union[tuple, list] = (4, 64, 64),
+                 output_chunk_start_offset: tuple = (0, 0, 0),
                  framework: str = 'identity',
                  batch_size: int = 1,
                  bump: str = 'wu',
@@ -37,7 +38,8 @@ class Inferencer(object):
         self.input_size = input_size
         self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
-
+        self.output_chunk_start_offset = output_chunk_start_offset
+        
         # allocate a buffer to avoid redundant memory allocation
         self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
                                            dtype=np.float32)
@@ -49,7 +51,13 @@ class Inferencer(object):
                                    input_patch_size, output_patch_size,
                                    output_patch_overlap, num_output_channels,
                                    bump)
-
+    
+        if framework in ('pznet', 'identity'):
+            import platform
+            self.compute_device = platform.processor()
+        else:
+            import torch
+            self.compute_device = torch.cuda.get_device_name(0)
     
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, 
                               input_patch_size, output_patch_size, 
@@ -163,9 +171,9 @@ class Inferencer(object):
             self.output_buffer.fill(0)
 
         output_offset = tuple(
-            io + pcms for io, pcms in
+            io + ocso for io, ocso in
             zip(input_chunk.global_offset,
-                self.patch_inferencer.output_patch_crop_margin_size))
+                self.output_chunk_start_offset))
 
         self.output_buffer = Chunk(self.output_buffer,
                                    global_offset=(0,) + output_offset)
@@ -186,8 +194,8 @@ class Inferencer(object):
             self.input_size = input_size
             
             self.output_size = tuple(
-                isz-2*ocms for isz, ocms in 
-                zip(input_size, self.patch_inferencer.output_patch_crop_margin_size))
+                isz-2*ocso for isz, ocso in 
+                zip(input_size, self.output_chunk_start_offset))
 
             self._construct_patch_slices_list(input_chunk.global_offset)
            

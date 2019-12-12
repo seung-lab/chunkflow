@@ -9,6 +9,7 @@ from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
+from chunkflow.chunk.image.convnet.inferencer import Inferencer
 
 # import operator functions
 from .agglomerate import AgglomerateOperator
@@ -18,7 +19,6 @@ from .custom_operator import CustomOperator
 from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
-from .inference import InferenceOperator
 from .mask import MaskOperator
 from .mesh import MeshOperator
 from .mesh_manifest import MeshManifestOperator
@@ -695,7 +695,7 @@ def custom_operator(tasks, name, input_chunk_name, output_chunk_name, opprogram,
 @operator 
 def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
                          threshold, connectivity):
-    """Threshold the map to get a segmentation."""
+    """Threshold the probability map to get a segmentation."""
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
@@ -725,21 +725,27 @@ def copy_var(tasks, name, from_name, to_name):
 
 
 @main.command('inference')
-@click.option('--name', type=str, default='inference', help='name of this operator')
+@click.option('--name', type=str, default='inference', 
+              help='name of this operator')
 @click.option('--convnet-model', '-m',
               type=str, default=None, help='convnet model path or type.')
 @click.option('--convnet-weight-path', '-w',
               type=str, default=None, help='convnet weight path')
 @click.option('--input-patch-size', '-s',
               type=int, nargs=3, required=True, help='input patch size')
-@click.option('--output-patch-size', '-s',
-              type=int, nargs=3, default=None, callback=default_none, help='output patch size')
+@click.option('--output-patch-size', '-z',
+              type=int, nargs=3, default=None, callback=default_none, 
+              help='output patch size')
 @click.option('--output-patch-overlap', '-v',
               type=int, nargs=3, default=(4, 64, 64), help='patch overlap')
+@click.option('--output-chunk-start-offset', '-u',
+              type=int, nargs=3, default=(0, 0, 0),
+              help='crop margin size compared with input chunk size.')
 @click.option('--num-output-channels', '-c',
               type=int, default=3, help='number of output channels')
 @click.option('--framework', '-f',
-              type=click.Choice(['identity', 'pznet', 'pytorch', 'pytorch-multitask']),
+              type=click.Choice(['identity', 'pznet', 'pytorch',
+                                 'pytorch-multitask']),
               default='pytorch-multitask', help='inference framework')
 @click.option('--batch-size', '-b',
               type=int, default=1, help='mini batch size of input patch.')
@@ -756,17 +762,18 @@ def copy_var(tasks, name, from_name, to_name):
               type=str, default='chunk', help='output chunk name')
 @operator
 def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
-              output_patch_size, output_patch_overlap, num_output_channels, 
-              framework, batch_size, bump, mask_output_chunk, input_chunk_name, 
-              output_chunk_name):
+              output_patch_size, output_patch_overlap, output_chunk_start_offset,
+              num_output_channels, framework, batch_size, bump, mask_output_chunk,
+              input_chunk_name, output_chunk_name):
     """Perform convolutional network inference for chunks."""
-    state['operators'][name] = InferenceOperator(
+    state['operators'][name] = Inferencer(
         convnet_model,
         convnet_weight_path,
         input_patch_size=input_patch_size,
         output_patch_size=output_patch_size,
         num_output_channels=num_output_channels,
         output_patch_overlap=output_patch_overlap,
+        output_chunk_start_offset=output_chunk_start_offset,
         framework=framework,
         batch_size=batch_size,
         bump=bump,
@@ -785,8 +792,8 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
                 task[input_chunk_name])
 
             task['log']['timer'][name] = time() - start
-            task['log']['compute_device'] = state['operators'][
-                name].compute_device
+            task['log']['compute_device'] = state[
+                'operators'][name].compute_device
         yield task
 
 

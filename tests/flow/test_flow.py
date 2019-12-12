@@ -6,6 +6,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import generate_random_string, Bbox
 import os, shutil
 
+from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from chunkflow.flow.flow import *
 
 
@@ -118,7 +119,7 @@ class TestInferencePipeline(unittest.TestCase):
         chunk = mask_input_operator(chunk)
 
         print('run convnet inference...')
-        inference_operator = InferenceOperator(
+        inference_operator = Inferencer(
             None,
             None,
             self.patch_size,
