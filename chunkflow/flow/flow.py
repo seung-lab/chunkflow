@@ -169,17 +169,22 @@ def cloud_watch(tasks, name, log_name):
         yield task
 
 @main.command('fetch-task')
-@click.option('--queue-name', '-q', 
+@click.option('--queue-name', '-q',
                 type=str, default=None, help='sqs queue name')
 @click.option('--visibility-timeout', '-v',
     type=int, default=None, 
     help='visibility timeout of sqs queue; default is using the timeout of the queue.')
+@click.option('--retry-times', '-r',
+              type=int, default=30,
+              help='the times of retrying if the queue is empty.')
 @generator
-def fetch_task(queue_name, visibility_timeout):
+def fetch_task(queue_name, visibility_timeout, retry_times):
     """Fetch task from queue."""
     # This operator is actually a generator,
     # it replaces old tasks to a completely new tasks and loop over it!
-    queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
+    queue = SQSQueue(queue_name, 
+                     visibility_timeout=visibility_timeout,
+                     retry_times=retry_times)
     for task_handle, bbox_str in queue:
         print('get task: ', bbox_str)
         bbox = Bbox.from_filename(bbox_str)

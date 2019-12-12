@@ -11,7 +11,8 @@ class SQSQueue(object):
                  queue_name: str,
                  visibility_timeout: int = None,
                  wait_if_empty: int = 100,
-                 fetch_wait_time_seconds: int = 20):
+                 fetch_wait_time_seconds: int = 60,
+                 retry_times: int = 30):
         """
         Parameters
         ------------
@@ -39,6 +40,8 @@ class SQSQueue(object):
         self.visibility_timeout = visibility_timeout
         self.wait_if_empty = wait_if_empty
         self.fetch_wait_time_seconds = fetch_wait_time_seconds
+        self.retry_times = retry_times
+
 
     def __iter__(self):
         return self
@@ -82,10 +85,13 @@ class SQSQueue(object):
         resp = self._receive_message()
         if 'Messages' not in resp:
             # the queue is empty
-            if self.wait_if_empty:
+            if self.wait_if_empty and self.retry_times > 0:
                 # the 20 seconds additional waiting time is from the receiving
-                print('the queue is empty, wait for {} seconds'.format(
-                    self.wait_if_empty + 20))
+                                # countdown the retry times
+                self.retry_times -= 1
+                print(f'the queue is empty, wait for {self.wait_if_empty} seconds'+
+                      ' and will retry {self.retry_times} times.')
+
                 sleep(self.wait_if_empty)
                 # contine trying to receive message
                 return self.__next__()
