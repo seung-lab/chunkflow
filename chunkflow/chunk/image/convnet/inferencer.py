@@ -38,7 +38,8 @@ class Inferencer(object):
         self.input_size = input_size
         self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
-
+        self.output_chunk_start_offset = output_chunk_start_offset
+        
         # allocate a buffer to avoid redundant memory allocation
         self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
                                            dtype=np.float32)
@@ -170,9 +171,9 @@ class Inferencer(object):
             self.output_buffer.fill(0)
 
         output_offset = tuple(
-            io + pcms for io, pcms in
+            io + ocso for io, ocso in
             zip(input_chunk.global_offset,
-                self.patch_inferencer.output_patch_crop_margin_size))
+                self.output_chunk_start_offset))
 
         self.output_buffer = Chunk(self.output_buffer,
                                    global_offset=(0,) + output_offset)
@@ -193,8 +194,8 @@ class Inferencer(object):
             self.input_size = input_size
             
             self.output_size = tuple(
-                isz-2*ocms for isz, ocms in 
-                zip(input_size, self.patch_inferencer.output_patch_crop_margin_size))
+                isz-2*ocso for isz, ocso in 
+                zip(input_size, self.output_chunk_start_offset))
 
             self._construct_patch_slices_list(input_chunk.global_offset)
            

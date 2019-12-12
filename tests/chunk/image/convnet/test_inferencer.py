@@ -54,6 +54,7 @@ def test_aligned_input_chunk_with_croped_patch():
         None, None, input_patch_size,
         output_patch_size = output_patch_size,
         output_patch_overlap=output_patch_overlap,
+        output_chunk_start_offset = (2, 32, 32),
         num_output_channels=num_output_channels,
         framework='identity',
         batch_size=5,
@@ -73,11 +74,12 @@ def test_aligned_input_chunk_with_croped_patch():
     
     # we need to crop the patch overlap since the values were changed
     image = image.astype(np.float32) / 255
-
+    
+    breakpoint()
     image = image[4:-4, 64:-64, 64:-64]
     # output is the same size of image due to non-aligned chunk mask
     output = output[2:-2, 32:-32, 32:-32]
-
+    
     print('maximum difference: ', np.max(image - output))
 
     # some of the image voxel is 0, the test can only work with rtol=1
@@ -90,7 +92,7 @@ def test_non_aligned_input_chunk():
     patch_overlap = (4, 64, 64)
     num_output_channels = 2
 
-    block_inference_engine = Inferencer(
+    inferencer = Inferencer(
         None, None, patch_size,
         output_patch_overlap=patch_overlap,
         num_output_channels=num_output_channels,
@@ -104,7 +106,7 @@ def test_non_aligned_input_chunk():
                                     (256 - 64) * 2 + 64 + 9),
                               dtype=np.uint8)
     image = Chunk(image)
-    output = block_inference_engine(image)
+    output = inferencer(image)
     # only use the first channel to check correctness
     output = output[0, :, :, :]
     output = np.reshape(output, image.shape)
