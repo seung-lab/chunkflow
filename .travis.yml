@@ -16,8 +16,7 @@ install:
 - pip install pytest-cov
 script:
 - coverage run --source=./chunkflow chunkflow generate-tasks -c 0 0 0 -s 0 0 0 -g 1 1 1
-- coverage run --source=./chunkflow chunkflow create-chunk -o seg create-chunk -o
-  gt evaluate-segmentation -s seg -g gt
+#- coverage run --source=./chunkflow chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
 - coverage run -a --source=./chunkflow chunkflow create-chunk write-h5 --file-name=/tmp/img.h5 connected-components --threshold 128 write-tif --file-name=/tmp/seg.h5
 - if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 - coverage run -a --source=./chunkflow chunkflow read-h5 --file-name=/tmp/img.h5
