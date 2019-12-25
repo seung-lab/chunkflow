@@ -783,8 +783,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         batch_size=batch_size,
         bump=bump,
         mask_output_chunk=mask_output_chunk,
-        verbose=state['verbose'],
-        name=name)
+        verbose=state['verbose'])
 
     for task in tasks:
         handle_task_skip(task, name)
