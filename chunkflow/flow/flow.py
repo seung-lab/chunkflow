@@ -757,9 +757,8 @@ def copy_var(tasks, name, from_name, to_name):
 @click.option('--bump',
               type=click.Choice(['wu', 'zung']), default='wu',
               help='bump function type. only works with pytorch-multitask backend.')
-@click.option('--mask-output-chunk/--no-mask-output-chunk',
-              default=False, help='mask output chunk will make the whole '
-              + 'chunk like one output patch. '
+@click.option('--mask-output-chunk/--no-mask-output-chunk', default=False,
+              help='mask output chunk will make the whole chunk like one output patch. '
               + 'This will also work with non-aligned chunk size.')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')

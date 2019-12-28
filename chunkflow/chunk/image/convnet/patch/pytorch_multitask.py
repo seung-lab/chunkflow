@@ -41,7 +41,8 @@ class PyTorchMultitask(PatchInferencerBase):
             },
             'cropsz': self.output_patch_size,
             'pretrain': True,
-            'precomputed': torch.cuda.is_available(),
+            #'precomputed': torch.cuda.is_available(),
+            'precomputed': False,
             'edges': [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
             'overlap': self.output_patch_overlap,
             'bump': bump
@@ -51,15 +52,25 @@ class PyTorchMultitask(PatchInferencerBase):
         assert os.path.isfile(convnet_weight_path)
         self.net = load_model(self.opt, convnet_weight_path)
         assert len(self.opt.in_spec) == 1
-
-    def __call__(self, patch):
+        
+        if torch.cuda.is_available():
+            # put mask to gpu
+            self.output_patch_mask = torch.from_numpy(
+                            self.output_patch_mask).cuda()
+ 
+    def __call__(self, input_patch):
         # make sure that patch is 5d ndarray
-        patch = self._reshape_patch_to_5d(patch)
+        input_patch = self._reshape_patch_to_5d(input_patch)
 
         with torch.no_grad():
-            inputs = {'input': torch.from_numpy(patch).cuda()}
-            output = self.net(inputs)[self.output_key]
+            inputs = {'input': torch.from_numpy(input_patch).cuda()}
+            output_patch = self.net(inputs)[self.output_key]
+            
+            # mask in gpu/cpu
+            output_patch *= self.output_patch_mask
+
             # the model already did the crop, so no need to redo it!
             # output = self._crop_output_patch(output)
-            output = output.cpu().numpy()
-            return output
+            
+            output_patch = output_patch.cpu().numpy()
+            return output_patch
