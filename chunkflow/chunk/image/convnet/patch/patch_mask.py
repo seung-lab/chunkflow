@@ -54,7 +54,7 @@ def make_bump_map(patch_size):
                       (1.0 - zv * zv))
 
     # make the low value a little bit higher to avoid floating point error
-    threshold = np.max(bump_map) * 1e-5
+    threshold = np.max(bump_map) * 1e-8
     bump_map[bump_map < threshold] = threshold
     return np.asarray(bump_map, dtype='float64')
 
