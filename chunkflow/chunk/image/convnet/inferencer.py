@@ -280,7 +280,6 @@ class Inferencer(object):
         #    f['main'] = self.output_chunk_mask
 
         if self.mask_output_chunk:
-            breakpoint()
             self.output_buffer *= self.output_chunk_mask
 
         # theoretically, all the value of output_buffer should not be greater than 1
