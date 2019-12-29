@@ -757,9 +757,8 @@ def copy_var(tasks, name, from_name, to_name):
 @click.option('--bump',
               type=click.Choice(['wu', 'zung']), default='wu',
               help='bump function type. only works with pytorch-multitask backend.')
-@click.option('--mask-output-chunk/--no-mask-output-chunk',
-              default=False, help='mask output chunk will make the whole '
-              + 'chunk like one output patch. '
+@click.option('--mask-output-chunk/--no-mask-output-chunk', default=False,
+              help='mask output chunk will make the whole chunk like one output patch. '
               + 'This will also work with non-aligned chunk size.')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
@@ -783,8 +782,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         batch_size=batch_size,
         bump=bump,
         mask_output_chunk=mask_output_chunk,
-        verbose=state['verbose'],
-        name=name)
+        verbose=state['verbose'])
 
     for task in tasks:
         handle_task_skip(task, name)

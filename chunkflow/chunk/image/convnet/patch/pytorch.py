@@ -1,8 +1,6 @@
 # from .inference_engine import InferenceEngine
 # import imp
-from typing import Union
 import torch
-import numpy as np
 from .base import PatchInferencerBase
 from chunkflow.lib import load_source
 
@@ -41,7 +39,7 @@ class PyTorch(PatchInferencerBase):
         if torch.cuda.is_available():
             self.is_gpu = True
             # put mask to gpu
-            self.mask = torch.from_numpy(self.mask).cuda()
+            self.output_patch_mask = torch.from_numpy(self.output_patch_mask).cuda()
         else:
             self.is_gpu = False
 

@@ -87,19 +87,18 @@ class Inferencer(object):
             bump=bump)
 
     def _check_alignment(self):
-        if not self.mask_output_chunk:
-            if self.verbose:
-                print('patches should align with input chunk when ' +
-                      'not using output chunk mask.')
-            is_align = tuple((i - o) % s == 0 for i, s, o in zip(
-                self.input_size, 
-                self.patch_inferencer.input_patch_stride, 
-                self.patch_inferencer.input_patch_overlap))
+        if self.verbose:
+            print('patches should align with input chunk when ' +
+                  'not using output chunk mask.')
+        is_align = tuple((i - o) % s == 0 for i, s, o in zip(
+            self.input_size, 
+            self.patch_inferencer.input_patch_stride, 
+            self.patch_inferencer.input_patch_overlap))
 
-            # all axis should be aligned
-            # the patches should aligned with input size in case
-            # we will not mask the output chunk
-            assert np.all(is_align)
+        # all axis should be aligned
+        # the patches should aligned with input size in case
+        # we will not mask the output chunk
+        assert np.all(is_align)
 
     def _construct_patch_slices_list(self, input_chunk_offset):
         """
@@ -213,7 +212,8 @@ class Inferencer(object):
         assert isinstance(input_chunk, Chunk)
         
         self._check_input_size_and_prepare_data(input_chunk)
-        self._check_alignment()
+        if not self.mask_output_chunk:
+            self._check_alignment()
 
         if np.all(input_chunk == 0):
             print('input is all zero, return zero buffer directly')
@@ -221,10 +221,8 @@ class Inferencer(object):
 
         if np.issubdtype(input_chunk.dtype, np.integer):
             # normalize to 0-1 value range
-            input_chunk = input_chunk / np.iinfo(input_chunk.dtype).max
-
-        #if input_chunk.dtype == np.uint8:
-        #    input_chunk = input_chunk.astype(np.float32) / 255.0
+            dtype_max = np.iinfo(input_chunk.dtype).max
+            input_chunk = input_chunk.astype(np.float32) / dtype_max
 
         if self.verbose:
             chunk_time_start = time.time()
@@ -282,14 +280,12 @@ class Inferencer(object):
         #    f['main'] = self.output_chunk_mask
 
         if self.mask_output_chunk:
+            breakpoint()
             self.output_buffer *= self.output_chunk_mask
 
         # theoretically, all the value of output_buffer should not be greater than 1
         # we use a slightly higher value here to accomondate numerical precision issue
-        np.testing.assert_array_less(
-            self.output_buffer,
-            1.0001,
+        np.testing.assert_array_less(self.output_buffer, 1.0001,
             err_msg='output buffer should not be greater than 1')
+
         return self.output_buffer
-
-
