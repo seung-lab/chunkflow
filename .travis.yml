@@ -1,6 +1,5 @@
 language: python
 python:
-- '3.5'
 - '3.6'
 matrix:
   include:
@@ -8,8 +7,6 @@ matrix:
     dist: xenial
   - python: '3.8'
     dist: xenial
-  allow_failures:
-    - python: 3.5
 
 install:
 - sudo find /usr -name '*.pyc' -delete
