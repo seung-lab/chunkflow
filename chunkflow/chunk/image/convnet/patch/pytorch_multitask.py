@@ -51,6 +51,7 @@ class PyTorchMultitask(PatchInferencerBase):
         self.opt = SimpleNamespace(**d)
         assert os.path.isfile(convnet_weight_path)
         self.net = load_model(self.opt, convnet_weight_path)
+        breakpoint()
         assert len(self.opt.in_spec) == 1
         
         if torch.cuda.is_available():

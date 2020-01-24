@@ -87,7 +87,7 @@ class PyTorch(PatchInferencerBase):
 
     def __call__(self, input_patch):
         # make sure that the patch is 5d ndarray
-        input_patch = self._reshape_patch(input_patch)
+        input_patch = self._reshape_patch_to_5d(input_patch)
 
         with torch.no_grad():
             net_input = self.pre_process(input_patch)

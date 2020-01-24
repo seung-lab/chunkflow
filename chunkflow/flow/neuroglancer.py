@@ -34,7 +34,11 @@ class NeuroglancerOperator(OperatorBase):
                     name=chunk_name,
                     layer=ng.LocalVolume(
                         data=chunk,
-                        voxel_size=self.voxel_size[::-1],
+                        dimensions=neuroglancer.CordinateSpace(
+                            scales=[1, *self.voxel_size[::-1]],
+                            units = ['', 'nm', 'nm', 'nm'],
+                            names = ['c^', 'x', 'y', 'z']
+                        ),
                         # offset is in nm, not voxels
                         offset=list(o * v for o, v in zip(
                             global_offset[::-1][-3:], self.voxel_size[::-1])))
