@@ -239,8 +239,18 @@ class Chunk(np.ndarray):
         """
         same with add_overlap
         """
-        internalSlices = self._get_internal_slices(patch.slices)
-        self[internalSlices] += patch
+        internal_slices = tuple(
+            slice(max(s.start - o, 0), min(s.stop - o, h)) for s, o, h in 
+            zip(patch.slices, self.global_offset, self.shape)
+        )
+        shape = (s.stop - s.start for s in internal_slices)
+        patch_starts = (
+            i.start - s.start + o for s, o, i in 
+            zip(patch.slices, self.global_offset, internal_slices)
+        )
+        patch_slices = tuple(slice(s, s+h) for s, h in zip(patch_starts, shape))
+
+        self[internal_slices] += patch[patch_slices]
 
     def _get_overlap_slices(self, other_slices):
         return tuple(

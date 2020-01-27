@@ -185,7 +185,7 @@ class Inferencer(object):
         """
         input_size = input_chunk.shape
         if self.input_size == input_size:
-            print('reusing existing patch offset list and output chunk mask.')
+            print('reusing output chunk mask.')
             assert self.patch_slices_list is not None
         else:
             if self.input_size is not None:
@@ -195,12 +195,11 @@ class Inferencer(object):
             self.output_size = tuple(
                 isz-2*ocso for isz, ocso in 
                 zip(input_size, self.output_chunk_start_offset))
-
-            self._construct_patch_slices_list(input_chunk.global_offset)
            
             if self.mask_output_chunk:
                 self._construct_output_chunk_mask()
         
+        self._construct_patch_slices_list(input_chunk.global_offset)
         self._update_output_buffer(input_chunk)
 
 
@@ -284,7 +283,6 @@ class Inferencer(object):
 
         # theoretically, all the value of output_buffer should not be greater than 1
         # we use a slightly higher value here to accomondate numerical precision issue
-        breakpoint()
         np.testing.assert_array_less(self.output_buffer, 1.0001,
             err_msg='output buffer should not be greater than 1')
 

@@ -11,7 +11,7 @@ class SQSQueue(object):
                  queue_name: str,
                  visibility_timeout: int = None,
                  wait_if_empty: int = 100,
-                 fetch_wait_time_seconds: int = 60,
+                 fetch_wait_time_seconds: int = 20,
                  retry_times: int = 30):
         """
         Parameters
