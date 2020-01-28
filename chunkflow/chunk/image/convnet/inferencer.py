@@ -149,6 +149,7 @@ class Inferencer(object):
             print('creating output chunk mask...')
 
         self.output_chunk_mask = np.zeros(self.output_size[-3:], np.float32)
+        assert len(self.patch_slices_list) > 0
         for _, output_patch_slice in self.patch_slices_list:
             # accumulate weights using the patch mask in RAM
             self.output_chunk_mask[output_patch_slice] += self.patch_inferencer.output_patch_mask_numpy
@@ -195,11 +196,9 @@ class Inferencer(object):
             self.output_size = tuple(
                 isz-2*ocso for isz, ocso in 
                 zip(input_size, self.output_chunk_start_offset))
-           
-            if self.mask_output_chunk:
-                self._construct_output_chunk_mask()
         
         self._construct_patch_slices_list(input_chunk.global_offset)
+        self._construct_output_chunk_mask()
         self._update_output_buffer(input_chunk)
 
 
