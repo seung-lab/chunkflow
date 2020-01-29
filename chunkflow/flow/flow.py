@@ -1,10 +1,13 @@
 #!/usr/bin/env python
+import sys
 from functools import update_wrapper, wraps
 from time import time
 import numpy as np
 import click
 
 from cloudvolume.lib import Bbox, Vec
+from cloudvolume.datasource.precomputed.metadata import PrecomputedMetadata
+
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
@@ -120,11 +123,9 @@ def generator(func):
               type=str, default=None, help='dataset layer path to fetch dataset information.')
 @click.option('--mip', '-m',
               type=int, default=0, help='mip level of the dataset layer.')
-@click.option('--start', '-s',
+@click.option('--roi-start', '-s',
               type=int, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
-@click.option('--overlap', '-o',
-                type=int, default=(0, 0, 0), nargs=3, help='overlap of chunks')
 @click.option('--chunk-size', '-c',
               type=int, required=True, nargs=3, help='(z y x), size/shape of chunks')
 @click.option('--grid-size', '-g',
@@ -133,10 +134,10 @@ def generator(func):
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
 @generator
-def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue_name):
+def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name):
     """Generate tasks."""
-    bboxes = create_bounding_boxes(chunk_size, overlap=overlap, layer_path=layer_path,
-                    start=start, mip=mip, grid_size=grid_size, verbose=state['verbose'])
+    bboxes = create_bounding_boxes(chunk_size, layer_path=layer_path,
+                    roi_start=roi_start, mip=mip, grid_size=grid_size, verbose=state['verbose'])
     if queue_name is not None:
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
@@ -164,6 +165,8 @@ def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue
               default=15, type=int, help='the maximum ram size (GB) of worker process.')
 @click.option('--patch-size', '-p',
               type=int, required=True, nargs=3, help='output patch size.')
+@click.option('--channel-num', '-c',
+              type=int, default=1, help='output patch channel number. It is 3 for affinity map.')
 @click.option('--patch-overlap', '-v',
               type=int, default=None, nargs=3, callback=default_none,
               help='overlap of patches. default is 50% overlap')
@@ -175,9 +178,13 @@ def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue
               type=str, default=None, callback=default_none, help='sqs queue name.')
 @click.option('--thumbnail/--no-thumbnail',
               default=True, help='create thumbnail or not.')
+@click.option('--encoding', '-e',
+              type=str, default='raw', help='Neuroglancer precomputed block compression algorithm.')
 @generator
-def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size, 
-              patch_size, patch_overlap, mip, max_mip, queue_name, thumbnail):
+def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
+              patch_size, channel_num, patch_overlap, mip, max_mip,
+              queue_name, thumbnail, encoding):
+
     assert not (volume_stop is None and volume_size is None)
     if volume_size:
         assert volume_stop is None
@@ -196,14 +203,50 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     if thumbnail:
         # thumnail requires maximum mip level of 5
         max_mip = max(max_mip, 5)
-
-    # compute the chunk/block size in cloud storage
-    block_size = []
-    thumbnail_block_size = []
     
+    patch_stride = map(s - o for s, o in zip(patch_size, patch_overlap))
+    # total number of voxels per patch in one stride
+    patch_voxel_num = np.product( patch_stride )
+    # use half of the maximum ram size to store output buffer
+    ideal_total_patch_num = int(max_ram_size*1e9/2/4/channel_num/patch_voxel_num)
+    # the xy size should be the same
+    assert patch_size[1] == patch_size[2]
+    # compute the output chunk/block size in cloud storage
+    # assume that the crop margin size is the same with the patch overlap
+    patch_num_start = int(ideal_total_patch_num ** (1./3.)  / 2)
+    patch_num_stop = patch_num_start * 3
+    
+    # find the patch number solution with minimum cost by bruteforce search
+    cost = sys.float_info.max
+    patch_num = None
+    # patch number in x and y
+    for pnxy in range(patch_num_start, patch_num_stop):
+        # patch number in z
+        for pnz in range(patch_num_start, patch_num_stop):
+            current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 + (pnxy / pnz - 1) ** 2
+            if current_cost < cost:
+                cost = current_cost
+                patch_num = Vec(pnxy, pnxy, pnz)
+
+    block_size = patch_num * patch_stride - patch_overlap
+    # prepare info files in cloud storage
+    # Note that cloudvolume use fortran order rather than C order
+    info = PrecomputedMetadata.create_info(channel_num, 'image', encoding, 
+                                           voxel_size[::-1], roi_start[::-1], roi_size,
+                                           chunk_size=block_size, max_mip=max_mip)
+    metadata = PrecomputedMetadata(layer_path, info=info)
+    metadata.commit_info()
+    
+    thumbnail_info = PrecomputedMetadata.create_info(1, 'image', 'raw',
+                                                     voxel_size[::-1], roi_start[::-1], roi_size,
+                                                     chunk_size=block_size, max_mip=max_mip)
+    thumbnail_metadata = PrecomputedMetadata(os.path.join(layer_path, 'thumbnail'), thumbnail_info)
+    thumbnail_metadata.commit_info()
+
     # create bounding boxes and ingest to queue
-    bboxes = create_bounding_boxes(chunk_size, overlap=overlap, layer_path=layer_path,
-                    start=start, mip=mip, grid_size=grid_size, verbose=state['verbose'])
+    bboxes = create_bounding_boxes(block_size, layer_path=layer_path, 
+                                   roi_start=volume_start, roi_stop=volume_stop,
+                                   verbose=state['verbose'])
     if queue_name is not None:
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
