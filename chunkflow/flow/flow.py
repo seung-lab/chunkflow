@@ -147,6 +147,74 @@ def generate_tasks(layer_path, mip, start, overlap, chunk_size, grid_size, queue
             task['log']['bbox'] = bbox.to_filename()
             yield task
 
+
+@main.command('setup-env')
+@click.option('--volume-start',
+              required=True, nargs=3, type=int,
+              help='start coordinate of output volume in mip 0')
+@click.option('--volume-stop',
+              default=None, type=int, nargs=3, callback=default_none,
+              help='stop coordinate of output volume (noninclusive like python coordinate) in mip 0.')
+@click.option('--volume-size',
+              default=None, type=int, nargs=3, callback=default_none, 
+              help='size of output volume.')
+@click.option('--layer-path', '-l',
+              type=str, required=True, help='the path of output volume.')
+@click.option('--max-ram-size', '-r',
+              default=15, type=int, help='the maximum ram size (GB) of worker process.')
+@click.option('--patch-size', '-p',
+              type=int, required=True, nargs=3, help='output patch size.')
+@click.option('--patch-overlap', '-v',
+              type=int, default=None, nargs=3, callback=default_none,
+              help='overlap of patches. default is 50% overlap')
+@click.option('--mip', '-m',
+              type=int, default=0, help='the output mip level (default is 0).')
+@click.option('--max-mip',
+              type=int, default=5, help='maximum MIP level.')
+@click.option('--queue-name', '-q',
+              type=str, default=None, callback=default_none, help='sqs queue name.')
+@click.option('--thumbnail/--no-thumbnail',
+              default=True, help='create thumbnail or not.')
+@generator
+def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size, 
+              patch_size, patch_overlap, mip, max_mip, queue_name, thumbnail):
+    assert not (volume_stop is None and volume_size is None)
+    if volume_size:
+        assert volume_stop is None
+        volume_stop = (t+s for t,s in zip(volume_start, volume_size))
+    
+    assert mip>=0
+    if mip>0:
+        factor = 2**mip
+        volume_start = (s//factor for s in volume_start)
+        volume_stop = (s//factor for s in volume_stop)
+        volume_size = (s//factor for s in volume_size)
+
+    if patch_overlap is None:
+        patch_overlap = (s//2 for s in patch_size)
+
+    if thumbnail:
+        # thumnail requires maximum mip level of 5
+        max_mip = max(max_mip, 5)
+
+    # compute the chunk/block size in cloud storage
+    block_size = []
+    thumbnail_block_size = []
+    
+    # create bounding boxes and ingest to queue
+    bboxes = create_bounding_boxes(chunk_size, overlap=overlap, layer_path=layer_path,
+                    start=start, mip=mip, grid_size=grid_size, verbose=state['verbose'])
+    if queue_name is not None:
+        queue = SQSQueue(queue_name)
+        queue.send_message_list(bboxes)
+    else:
+        for bbox in bboxes:
+            task = get_initial_task()
+            task['bbox'] = bbox
+            task['log']['bbox'] = bbox.to_filename()
+            yield task
+
+
 @main.command('cloud-watch')
 @click.option('--name',
               type=str,
