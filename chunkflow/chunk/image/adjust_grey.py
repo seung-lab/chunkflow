@@ -205,10 +205,10 @@ def normalize_section_shang(image: np.ndarray, nominalmin: float,
 
     # number of bits per voxel
     nbits = np.dtype(originaltype).itemsize * 8
-    nominalmax = float(2**nbits - 1)
+    default_nominalmax = float(2**nbits - 1)
 
     nominalmin = nominalmin if nominalmin is not None else 0.0
-    nominalmax = nominalmax if nominalmax is not None else nominalmax
+    nominalmax = nominalmax if nominalmax is not None else default_nominalmax
 
     normalization = 'fill'
 
