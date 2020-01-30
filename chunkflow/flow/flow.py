@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import sys
 from functools import update_wrapper, wraps
 from time import time
@@ -180,10 +181,13 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               default=True, help='create thumbnail or not.')
 @click.option('--encoding', '-e',
               type=str, default='raw', help='Neuroglancer precomputed block compression algorithm.')
+@click.option('--voxel-size', '-v',
+              type=int, nargs=3, default=(40, 4, 4),
+              help='voxel size or resolution of mip 0 image.')
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
               patch_size, channel_num, patch_overlap, mip, max_mip,
-              queue_name, thumbnail, encoding):
+              queue_name, thumbnail, encoding, voxel_size):
 
     assert not (volume_stop is None and volume_size is None)
     if volume_size:
@@ -191,11 +195,9 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
         volume_stop = (t+s for t,s in zip(volume_start, volume_size))
     
     assert mip>=0
-    if mip>0:
-        factor = 2**mip
-        volume_start = (s//factor for s in volume_start)
-        volume_stop = (s//factor for s in volume_stop)
-        volume_size = (s//factor for s in volume_size)
+    factor = 2**mip
+    roi_start = (s//factor for s in volume_start)
+    roi_size = (s//factor for s in volume_size)
 
     if patch_overlap is None:
         patch_overlap = (s//2 for s in patch_size)
@@ -204,7 +206,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
         # thumnail requires maximum mip level of 5
         max_mip = max(max_mip, 5)
     
-    patch_stride = map(s - o for s, o in zip(patch_size, patch_overlap))
+    patch_stride = tuple(map(s - o for s, o in zip(patch_size, patch_overlap)))
     # total number of voxels per patch in one stride
     patch_voxel_num = np.product( patch_stride )
     # use half of the maximum ram size to store output buffer
@@ -220,9 +222,14 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     cost = sys.float_info.max
     patch_num = None
     # patch number in x and y
+    max_factor = 2**max_mip
     for pnxy in range(patch_num_start, patch_num_stop):
+        if (pnxy*patch_stride[2]-patch_overlap[2]) % max_factor != 0:
+            continue
         # patch number in z
         for pnz in range(patch_num_start, patch_num_stop):
+            if (pnz*patch_stride[0]-patch_overlap[0]) % max_factor != 0:
+                continue
             current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 + (pnxy / pnz - 1) ** 2
             if current_cost < cost:
                 cost = current_cost
@@ -231,14 +238,22 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     block_size = patch_num * patch_stride - patch_overlap
     # prepare info files in cloud storage
     # Note that cloudvolume use fortran order rather than C order
-    info = PrecomputedMetadata.create_info(channel_num, 'image', encoding, 
-                                           voxel_size[::-1], roi_start[::-1], roi_size,
+    info = PrecomputedMetadata.create_info(channel_num, layer_type='image',
+                                           data_type='float32',
+                                           encoding=encoding,
+                                           resolution=voxel_size[::-1],
+                                           voxel_offset=roi_start[::-1],
+                                           volume_size=roi_size,
                                            chunk_size=block_size, max_mip=max_mip)
     metadata = PrecomputedMetadata(layer_path, info=info)
     metadata.commit_info()
     
-    thumbnail_info = PrecomputedMetadata.create_info(1, 'image', 'raw',
-                                                     voxel_size[::-1], roi_start[::-1], roi_size,
+    thumbnail_info = PrecomputedMetadata.create_info(1, layer_type='image',
+                                                     data_type='float32',
+                                                     encoding='raw',
+                                                     resolution=voxel_size[::-1],
+                                                     voxel_offset=roi_start[::-1],
+                                                     volume_size=roi_size,
                                                      chunk_size=block_size, max_mip=max_mip)
     thumbnail_metadata = PrecomputedMetadata(os.path.join(layer_path, 'thumbnail'), thumbnail_info)
     thumbnail_metadata.commit_info()
