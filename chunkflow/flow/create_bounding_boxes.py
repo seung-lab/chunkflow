@@ -39,18 +39,20 @@ def create_bounding_boxes(chunk_size:tuple, chunk_overlap: tuple=(0,0,0),
     for g, s in zip(grid_size, stride):
         if g > 1:
             assert s > 0
-
+    
+    final_output_stop = roi_start + (grid_size-1) * stride + chunk_size
     if verbose:
         print('\nroi start: ', roi_start)
+        print('chunk_size: ', chunk_size, '\n')
         print('stride: ', stride)
         print('grid size: ', grid_size)
-        print('chunk_size: ', chunk_size, '\n')
+        print('final output stop: ', final_output_stop)
 
     bboxes = []
-    for (z, y, x) in tqdm(product(range(grid_size[0]), range(grid_size[1]),
-                                                       range(grid_size[2]))):
+    for (z, y, x) in product(range(grid_size[0]), 
+                             range(grid_size[1]),
+                             range(grid_size[2])):
         chunk_start = roi_start + Vec(z, y, x) * stride
         bbox = Bbox.from_delta(chunk_start, chunk_size)
         bboxes.append( bbox )
-
     return bboxes

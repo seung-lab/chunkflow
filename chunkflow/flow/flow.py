@@ -7,7 +7,8 @@ import numpy as np
 import click
 
 from cloudvolume.lib import Bbox, Vec
-from cloudvolume.datasource.precomputed.metadata import PrecomputedMetadata
+# from cloudvolume.datasource.precomputed.metadata import PrecomputedMetadata
+from cloudvolume import CloudVolume
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
@@ -57,6 +58,7 @@ def default_none(ctx, _, value):
         return None
     else:
         return value
+
 
 @click.group(chain=True)
 @click.option('--verbose/--quiet',
@@ -157,18 +159,18 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
 @click.option('--volume-stop',
               default=None, type=int, nargs=3, callback=default_none,
               help='stop coordinate of output volume (noninclusive like python coordinate) in mip 0.')
-@click.option('--volume-size',
+@click.option('--volume-size', '-s',
               default=None, type=int, nargs=3, callback=default_none, 
               help='size of output volume.')
 @click.option('--layer-path', '-l',
               type=str, required=True, help='the path of output volume.')
 @click.option('--max-ram-size', '-r',
               default=15, type=int, help='the maximum ram size (GB) of worker process.')
-@click.option('--patch-size', '-p',
+@click.option('--patch-size', '-z',
               type=int, required=True, nargs=3, help='output patch size.')
 @click.option('--channel-num', '-c',
               type=int, default=1, help='output patch channel number. It is 3 for affinity map.')
-@click.option('--patch-overlap', '-v',
+@click.option('--patch-overlap', '-o',
               type=int, default=None, nargs=3, callback=default_none,
               help='overlap of patches. default is 50% overlap')
 @click.option('--mip', '-m',
@@ -177,6 +179,8 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               type=int, default=5, help='maximum MIP level.')
 @click.option('--queue-name', '-q',
               type=str, default=None, callback=default_none, help='sqs queue name.')
+@click.option('--visibility-timeout', '-t',
+              type=int, default=3600, help='visibility timeout of the AWS SQS queue.')
 @click.option('--thumbnail/--no-thumbnail',
               default=True, help='create thumbnail or not.')
 @click.option('--encoding', '-e',
@@ -187,26 +191,30 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
               patch_size, channel_num, patch_overlap, mip, max_mip,
-              queue_name, thumbnail, encoding, voxel_size):
-
+              queue_name, visibility_timeout, thumbnail, encoding, voxel_size):
+    """Prepare storage info files and produce tasks."""
     assert not (volume_stop is None and volume_size is None)
+    if isinstance(volume_start, tuple):
+        volume_start = Vec(*volume_start)
+    if isinstance(volume_stop, tuple):
+        volume_stop = Vec(*volume_stop)
+    if isinstance(volume_size, tuple):
+        volume_size = Vec(*volume_size)
+
     if volume_size:
         assert volume_stop is None
-        volume_stop = (t+s for t,s in zip(volume_start, volume_size))
+        volume_stop = volume_start + volume_size
+    else:
+        volume_size = volume_stop - volume_start
     
-    assert mip>=0
-    factor = 2**mip
-    roi_start = (s//factor for s in volume_start)
-    roi_size = (s//factor for s in volume_size)
-
     if patch_overlap is None:
-        patch_overlap = (s//2 for s in patch_size)
+        patch_overlap = tuple(s//2 for s in patch_size)
 
     if thumbnail:
         # thumnail requires maximum mip level of 5
         max_mip = max(max_mip, 5)
     
-    patch_stride = tuple(map(s - o for s, o in zip(patch_size, patch_overlap)))
+    patch_stride = tuple(s - o for s, o in zip(patch_size, patch_overlap))
     # total number of voxels per patch in one stride
     patch_voxel_num = np.product( patch_stride )
     # use half of the maximum ram size to store output buffer
@@ -233,37 +241,45 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
             current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 + (pnxy / pnz - 1) ** 2
             if current_cost < cost:
                 cost = current_cost
-                patch_num = Vec(pnxy, pnxy, pnz)
-
-    block_size = patch_num * patch_stride - patch_overlap
+                patch_num = (pnz, pnxy, pnxy)
+    print('patch number: ', patch_num)
+    block_size = tuple(n*s-o for n, s, o in zip(patch_num, patch_stride, patch_overlap))
     # prepare info files in cloud storage
     # Note that cloudvolume use fortran order rather than C order
-    info = PrecomputedMetadata.create_info(channel_num, layer_type='image',
-                                           data_type='float32',
-                                           encoding=encoding,
-                                           resolution=voxel_size[::-1],
-                                           voxel_offset=roi_start[::-1],
-                                           volume_size=roi_size,
-                                           chunk_size=block_size, max_mip=max_mip)
-    metadata = PrecomputedMetadata(layer_path, info=info)
-    metadata.commit_info()
+    info = CloudVolume.create_new_info(channel_num, layer_type='image',
+                                       data_type='float32',
+                                       encoding=encoding,
+                                       resolution=voxel_size[::-1],
+                                       voxel_offset=volume_start[::-1],
+                                       volume_size=volume_size[::-1],
+                                       chunk_size=block_size[::-1], max_mip=max_mip)
+    vol = CloudVolume(layer_path, info=info)
+    vol.commit_info()
     
-    thumbnail_info = PrecomputedMetadata.create_info(1, layer_type='image',
-                                                     data_type='float32',
-                                                     encoding='raw',
-                                                     resolution=voxel_size[::-1],
-                                                     voxel_offset=roi_start[::-1],
-                                                     volume_size=roi_size,
-                                                     chunk_size=block_size, max_mip=max_mip)
-    thumbnail_metadata = PrecomputedMetadata(os.path.join(layer_path, 'thumbnail'), thumbnail_info)
-    thumbnail_metadata.commit_info()
+    thumbnail_info = CloudVolume.create_new_info(1, layer_type='image', 
+                                                 data_type='float32',
+                                                 encoding='raw',
+                                                 resolution=voxel_size[::-1],
+                                                 voxel_offset=volume_start[::-1],
+                                                 volume_size=volume_size[::-1],
+                                                 chunk_size=block_size[::-1], max_mip=max_mip)
+    thumbnail_vol = CloudVolume(os.path.join(layer_path, 'thumbnail'), info=thumbnail_info)
+    thumbnail_vol.commit_info()
+    
+    assert mip>=0
+    factor = 2**mip
+    roi_start = (volume_start[0], volume_start[1]//factor, volume_start[2]//factor)
+    roi_size = (volume_size[0], volume_size[1]//factor, volume_size[2]//factor)
+    roi_stop = tuple(s+z for s, z in zip(roi_start, roi_size))
 
     # create bounding boxes and ingest to queue
-    bboxes = create_bounding_boxes(block_size, layer_path=layer_path, 
-                                   roi_start=volume_start, roi_stop=volume_stop,
+    bboxes = create_bounding_boxes(block_size,
+                                   roi_start=roi_start, roi_stop=roi_stop,
                                    verbose=state['verbose'])
+    print('total number of tasks: ', len(bboxes))
+
     if queue_name is not None:
-        queue = SQSQueue(queue_name)
+        queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
         queue.send_message_list(bboxes)
     else:
         for bbox in bboxes:
