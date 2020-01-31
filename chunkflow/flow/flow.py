@@ -176,7 +176,7 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
 @click.option('--mip', '-m',
               type=int, default=0, help='the output mip level (default is 0).')
 @click.option('--max-mip',
-              type=int, default=5, help='maximum MIP level.')
+              type=int, default=6, help='maximum MIP level.')
 @click.option('--queue-name', '-q',
               type=str, default=None, callback=default_none, help='sqs queue name.')
 @click.option('--visibility-timeout', '-t',
@@ -231,20 +231,29 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     patch_num = None
     # patch number in x and y
     max_factor = 2**max_mip
+    factor = 2**mip
     for pnxy in range(patch_num_start, patch_num_stop):
         if (pnxy*patch_stride[2]-patch_overlap[2]) % max_factor != 0:
             continue
         # patch number in z
         for pnz in range(patch_num_start, patch_num_stop):
-            if (pnz*patch_stride[0]-patch_overlap[0]) % max_factor != 0:
+            if (pnz*patch_stride[0]-patch_overlap[0]) % factor != 0:
                 continue
             current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 + (pnxy / pnz - 1) ** 2
             if current_cost < cost:
                 cost = current_cost
                 patch_num = (pnz, pnxy, pnxy)
     print('patch number: ', patch_num)
-    block_size = tuple(n*s-o for n, s, o in zip(patch_num, patch_stride, patch_overlap))
-    # prepare info files in cloud storage
+    assert mip>=0
+    block_mip = (mip + max_mip) // 2
+    block_factor = 2 ** block_mip
+    output_chunk_size = tuple(n*s-o for n, s, o in zip(patch_num, patch_stride, patch_overlap))
+    block_size = (output_chunk_size[0]//factor, 
+                  output_chunk_size[1]//block_factor,
+                  output_chunk_size[2]//block_factor)
+    print('block size: ', block_size)
+    
+    print('prepare info files in cloud storage...')
     # Note that cloudvolume use fortran order rather than C order
     info = CloudVolume.create_new_info(channel_num, layer_type='image',
                                        data_type='float32',
@@ -252,28 +261,34 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                        resolution=voxel_size[::-1],
                                        voxel_offset=volume_start[::-1],
                                        volume_size=volume_size[::-1],
-                                       chunk_size=block_size[::-1], max_mip=max_mip)
+                                       chunk_size=block_size[::-1],
+                                       max_mip=mip)
     vol = CloudVolume(layer_path, info=info)
     vol.commit_info()
-    
+     
+    thumbnail_block_size = (output_chunk_size[0]//factor,
+                            output_chunk_size[1]//max_factor,
+                            output_chunk_size[2]//max_factor)
+    print('thumbnail block size: ', thumbnail_block_size)
     thumbnail_info = CloudVolume.create_new_info(1, layer_type='image', 
                                                  data_type='float32',
                                                  encoding='raw',
                                                  resolution=voxel_size[::-1],
                                                  voxel_offset=volume_start[::-1],
                                                  volume_size=volume_size[::-1],
-                                                 chunk_size=block_size[::-1], max_mip=max_mip)
-    thumbnail_vol = CloudVolume(os.path.join(layer_path, 'thumbnail'), info=thumbnail_info)
+                                                 chunk_size=thumbnail_block_size[::-1],
+                                                 max_mip=max_mip)
+    thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
+    thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
     thumbnail_vol.commit_info()
-    
-    assert mip>=0
-    factor = 2**mip
+   
+    print('create a list of bounding boxes...')
     roi_start = (volume_start[0], volume_start[1]//factor, volume_start[2]//factor)
     roi_size = (volume_size[0], volume_size[1]//factor, volume_size[2]//factor)
     roi_stop = tuple(s+z for s, z in zip(roi_start, roi_size))
 
     # create bounding boxes and ingest to queue
-    bboxes = create_bounding_boxes(block_size,
+    bboxes = create_bounding_boxes(output_chunk_size,
                                    roi_start=roi_start, roi_stop=roi_stop,
                                    verbose=state['verbose'])
     print('total number of tasks: ', len(bboxes))
