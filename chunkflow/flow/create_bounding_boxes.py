@@ -12,24 +12,26 @@ def create_bounding_boxes(chunk_size:tuple, chunk_overlap: tuple=(0,0,0),
         # dataset shape as z,y,x
         dataset_size = vol.mip_shape(mip)[:3][::-1]
         dataset_offset = vol.mip_voxel_offset(mip)[::-1]
+        if roi_stop is None:
+            roi_stop = Vec(o+s for o, s in zip(dataset_offset, dataset_size))
+        if roi_start is None:
+            # note that we normally start from -overlap to keep the chunks aligned!
+            roi_start = dataset_offset - chunk_overlap
 
     chunk_size = Vec(*chunk_size)
     chunk_overlap = Vec(*chunk_overlap)
     stride = chunk_size - chunk_overlap
-
-    if roi_start is None:
-        # note that we normally start from -overlap to keep the chunks aligned!
-        roi_start = dataset_offset - chunk_overlap
-    elif isinstance(roi_start, tuple):
+    if isinstance(grid_size, tuple):
+        grid_size = Vec(*grid_size)
+   
+    assert roi_start is not None
+    if isinstance(roi_start, tuple):
         roi_start = Vec(*roi_start)
-    assert isinstance(roi_start, Vec)
-
+    
     if roi_stop is None:
-        roi_stop = Vec(o+s for o, s in zip(dataset_offset, dataset_size))
+        roi_stop = roi_start + stride*grid_size + chunk_overlap
     elif isinstance(roi_stop, tuple):
         roi_stop = Vec(*roi_stop)
-    assert isinstance(roi_stop, Vec)
-
     roi_size = roi_stop - roi_start
 
     if grid_size is None:
