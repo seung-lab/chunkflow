@@ -23,6 +23,7 @@ def downsample_and_upload(image,
                           vol,
                           ds_shape,
                           mip=0,
+                          max_mip: int=None,
                           axis='z',
                           skip_first=False,
                           sparse=False,
@@ -49,6 +50,8 @@ def downsample_and_upload(image,
         preserve_axis=axis,
         max_downsampled_size=int(min(*underlying_shape)),
     )
+    if max_mip:
+        fullscales = fullscales[:(max_mip-mip)]
     factors = downsample.scale_series_to_downsample_factors(fullscales)
 
     if len(factors) == 0:
