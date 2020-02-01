@@ -111,6 +111,7 @@ class SaveOperator(OperatorBase):
                               self.thumbnail_volume,
                               Vec(*(image.shape)),
                               mip=self.mip,
+                              max_mip=6,
                               axis='z',
                               skip_first=True,
                               only_last_mip=True)

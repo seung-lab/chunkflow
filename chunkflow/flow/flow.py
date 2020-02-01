@@ -271,7 +271,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                             output_chunk_size[2]//max_factor)
     print('thumbnail block size: ', thumbnail_block_size)
     thumbnail_info = CloudVolume.create_new_info(1, layer_type='image', 
-                                                 data_type='float32',
+                                                 data_type='uint8',
                                                  encoding='raw',
                                                  resolution=voxel_size[::-1],
                                                  voxel_offset=volume_start[::-1],
