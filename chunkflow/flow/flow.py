@@ -184,7 +184,9 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
 @click.option('--thumbnail/--no-thumbnail',
               default=True, help='create thumbnail or not.')
 @click.option('--encoding', '-e',
-              type=str, default='raw', help='Neuroglancer precomputed block compression algorithm.')
+              type=click.Choice(['raw', 'jpeg', 'compressed_segmentation', 
+                                 'fpzip', 'kempressed']), default='raw', 
+              help='Neuroglancer precomputed block compression algorithm.')
 @click.option('--voxel-size', '-v',
               type=int, nargs=3, default=(40, 4, 4),
               help='voxel size or resolution of mip 0 image.')
