@@ -38,9 +38,6 @@ Operators
 .. autoclass:: chunkflow.flow.downsample_upload.DownsampleUploadOperator
    :members:
 
-.. autoclass:: chunkflow.flow.inference.InferenceOperator
-   :members:
-
 .. autoclass:: chunkflow.flow.mask.MaskOperator
    :members:
 
