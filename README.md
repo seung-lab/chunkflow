@@ -53,6 +53,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | read-tif        | Read TIFF files |
 | save            | Save chunk to local/cloud storage volume |
 | save-pngs       | Save chunk as a serials of png files |
+| setup-env       | Prepare storage infor files and produce tasks |
 | view            | Another chunk viewer in browser using CloudVolume |
 | write-h5        | Write chunk as HDF5 file |
 | write-tif       | Write chunk as TIFF file |

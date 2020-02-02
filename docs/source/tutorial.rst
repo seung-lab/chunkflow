@@ -212,7 +212,19 @@ We use AWS SQS_ queue to decouple task producing and managing frontend and the c
 
 Produce Tasks and Ingest to AWS SQS Queue
 =========================================
-You can use the ``generate-tasks`` to generate tasks. It will ingest the tasks to a AWS SQS_ queue if you define the ``queue-name`` parameter::
+There are two ways of producing tasks, a smart way and a naive way.
+
+Smart Way
+---------------------------
+It is recommended to use the smart way and all the parameters could be automatically calculated and computation environments setup. For example, you can use the following command to automatically calculate inference patch aligned output chunk size, create `info` metadata, including thumbnail, in cloud storage, and ingest tasks to AWS SQS queue.
+
+   chunkflow setup-env -l "gs://my-bucket/my/output/layer/path" --volume-start 17010 120000 160000 --volume-stop 17888 200000 240000 -r 14 -z 20 256 256 -c 3 -m 1 --thumbnail -e raw -v 40 4 4 --max-mip 6 -q my-sqs-queue-name 
+
+This command will setup all the neccessary computational environment for the convolutional inference, you can then start your workers to consume the tasks in queue.
+
+Naive Way
+----------------------------
+If you would like to control all the parameters your self, you can also use the ``generate-tasks`` to generate tasks directly with all your precalculated parameters. You have to setup the `info` files yourself. It will ingest the tasks to a AWS SQS_ queue if you define the ``queue-name`` parameter::
    
    chunkflow generate-tasks --chunk-size 128 1024 1024 --grid-size 2 2 2 --stride 128 1024 1024 --queue-name my-queue
 
@@ -222,7 +234,7 @@ Log in your AWS console, and check the ``chunkflow`` queue, you should see your 
 
 .. |tasks_in_sqs| image:: _static/image/tasks_in_sqs.png
 
-Chunkflow also provide a smarter way to produce tasks using the existing dataset information. If you would like to process the whole dataset, we only need to define the mip level, and chunk size, all other parameters could be automatically computed based on the dataset information, such as volume start offset and shape. This is a simple example::
+Chunkflow also provide a relatively smarter way to produce tasks using the existing dataset information. If you would like to process the whole dataset, we only need to define the mip level, and chunk size, all other parameters could be automatically computed based on the dataset information, such as volume start offset and shape. This is a simple example::
 
    chunkflow generate-tasks -l gs://my/dataset/path -m 0 -o 0 0 0 -c 112 2048 2048 -q my-queue
 
