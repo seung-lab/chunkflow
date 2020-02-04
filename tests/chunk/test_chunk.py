@@ -4,13 +4,22 @@ from cloudvolume.lib import Bbox
 from chunkflow.chunk import Chunk
 
 
-class TestChunk(unittest.TestCase):
+def test_mask_last_channel():
+    size = (4, 3, 3, 3)
+    global_offset = (0, -1, -1, -1)
+    arr = np.random.rand(*size).astype('float32')
+    chunk = Chunk(arr, global_offset)
+    out = chunk.mask_using_last_channel()
+    assert out.shape == (3,3,3,3)
+    np.testing.assert_array_equal(out, chunk[:3, :,:,:])
+
+class Test3DChunk(unittest.TestCase):
     def setUp(self):
         self.size = (3, 3, 3)
         self.global_offset = (-1, -1, -1)
         arr = np.ones(self.size, dtype='float32')
         self.chunk = Chunk(arr, self.global_offset)
-
+    
     def test_bbox(self):
         self.assertEqual(self.chunk.bbox,
                          Bbox.from_delta(self.global_offset, self.size))

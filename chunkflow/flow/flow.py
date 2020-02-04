@@ -1013,6 +1013,29 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero, s
         yield task
 
 
+@main.command('mask-last-channel')
+@click.option('--name', '-n', 
+              default='mask-last-channel', type=str, help='operator name.')
+@click.option('--input-chunk-name', '-i',
+              default=DEFAULT_CHUNK_NAME, type=str, help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              default=DEFAULT_CHUNK_NAME, type=str, help='output chunk name')
+@click.option('--threshold', '-t',
+              default=0.5, type=float, help='mask threshold')
+@operator 
+def mask_using_last_channel(tasks, name, input_chunk_name, output_chunk_name, threshold):
+    """Mask the chunk using its last channel. used for myelin mask of affinity map."""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            start = time()
+            # use the output bbox for croping 
+            task[output_chunk_name] = task[
+                input_chunk_name].mask_using_last_channel(threshold=threshold)
+            task['log']['timer'][name] = time() - start
+        yield task
+
+
 @main.command('crop-margin')
 @click.option('--name',
               type=str,
