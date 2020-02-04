@@ -724,45 +724,32 @@ def log_summary(log_dir, output_size):
         
 
 @main.command('normalize-section-contrast')
-@click.option('--name',
-              type=str,
-              default='normalize-section-contrast',
+@click.option('--name', type=str, default='normalize-section-contrast',
               help='name of operator.')
-@click.option('--levels-path',
-              type=str,
-              default=None,
+@click.option('--levels-path', '-p', type=str, required=True,
               help='the path of section histograms.')
-@click.option('--mip',
-              type=int,
-              default=None,
+@click.option('--mip', '-m', type=int, default=None,
               help='the mip level of section histograms.')
-@click.option('--clip-fraction',
-              type=float,
-              default=0.01,
-              help='the voxel intensity fraction to clip out.')
-@click.option('--minval',
-              type=float,
-              default=None,
+@click.option('--lower-clip-fraction', '-l', type=float, default=0.01, 
+              help='lower intensity fraction to clip out.')
+@click.option('--upper-clip-fraction', '-u', type=float, default=0.99, 
+              help='upper intensity fraction to clip out.')
+@click.option('--minval', type=int, default=0, 
               help='the minimum intensity of transformed chunk.')
-@click.option('--maxval',
-              type=float,
-              default=None,
+@click.option('--maxval', type=int, default=255,
               help='the maximum intensity of transformed chunk.')
 @operator
-def normalize_contrast_contrast(tasks, name, levels_path, mip, clip_fraction,
-                                minval, maxval):
+def normalize_contrast_contrast(tasks, name, levels_path, mip, lower_clip_fraction,
+                                upper_clip_fraction, minval, maxval):
     """Normalize the section contrast using precomputed histograms."""
     if mip is None:
         mip = state['mip']
-    if levels_path is None:
-        levels_path = state['cutout_volume_path']
 
-    state['operators'][name] = NormalizeSectionContrastOperator(levels_path,
-                                                                mip,
-                                                                clip_fraction,
-                                                                minval=minval,
-                                                                maxval=maxval,
-                                                                name=name)
+    state['operators'][name] = NormalizeSectionContrastOperator(
+        levels_path, mip,
+        lower_clip_fraction=lower_clip_fraction,
+        upper_clip_fraction=upper_clip_fraction,
+        minval=minval, maxval=maxval, name=name)
 
     for task in tasks:
         handle_task_skip(task, name)
