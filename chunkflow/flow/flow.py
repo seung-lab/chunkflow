@@ -732,7 +732,7 @@ def log_summary(log_dir, output_size):
               help='the mip level of section histograms.')
 @click.option('--lower-clip-fraction', '-l', type=float, default=0.01, 
               help='lower intensity fraction to clip out.')
-@click.option('--upper-clip-fraction', '-u', type=float, default=0.99, 
+@click.option('--upper-clip-fraction', '-u', type=float, default=0.01, 
               help='upper intensity fraction to clip out.')
 @click.option('--minval', type=int, default=0, 
               help='the minimum intensity of transformed chunk.')

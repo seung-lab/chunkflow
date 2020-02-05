@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-import os
 import json
 import numpy as np
-from cloudvolume import CloudVolume, Storage
-from cloudvolume.lib import Vec, Bbox
+from cloudvolume import Storage
 
 from .base import OperatorBase
 
@@ -18,7 +16,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
                  levels_path: str,
                  mip: int,
                  lower_clip_fraction: float = 0.01,
-                 upper_clip_fraction: float = 0.99,
+                 upper_clip_fraction: float = 0.01,
                  minval: int = 0,
                  maxval: int = np.iinfo(np.uint8).max,
                  name: str = 'normalize-contrast',
@@ -35,7 +33,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
         super().__init__(name=name, verbose=verbose)
         assert 0 <= lower_clip_fraction <= 1
         assert 0 <= upper_clip_fraction <= 1
-        assert lower_clip_fraction < upper_clip_fraction
+        assert self.lower_clip_fraction + self.upper_clip_fraction <= 1
 
         self.levels_path = levels_path
         self.mip = int(mip)
