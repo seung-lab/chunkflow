@@ -88,7 +88,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
 
         upper = 0
         for i, val in enumerate(cdf):
-            if float(val) / float(total) > self.upper_clip_fraction:
+            if float(val) / float(total) > 1 - self.upper_clip_fraction:
                 break
             upper = i
 
