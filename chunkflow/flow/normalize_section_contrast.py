@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import json
 import numpy as np
-from cloudvolume import Storage
+from cloudvolume.storage import SimpleStorage
+from chunkflow.chunk import Chunk
 
 from .base import OperatorBase
 
@@ -17,8 +18,9 @@ class NormalizeSectionContrastOperator(OperatorBase):
                  mip: int,
                  lower_clip_fraction: float = 0.01,
                  upper_clip_fraction: float = 0.01,
-                 minval: int = 0,
+                 minval: int = 1,
                  maxval: int = np.iinfo(np.uint8).max,
+                 #maxval: int = np.iinfo(np.uint32).max,
                  name: str = 'normalize-contrast',
                  verbose: bool = True):
         """
@@ -33,7 +35,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
         super().__init__(name=name, verbose=verbose)
         assert 0 <= lower_clip_fraction <= 1
         assert 0 <= upper_clip_fraction <= 1
-        assert self.lower_clip_fraction + self.upper_clip_fraction <= 1
+        assert lower_clip_fraction + upper_clip_fraction <= 1
 
         self.levels_path = levels_path
         self.mip = int(mip)
@@ -45,18 +47,22 @@ class NormalizeSectionContrastOperator(OperatorBase):
        
         # intensity value lookup table cache
         self.lookup_tables = dict()
-        self.stor = Storage(self.levels_path)
+        self.stor = SimpleStorage(self.levels_path)
 
     def __call__(self, chunk):
         # this is a image, not affinitymap
         assert chunk.ndim == 3
-        assert chunk.dtype is np.uint8
+        # we have to use np.dtype function to make it match
+        # https://stackoverflow.com/questions/26921836/correct-way-to-test-for-numpy-dtype
+        assert chunk.dtype is np.dtype(np.uint8)
         
-        for z in range(chunk.bbox.minpt.z, chunk.bbox.maxpt.z):
+        for z in range(chunk.bbox.minpt[-3], chunk.bbox.maxpt[-3]):
             lookup_table = self.fetch_lookup_table(z)
-            slices = tuple(slice(z, z+1), *chunk.slices[-2:])
+            slices = (slice(z, z+1), *chunk.slices[-2:])
             image = chunk.cutout(slices)
+            image_global_offset = image.global_offset
             image = lookup_table[image]
+            image = Chunk(image, global_offset=image_global_offset)
             chunk.save(image)
 
         return chunk
@@ -91,8 +97,8 @@ class NormalizeSectionContrastOperator(OperatorBase):
             if float(val) / float(total) > 1 - self.upper_clip_fraction:
                 break
             upper = i
-
-        return (lower, upper)
+        
+        return lower, upper
 
     def fetch_lookup_table(self, z):
         """
@@ -100,12 +106,13 @@ class NormalizeSectionContrastOperator(OperatorBase):
         TODO: use local cache for the z levels
         """
         if z not in self.lookup_tables:
-            levelfilename = f'levels/{self.mip}/{z}'
-            data = self.stor.get_files(levelfilename)
-            data = json.loads(data['content'].decode('utf-8'))
+            levelfilename = f'{self.mip}/{z}'
+            data = self.stor.get_file(levelfilename)
+            assert data is not None
+            data = json.loads(data.decode('utf-8'))
             levels = np.array(data['levels'], dtype=np.uint64)
             lower, upper = self.find_section_clamping_values(levels)
-            
+             
             if lower == upper:
                 lookup_table = np.arange(0, 256, dtype=np.uint8)
             else:
@@ -113,9 +120,9 @@ class NormalizeSectionContrastOperator(OperatorBase):
                 lookup_table = np.arange(0, 256, dtype=np.float32)
                 lookup_table = (lookup_table - float(lower)) * (
                     self.maxval / (float(upper) - float(lower)))
-                lookup_table = np.round(lookup_table)
-                lookup_table = lookup_table.astype( np.uint8 ) 
-
-            lookup_table = np.clip(lookup_table, self.minval, self.maxval)
+            np.clip(lookup_table, self.minval, self.maxval, out=lookup_table)
+            lookup_table = np.round(lookup_table)
+            lookup_table = lookup_table.astype( np.uint8 ) 
+            
             self.lookup_tables[z] = lookup_table
         return self.lookup_tables[z]

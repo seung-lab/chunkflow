@@ -10,12 +10,11 @@ def test_inference():
     input_patch_size = (10, 128, 128)
 
     image = Chunk.create(size=input_size, dtype='uint8')
-    inference_operator = Inferencer(None,
-                                           None,
-                                           input_patch_size,
-                                           num_output_channels=3,
-                                           output_patch_overlap=patch_overlap,
-                                           framework='identity')
+    inference_operator = Inferencer(None, None,
+                                    input_patch_size,
+                                    num_output_channels=3,
+                                    output_patch_overlap=patch_overlap,
+                                    framework='identity', dtype='float16')
     output = inference_operator(image)
 
     # ignore the cropping region

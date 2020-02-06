@@ -4,6 +4,8 @@ import torch
 from .base import PatchInferencerBase
 from chunkflow.lib import load_source
 
+torch.backends.cudnn.benchmark = True
+
 
 class PyTorch(PatchInferencerBase):
     """perform inference for an image patch using pytorch.
