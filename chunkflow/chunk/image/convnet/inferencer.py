@@ -44,6 +44,7 @@ class Inferencer(object):
         self.output_chunk_start_offset = output_chunk_start_offset
         self.dtype = dtype        
         self.mask_myelin_threshold = mask_myelin_threshold
+        self.output_buffer = None
 
         # allocate a buffer to avoid redundant memory allocation
         self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
@@ -51,8 +52,10 @@ class Inferencer(object):
 
         self.patch_slices_list = []
         
-        convnet_model = os.path.expanduser(convnet_model)
-        convnet_weight_path = os.path.expanduser(convnet_weight_path)
+        if isinstance(convnet_model, str):
+            convnet_model = os.path.expanduser(convnet_model)
+        if isinstance(convnet_weight_path, str):
+            convnet_weight_path = os.path.expanduser(convnet_weight_path)
         self._prepare_patch_inferencer(framework, convnet_model, convnet_weight_path,
                                    input_patch_size, output_patch_size,
                                    output_patch_overlap, num_output_channels,
@@ -66,13 +69,13 @@ class Inferencer(object):
             self.compute_device = torch.cuda.get_device_name(0)
     
     def __enter__(self):
-        self.output_buffer = None 
+        return self
 
-    def __exit__(self):
-        if isinstance(self.output_buffer, np.memmap):
-            print('delete the temporal memory map file...')
-            self.output_buffer.close()
-            os.remove(self.output_buffer.filename)
+    def __exit__(self, exception_type, exception_value, traceback):
+        assert isinstance(self.output_buffer, np.memmap)
+        print('delete the temporal memory map file...')
+        self.output_buffer.close()
+        os.remove(self.output_buffer.filename)
 
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, 
                               input_patch_size, output_patch_size, 
@@ -253,7 +256,7 @@ class Inferencer(object):
             batch_slices = self.patch_slices_list[i:i + self.batch_size]
             for batch_idx, slices in enumerate(batch_slices):
                 self.input_patch_buffer[
-                    batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0])
+                    batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0]).array
 
             if self.verbose:
                 end = time.time()
@@ -298,7 +301,7 @@ class Inferencer(object):
         if self.mask_output_chunk:
             self.output_buffer *= self.output_chunk_mask
         
-        if mask_myelin_threshold:
+        if self.mask_myelin_threshold:
             # currently only for masking out affinity map 
             assert self.output_buffer.shape[0] == 4
             self.output_buffer = self.output_buffer.mask_using_last_channel(
