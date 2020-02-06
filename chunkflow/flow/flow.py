@@ -429,24 +429,14 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, output_chunk_name):
 
 
 @main.command('read-tif')
-@click.option('--name',
-              type=str,
-              default='read-tif',
+@click.option('--name', type=str, default='read-tif',
               help='read tif file from local disk.')
-@click.option('--file-name',
-              '-f',
+@click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
-              required=True,
               help='read chunk from file, support .h5 and .tif')
-@click.option('--offset',
-              type=int,
-              nargs=3,
-              callback=default_none,
+@click.option('--offset', type=int, nargs=3, callback=default_none,
               help='global offset of this chunk')
-@click.option('--output-chunk-name',
-              '-o',
-              type=str,
-              default='chunk',
+@click.option('--output-chunk-name', '-o', type=str, default='chunk',
               help='chunk name in the global state')
 @operator
 def read_tif(tasks, name: str, file_name: str, offset: tuple,
@@ -734,7 +724,7 @@ def log_summary(log_dir, output_size):
               help='lower intensity fraction to clip out.')
 @click.option('--upper-clip-fraction', '-u', type=float, default=0.01, 
               help='upper intensity fraction to clip out.')
-@click.option('--minval', type=int, default=0, 
+@click.option('--minval', type=int, default=1, 
               help='the minimum intensity of transformed chunk.')
 @click.option('--maxval', type=int, default=255,
               help='the maximum intensity of transformed chunk.')
@@ -884,24 +874,24 @@ def copy_var(tasks, name, from_name, to_name):
               type=str, default=None, help='convnet weight path')
 @click.option('--input-patch-size', '-s',
               type=int, nargs=3, required=True, help='input patch size')
-@click.option('--output-patch-size', '-z',
-              type=int, nargs=3, default=None, callback=default_none, 
-              help='output patch size')
-@click.option('--output-patch-overlap', '-v',
-              type=int, nargs=3, default=(4, 64, 64), help='patch overlap')
+@click.option('--output-patch-size', '-z', type=int, nargs=3, default=None, 
+              callback=default_none, help='output patch size')
+@click.option('--output-patch-overlap', '-v', type=int, nargs=3, 
+              default=(4, 64, 64), help='patch overlap')
 @click.option('--output-chunk-start-offset', '-u',
               type=int, nargs=3, default=(0, 0, 0),
               help='crop margin size compared with input chunk size.')
 @click.option('--num-output-channels', '-c',
               type=int, default=3, help='number of output channels')
+@click.option('--dtype', '-d', type=click.Choice(['float32', 'float16']),
+              default='float32', help='numerical precision.')
 @click.option('--framework', '-f',
               type=click.Choice(['identity', 'pznet', 'pytorch',
                                  'pytorch-multitask']),
               default='pytorch-multitask', help='inference framework')
 @click.option('--batch-size', '-b',
               type=int, default=1, help='mini batch size of input patch.')
-@click.option('--bump',
-              type=click.Choice(['wu', 'zung']), default='wu',
+@click.option('--bump', type=click.Choice(['wu', 'zung']), default='wu',
               help='bump function type. only works with pytorch-multitask backend.')
 @click.option('--mask-output-chunk/--no-mask-output-chunk', default=False,
               help='mask output chunk will make the whole chunk like one output patch. '
@@ -913,7 +903,7 @@ def copy_var(tasks, name, from_name, to_name):
 @operator
 def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
               output_patch_size, output_patch_overlap, output_chunk_start_offset,
-              num_output_channels, framework, batch_size, bump, mask_output_chunk,
+              num_output_channels, dtype, framework, batch_size, bump, mask_output_chunk,
               input_chunk_name, output_chunk_name):
     """Perform convolutional network inference for chunks."""
     state['operators'][name] = Inferencer(
@@ -925,6 +915,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         output_patch_overlap=output_patch_overlap,
         output_chunk_start_offset=output_chunk_start_offset,
         framework=framework,
+        dtype=dtype,
         batch_size=batch_size,
         bump=bump,
         mask_output_chunk=mask_output_chunk,

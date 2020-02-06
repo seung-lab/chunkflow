@@ -8,6 +8,7 @@ import numpy as np
 from tqdm import tqdm
 from warnings import warn
 from typing import Union
+from tempfile import mktemp
 
 from chunkflow.chunk import Chunk
 # from chunkflow.chunk.affinity_map import AffinityMap
@@ -27,6 +28,7 @@ class Inferencer(object):
                  num_output_channels: int = 3,
                  output_patch_overlap: Union[tuple, list] = (4, 64, 64),
                  output_chunk_start_offset: tuple = (0, 0, 0),
+                 dtype = 'float32',
                  framework: str = 'identity',
                  batch_size: int = 1,
                  bump: str = 'wu',
@@ -39,10 +41,11 @@ class Inferencer(object):
         self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
         self.output_chunk_start_offset = output_chunk_start_offset
+        self.dtype = dtype        
         
         # allocate a buffer to avoid redundant memory allocation
         self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
-                                           dtype=np.float32)
+                                           dtype=dtype)
 
         self.patch_slices_list = []
         self.output_buffer = None
@@ -59,6 +62,11 @@ class Inferencer(object):
             import torch
             self.compute_device = torch.cuda.get_device_name(0)
     
+    def __del__(self):
+        if isinstance(self.output_buffer, np.memmap):
+            print('delete the temporal memory map file...')
+            os.remove(self.output_buffer.filename)
+
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, 
                               input_patch_size, output_patch_size, 
                               output_patch_overlap, num_output_channels, bump):
@@ -148,7 +156,7 @@ class Inferencer(object):
         if self.verbose:
             print('creating output chunk mask...')
 
-        self.output_chunk_mask = np.zeros(self.output_size[-3:], np.float32)
+        self.output_chunk_mask = np.zeros(self.output_size[-3:], self.dtype)
         assert len(self.patch_slices_list) > 0
         for _, output_patch_slice in self.patch_slices_list:
             # accumulate weights using the patch mask in RAM
@@ -160,11 +168,14 @@ class Inferencer(object):
         self.output_chunk_mask = 1.0 / self.output_chunk_mask
     
     def _update_output_buffer(self, input_chunk):
-
+        output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
         if self.output_buffer is None:
-            self.output_buffer = np.zeros(
-                (self.patch_inferencer.num_output_channels, ) +
-                self.output_size, dtype=np.float32)
+            output_buffer_mmap_file = mktemp(suffix='.dat')
+            # the memory map is initialized with 0 in default
+            self.output_buffer = np.memmap(output_buffer_mmap_file, 
+                                           dtype=self.dtype, mode='w+', 
+                                           shape=output_buffer_size)
+            #self.output_buffer = np.zeros( output_buffer_size, dtype=np.float32)
         else:
             # we have to make sure that all the value is 0 initially
             # so we can add patches on it.

@@ -8,7 +8,8 @@ class PatchInferencerBase(object):
     the input patch is a 
     """
     def __init__(self, input_patch_size: tuple, output_patch_size: tuple, 
-                 output_patch_overlap: tuple, num_output_channels: int):
+                 output_patch_overlap: tuple, num_output_channels: int,
+                 dtype: str='float32'):
         
         
         if output_patch_size is None:

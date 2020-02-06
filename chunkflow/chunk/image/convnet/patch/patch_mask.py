@@ -3,15 +3,15 @@ import numpy as np
 
 
 class PatchMask(np.ndarray):
-    def __new__(cls, patch_size, overlap):
+    def __new__(cls, patch_size, overlap, dtype='float32'):
         assert len(patch_size) == 3
         assert len(overlap) == 3
 
-        mask = make_patch_mask(patch_size, overlap)
+        mask = make_patch_mask(patch_size, overlap, dtype=dtype)
         return np.asarray(mask).view(cls)
 
 
-def make_patch_mask(patch_size, overlap):
+def make_patch_mask(patch_size, overlap, dtype='float32'):
     """
         _make_mask()
     return:
@@ -39,7 +39,7 @@ def make_patch_mask(patch_size, overlap):
                           patch_size[0], stride[1]:stride[1] +
                           patch_size[1], stride[2]:stride[2] + patch_size[2]]
 
-    return np.asarray(bump_map, dtype='float32')
+    return bump_map.astype(dtype)
 
 
 def make_bump_map(patch_size):

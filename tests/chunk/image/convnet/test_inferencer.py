@@ -9,12 +9,14 @@ def test_aligned_input_chunk():
     patch_size = (32, 256, 256)
     patch_overlap = (4, 64, 64)
     num_output_channels = 2
+    dtype = 'float16'
 
     block_inference_engine = Inferencer(
         None, None, patch_size,
         output_patch_overlap=patch_overlap,
         num_output_channels=num_output_channels,
         framework='identity',
+        dtype=dtype,
         batch_size=5,
         mask_output_chunk=False)
 
@@ -35,11 +37,11 @@ def test_aligned_input_chunk():
     output = output[patch_overlap[0]:-patch_overlap[0], patch_overlap[1]:
                     -patch_overlap[1], patch_overlap[2]:-patch_overlap[2]]
 
-    image = image.astype(np.float32) / 255
+    image = image.astype(dtype) / 255
     print('maximum difference: ', np.max(image - output))
 
     # some of the image voxel is 0, the test can only work with rtol=1
-    np.testing.assert_allclose(image, output, rtol=1e-5, atol=1e-5)
+    np.testing.assert_allclose(image, output, rtol=1e-3, atol=1e-3)
 
 
 def test_aligned_input_chunk_with_croped_patch():

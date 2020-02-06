@@ -62,7 +62,7 @@ class SaveOperator(OperatorBase):
         chunk = Chunk(arr, global_offset=(0, *bbox.minpt))
         return chunk
 
-    def __call__(self, chunk, log={'timer': {}}, output_bbox=None):
+    def __call__(self, chunk, log=None, output_bbox=None):
         start = time.time()
         chunk = self._auto_convert_dtype(chunk)
 
@@ -70,14 +70,13 @@ class SaveOperator(OperatorBase):
         arr = np.transpose(chunk)
         self.volume[chunk.slices[::-1]] = arr
         
-        #breakpoint()
-        
-
         if self.create_thumbnail:
             self._create_thumbnail(chunk)
 
         # add timer for save operation itself
-        log['timer'][self.name] = time.time() - start
+        if log:
+            log['timer'][self.name] = time.time() - start
+
         if self.upload_log:
             if output_bbox is None:
                 output_bbox = Bbox.from_delta((0, 0, 0), chunk.shape)
