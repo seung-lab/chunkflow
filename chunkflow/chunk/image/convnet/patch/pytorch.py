@@ -54,7 +54,7 @@ class PyTorch(PatchInferencerBase):
             chkpt = torch.load(convnet_weight_path)
             state_dict = chkpt['state_dict'] if 'state_dict' in chkpt else chkpt
             self.net.load_state_dict(state_dict)
-
+        breakpoint()
         if self.is_gpu:
             self.net = self.net.cuda()
             # data parallel do not work with old emvision net

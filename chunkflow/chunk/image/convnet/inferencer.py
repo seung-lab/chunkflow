@@ -2,7 +2,7 @@
 __doc__ = """
 ConvNet Inference of an image chunk
 """
-
+import os
 import time
 import numpy as np
 from tqdm import tqdm
@@ -34,6 +34,7 @@ class Inferencer(object):
                  bump: str = 'wu',
                  input_size: tuple = None,
                  mask_output_chunk: bool = False,
+                 mask_myelin_threshold=None,
                  verbose: bool = False):
 
         self.batch_size = batch_size
@@ -42,14 +43,16 @@ class Inferencer(object):
         self.mask_output_chunk = mask_output_chunk
         self.output_chunk_start_offset = output_chunk_start_offset
         self.dtype = dtype        
-        
+        self.mask_myelin_threshold = mask_myelin_threshold
+
         # allocate a buffer to avoid redundant memory allocation
         self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
                                            dtype=dtype)
 
         self.patch_slices_list = []
-        self.output_buffer = None
-
+        
+        convnet_model = os.path.expanduser(convnet_model)
+        convnet_weight_path = os.path.expanduser(convnet_weight_path)
         self._prepare_patch_inferencer(framework, convnet_model, convnet_weight_path,
                                    input_patch_size, output_patch_size,
                                    output_patch_overlap, num_output_channels,
@@ -62,9 +65,13 @@ class Inferencer(object):
             import torch
             self.compute_device = torch.cuda.get_device_name(0)
     
-    def __del__(self):
+    def __enter__(self):
+        self.output_buffer = None 
+
+    def __exit__(self):
         if isinstance(self.output_buffer, np.memmap):
             print('delete the temporal memory map file...')
+            self.output_buffer.close()
             os.remove(self.output_buffer.filename)
 
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, 
@@ -290,6 +297,12 @@ class Inferencer(object):
 
         if self.mask_output_chunk:
             self.output_buffer *= self.output_chunk_mask
+        
+        if mask_myelin_threshold:
+            # currently only for masking out affinity map 
+            assert self.output_buffer.shape[0] == 4
+            self.output_buffer = self.output_buffer.mask_using_last_channel(
+                threshold = self.mask_myelin_threshold)
 
         # theoretically, all the value of output_buffer should not be greater than 1
         # we use a slightly higher value here to accomondate numerical precision issue
