@@ -896,6 +896,8 @@ def copy_var(tasks, name, from_name, to_name):
 @click.option('--mask-output-chunk/--no-mask-output-chunk', default=False,
               help='mask output chunk will make the whole chunk like one output patch. '
               + 'This will also work with non-aligned chunk size.')
+@click.option('--mask-myelin-threshold', '-y', default=None, type=float,
+              callback=default_none, help='mask myelin if netoutput have myelin channel.')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--output-chunk-name', '-o',
@@ -904,9 +906,9 @@ def copy_var(tasks, name, from_name, to_name):
 def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
               output_patch_size, output_patch_overlap, output_chunk_start_offset,
               num_output_channels, dtype, framework, batch_size, bump, mask_output_chunk,
-              input_chunk_name, output_chunk_name):
+              mask_myelin_threshold, input_chunk_name, output_chunk_name):
     """Perform convolutional network inference for chunks."""
-    state['operators'][name] = Inferencer(
+    with Inferencer(
         convnet_model,
         convnet_weight_path,
         input_patch_size=input_patch_size,
@@ -919,22 +921,24 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         batch_size=batch_size,
         bump=bump,
         mask_output_chunk=mask_output_chunk,
-        verbose=state['verbose'])
+        mask_myelin_threshold=mask_myelin_threshold,
+        verbose=state['verbose']) as inferencer:
+        state['operators'][name] = inferencer 
 
-    for task in tasks:
-        handle_task_skip(task, name)
-        if not task['skip']:
-            if 'log' not in task:
-                task['log'] = {'timer': {}}
-            start = time()
+        for task in tasks:
+            handle_task_skip(task, name)
+            if not task['skip']:
+                if 'log' not in task:
+                    task['log'] = {'timer': {}}
+                start = time()
 
-            task[output_chunk_name] = state['operators'][name](
-                task[input_chunk_name])
+                task[output_chunk_name] = state['operators'][name](
+                    task[input_chunk_name])
 
-            task['log']['timer'][name] = time() - start
-            task['log']['compute_device'] = state[
-                'operators'][name].compute_device
-        yield task
+                task['log']['timer'][name] = time() - start
+                task['log']['compute_device'] = state[
+                    'operators'][name].compute_device
+            yield task
 
 
 @main.command('mask')
@@ -987,29 +991,6 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero, s
                 task['chunk'] = state['operators'][name](task['chunk'])
             # Note that mask operation could be used several times,
             # this will only record the last masking operation
-            task['log']['timer'][name] = time() - start
-        yield task
-
-
-@main.command('mask-last-channel')
-@click.option('--name', '-n', 
-              default='mask-last-channel', type=str, help='operator name.')
-@click.option('--input-chunk-name', '-i',
-              default=DEFAULT_CHUNK_NAME, type=str, help='input chunk name')
-@click.option('--output-chunk-name', '-o',
-              default=DEFAULT_CHUNK_NAME, type=str, help='output chunk name')
-@click.option('--threshold', '-t',
-              default=0.5, type=float, help='mask threshold')
-@operator 
-def mask_using_last_channel(tasks, name, input_chunk_name, output_chunk_name, threshold):
-    """Mask the chunk using its last channel. used for myelin mask of affinity map."""
-    for task in tasks:
-        handle_task_skip(task, name)
-        if not task['skip']:
-            start = time()
-            # use the output bbox for croping 
-            task[output_chunk_name] = task[
-                input_chunk_name].mask_using_last_channel(threshold=threshold)
             task['log']['timer'][name] = time() - start
         yield task
 

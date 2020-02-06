@@ -158,11 +158,13 @@ class Chunk(np.ndarray):
         global_offset = self.global_offset[:axis] + self.global_offset[axis+1:]
         return Chunk(arr, global_offset=global_offset)
 
-    def mask_using_last_channel(self, threshold: float = 0.5) -> np.ndarray:
+    def mask_using_last_channel(self, threshold: float = 0.3) -> np.ndarray:
         assert self.ndim==4
+
         mask = (self[-1, :, :, :] < threshold)
         self[:-1, :,:,:] *= mask 
-        return self[:-1, :,:,:]
+        masked = self[:-1, :,:,:]
+        return Chunk(masked, global_offset=self.global_offset)
 
     def crop_margin(self, margin_size: tuple = None, output_bbox: Bbox=None):
 
