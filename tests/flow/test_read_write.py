@@ -8,7 +8,7 @@ from chunkflow.flow.save_pngs import SavePNGsOperator
 
 
 def read_write_h5(chunk):
-    assert isinstance(chunk, np.ndarray)
+    assert isinstance(chunk, Chunk)
     file_name = 'test.h5'
     if os.path.exists(file_name):
         os.remove(file_name)
@@ -16,21 +16,24 @@ def read_write_h5(chunk):
     chunk.to_h5(file_name)
 
     chunk2 = Chunk.from_h5(file_name)
-    assert np.alltrue(chunk == chunk2)
+    assert chunk == chunk2
     assert chunk.global_offset == chunk2.global_offset
     os.remove(file_name)
 
 
 def read_write_tif(chunk):
     """We'll lost global offset information using tif format!"""
-    assert isinstance(chunk, np.ndarray)
+    assert isinstance(chunk, Chunk)
     file_name = 'test.tif'
     if os.path.exists(file_name):
         os.remove(file_name)
     
     chunk.to_tif(file_name)
     chunk2 = Chunk.from_tif(file_name)
-    assert np.alltrue(chunk == chunk2)
+    
+    # we can not preserve the global offset here
+    # so chunk2's global offset will all be 0
+    np.testing.assert_array_equal(chunk.array, chunk2.array)
     os.remove(file_name)
 
 

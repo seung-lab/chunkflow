@@ -41,7 +41,7 @@ class TestCutout(unittest.TestCase):
         chunk = operator(output_bbox)
 
         self.assertEqual(offset, chunk.global_offset)
-        self.assertTrue(np.alltrue(chunk == self.img[4:-4, 64:-64, 64:-64]))
+        self.assertTrue(chunk == self.img[4:-4, 64:-64, 64:-64])
 
         shutil.rmtree('/tmp/test')
 
@@ -61,7 +61,7 @@ class TestCutout(unittest.TestCase):
             img[z, :, :] = 0
 
         img = img[4:-4, 64:-64, 64:-64]
-        self.assertTrue(np.alltrue(img == chunk))
+        self.assertTrue(img == chunk)
         shutil.rmtree('/tmp/test')
 
 

@@ -49,10 +49,11 @@ class Test3DChunk(unittest.TestCase):
         self.assertIsInstance(chunk2, Chunk)
         self.assertEqual(chunk2.global_offset, self.chunk.global_offset)
 
-        chunk2 = np.transpose(chunk2)
+        np.transpose(chunk2)
         print('type of chunk after transpose: {}'.format(type(chunk2)))
         self.assertIsInstance(chunk2, Chunk)
-        self.assertEqual(chunk2.global_offset, self.chunk.global_offset)
+        self.assertEqual(chunk2.shape, self.chunk.shape[::-1])
+        self.assertEqual(chunk2.global_offset, self.chunk.global_offset[::-1])
 
         #chunk2 = np.ascontiguousarray(chunk2)
         #self.assertIsInstance(chunk2, Chunk)
@@ -65,11 +66,19 @@ class Test3DChunk(unittest.TestCase):
     def test_normalize(self):
         print('\ntest chunk normalization...')
         arr = np.ones((3, 3, 3), dtype='float32')
-        chunk = Chunk(arr, (-1, -1, -1))
+        global_offset = (-1, -1, -1)
+        chunk = Chunk(arr, global_offset=global_offset)
 
         mask = np.ones((3, 3, 3), dtype='float32') * 0.5
+        mask = Chunk(mask, global_offset=global_offset)
         chunk *= mask
-        self.assertTrue(np.alltrue(chunk == mask))
+        self.assertTrue(chunk == mask)
+
+    def test_item(self):
+        arr = np.ones((1, 3, 3, 3), dtype='float32')
+        chunk = Chunk(arr, (0, -1, -1, -1))
+        chunk[:, :,:,:] = 0 
+        self.assertTrue( chunk == 0 )
 
     def test_slices(self):
         arr = np.ones((1, 3, 3, 3), dtype='float32')
@@ -82,7 +91,7 @@ class Test3DChunk(unittest.TestCase):
         arr = np.asarray([0.1, 0.7])
         selected1 = np.where(arr > 0.5)
         chunk = Chunk(arr, (-1, ))
-        selected2 = chunk.where(chunk > 0.5)
+        selected2 = chunk.where(chunk.array > 0.5)
         for i1, i2 in zip(selected1, selected2):
             # print('i1: {}, i2: {}'.format(i1, i2))
             self.assertTrue((i1 - i2 == 1).all())

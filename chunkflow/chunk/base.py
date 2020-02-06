@@ -1,6 +1,10 @@
+
 import os
+from numbers import Number
 import h5py
 import numpy as np
+from numpy.lib.mixins import NDArrayOperatorsMixin
+
 import tifffile
 import cc3d
 from cloudvolume.lib import Bbox
@@ -9,36 +13,31 @@ from cloudvolume.lib import Bbox
 from .validate import validate_by_template_matching
 
 
-class Chunk(np.ndarray):
+class Chunk(NDArrayOperatorsMixin):
     r"""
        Chunk 
     
     a chunk of big array with offset
-    implementation following an example in ndarray `subclassing
-    <https://docs.scipy.org/doc/numpy/user/basics.subclassing.html>`_.
+    implementation using numpy `dispatch<
+    https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
+    and `examples<https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
 
     :param array: the data array chunk in a big dataset
     :param global_offset: the offset of this array chunk
     :return: a new chunk with array data and global offset
     """
-    def __new__(cls, array: np.ndarray, global_offset: tuple = None):
+    def __init__(self, array: np.ndarray, global_offset: tuple = None):
+        assert isinstance(array, np.ndarray)
+        self.array = array
         if global_offset is None:
             global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
+        self.global_offset = global_offset
         assert array.ndim == len(global_offset)
-        obj = np.asarray(array).view(cls)
-        obj.global_offset = global_offset
-        return obj
-
-    def __array_finalize__(self, obj):
-        """
-        https://www.numpy.org/devdocs/user/basics.subclassing.html#basics-subclassing
-        """
-        if obj is None:
-            return
-        else:
-            self.global_offset = getattr(
-                obj, 'global_offset', tuple(np.zeros(obj.ndim, dtype=np.int)))
-
+        
+    # One might also consider adding the built-in list type to this
+    # list, to support operations like np.add(array_like, list)
+    _HANDLED_TYPES = (np.ndarray, Number)
+    
     @classmethod
     def from_bbox(cls, array: np.ndarray, bbox: Bbox):
         """
@@ -47,7 +46,7 @@ class Chunk(np.ndarray):
         :return: construct a new Chunk
         """
         global_offset = (bbox.minpt.z, bbox.minpt.y, bbox.minpt.x)
-        return Chunk(array, global_offset=global_offset)
+        return cls(array, global_offset=global_offset)
     
     @classmethod
     def create(cls, size: tuple = (64, 64, 64),
@@ -80,13 +79,13 @@ class Chunk(np.ndarray):
     
     def to_tif(self, file_name: str, global_offset: tuple=None):
         print('write chunk to file: ', file_name)
-        if self.dtype==np.float32:
+        if self.array.dtype==np.float32:
             # visualization in float32 is not working correctly in ImageJ
             # this might not work correctly if you want to save the image as it is!
-            img = self*255 
+            img = self.array*255 
             img = img.astype( np.uint8 )
         else:
-            img = self
+            img = self.array
         tifffile.imwrite(file_name, data=img)
 
     @classmethod
@@ -120,8 +119,68 @@ class Chunk(np.ndarray):
             os.remove(file_name)
 
         with h5py.File(file_name, 'w') as f:
-            f.create_dataset('/main', data=self)
+            f.create_dataset('/main', data=self.array)
             f.create_dataset('/global_offset', data=self.global_offset)
+    
+    def __array__(self):
+        return self.array
+    
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """
+        example reference: 
+        https://docs.scipy.org/doc/numpy/reference/generated/numpy.lib.mixins.NDArrayOperatorsMixin.html?highlight=__array_ufunc__
+        """
+        out = kwargs.get('out', ())
+        for x in inputs + out:
+            # Only support operations with instances of _HANDLED_TYPES.
+            # Use ArrayLike instead of type(self) for isinstance to
+            # allow subclasses that don't override __array_ufunc__ to
+            # handle ArrayLike objects.
+            if not isinstance(x, self._HANDLED_TYPES + (Chunk,)):
+                return NotImplemented
+
+        # Defer to the implementation of the ufunc on unwrapped values.
+        inputs = tuple(x.array if isinstance(x, Chunk) else x
+                       for x in inputs)
+        if out:
+            kwargs['out'] = tuple(
+                x.array if isinstance(x, Chunk) else x
+                for x in out)
+        result = getattr(ufunc, method)(*inputs, **kwargs)
+        
+        if type(result) is tuple:
+            # multiple return values
+            return tuple(type(self)(x, global_offset=self.global_offset) for x in result)
+        elif method == 'at':
+            # no return value
+            return None
+        elif isinstance(result, Number):
+            return result
+        elif isinstance(result, np.ndarray):
+            # one return value
+            return type(self)(result, global_offset=self.global_offset)
+        else:
+            return result
+
+    def __getitem__(self, index):
+        return self.array[index]
+    
+    def __setitem__(self, key, value):
+        self.array[key] = value
+
+    def __repr__(self):
+        return f'array: {self.array}\n global offset: {self.global_offset}'
+    
+    def __eq__(self, value):
+        if isinstance(value, type(self)):
+            return np.array_equal(self.array, value.array) and np.array_equal(
+                self.global_offset, value.global_offset)
+        elif isinstance(value, Number):
+            return np.all(self.array==value)
+        elif isinstance(value, np.ndarray):
+            return np.all(self.array == value)
+        else:
+            raise NotImplementedError
 
     @property
     def slices(self) -> tuple:
@@ -133,26 +192,50 @@ class Chunk(np.ndarray):
 
     @property
     def is_image(self) -> bool:
-        return self.ndim == 3 and self.dtype == np.uint8
+        return self.array.ndim == 3 and self.array.dtype == np.uint8
 
     @property 
     def is_segmentation(self) -> bool:
-        return self.ndim == 3 and np.issubdtype(self.dtype, np.integer) and self.dtype != np.uint8
+        return self.array.ndim == 3 and np.issubdtype(
+            self.array.dtype, np.integer) and self.array.dtype != np.uint8
 
     @property
     def is_affinity_map(self) -> bool:
-        return self.ndim == 4 and np.dtype == np.float32
+        return self.array.ndim == 4 and self.array.dtype == np.float32
 
     @property
     def bbox(self) -> Bbox:
         """
         :getter: the cloudvolume bounding box in the big volume
         """
-        return Bbox.from_delta(self.global_offset, self.shape)
+        return Bbox.from_delta(self.global_offset, self.array.shape)
+    
+    @property
+    def ndim(self) -> int:
+        return self.array.ndim 
+
+    @property 
+    def shape(self) -> tuple:
+        return self.array.shape 
+    
+    @property 
+    def dtype(self) -> np.dtype:
+        return self.array.dtype 
+    
+    def astype(self, dtype: np.dtype):
+        if dtype != self.array.dtype:
+            new_array = self.array.astype(dtype)
+            return type(self)(new_array, global_offset=self.global_offset)
+        else:
+            return self
+    
+    def transpose(self):
+        self.array = self.array.transpose()
+        self.global_offset = self.global_offset[::-1]
 
     def squeeze_channel(self) -> np.ndarray:
         """given a 4D array, squeeze the channel axis."""
-        assert self.ndim == 4
+        assert self.array.ndim == 4
         axis = 0
         arr = np.squeeze(self, axis=0)
         global_offset = self.global_offset[:axis] + self.global_offset[axis+1:]
@@ -161,9 +244,9 @@ class Chunk(np.ndarray):
     def mask_using_last_channel(self, threshold: float = 0.3) -> np.ndarray:
         assert self.ndim==4
 
-        mask = (self[-1, :, :, :] < threshold)
-        self[:-1, :,:,:] *= mask 
-        masked = self[:-1, :,:,:]
+        mask = (self.array[-1, :, :, :] < threshold)
+        self.array[:-1, :,:,:] *= mask 
+        masked = self.array[:-1, :,:,:]
         return Chunk(masked, global_offset=self.global_offset)
 
     def crop_margin(self, margin_size: tuple = None, output_bbox: Bbox=None):
@@ -173,14 +256,14 @@ class Chunk(np.ndarray):
                 margin_size = (0,) + margin_size
 
             if self.ndim == 3:
-                chunk = self[margin_size[0]:self.shape[0] - margin_size[0],
-                             margin_size[1]:self.shape[1] - margin_size[1],
-                             margin_size[2]:self.shape[2] - margin_size[2]]
+                chunk = self.array[margin_size[0]:self.shape[0] - margin_size[0],
+                                   margin_size[1]:self.shape[1] - margin_size[1],
+                                   margin_size[2]:self.shape[2] - margin_size[2]]
             elif self.ndim == 4:
-                chunk = self[margin_size[0]:self.shape[0] - margin_size[0],
-                             margin_size[1]:self.shape[1] - margin_size[1],
-                             margin_size[2]:self.shape[2] - margin_size[2],
-                             margin_size[3]:self.shape[3] - margin_size[3]]
+                chunk = self.array[margin_size[0]:self.shape[0] - margin_size[0],
+                                   margin_size[1]:self.shape[1] - margin_size[1],
+                                   margin_size[2]:self.shape[2] - margin_size[2],
+                                   margin_size[3]:self.shape[3] - margin_size[3]]
             else:
                 raise ValueError('the array dimension can only by 3 or 4.')
             global_offset = tuple(
@@ -218,7 +301,7 @@ class Chunk(np.ndarray):
         """
         assert isinstance(other, Chunk)
         overlap_slices = self._get_overlap_slices(other.slices)
-        self[overlap_slices] += other[overlap_slices]
+        self.array[overlap_slices] += other.array[overlap_slices]
 
     def cutout(self, slices: tuple):
         """
@@ -230,7 +313,7 @@ class Chunk(np.ndarray):
         if len(slices) == self.ndim - 1:
             slices = (slice(0, self.shape[0]), ) + slices
         internalSlices = self._get_internal_slices(slices)
-        arr = self[internalSlices]
+        arr = self.array[internalSlices]
         global_offset = tuple(s.start for s in slices)
         return Chunk(arr, global_offset=global_offset)
 
@@ -241,7 +324,7 @@ class Chunk(np.ndarray):
         :param patch: a small chunk to replace subvolume
         """
         internalSlices = self._get_internal_slices(patch.slices)
-        self[internalSlices] = patch
+        self.array[internalSlices] = patch.array
 
     def blend(self, patch):
         """
@@ -258,7 +341,7 @@ class Chunk(np.ndarray):
         )
         patch_slices = tuple(slice(s, s+h) for s, h in zip(patch_starts, shape))
 
-        self[internal_slices] += patch[patch_slices]
+        self.array[internal_slices] += patch.array[patch_slices]
 
     def _get_overlap_slices(self, other_slices):
         return tuple(
@@ -271,14 +354,11 @@ class Chunk(np.ndarray):
             for s, o in zip(slices, self.global_offset))
 
 
-#    def __array_wrap__(self, out_arr, context=None):
-#        chunk = super().__array_wrap__(self, out_arr, context)
-#        return Chunk(chunk, global_offset=self.global_offset)
-
     def validate(self, verbose: bool = False):
         """validate the completeness of this chunk, there
         should not have black boxes.
 
         :param verbose: show detailed info or not
         """
-        validate_by_template_matching(self, verbose=verbose)
+        validate_by_template_matching(self.array, verbose=verbose)
+
