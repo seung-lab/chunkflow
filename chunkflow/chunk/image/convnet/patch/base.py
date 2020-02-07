@@ -11,7 +11,6 @@ class PatchInferencerBase(object):
                  output_patch_overlap: tuple, num_output_channels: int,
                  dtype: str='float32'):
         
-        
         if output_patch_size is None:
             output_patch_size = input_patch_size
         
@@ -35,13 +34,11 @@ class PatchInferencerBase(object):
                                         zip(input_patch_size, self.input_patch_overlap))
         self.output_patch_stride = tuple(p - o for p, o in 
                                          zip(output_patch_size, self.output_patch_overlap))
-       
 
         # prepare patch mask
         self.output_patch_mask = PatchMask(output_patch_size, output_patch_overlap)
         # keep a version in cpu for making chunk mask
         self.output_patch_mask_numpy = self.output_patch_mask
-        
 
     def __call__(self, input_patch: np.ndarray) -> np.ndarray:
         r"""This method should be inherited for real implementation

@@ -25,9 +25,9 @@ class Inferencer(object):
                  convnet_weight_path: str,
                  input_patch_size: Union[tuple, list],
                  output_patch_size: Union[tuple, list] = None,
+                 patch_num: Union[tuple, list] = None,
                  num_output_channels: int = 3,
                  output_patch_overlap: Union[tuple, list] = (4, 64, 64),
-                 output_chunk_start_offset: tuple = (0, 0, 0),
                  dtype = 'float32',
                  framework: str = 'identity',
                  batch_size: int = 1,
@@ -36,16 +36,50 @@ class Inferencer(object):
                  mask_output_chunk: bool = False,
                  mask_myelin_threshold=None,
                  verbose: bool = False):
-
+        assert input_size is None or patch_num is None 
+        
+        if output_patch_size is None:
+            output_patch_size = input_patch_size 
+        
+        self.input_patch_size = input_patch_size
+        self.output_patch_size = output_patch_size
+        self.output_patch_overlap = output_patch_overlap
+        self.patch_num = patch_num
         self.batch_size = batch_size
         self.input_size = input_size
+
+       
+        if not np.array_equal(input_patch_size, output_patch_size):
+            self.output_offset = tuple((ips-ops)//2 for ips, ops in zip(
+                input_patch_size, output_patch_size))
+        else:
+            self.output_offset = (0, 0, 0)
+        
+        self.output_patch_stride = tuple(s - o for s, o in zip(
+            output_patch_size, output_patch_overlap))
+
+        self.input_patch_overlap = tuple(opo+2*oo for opo, oo in zip(
+            output_patch_overlap, self.output_offset))
+
+        self.input_patch_stride = tuple(ps - po for ps, po in zip(
+            input_patch_size, self.input_patch_overlap))
+        
+        if patch_num:
+            self.output_size = tuple(pst*pn + po for pst, pn, po in zip(
+                self.output_patch_stride, patch_num, output_patch_overlap))
+            self.input_size = tuple(pst*pn + po for pst, pn, po in zip(
+                self.input_patch_stride, patch_num, self.input_patch_overlap))
+        
+        if not mask_output_chunk:
+            assert self.input_size is not None
+            assert (self.input_size is not None) or (self.patch_num is not None)
+
         self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
-        self.output_chunk_start_offset = output_chunk_start_offset
         self.dtype = dtype        
         self.mask_myelin_threshold = mask_myelin_threshold
         self.output_buffer = None
-
+        
         # allocate a buffer to avoid redundant memory allocation
         self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
                                            dtype=dtype)
@@ -72,10 +106,34 @@ class Inferencer(object):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        assert isinstance(self.output_buffer, np.memmap)
+        assert isinstance(self.output_buffer.array, np.memmap)
         print('delete the temporal memory map file...')
-        self.output_buffer.close()
-        os.remove(self.output_buffer.filename)
+        #self.output_buffer.array._mmap.close()
+        os.remove(self.output_buffer.array.filename)
+    
+    def _check_input_size_and_prepare_data(self, input_chunk):
+        """
+        if the input size is consistent with old one, reuse the
+        patch offset list and output chunk mask. Otherwise, recompute them.
+        """
+        if self.input_size == input_chunk.shape:
+            print('reusing output chunk mask.')
+            assert self.patch_slices_list is not None
+        else:
+            if self.input_size is not None:
+                warn('the input size has changed, using new intput size.')
+            self.input_size = input_chunk.shape
+            
+            self.output_size = tuple(
+                isz-2*ocso for isz, ocso in 
+                zip(self.input_size, self.output_offset))
+        
+        self.output_patch_stride = tuple(s-o for s, o in zip(
+            self.output_patch_size, self.output_patch_overlap))
+
+        self._construct_patch_slices_list(input_chunk.global_offset)
+        self._construct_output_chunk_mask()
+        self._update_output_buffer(input_chunk)
 
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, 
                               input_patch_size, output_patch_size, 
@@ -126,11 +184,10 @@ class Inferencer(object):
         # the step is the stride, so the end of aligned patch is
         # input_size - patch_overlap
         
-        input_patch_size = self.patch_inferencer.input_patch_size
-        output_patch_size = self.patch_inferencer.output_patch_size
-        input_patch_overlap = self.patch_inferencer.input_patch_overlap 
-        input_patch_stride = self.patch_inferencer.input_patch_stride 
-        output_patch_crop_margin_size = self.patch_inferencer.output_patch_crop_margin_size
+        input_patch_size = self.input_patch_size
+        output_patch_size = self.output_patch_size
+        input_patch_overlap = self.input_patch_overlap 
+        input_patch_stride = self.input_patch_stride 
 
         for iz in tqdm(range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]),
                        disable=not self.verbose, desc='ConvNet Inferece: '):
@@ -138,19 +195,19 @@ class Inferencer(object):
                 iz = self.input_size[0] - input_patch_size[0]
                 assert iz >= 0
             iz += input_chunk_offset[-3]
-            oz = iz + output_patch_crop_margin_size[0]
+            oz = iz + self.output_offset[0]
             for iy in range(0, self.input_size[1] - input_patch_overlap[1], input_patch_stride[1]):
                 if iy + input_patch_size[1] > self.input_size[1]:
                     iy = self.input_size[1] - input_patch_size[1]
                     assert iy >= 0
                 iy += input_chunk_offset[-2]
-                oy = iy + output_patch_crop_margin_size[1]
+                oy = iy + self.output_offset[1]
                 for ix in range(0, self.input_size[2] - input_patch_overlap[2], input_patch_stride[2]):
                     if ix + input_patch_size[2] > self.input_size[2]:
                         ix = self.input_size[2] - input_patch_size[2]
                         assert ix >= 0
                     ix += input_chunk_offset[-1]
-                    ox = ix + output_patch_crop_margin_size[2]
+                    ox = ix + self.output_offset[2]
                     input_patch_slice =  (slice(iz, iz + input_patch_size[0]),
                                           slice(iy, iy + input_patch_size[1]),
                                           slice(ix, ix + input_patch_size[2]))
@@ -180,47 +237,24 @@ class Inferencer(object):
     def _update_output_buffer(self, input_chunk):
         output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
         if self.output_buffer is None:
+            # a random temporal file. will be removed later.
             output_buffer_mmap_file = mktemp(suffix='.dat')
             # the memory map is initialized with 0 in default
-            self.output_buffer = np.memmap(output_buffer_mmap_file, 
+            output_buffer_array = np.memmap(output_buffer_mmap_file, 
                                            dtype=self.dtype, mode='w+', 
                                            shape=output_buffer_size)
-            #self.output_buffer = np.zeros( output_buffer_size, dtype=np.float32)
         else:
             # we have to make sure that all the value is 0 initially
             # so we can add patches on it.
-            self.output_buffer.fill(0)
+            output_buffer_array = self.output_buffer.array
+            output_buffer_array.fill(0)
 
-        output_offset = tuple(
-            io + ocso for io, ocso in
-            zip(input_chunk.global_offset,
-                self.output_chunk_start_offset))
+        output_global_offset = tuple(io + ocso for io, ocso in zip(
+            input_chunk.global_offset, self.output_offset))
 
-        self.output_buffer = Chunk(self.output_buffer,
-                                   global_offset=(0,) + output_offset)
+        self.output_buffer = Chunk(output_buffer_array,
+                                   global_offset=(0,) + output_global_offset)
         return
-
-    def _check_input_size_and_prepare_data(self, input_chunk):
-        """
-        if the input size is consistent with old one, reuse the
-        patch offset list and output chunk mask. Otherwise, recompute them.
-        """
-        input_size = input_chunk.shape
-        if self.input_size == input_size:
-            print('reusing output chunk mask.')
-            assert self.patch_slices_list is not None
-        else:
-            if self.input_size is not None:
-                warn('the input size has changed, using new intput size.')
-            self.input_size = input_size
-            
-            self.output_size = tuple(
-                isz-2*ocso for isz, ocso in 
-                zip(input_size, self.output_chunk_start_offset))
-        
-        self._construct_patch_slices_list(input_chunk.global_offset)
-        self._construct_output_chunk_mask()
-        self._update_output_buffer(input_chunk)
 
 
     def __call__(self, input_chunk: np.ndarray):

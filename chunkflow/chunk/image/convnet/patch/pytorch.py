@@ -56,7 +56,7 @@ class PyTorch(PatchInferencerBase):
             self.net.load_state_dict(state_dict)
         
         if self.is_gpu:
-            self.net = self.net.cuda()
+            self.net.cuda()
             # data parallel do not work with old emvision net
             #self.net = torch.nn.DataParallel(
             #    self.net, device_ids=range(torch.cuda.device_count()))

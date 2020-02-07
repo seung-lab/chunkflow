@@ -878,9 +878,8 @@ def copy_var(tasks, name, from_name, to_name):
               callback=default_none, help='output patch size')
 @click.option('--output-patch-overlap', '-v', type=int, nargs=3, 
               default=(4, 64, 64), help='patch overlap')
-@click.option('--output-chunk-start-offset', '-u',
-              type=int, nargs=3, default=(0, 0, 0),
-              help='crop margin size compared with input chunk size.')
+@click.option('--patch-num', '-n', default=None, callback=default_none,
+              type=int, nargs=3, help='patch number in z,y,x.')
 @click.option('--num-output-channels', '-c',
               type=int, default=3, help='number of output channels')
 @click.option('--dtype', '-d', type=click.Choice(['float32', 'float16']),
@@ -904,7 +903,7 @@ def copy_var(tasks, name, from_name, to_name):
               type=str, default='chunk', help='output chunk name')
 @operator
 def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
-              output_patch_size, output_patch_overlap, output_chunk_start_offset,
+              output_patch_size, output_patch_overlap, patch_num,
               num_output_channels, dtype, framework, batch_size, bump, mask_output_chunk,
               mask_myelin_threshold, input_chunk_name, output_chunk_name):
     """Perform convolutional network inference for chunks."""
@@ -915,7 +914,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         output_patch_size=output_patch_size,
         num_output_channels=num_output_channels,
         output_patch_overlap=output_patch_overlap,
-        output_chunk_start_offset=output_chunk_start_offset,
+        patch_num=patch_num,
         framework=framework,
         dtype=dtype,
         batch_size=batch_size,
