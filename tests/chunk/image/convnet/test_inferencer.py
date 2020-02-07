@@ -16,16 +16,17 @@ def test_aligned_input_size():
                     input_patch_size,
                     num_output_channels=3,
                     output_patch_overlap=patch_overlap,
+                    input_size=input_size,
                     framework='identity', dtype='float16') as inferencer:
         output = inferencer(image)
-
+    
     # ignore the cropping region
     output = output[0, 2:-2, 32:-32, 32:-32]
     image = image[2:-2, 32:-32, 32:-32]
 
     output = output * 255
     output = output.astype(np.uint8)
-
+    
     assert np.alltrue(np.isclose(image, output, atol=1))
 
 def test_aligned_patch_num():

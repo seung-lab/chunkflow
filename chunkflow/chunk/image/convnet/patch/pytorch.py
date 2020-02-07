@@ -28,11 +28,13 @@ class PyTorch(PatchInferencerBase):
     and `post_process` function to insert your own customized processing.
     """
     def __init__(self, convnet_model: str, convnet_weight_path: str,
-                 input_patch_size: tuple, output_patch_overlap: tuple,
-                 output_patch_size: tuple = None, 
+                 input_patch_size: tuple, 
+                 output_patch_size: tuple, 
+                 output_patch_overlap: tuple,
                  use_batch_norm: bool = True,
                  is_static_batch_norm: bool = False,
                  num_output_channels: int = 1, bump: str='wu'):
+        # To-Do: support zung bump function
         assert bump == 'wu'
         super().__init__(input_patch_size, output_patch_size, 
                          output_patch_overlap, num_output_channels)
@@ -106,8 +108,8 @@ class PyTorch(PatchInferencerBase):
             #    f['main'] = output_patch[0,:,:,:,:].data.cpu().numpy()
 
             # mask in gpu/cpu
-            output_patch *= self.output_patch_mask
             output_patch = self._crop_output_patch(output_patch)
+            output_patch *= self.output_patch_mask
 
             if self.is_gpu:
                 # transfer to cpu
