@@ -48,7 +48,6 @@ class Inferencer(object):
         self.batch_size = batch_size
         self.input_size = input_size
 
-       
         if not np.array_equal(input_patch_size, output_patch_size):
             self.output_offset = tuple((ips-ops)//2 for ips, ops in zip(
                 input_patch_size, output_patch_size))
@@ -64,16 +63,23 @@ class Inferencer(object):
         self.input_patch_stride = tuple(ps - po for ps, po in zip(
             input_patch_size, self.input_patch_overlap))
         
-        if patch_num:
-            self.output_size = tuple(pst*pn + po for pst, pn, po in zip(
-                self.output_patch_stride, patch_num, output_patch_overlap))
-            self.input_size = tuple(pst*pn + po for pst, pn, po in zip(
-                self.input_patch_stride, patch_num, self.input_patch_overlap))
-        
+        # no chunk wise mask, the patches should be aligned inside chunk
         if not mask_output_chunk:
-            assert self.input_size is not None
             assert (self.input_size is not None) or (self.patch_num is not None)
+            if patch_num is None:
+                assert input_size is not None
+                self.patch_num = tuple((psz - o)//s for psz, o, s in zip(
+                    self.input_size, self.input_patch_overlap, self.input_patch_stride))
 
+            if self.input_size is None:
+                assert self.patch_num is not None 
+                self.input_size = tuple(pst*pn + po for pst, pn, po in zip(
+                    self.input_patch_stride, self.patch_num, self.input_patch_overlap))
+             
+            self.output_size = tuple(pst*pn + po for pst, pn, po in zip(
+                self.output_patch_stride, self.patch_num, self.output_patch_overlap))
+        
+        self.num_output_channels = num_output_channels
         self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
         self.dtype = dtype        
@@ -90,10 +96,7 @@ class Inferencer(object):
             convnet_model = os.path.expanduser(convnet_model)
         if isinstance(convnet_weight_path, str):
             convnet_weight_path = os.path.expanduser(convnet_weight_path)
-        self._prepare_patch_inferencer(framework, convnet_model, convnet_weight_path,
-                                   input_patch_size, output_patch_size,
-                                   output_patch_overlap, num_output_channels,
-                                   bump)
+        self._prepare_patch_inferencer(framework, convnet_model, convnet_weight_path, bump)
     
         if framework in ('pznet', 'identity'):
             import platform
@@ -135,9 +138,7 @@ class Inferencer(object):
         self._construct_output_chunk_mask()
         self._update_output_buffer(input_chunk)
 
-    def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, 
-                              input_patch_size, output_patch_size, 
-                              output_patch_overlap, num_output_channels, bump):
+    def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, bump):
         # prepare for inference
         if framework == 'pznet':
             from .patch.pznet import PZNet as PatchInferencer
@@ -156,10 +157,10 @@ class Inferencer(object):
         self.patch_inferencer = PatchInferencer(
             convnet_model,
             convnet_weight_path,
-            input_patch_size=input_patch_size,
-            output_patch_size=output_patch_size,
-            output_patch_overlap=output_patch_overlap,
-            num_output_channels=num_output_channels,
+            input_patch_size=self.input_patch_size,
+            output_patch_size=self.output_patch_size,
+            output_patch_overlap=self.output_patch_overlap,
+            num_output_channels=self.num_output_channels,
             bump=bump)
 
     def _check_alignment(self):
@@ -251,7 +252,7 @@ class Inferencer(object):
 
         output_global_offset = tuple(io + ocso for io, ocso in zip(
             input_chunk.global_offset, self.output_offset))
-
+        
         self.output_buffer = Chunk(output_buffer_array,
                                    global_offset=(0,) + output_global_offset)
         return
@@ -313,6 +314,8 @@ class Inferencer(object):
             for batch_idx, slices in enumerate(batch_slices):
                 # only use the required number of channels
                 # the remaining channels are dropped
+                # the slices[0] is for input patch slice
+                # the slices[1] is for output patch slice
                 offset = (0,) + tuple(s.start for s in slices[1])
                 output_chunk = Chunk(output_patch[batch_idx, :, :, :, :],
                                      global_offset=offset)

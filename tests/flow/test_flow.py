@@ -119,16 +119,14 @@ class TestInferencePipeline(unittest.TestCase):
         chunk = mask_input_operator(chunk)
 
         print('run convnet inference...')
-        inference_operator = Inferencer(
-            None,
-            None,
-            self.patch_size,
-            num_output_channels=3,
-            output_patch_overlap=self.patch_overlap,
-            framework='identity',
-            batch_size=5)
-        print(inference_operator.compute_device)
-        chunk = inference_operator(chunk)
+        with Inferencer(None, None, self.patch_size,
+                        num_output_channels=3,
+                        input_size=chunk.shape,
+                        output_patch_overlap=self.patch_overlap,
+                        framework='identity',
+                        batch_size=5) as inferencer:
+            print(inferencer.compute_device)
+            chunk = inferencer(chunk)
         print('after inference: {}'.format(chunk.slices))
 
         print('crop the marging...')
