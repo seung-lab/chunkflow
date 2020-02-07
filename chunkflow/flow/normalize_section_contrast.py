@@ -103,7 +103,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
     def fetch_lookup_table(self, z):
         """
         readout the histograms in each corresponding section.
-        TODO: use local cache for the z levels
+        lookup tables are constructed and cached.
         """
         if z not in self.lookup_tables:
             levelfilename = f'{self.mip}/{z}'
