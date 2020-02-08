@@ -229,9 +229,20 @@ class Chunk(NDArrayOperatorsMixin):
         else:
             return self
     
+    def max(self, *args, **kwargs):
+        return self.array.max(args, kwargs)
+
+    def min(self, *args, **kwargs):
+        return self.array.min(args, kwargs)
+
     def transpose(self):
-        self.array = self.array.transpose()
-        self.global_offset = self.global_offset[::-1]
+        """To-Do: support arbitrary axis transpose"""
+        new_array = self.array.transpose()
+        new_global_offset = self.global_offset[::-1]
+        return type(self)(new_array, global_offset=new_global_offset)
+    
+    def fill(self, x):
+        self.array.fill(x)
 
     def squeeze_channel(self) -> np.ndarray:
         """given a 4D array, squeeze the channel axis."""

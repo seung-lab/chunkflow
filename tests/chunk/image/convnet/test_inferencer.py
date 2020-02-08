@@ -17,11 +17,11 @@ def test_aligned_input_size():
                     num_output_channels=3,
                     output_patch_overlap=patch_overlap,
                     input_size=input_size,
-                    framework='identity', dtype='float16') as inferencer:
+                    framework='identity', dtype='float32') as inferencer:
         output = inferencer(image)
     
     # ignore the cropping region
-    output = output[0, 2:-2, 32:-32, 32:-32]
+    output = output[0, :, :, :]
     image = image[2:-2, 32:-32, 32:-32]
 
     output = output * 255
@@ -33,6 +33,7 @@ def test_aligned_patch_num():
     print('\ntest block inference with patch number...')
     patch_size = (32, 256, 256)
     patch_overlap = (4, 64, 64)
+    patch_num = (2, 2, 2)
     num_output_channels = 2
     dtype = 'float16'
     
@@ -45,7 +46,7 @@ def test_aligned_patch_num():
     with Inferencer(None, None, patch_size,
                     output_patch_overlap=patch_overlap,
                     num_output_channels=num_output_channels,
-                    patch_num = (2,2,2),
+                    patch_num = patch_num,
                     framework='identity',
                     dtype=dtype,
                     batch_size=5,
@@ -54,13 +55,10 @@ def test_aligned_patch_num():
 
     # only use the first channel to check correctness
     output = output[0, :, :, :]
-    output = np.reshape(output, image.shape)
 
     # we need to crop the patch overlap since the values were changed
     image = image[patch_overlap[0]:-patch_overlap[0], patch_overlap[1]:
                   -patch_overlap[1], patch_overlap[2]:-patch_overlap[2]]
-    output = output[patch_overlap[0]:-patch_overlap[0], patch_overlap[1]:
-                    -patch_overlap[1], patch_overlap[2]:-patch_overlap[2]]
 
     image = image.astype(dtype) / 255
     print('maximum difference: ', np.max(image - output))
@@ -73,13 +71,16 @@ def test_aligned_input_chunk_with_croped_patch():
     print('\ntest block inference engine...')
     input_patch_size = (20, 256, 256)
     output_patch_size = (16, 192, 192)
-    input_patch_overlap = (6, 96, 96)
+    output_patch_crop_margin = (2, 32, 32)
     output_patch_overlap = (2, 32, 32)
+    input_patch_overlap = (6, 96, 96)
+    input_patch_stride = (14, 160, 160)
+    input_size = (2*14+6, 2*160+96, 2*160+96)
     num_output_channels = 1
      
     image = np.random.randint(
         1, 255,
-        size=(14 * 2 + 6, (256 - 96) * 2 + 96, (256 - 96) * 2 + 96), 
+        size=input_size, 
         dtype=np.uint8)
     
     # make sure that it works with arbitrary global offset
@@ -100,11 +101,8 @@ def test_aligned_input_chunk_with_croped_patch():
     assert output.ndim == 3
     
     # we need to crop the patch overlap since the values were changed
-    image = image.astype(np.float32) / 255
-    
     image = image[4:-4, 64:-64, 64:-64]
-    # output is the same size of image due to non-aligned chunk mask
-    output = output[2:-2, 32:-32, 32:-32]
+    image = image.astype(np.float32) / 255
      
     print('maximum difference: ', np.max(image - output))
     

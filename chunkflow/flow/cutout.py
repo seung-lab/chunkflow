@@ -59,7 +59,7 @@ class CutoutOperator(OperatorBase):
         # always reverse the indexes since cloudvolume use x,y,z indexing
         chunk = self.vol[chunk_slices[::-1]]
         # the cutout is fortran ordered, so need to transpose and make it C order
-        chunk = np.transpose(chunk)
+        chunk = chunk.transpose()
         # we can delay this transpose later
         # actually we do not need to make it contiguous
         # chunk = np.ascontiguousarray(chunk)

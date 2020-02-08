@@ -56,13 +56,17 @@ class SaveOperator(OperatorBase):
                 progress=verbose)
 
     def create_chunk_with_zeros(self, bbox):
-        """Create a fake all zero chunk"""
+        """Create a fake all zero chunk. 
+        this is used in skip some operation based on mask."""
         shape = (self.volume.num_channels, *bbox.size3())
         arr = np.zeros(shape, dtype=self.volume.dtype)
         chunk = Chunk(arr, global_offset=(0, *bbox.minpt))
         return chunk
 
     def __call__(self, chunk, log=None, output_bbox=None):
+        if self.verbose:
+            print('save chunk.')
+        
         start = time.time()
         chunk = self._auto_convert_dtype(chunk)
 

@@ -11,9 +11,9 @@ class ViewOperator(OperatorBase):
     def __call__(self, chunk, seg=None):
         """view chunk using cloudvolume view"""
         # cloudvolume use fortran order
-        chunk = np.transpose(chunk)
+        chunk = chunk.transpose()
         if seg:
-            seg = np.transpose(seg)
+            seg = seg.transpose()
             hyperview(chunk, seg)
         elif np.issubdtype(chunk.dtype,
                            np.floating) or chunk.dtype == np.uint8:

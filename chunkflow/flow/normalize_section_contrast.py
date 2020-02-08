@@ -48,6 +48,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
         # intensity value lookup table cache
         self.lookup_tables = dict()
         self.stor = SimpleStorage(self.levels_path)
+        self.verbose = verbose
 
     def __call__(self, chunk):
         # this is a image, not affinitymap
