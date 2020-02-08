@@ -23,12 +23,12 @@ class PatchInferencerBase(object):
         assert len(input_patch_size) == 3
         assert len(output_patch_size) == 3
 
-        self.output_patch_crop_margin_size = tuple((osz-isz)//2 for osz, isz in 
+        self.output_offset = tuple((osz-isz)//2 for osz, isz in 
                                                    zip(input_patch_size, output_patch_size))
         
         self.input_patch_overlap = tuple((opo + 2 * ocms) for opo, ocms in 
                                          zip(output_patch_overlap, 
-                                             self.output_patch_crop_margin_size))
+                                             self.output_offset))
 
         self.input_patch_stride = tuple(p - o for p, o in
                                         zip(input_patch_size, self.input_patch_overlap))
@@ -64,9 +64,8 @@ class PatchInferencerBase(object):
         return input_patch
 
     def _crop_output_patch(self, output_patch):
-        return output_patch[
-            :, :self.num_output_channels,
-            self.output_patch_crop_margin_size[0]:output_patch.shape[2]-self.output_patch_crop_margin_size[0],
-            self.output_patch_crop_margin_size[1]:output_patch.shape[3]-self.output_patch_crop_margin_size[1],
-            self.output_patch_crop_margin_size[2]:output_patch.shape[4]-self.output_patch_crop_margin_size[2]]
+        return output_patch[:, :self.num_output_channels,
+                            self.output_offset[0]:output_patch.shape[-3]-self.output_offset[0],
+                            self.output_offset[1]:output_patch.shape[-2]-self.output_offset[1],
+                            self.output_offset[2]:output_patch.shape[-1]-self.output_offset[2]]
 

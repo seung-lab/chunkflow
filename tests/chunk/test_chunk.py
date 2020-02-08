@@ -17,7 +17,7 @@ class Test3DChunk(unittest.TestCase):
     def setUp(self):
         self.size = (3, 3, 3)
         self.global_offset = (-1, -1, -1)
-        arr = np.ones(self.size, dtype='float32')
+        arr = np.random.rand(*self.size).astype('float32')
         self.chunk = Chunk(arr, self.global_offset)
     
     def test_bbox(self):
@@ -49,11 +49,12 @@ class Test3DChunk(unittest.TestCase):
         self.assertIsInstance(chunk2, Chunk)
         self.assertEqual(chunk2.global_offset, self.chunk.global_offset)
 
-        np.transpose(chunk2)
+        chunk2 = self.chunk.transpose()
         print('type of chunk after transpose: {}'.format(type(chunk2)))
         self.assertIsInstance(chunk2, Chunk)
         self.assertEqual(chunk2.shape, self.chunk.shape[::-1])
         self.assertEqual(chunk2.global_offset, self.chunk.global_offset[::-1])
+        self.assertTrue( np.array_equal(chunk2.array, np.transpose(self.chunk.array)  ))
 
         #chunk2 = np.ascontiguousarray(chunk2)
         #self.assertIsInstance(chunk2, Chunk)
