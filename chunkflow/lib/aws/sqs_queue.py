@@ -90,7 +90,7 @@ class SQSQueue(object):
                                 # countdown the retry times
                 self.retry_times -= 1
                 print(f'the queue is empty, wait for {self.wait_if_empty} seconds'+
-                      ' and will retry {self.retry_times} times.')
+                      f' and will retry {self.retry_times} times.')
 
                 sleep(self.wait_if_empty)
                 # contine trying to receive message
