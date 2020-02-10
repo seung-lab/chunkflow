@@ -114,11 +114,9 @@ def test_non_aligned_input_chunk():
     patch_size = (32, 256, 256)
     patch_overlap = (4, 64, 64)
     num_output_channels = 2
-    
-    image = np.random.randint(1,
-                              255,
-                              size=(28 * 2 + 4 + 6, (256 - 64) * 2 + 64 + 7,
-                                    (256 - 64) * 2 + 64 + 9),
+    input_size = (28 * 2 + 4 + 6, (256 - 64) * 2 + 64 + 7,
+                                    (256 - 64) * 2 + 64 + 9) 
+    image = np.random.randint(1, 255, size=input_size,
                               dtype=np.uint8)
     image = Chunk(image)
 
@@ -129,13 +127,14 @@ def test_non_aligned_input_chunk():
                     framework='identity',
                     mask_output_chunk=True) as inferencer:
         output = inferencer(image)
-
+    
     # only use the first channel to check correctness
     output = output[0, :, :, :]
-    output = np.reshape(output, image.shape)
+    #output = np.reshape(output, image.shape)
 
     image = image.astype(np.float32) / 255
-    print('maximum difference: ', np.max(image - output))
+    residual = image - output 
+    print('maximum difference: ', np.max(residual.array))
 
     # some of the image voxel is 0, the test can only work with rtol=1
     np.testing.assert_allclose(image, output, rtol=1e-5, atol=1e-5)
