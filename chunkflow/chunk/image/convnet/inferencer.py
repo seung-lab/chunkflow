@@ -17,8 +17,17 @@ from chunkflow.chunk import Chunk
 class Inferencer(object):
     """
         Inferencer
-    convnet inference for a whole chunk. the patches should aligned with
-    the output chunk size.
+    convnet inference for a whole chunk. 
+
+    if the patches align with the input chunk size, we do not need chunk mask.
+    if the patches do not align, we'll create a chunk mask to make sure that 
+    the output have the same size with input.
+
+    The output buffer is smaller than the input chunk size, and the cropped 
+    margin area is not allocated. This will save about 20% of memory usage.
+    what's more, the output buffer is formated as memory map and was mapped 
+    to disk. This is particularly useful for multiple channel output with 
+    large chunk size.
     """
     def __init__(self,
                  convnet_model: str,
@@ -34,8 +43,10 @@ class Inferencer(object):
                  bump: str = 'wu',
                  input_size: tuple = None,
                  mask_output_chunk: bool = False,
-                 mask_myelin_threshold=None,
+                 mask_myelin_threshold = None,
+                 dry_run: bool = False,
                  verbose: bool = False):
+
         assert input_size is None or patch_num is None 
         
         if output_patch_size is None:
@@ -96,6 +107,7 @@ class Inferencer(object):
         self.dtype = dtype        
         self.mask_myelin_threshold = mask_myelin_threshold
         self.output_buffer = None
+        self.dry_run = dry_run
         
         # allocate a buffer to avoid redundant memory allocation
         self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
@@ -302,11 +314,16 @@ class Inferencer(object):
         self._update_parameters_for_input_chunk(input_chunk)
         if not self.mask_output_chunk:
             self._check_alignment()
+         
+        if self.dry_run:
+            print('dry run, return zero buffer directly')
+            return self.output_buffer
 
+       
         if input_chunk == 0:
             print('input is all zero, return zero buffer directly')
             return self.output_buffer
-
+        
         if np.issubdtype(input_chunk.dtype, np.integer):
             # normalize to 0-1 value range
             dtype_max = np.iinfo(input_chunk.dtype).max

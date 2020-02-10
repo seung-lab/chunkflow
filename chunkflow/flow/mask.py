@@ -82,9 +82,11 @@ class MaskOperator(OperatorBase):
         # upsampling factor in XY plane
         mask = np.zeros(chunk.shape[-3:], dtype=chunk.dtype)
         xyfactor = 2**(self.mask_mip - self.chunk_mip)
+        breakpoint()
         for offset in np.ndindex((xyfactor, xyfactor)):
-            mask[:, np.s_[offset[0]::xyfactor], np.
-                 s_[offset[1]::xyfactor]] = mask_in_high_mip
+            mask[:, 
+                 np.s_[offset[0]::xyfactor], 
+                 np.s_[offset[1]::xyfactor]] = mask_in_high_mip
 
         if chunk.ndim == mask.ndim:
             np.multiply(chunk, mask, out=chunk)

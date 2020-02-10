@@ -59,26 +59,25 @@ def default_none(ctx, _, value):
     else:
         return value
 
-
-@click.group(chain=True)
-@click.option('--verbose/--quiet',
-              default=True,
-              help='print informations or not, default is verbose.')
-@click.option('--mip',
-              type=int,
-              default=0,
-              help='default mip level of chunks.')
 # the code design is based on:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
-def main(verbose, mip):
+@click.group(chain=True)
+@click.option('--verbose/--quiet', default=True,
+              help='print informations or not, default is verbose.')
+@click.option('--mip', type=int, default=0,
+              help='default mip level of chunks.')
+@click.option('--dry-run/--real-run', default=False,
+              help='dry run or real run.')
+def main(verbose, mip, dry_run):
     """Compose operators and create your own pipeline."""
     state['verbose'] = verbose
     state['mip'] = mip
+    state['dry_run'] = dry_run
     pass
 
 
 @main.resultcallback()
-def process_commands(operators, verbose, mip):
+def process_commands(operators, verbose, mip, dry_run):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
     returns a function we can chain them together to feed one 
@@ -175,7 +174,7 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               help='overlap of patches. default is 50% overlap')
 @click.option('--mip', '-m',
               type=int, default=0, help='the output mip level (default is 0).')
-@click.option('--max-mip',
+@click.option('--max-mip', '-x',
               type=int, default=6, help='maximum MIP level.')
 @click.option('--queue-name', '-q',
               type=str, default=None, callback=default_none, help='sqs queue name.')
@@ -543,16 +542,16 @@ def save_pngs(tasks, name, input_chunk_name, output_path):
 
 
 @main.command('delete-task-in-queue')
-@click.option('--name',
-              type=str,
-              default='delete-task-in-queue',
+@click.option('--name', type=str, default='delete-task-in-queue',
               help='name of this operator')
 @operator
 def delete_task_in_queue(tasks, name):
     """Delete the task in queue."""
     for task in tasks:
         handle_task_skip(task, name)
-        if not task['skip']:
+        if task['skip'] or state['dry_run']:
+            print('skip deleting task in queue!')
+        else:
             queue = task['queue']
             task_handle = task['task_handle']
             queue.delete(task_handle)
@@ -602,6 +601,7 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin
         fill_missing=fill_missing,
         validate_mip=validate_mip,
         blackout_sections=blackout_sections,
+        dry_run=state['dry_run'],
         name=name)
 
     for task in tasks:
@@ -921,6 +921,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         bump=bump,
         mask_output_chunk=mask_output_chunk,
         mask_myelin_threshold=mask_myelin_threshold,
+        dry_run=state['dry_run'],
         verbose=state['verbose']) as inferencer:
         state['operators'][name] = inferencer 
 
