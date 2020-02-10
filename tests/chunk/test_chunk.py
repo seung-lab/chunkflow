@@ -13,6 +13,7 @@ def test_mask_last_channel():
     assert out.shape == (3,3,3,3)
     np.testing.assert_array_equal(out, chunk[:3, :,:,:])
 
+
 class Test3DChunk(unittest.TestCase):
     def setUp(self):
         self.size = (3, 3, 3)
@@ -20,6 +21,10 @@ class Test3DChunk(unittest.TestCase):
         arr = np.random.rand(*self.size).astype('float32')
         self.chunk = Chunk(arr, self.global_offset)
     
+    def test_create_from_bounding_box(self):
+        bbox = Bbox.from_delta(self.global_offset, self.size)
+        Chunk.from_bbox( bbox )
+
     def test_bbox(self):
         self.assertEqual(self.chunk.bbox,
                          Bbox.from_delta(self.global_offset, self.size))

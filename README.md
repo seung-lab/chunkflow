@@ -59,8 +59,8 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | write-tif       | Write chunk as TIFF file |
 
 
-## Citation
-If you used this tool and is writing a paper, please cite this [paper](https://arxiv.org/abs/1904.10489):
+## Reference
+We have a [paper](https://arxiv.org/abs/1904.10489) of this repo: 
 ```bibtex
 @article{wu2019chunkflow,
   title={Chunkflow: Distributed Hybrid Cloud Processing of Large 3D Images by Convolutional Nets},

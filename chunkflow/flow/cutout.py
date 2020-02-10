@@ -17,6 +17,7 @@ class CutoutOperator(OperatorBase):
                  fill_missing: bool = False,
                  validate_mip: int = None,
                  blackout_sections: bool = None,
+                 dry_run: bool = False,
                  name: str = 'cutout',
                  verbose: bool = True):
         super().__init__(name=name, verbose=verbose)
@@ -26,6 +27,7 @@ class CutoutOperator(OperatorBase):
         self.fill_missing = fill_missing
         self.validate_mip = validate_mip
         self.blackout_sections = blackout_sections
+        self.dry_run = dry_run
 
         self.vol = CloudVolume(self.volume_path,
                                bounded=False,
@@ -48,10 +50,15 @@ class CutoutOperator(OperatorBase):
                                             parallel=False)
 
     def __call__(self, output_bbox):
-
+        
         chunk_slices = tuple(
             slice(s.start - m, s.stop + m)
             for s, m in zip(output_bbox.to_slices(), self.expand_margin_size))
+        
+        if self.dry_run:
+            input_bbox = Bbox.from_slices(chunk_slices)
+            return Chunk.from_bbox(input_bbox)
+
         if self.verbose:
             print('cutout {} from {}'.format(chunk_slices[::-1],
                                              self.volume_path))
