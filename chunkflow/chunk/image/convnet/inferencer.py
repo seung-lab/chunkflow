@@ -47,18 +47,24 @@ class Inferencer(object):
         self.patch_num = patch_num
         self.batch_size = batch_size
         self.input_size = input_size
+        
+        if mask_output_chunk:
+            # the chunk mask will handle the boundaries 
+            self.output_crop_margin = (0, 0, 0)
+        else:
+            self.output_crop_margin = self.output_patch_overlap
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))
         
-        self.output_offset = tuple(opcm+opo for opcm, opo in zip(
-            self.output_patch_crop_margin, output_patch_overlap))
+        self.output_offset = tuple(opcm+ocm for opcm, ocm in zip(
+            self.output_patch_crop_margin, self.output_crop_margin))
     
         self.output_patch_stride = tuple(s - o for s, o in zip(
             output_patch_size, output_patch_overlap))
 
         self.input_patch_overlap = tuple(opcm*2+oo for opcm, oo in zip(
-            self.output_patch_crop_margin, self.output_offset))
+            self.output_patch_crop_margin, self.output_patch_overlap))
 
         self.input_patch_stride = tuple(ps - po for ps, po in zip(
             input_patch_size, self.input_patch_overlap))
@@ -78,10 +84,15 @@ class Inferencer(object):
              
             self.output_size = tuple(pst*pn - po for pst, pn, po in zip(
                 self.output_patch_stride, self.patch_num, self.output_patch_overlap))
+        else:
+            # we can handle arbitrary input and output size
+            self.input_size = None 
+            self.output_size = None
         
         self.num_output_channels = num_output_channels
         self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
+        self.output_chunk_mask = None
         self.dtype = dtype        
         self.mask_myelin_threshold = mask_myelin_threshold
         self.output_buffer = None
@@ -110,11 +121,12 @@ class Inferencer(object):
 
     def __exit__(self, exception_type, exception_value, traceback):
         assert isinstance(self.output_buffer.array, np.memmap)
-        print('delete the temporal memory map file...')
-        #self.output_buffer.array._mmap.close()
+        print('delete the temporal memory map files...')
         os.remove(self.output_buffer.array.filename)
+        #if self.output_chunk_mask:
+        #    os.remove(self.output_chunk_mask.array.filename)
     
-    def _check_input_size_and_prepare_data(self, input_chunk):
+    def _update_parameters_for_input_chunk(self, input_chunk):
         """
         if the input size is consistent with old one, reuse the
         patch offset list and output chunk mask. Otherwise, recompute them.
@@ -127,6 +139,9 @@ class Inferencer(object):
                 warn('the input size has changed, using new intput size.')
             self.input_size = input_chunk.shape
             
+            if not self.mask_output_chunk: 
+                self._check_alignment()
+
             self.output_size = tuple(
                 isz-2*ocso for isz, ocso in 
                 zip(self.input_size, self.output_offset))
@@ -135,7 +150,7 @@ class Inferencer(object):
             self.output_patch_size, self.output_patch_overlap))
 
         self._construct_patch_slices_list(input_chunk.global_offset)
-        self._construct_output_chunk_mask()
+        self._construct_output_chunk_mask(input_chunk)
         self._update_output_buffer(input_chunk)
 
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, bump):
@@ -216,23 +231,43 @@ class Inferencer(object):
                                           slice(ox, ox + output_patch_size[2]))
                     self.patch_slices_list.append((input_patch_slice, output_patch_slice))
 
-    def _construct_output_chunk_mask(self):
+    def _construct_output_chunk_mask(self, input_chunk):
         if not self.mask_output_chunk:
             return
 
         if self.verbose:
             print('creating output chunk mask...')
+        
+        if self.output_chunk_mask is None or not np.array_equal(
+                input_chunk.shape, self.output_chunk_mask.shape):
+            # To-Do: clean up extra temporal files if we created 
+            # multiple mmap files
+            #output_mask_mmap_file = mktemp(suffix='.dat')
+            # the memory map is initialized with 0 in default
+            #output_mask_array = np.memmap(output_mask_mmap_file, 
+            #                                   dtype=self.dtype, mode='w+', 
+            #                                   shape=self.output_size)
+            output_mask_array = np.zeros(self.output_size, self.dtype)
+        else:
+            output_chunk_mask_array = self.output_chunk_mask.array
+            output_chunk_mask_array.fill(0)
 
-        self.output_chunk_mask = np.zeros(self.output_size[-3:], self.dtype)
+        output_global_offset = tuple(io + ocso for io, ocso in zip(
+            input_chunk.global_offset, self.output_offset))
+ 
+        self.output_chunk_mask = Chunk(output_mask_array, global_offset=output_global_offset)
+        
         assert len(self.patch_slices_list) > 0
         for _, output_patch_slice in self.patch_slices_list:
             # accumulate weights using the patch mask in RAM
-            self.output_chunk_mask[output_patch_slice] += self.patch_inferencer.output_patch_mask_numpy
-
+            patch_global_offset = tuple(s.start for s in output_patch_slice)
+            patch_mask = Chunk(self.patch_inferencer.output_patch_mask_numpy,
+                               global_offset=patch_global_offset)
+            self.output_chunk_mask.blend(patch_mask)
+        
         # normalize weight, so accumulated inference result multiplies
-
         # this mask will result in 1
-        self.output_chunk_mask = 1.0 / self.output_chunk_mask
+        self.output_chunk_mask.array = 1.0 / self.output_chunk_mask.array
     
     def _update_output_buffer(self, input_chunk):
         if self.output_buffer is None:
@@ -264,7 +299,7 @@ class Inferencer(object):
         """
         assert isinstance(input_chunk, Chunk)
         
-        self._check_input_size_and_prepare_data(input_chunk)
+        self._update_parameters_for_input_chunk(input_chunk)
         if not self.mask_output_chunk:
             self._check_alignment()
 
@@ -327,7 +362,7 @@ class Inferencer(object):
         if self.verbose:
             print("Inference of whole chunk takes %3f sec" %
                   (time.time() - chunk_time_start))
-
+        
         if self.mask_output_chunk:
             self.output_buffer *= self.output_chunk_mask
         
