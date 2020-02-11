@@ -63,11 +63,11 @@ def default_none(ctx, _, value):
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 @click.group(chain=True)
 @click.option('--verbose/--quiet', default=True,
-              help='print informations or not, default is verbose.')
+              help='print informations or not. default is verbose.')
 @click.option('--mip', type=int, default=0,
               help='default mip level of chunks.')
 @click.option('--dry-run/--real-run', default=False,
-              help='dry run or real run.')
+              help='dry run or real run. default is real run.')
 def main(verbose, mip, dry_run):
     """Compose operators and create your own pipeline."""
     state['verbose'] = verbose
@@ -1132,7 +1132,7 @@ def neuroglancer(tasks, name, voxel_size, port, chunk_names):
 @click.option('--output-chunk-name', type=str, default='chunk', help= 'output chunk name')
 @operator
 def quantize(tasks, name, input_chunk_name, output_chunk_name):
-    """Quantize affinity map."""
+    """Transorm the last channel to uint8."""
     for task in tasks:
         aff = task[input_chunk_name]
         assert isinstance(aff, AffinityMap)
