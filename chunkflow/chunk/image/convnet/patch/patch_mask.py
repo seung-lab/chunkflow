@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from math import log10
 import numpy as np
 
 
@@ -50,12 +51,16 @@ def make_bump_map(patch_size):
     xv = (xv + 1.0) / (patch_size[-1] + 1.0) * 2.0 - 1.0
     yv = (yv + 1.0) / (patch_size[-2] + 1.0) * 2.0 - 1.0
     zv = (zv + 1.0) / (patch_size[-3] + 1.0) * 2.0 - 1.0
-    bump_map = np.exp(-1.0 / (1.0 - xv * xv) + -1.0 / (1.0 - yv * yv) + -1.0 /
-                      (1.0 - zv * zv))
+    bump_map = np.exp(-1.0 / (1.0 - xv * xv) + 
+                      -1.0 / (1.0 - yv * yv) + 
+                      -1.0 / (1.0 - zv * zv))
+       
+    bump_map = np.interp(bump_map, (bump_map.min(), bump_map.max()), (1, 1e6))
     # make the low value a little bit higher to avoid floating point error
-    threshold = np.max(bump_map) * 1e-8
-    bump_map[bump_map < threshold] = threshold
-    return np.asarray(bump_map, dtype='float64')
+    #threshold = np.max(bump_map) * 1e-8
+    #bump_map[bump_map < threshold] = threshold
+
+    return np.asarray(bump_map, dtype=np.float64)
 
 
 if __name__ == '__main__':
