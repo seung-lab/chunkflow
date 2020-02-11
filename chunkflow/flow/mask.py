@@ -110,23 +110,32 @@ class MaskOperator(OperatorBase):
         # assume that input mip is the same with output mip
         xyfactor = 2**(self.mask_mip - self.chunk_mip)
         # only scale the indices in XY plane
-        def _round_div(n, d):
-            return (n + d // 2) // d
-        
-        high_mip_xysize = (_round_div(s, xyfactor) for s in chunk_size[-2:]) 
-
+        # only scale the indices in XY plane
         mask_slices = tuple(
-            slice(_round_div(a.start, xyfactor), 
-                  _round_div(a.start, xyfactor) + s) 
-            for a, s in zip(chunk_slices[-2:], high_mip_xysize))
-        mask_slices = (chunk_slices[-3], ) + mask_slices
+            slice(a.start // xyfactor, a.stop // xyfactor)
+            for a in chunk_slices[1:3])
 
+        # we have to make sure that chunk size is divisible by xyfactor
+        # so the rounding is not neccesary. 
+        #def _round_div(n, d):
+        #    return (n + d // 2) // d
+        #
+        #high_mip_xysize = (_round_div(s, xyfactor) for s in chunk_size[-2:]) 
+
+        #mask_slices = tuple(
+        #    slice(_round_div(a.start, xyfactor), 
+        #          _round_div(a.start, xyfactor) + s) 
+        #    for a, s in zip(chunk_slices[-2:], high_mip_xysize))
+        
+        mask_slices = (chunk_slices[-3], ) + mask_slices
+        
         # the slices did not contain the channel dimension
         mask = self.mask_vol[mask_slices[::-1]]
         # this is a cloudvolume VolumeCutout rather than a normal numpy array
         # which will make np.alltrue(mask_in_high_mip == 0) to be
         # VolumeCutout(False) rather than False, so we need to transform it 
         # to numpy
+        mask = mask.astype(np.bool)
         mask = np.asarray(mask)
         mask = np.transpose(mask)
         mask = np.squeeze(mask, axis=0)

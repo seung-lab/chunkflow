@@ -174,8 +174,10 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               help='overlap of patches. default is 50% overlap')
 @click.option('--mip', '-m',
               type=int, default=0, help='the output mip level (default is 0).')
+@click.option('--thumbnail-mip', '-b', type=int, default=6,
+              help='mip level of thumbnail layer.')
 @click.option('--max-mip', '-x',
-              type=int, default=6, help='maximum MIP level.')
+              type=int, default=8, help='maximum MIP level for masks.')
 @click.option('--queue-name', '-q',
               type=str, default=None, callback=default_none, help='sqs queue name.')
 @click.option('--visibility-timeout', '-t',
@@ -191,7 +193,7 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               help='voxel size or resolution of mip 0 image.')
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
-              patch_size, channel_num, patch_overlap, mip, max_mip,
+              patch_size, channel_num, patch_overlap, mip, thumbnail_mip, max_mip,
               queue_name, visibility_timeout, thumbnail, encoding, voxel_size):
     """Prepare storage info files and produce tasks."""
     assert not (volume_stop is None and volume_size is None)
@@ -213,7 +215,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
 
     if thumbnail:
         # thumnail requires maximum mip level of 5
-        max_mip = max(max_mip, 5)
+        thumnail_mip = max(thumbnail_mip, 5)
     
     patch_stride = tuple(s - o for s, o in zip(patch_size, patch_overlap))
     # total number of voxels per patch in one stride
@@ -240,13 +242,13 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
         for pnz in range(patch_num_start, patch_num_stop):
             if (pnz*patch_stride[0]-patch_overlap[0]) % factor != 0:
                 continue
-            current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 + (pnxy / pnz - 1) ** 2
+            current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 #+ (pnxy / pnz - 1) ** 2
             if current_cost < cost:
                 cost = current_cost
                 patch_num = (pnz, pnxy, pnxy)
     print('patch number: ', patch_num)
     assert mip>=0
-    block_mip = (mip + max_mip) // 2
+    block_mip = (mip + thumbnail_mip) // 2
     block_factor = 2 ** block_mip
     output_chunk_size = tuple(n*s-o for n, s, o in zip(patch_num, patch_stride, patch_overlap))
     block_size = (output_chunk_size[0]//factor, 
@@ -278,7 +280,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                                  voxel_offset=volume_start[::-1],
                                                  volume_size=volume_size[::-1],
                                                  chunk_size=thumbnail_block_size[::-1],
-                                                 max_mip=max_mip)
+                                                 max_mip=thumbnail_mip)
     thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
     thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
     thumbnail_vol.commit_info()
