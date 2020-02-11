@@ -15,7 +15,6 @@ class NormalizeSectionContrastOperator(OperatorBase):
     """
     def __init__(self,
                  levels_path: str,
-                 mip: int,
                  lower_clip_fraction: float = 0.01,
                  upper_clip_fraction: float = 0.01,
                  minval: int = 1,
@@ -25,7 +24,6 @@ class NormalizeSectionContrastOperator(OperatorBase):
                  verbose: bool = True):
         """
         levels_path: (str) path of section histogram files.
-        mip: (int) the mip level of section histogram.
         clip_fraction: (float) the fraction of intensity to be clamped.
         minval: (float)
         maxval: (float) Note that the original algorithm use default maxval as 
@@ -38,7 +36,6 @@ class NormalizeSectionContrastOperator(OperatorBase):
         assert lower_clip_fraction + upper_clip_fraction <= 1
 
         self.levels_path = levels_path
-        self.mip = int(mip)
         self.lower_clip_fraction = float(lower_clip_fraction)
         self.upper_clip_fraction = float(upper_clip_fraction)
 
@@ -107,8 +104,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
         lookup tables are constructed and cached.
         """
         if z not in self.lookup_tables:
-            levelfilename = f'{self.mip}/{z}'
-            data = self.stor.get_file(levelfilename)
+            data = self.stor.get_file(f'{z}')
             assert data is not None
             data = json.loads(data.decode('utf-8'))
             levels = np.array(data['levels'], dtype=np.uint64)

@@ -296,7 +296,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                    verbose=state['verbose'])
     print('total number of tasks: ', len(bboxes))
 
-    if queue_name is not None:
+    if queue_name is not None and not state['dry_run']:
         queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
         queue.send_message_list(bboxes)
     else:
@@ -720,8 +720,6 @@ def log_summary(log_dir, output_size):
               help='name of operator.')
 @click.option('--levels-path', '-p', type=str, required=True,
               help='the path of section histograms.')
-@click.option('--mip', '-m', type=int, default=None,
-              help='the mip level of section histograms.')
 @click.option('--lower-clip-fraction', '-l', type=float, default=0.01, 
               help='lower intensity fraction to clip out.')
 @click.option('--upper-clip-fraction', '-u', type=float, default=0.01, 
@@ -731,14 +729,12 @@ def log_summary(log_dir, output_size):
 @click.option('--maxval', type=int, default=255,
               help='the maximum intensity of transformed chunk.')
 @operator
-def normalize_contrast_contrast(tasks, name, levels_path, mip, lower_clip_fraction,
+def normalize_contrast_contrast(tasks, name, levels_path, lower_clip_fraction,
                                 upper_clip_fraction, minval, maxval):
     """Normalize the section contrast using precomputed histograms."""
-    if mip is None:
-        mip = state['mip']
-
+    
     state['operators'][name] = NormalizeSectionContrastOperator(
-        levels_path, mip,
+        levels_path,
         lower_clip_fraction=lower_clip_fraction,
         upper_clip_fraction=upper_clip_fraction,
         minval=minval, maxval=maxval, name=name)

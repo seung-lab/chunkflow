@@ -80,22 +80,25 @@ class MaskOperator(OperatorBase):
         if self.verbose:
             print("upsampling mask ...")
         # upsampling factor in XY plane
-        mask = np.zeros(chunk.shape[-3:], dtype=chunk.dtype)
+        #mask = np.zeros(chunk.shape[-3:], dtype=chunk.dtype)
         xyfactor = 2**(self.mask_mip - self.chunk_mip)
         for offset in np.ndindex((xyfactor, xyfactor)):
-            mask[:, 
-                 np.s_[offset[0]::xyfactor], 
-                 np.s_[offset[1]::xyfactor]] = mask_in_high_mip
+            chunk.array[..., 
+                        np.s_[offset[0]::xyfactor], 
+                        np.s_[offset[1]::xyfactor]] *= mask_in_high_mip
+        #    mask[:, 
+        #         np.s_[offset[0]::xyfactor], 
+        #         np.s_[offset[1]::xyfactor]] = mask_in_high_mip
 
-        if chunk.ndim == mask.ndim:
-            np.multiply(chunk, mask, out=chunk)
-        elif chunk.ndim == mask.ndim + 1:
-            for channel in range(chunk.shape[0]):
-                np.multiply(chunk[channel, :, :, :],
-                            mask,
-                            out=chunk[channel, :, :, :])
-        else:
-            raise ValueError('invalid chunk or mask dimension.')
+        #if chunk.ndim == mask.ndim:
+        #    np.multiply(chunk, mask, out=chunk)
+        #elif chunk.ndim == mask.ndim + 1:
+        #    for channel in range(chunk.shape[0]):
+        #        np.multiply(chunk[channel, :, :, :],
+        #                    mask,
+        #                    out=chunk[channel, :, :, :])
+        #else:
+        #    raise ValueError('invalid chunk or mask dimension.')
         return chunk
 
     def _read_mask_in_high_mip(self, chunk_bbox):
