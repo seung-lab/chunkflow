@@ -269,6 +269,20 @@ Here is a complex example to perform convolutional inference::
 
    chunkflow --verbose --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 cutout --volume-path="s3://my/image/volume/path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save --volume-path="file://my/output/volume/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
 
+Here is more complex example with mask and skip operations in production run of petabyte scale image processing::
+
+   export QUEUE_NAME="chunkflow"
+   export VISIBILITY_TIMEOUT="1800"
+   export IMAGE_LAYER_PATH="gs://bucket/my/image/layer/path"
+   export IMAGE_MASK_LAYER_PATH="gs://bucket/my/image/mask/layer/path"
+   export CONVNET_MODEL_FILE="model1000000.py"
+   export CONVNET_WEIGHT_FILE="model1000000.chkpt"
+   export OUTPUT_LAYER_PATH="gs://bucket/my/output/layer/path"
+   export OUTPUT_MASK_LAYER_PATH="gs://bucket/my/output/mask/layer/path"
+   export CUDA_VISIBLE_DEVICES="3"
+   chunkflow --verbose --mip 1 fetch-task -r 20 --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT cutout --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 10 128 128 --fill-missing mask --name='check-all-zero-and-skip-to-save' --check-all-zero --volume-path="$IMAGE_MASK_LAYER_PATH" --mip 8 --skip-to='save' --fill-missing --inverse normalize-section-contrast -p "gs://bucket/my/histogram/path/levels/1" -l 0.0023 -u 0.01 inference --convnet-model="$CONVNET_MODEL_FILE" --convnet-weight-path="${CONVNET_WEIGHT_FILE}" --input-patch-size 20 256 256 --output-patch-size 16 192 192 --output-patch-overlap 2 32 32 --output-crop-margin 8 96 96 --num-output-channels 4 --framework='pytorch' --batch-size 6 --patch-num 14 9 9 mask --name='mask-aff' --volume-path="$OUTPUT_MASK_LAYER_PATH" --mip 8 --fill-missing --inverse save --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
+
+
 For more details, you can checkout the `examples folder
 <https://github.com/seung-lab/chunkflow/tree/master/examples>`_ in our repo.
 
