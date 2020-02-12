@@ -5,7 +5,7 @@ chunkflow
 [![PyPI version](https://badge.fury.io/py/chunkflow.svg)](https://badge.fury.io/py/chunkflow)
 [![Coverage Status](https://coveralls.io/repos/github/seung-lab/chunkflow/badge.svg?branch=master)](https://coveralls.io/github/seung-lab/chunkflow?branch=master)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-![Docker Build Status](https://img.shields.io/docker/build/seunglab/chunkflow)
+[![Docker Build Status](https://img.shields.io/docker/build/seunglab/chunkflow)](https://hub.docker.com/repository/docker/seunglab/chunkflow)
 
 Perform Convolutional net inference to segment 3D image volume with one single command!
 
