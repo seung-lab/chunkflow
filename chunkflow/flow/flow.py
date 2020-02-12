@@ -152,11 +152,9 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
 
 
 @main.command('setup-env')
-@click.option('--volume-start',
-              required=True, nargs=3, type=int,
+@click.option('--volume-start', required=True, nargs=3, type=int,
               help='start coordinate of output volume in mip 0')
-@click.option('--volume-stop',
-              default=None, type=int, nargs=3, callback=default_none,
+@click.option('--volume-stop', default=None, type=int, nargs=3, callback=default_none,
               help='stop coordinate of output volume (noninclusive like python coordinate) in mip 0.')
 @click.option('--volume-size', '-s',
               default=None, type=int, nargs=3, callback=default_none, 
@@ -172,28 +170,28 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
 @click.option('--patch-overlap', '-o',
               type=int, default=None, nargs=3, callback=default_none,
               help='overlap of patches. default is 50% overlap')
-@click.option('--mip', '-m',
-              type=int, default=0, help='the output mip level (default is 0).')
-@click.option('--thumbnail-mip', '-b', type=int, default=6,
+@click.option('--crop-chunk-margin', '-c', type=int, nargs=3, default=None,
+              callback=default_none, help='size of margin to be cropped.')
+@click.option('--mip', '-m', type=click.IntRange(min=0, max=3), default=0, 
+              help='the output mip level (default is 0).')
+@click.option('--thumbnail-mip', '-b', type=click.IntRange(min=5, max=16), default=6,
               help='mip level of thumbnail layer.')
-@click.option('--max-mip', '-x',
-              type=int, default=8, help='maximum MIP level for masks.')
+@click.option('--max-mip', '-x', type=click.IntRange(min=5, max=16), default=8, 
+              help='maximum MIP level for masks.')
 @click.option('--queue-name', '-q',
               type=str, default=None, callback=default_none, help='sqs queue name.')
 @click.option('--visibility-timeout', '-t',
               type=int, default=3600, help='visibility timeout of the AWS SQS queue.')
-@click.option('--thumbnail/--no-thumbnail',
-              default=True, help='create thumbnail or not.')
+@click.option('--thumbnail/--no-thumbnail', default=True, help='create thumbnail or not.')
 @click.option('--encoding', '-e',
               type=click.Choice(['raw', 'jpeg', 'compressed_segmentation', 
                                  'fpzip', 'kempressed']), default='raw', 
               help='Neuroglancer precomputed block compression algorithm.')
-@click.option('--voxel-size', '-v',
-              type=int, nargs=3, default=(40, 4, 4),
+@click.option('--voxel-size', '-v', type=int, nargs=3, default=(40, 4, 4),
               help='voxel size or resolution of mip 0 image.')
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
-              patch_size, channel_num, patch_overlap, mip, thumbnail_mip, max_mip,
+              patch_size, channel_num, patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
               queue_name, visibility_timeout, thumbnail, encoding, voxel_size):
     """Prepare storage info files and produce tasks."""
     assert not (volume_stop is None and volume_size is None)
@@ -211,7 +209,13 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
         volume_size = volume_stop - volume_start
     
     if patch_overlap is None:
+        # use 50% patch overlap in default
         patch_overlap = tuple(s//2 for s in patch_size)
+    assert patch_overlap[1] == patch_overlap[2]
+
+    if crop_chunk_margin is None:
+        crop_chunk_margin = patch_overlap
+    assert crop_chunk_margin[1] == crop_chunk_margin[2]
 
     if thumbnail:
         # thumnail requires maximum mip level of 5
@@ -236,11 +240,11 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     max_factor = 2**max_mip
     factor = 2**mip
     for pnxy in range(patch_num_start, patch_num_stop):
-        if (pnxy*patch_stride[2]-patch_overlap[2]) % max_factor != 0:
+        if (pnxy*patch_stride[2]+patch_overlap[2]-2*crop_chunk_margin[2]) % max_factor != 0:
             continue
         # patch number in z
         for pnz in range(patch_num_start, patch_num_stop):
-            if (pnz*patch_stride[0]-patch_overlap[0]) % factor != 0:
+            if (pnz*patch_stride[0]+patch_overlap[0]-2*crop_chunk_margin[0]) % factor != 0:
                 continue
             current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 #+ (pnxy / pnz - 1) ** 2
             if current_cost < cost:
@@ -250,7 +254,10 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     assert mip>=0
     block_mip = (mip + thumbnail_mip) // 2
     block_factor = 2 ** block_mip
-    output_chunk_size = tuple(n*s-o for n, s, o in zip(patch_num, patch_stride, patch_overlap))
+    
+    output_chunk_size = tuple(n*s+o-2*c for n, s, o, c in zip(
+        patch_num, patch_stride, patch_overlap, crop_chunk_margin))
+
     block_size = (output_chunk_size[0]//factor, 
                   output_chunk_size[1]//block_factor,
                   output_chunk_size[2]//block_factor)
@@ -876,6 +883,8 @@ def copy_var(tasks, name, from_name, to_name):
               callback=default_none, help='output patch size')
 @click.option('--output-patch-overlap', '-v', type=int, nargs=3, 
               default=(4, 64, 64), help='patch overlap')
+@click.option('--output-crop-margin', type=int, nargs=3,
+              default=None, callback=default_none, help='margin size of output cropping.')
 @click.option('--patch-num', '-n', default=None, callback=default_none,
               type=int, nargs=3, help='patch number in z,y,x.')
 @click.option('--num-output-channels', '-c',
@@ -901,7 +910,7 @@ def copy_var(tasks, name, from_name, to_name):
               type=str, default='chunk', help='output chunk name')
 @operator
 def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
-              output_patch_size, output_patch_overlap, patch_num,
+              output_patch_size, output_patch_overlap, output_crop_margin, patch_num,
               num_output_channels, dtype, framework, batch_size, bump, mask_output_chunk,
               mask_myelin_threshold, input_chunk_name, output_chunk_name):
     """Perform convolutional network inference for chunks."""
@@ -912,6 +921,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         output_patch_size=output_patch_size,
         num_output_channels=num_output_channels,
         output_patch_overlap=output_patch_overlap,
+        output_crop_margin=output_crop_margin,
         patch_num=patch_num,
         framework=framework,
         dtype=dtype,

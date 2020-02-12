@@ -37,6 +37,7 @@ class Inferencer(object):
                  patch_num: Union[tuple, list] = None,
                  num_output_channels: int = 3,
                  output_patch_overlap: Union[tuple, list] = (4, 64, 64),
+                 output_crop_margin: Union[tuple, list] = None,
                  dtype = 'float32',
                  framework: str = 'identity',
                  batch_size: int = 1,
@@ -63,7 +64,15 @@ class Inferencer(object):
             # the chunk mask will handle the boundaries 
             self.output_crop_margin = (0, 0, 0)
         else:
-            self.output_crop_margin = self.output_patch_overlap
+            if output_crop_margin is None:
+                self.output_crop_margin = self.output_patch_overlap
+            else:
+                self.output_crop_margin = output_crop_margin
+                # we should always crop more than the patch overlap 
+                # since the overlap region is reweighted by patch mask
+                # To-Do: equal should also be OK
+                np.testing.assert_array_less(self.output_patch_overlap, 
+                                             self.output_crop_margin)
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))
@@ -93,13 +102,14 @@ class Inferencer(object):
                 self.input_size = tuple(pst*pn + po for pst, pn, po in zip(
                     self.input_patch_stride, self.patch_num, self.input_patch_overlap))
              
-            self.output_size = tuple(pst*pn - po for pst, pn, po in zip(
-                self.output_patch_stride, self.patch_num, self.output_patch_overlap))
+            self.output_size = tuple(pst*pn + po - 2*ocm for pst, pn, po, ocm in zip(
+                self.output_patch_stride, self.patch_num, 
+                self.output_patch_overlap, self.output_crop_margin))
         else:
             # we can handle arbitrary input and output size
             self.input_size = None 
             self.output_size = None
-        
+
         self.num_output_channels = num_output_channels
         self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
@@ -127,7 +137,7 @@ class Inferencer(object):
         else:
             import torch
             self.compute_device = torch.cuda.get_device_name(0)
-    
+
     def __enter__(self):
         return self
 
