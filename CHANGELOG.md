@@ -1,25 +1,34 @@
 ChangeLog history
 =================
 
-# chunkflow 0.5.7 (2019-xx-xx)
+# chunkflow 0.5.8 (2019-xx-xx)
+## Breaking Changes
+
+## Deprecations 
+
+## Features
+- add setup-env operator to automatically compute patch number, cloud storage block size and other metadata. ingest tasks into AWS SQS queue. After this operation, you are ready to launch workers!
+- support cropped output patch size for inference
+- refactored normalize section contrast operator to make it faster and easier to use. We precompute a lookup table to avoid redundent computation of the voxel mapping.
+- avoid creating a mask buffer by directly applying the high-mip mask to low-mip chunk
+
+## Bug Fixes 
+
+## Improved Documentation 
+
+# chunkflow 0.5.7 (2019-02-02)
 ## Breaking Changes
 - remove c++ compilation module
-## Deprecations 
 
 ## Features
 - neuroglancer operator works with multiple chunks (https://github.com/seung-lab/chunkflow/pull/123)
 - add connected components operator
 - add iterative mean agglomeration operator, including watershed computation.
 
-## Bug Fixes 
-
 ## Improved Documentation 
 - tutorial for cleft and cell boundary detection (https://github.com/seung-lab/chunkflow/pull/123)
 
 # chunkflow 0.2.6 (2019-03-11)
-## Breaking Changes
-
-## Deprecations 
 
 ## Features
 - a new operator called `save-images` to save chunk as a serials of PNG images.
@@ -35,9 +44,6 @@ ChangeLog history
 # chunkflow 0.2.5 (2019-03-08)
 ## Breaking Changes
 - change the mask command parameter `mask-mip` to `mip`
-## Deprecations 
-
-## Features
 
 ## Bug Fixes 
 - fix log uploading and cloud watch
@@ -51,64 +57,37 @@ ChangeLog history
 ## Breaking Changes
 - merge operator upload-log to save since we normally just put log inside saved volume.
 
-## Deprecations 
-
 ## Features
 - add batch size option for ConvNet inference
 - better memory footprint by deleting the ascontiguousarray
 ## Bug Fixes 
 - the inference framework was hard coded as identity, fixed this bug.
-## Improved Documentation 
 
 # chunkflow 0.2.3 (2019-03-05)
-## Breaking Changes
-
-## Deprecations 
-
-## Features
-
-## Bug Fixes 
-
 ## Improved Documentation
 - updated the documentation to focus on chunk operators, not just ConvNet Inference.
 
 # chunkflow 0.2.2 (2019-03-04)
-## Breaking Changes
-
-## Deprecations 
-
 ## Features
 - add option to blackout some sections
 - add a new operator: normalize the sections using precomputed histogram
 - add typing check for most of the function arguments and kwargs
-## Bug Fixes 
 
 # chunkflow 0.2.1 (2019-03-03)
-## Breaking Changes
-
-## Deprecations 
-
 ## Features
 - rename offset_array to chunk
 - rename main.py to flow.py to match the package name
-## Bug Fixes 
-
-## Improved Documentation
-
 
 # chunkflow 0.2.0 (2019-03-03)
 ## Breaking Changes
 - added global parameters
 - separate out cloud-watch operator
 - rename the consume_task.py to main.py for better code meaning
-## Deprecations 
 
 ## Features
 - reuse operators in loop, so we only need to construct operator once.
 - add operator name to add more than one operator with same class. For example, in the inference pipeline, we might mask out both image and affinitymap, the two mask operator should have different names. 
-## Bug Fixes 
 
-## Improved Documentation 
 # chunkflow 0.1.3 (2019-03-01)
 ## Breaking Changes
 - make all operators inherit from a base class
@@ -119,10 +98,6 @@ ChangeLog history
 
 
 # chunkflow 0.1.2 (2019-02-26)
-## Breaking Changes
-
-## Deprecations 
-
 ## Features
 - processors for read/write hdf5 files 
 - processor for create fake image chunk for tests
@@ -140,14 +115,9 @@ ChangeLog history
 - the command line usage is completely different 
 - no multiprocessing internally. it has to be implemented in shell script. 
 
-## Deprecations 
-
 ## Features
 - composable commandline interface. much easier to use and compose operations.
 
-## Bug Fixes 
-
-## Improved Documentation 
 
 # Template 
 the following texts are templates for adding change log
