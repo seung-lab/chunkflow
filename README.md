@@ -5,13 +5,13 @@ chunkflow
 [![PyPI version](https://badge.fury.io/py/chunkflow.svg)](https://badge.fury.io/py/chunkflow)
 [![Coverage Status](https://coveralls.io/repos/github/seung-lab/chunkflow/badge.svg?branch=master)](https://coveralls.io/github/seung-lab/chunkflow?branch=master)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
+![Docker Build Status](https://img.shields.io/docker/build/seunglab/chunkflow)
 Perform Convolutional net inference to segment 3D image volume with one single command!
 
 ```shell
 chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --input-patch-size 20 256 256 --output-patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 ```
-you can see your 3D image and segmentation in [Neuroglancer](https://github.com/google/neuroglancer)!
+you can see your 3D image and segmentation directly in [Neuroglancer](https://github.com/google/neuroglancer)!
 
 ![Image_Segmentation](https://github.com/seung-lab/chunkflow/blob/master/docs/source/_static/image/image_seg.png)
 
@@ -22,7 +22,7 @@ you can see your 3D image and segmentation in [Neuroglancer](https://github.com/
 - **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
 - All operations support **3D** image volumes.
 
-## Available Operators
+## Operators
 After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the available operators here. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
 
 | Operator Name   | Function |
