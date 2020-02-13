@@ -1,5 +1,7 @@
 __doc__ = """Image chunk class"""
 
+import numpy as np
+
 from chunkflow.chunk import Chunk
 from .adjust_grey import normalize_section_shang
 from .convnet.inferencer import Inferencer
@@ -9,16 +11,8 @@ class Image(Chunk):
     """
     a chunk of image volume.
     """
-    def __new__(cls, array, **kwargs):
-        if 'global_offset' in kwargs:
-            global_offset = kwargs['global_offset']
-        elif isinstance(array, Chunk):
-            global_offset = array.global_offset
-        else:
-            global_offset = None
-
-        obj = Chunk(array, global_offset=global_offset, *kwargs).view(cls)
-        return obj
+    def __init__(self, array: np.ndarray, global_offset=None):
+        super().__init__(array, global_offset=global_offset)
 
     def inference(self, inferencer: Inferencer):
         """run convolutional net inference for this image chunk"""

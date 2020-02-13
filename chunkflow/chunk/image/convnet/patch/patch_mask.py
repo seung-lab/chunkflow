@@ -39,6 +39,11 @@ def make_patch_mask(patch_size, overlap, dtype='float32'):
     bump_map /= base_mask[stride[0]:stride[0] +
                           patch_size[0], stride[1]:stride[1] +
                           patch_size[1], stride[2]:stride[2] + patch_size[2]]
+    
+    np.testing.assert_array_equal(bump_map[
+        overlap[0]:-overlap[0], 
+        overlap[1]:-overlap[1], 
+        overlap[2]:-overlap[2]], 1)
 
     return bump_map.astype(dtype)
 
