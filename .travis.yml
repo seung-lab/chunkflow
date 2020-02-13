@@ -23,7 +23,7 @@ script:
 - if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 - coverage run -a --source=./chunkflow chunkflow read-h5 --file-name=/tmp/img.h5
 - coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference
-  --input-patch-size 20 256 256 --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
+  --input-patch-size 20 256 256 --patch-num 2 2 2 --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 - pytest --cov-append --cov=./chunkflow ./tests --verbose
 after_success:
 - coveralls

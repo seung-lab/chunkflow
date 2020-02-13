@@ -295,7 +295,7 @@ class Chunk(NDArrayOperatorsMixin):
         """threshold the map chunk and get connected components."""
         global_offset = self.global_offset
         seg = self > threshold
-        seg = cc3d.connected_components(seg, connectivity=connectivity)
+        seg = cc3d.connected_components(seg.array, connectivity=connectivity)
         return Chunk(seg, global_offset=global_offset)
 
     def where(self, mask: np.ndarray) -> tuple:
