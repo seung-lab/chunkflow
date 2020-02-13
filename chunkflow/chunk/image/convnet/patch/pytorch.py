@@ -56,7 +56,8 @@ class PyTorch(PatchInferencerBase):
             self.model.load_state_dict(state_dict)
         
         # we need this to make sure
-        self.model.train(False)
+        # this is equiverlant with model.eval()
+        #self.model.train(False)
         self.model.eval()
         #if use_batch_norm and is_static_batch_norm:
         #    self.model.eval()
