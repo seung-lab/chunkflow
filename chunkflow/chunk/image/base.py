@@ -25,5 +25,5 @@ class Image(Chunk):
         return inferencer(self)
 
     def normalize_section_shang(self, nominalmin, nominalmax, clipvalues):
-        return normalize_section_shang(self, nominalmin, nominalmax,
+        return normalize_section_shang(self.array, nominalmin, nominalmax,
                                        clipvalues)

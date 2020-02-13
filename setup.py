@@ -1,9 +1,6 @@
-from setuptools import setup, find_packages
 import os
-import sys
 import re
-import setuptools
-from shutil import move
+from setuptools import setup, find_packages
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -17,7 +14,7 @@ with open(os.path.join(PACKAGE_DIR, 'tests/requirements.txt')) as f:
 
 
 with open("README.md", "r") as fh:
-    long_description = fh.read()
+    LONG_DESCRIPTION = fh.read()
 
 VERSIONFILE = os.path.join(PACKAGE_DIR, "chunkflow/__version__.py")
 verstrline = open(VERSIONFILE, "rt").read()
@@ -32,8 +29,9 @@ else:
 
 setup(
     name='chunkflow',
-    description='Composable image chunk operators to create pipeline for distributed computation.',
-    long_description=long_description,
+    description='Composable image chunk operators to create pipeline' +
+    ' for distributed computation.',
+    long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     license='Apache License 2.0',
     version=version,
@@ -54,7 +52,6 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
