@@ -84,9 +84,9 @@ class Chunk(NDArrayOperatorsMixin):
         return cls(arr, global_offset=global_offset)
     
     def to_tif(self, file_name: str=None, global_offset: tuple=None):
-        print('write chunk to file: ', file_name)
         if file_name is None:
             file_name = f'{self.bbox.to_filename()}.tif'
+        print('write chunk to file: ', file_name)
 
         if self.array.dtype==np.float32:
             # visualization in float32 is not working correctly in ImageJ

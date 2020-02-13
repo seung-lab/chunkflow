@@ -71,8 +71,8 @@ class Inferencer(object):
                 # we should always crop more than the patch overlap 
                 # since the overlap region is reweighted by patch mask
                 # To-Do: equal should also be OK
-                #np.testing.assert_array_less(self.output_patch_overlap, 
-                #                             self.output_crop_margin)
+                np.testing.assert_array_less(self.output_patch_overlap, 
+                                             self.output_crop_margin)
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))
@@ -226,8 +226,8 @@ class Inferencer(object):
         input_patch_overlap = self.input_patch_overlap 
         input_patch_stride = self.input_patch_stride 
 
-        for iz in tqdm(range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]),
-                       disable=not self.verbose, desc='Construct patch slices list: '):
+        print('Construct patch slices list...')
+        for iz in range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]):
             if iz + input_patch_size[0] > self.input_size[0]:
                 iz = self.input_size[0] - input_patch_size[0]
                 assert iz >= 0
@@ -319,6 +319,7 @@ class Inferencer(object):
         args:
             input_chunk (Chunk): input chunk with global offset
         """
+        breakpoint()
         assert isinstance(input_chunk, Chunk)
         
         self._update_parameters_for_input_chunk(input_chunk)
@@ -380,6 +381,17 @@ class Inferencer(object):
                 offset = (0,) + tuple(s.start for s in slices[1])
                 output_chunk = Chunk(output_patch[batch_idx, :, :, :, :],
                                      global_offset=offset)
+
+                ## save some patch for debug
+                #bbox = output_chunk.bbox
+                #if bbox.minpt[-1] < 94066 and bbox.maxpt[-1] > 94066 and \
+                #        bbox.minpt[-2]<81545 and bbox.maxpt[-2]>81545 and \
+                #        bbox.minpt[-3]<17298 and bbox.maxpt[-3]>17298:
+                #    print('save patch: ', output_chunk.bbox)
+                #    breakpoint()
+                #    output_chunk.to_tif()
+                #    #input_chunk.cutout(slices[0]).to_tif()
+
                 self.output_buffer.blend(output_chunk)
 
             if self.verbose > 1:

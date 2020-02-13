@@ -8,16 +8,8 @@ class Segmentation(Chunk):
     """
     a chunk of segmentation volume.
     """
-    def __new__(cls, array, **kwargs):
-        if 'global_offset' in kwargs:
-            global_offset = kwargs['global_offset']
-        elif isinstance(array, Chunk):
-            global_offset = array.global_offset
-        else:
-            global_offset = None
-
-        obj = Chunk(array, global_offset=global_offset, *kwargs).view(cls)
-        return obj
+    def __init__(self, array, global_offset=None):
+        super().__init__(array, global_offset=global_offset)
 
     def evaluate(self, groundtruth):
         from waterz import evaluate
