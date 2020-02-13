@@ -319,7 +319,6 @@ class Inferencer(object):
         args:
             input_chunk (Chunk): input chunk with global offset
         """
-        breakpoint()
         assert isinstance(input_chunk, Chunk)
         
         self._update_parameters_for_input_chunk(input_chunk)
