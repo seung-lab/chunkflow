@@ -46,7 +46,7 @@ class Inferencer(object):
                  mask_output_chunk: bool = False,
                  mask_myelin_threshold = None,
                  dry_run: bool = False,
-                 verbose: bool = False):
+                 verbose: int = 1):
 
         assert input_size is None or patch_num is None 
         
@@ -71,8 +71,8 @@ class Inferencer(object):
                 # we should always crop more than the patch overlap 
                 # since the overlap region is reweighted by patch mask
                 # To-Do: equal should also be OK
-                np.testing.assert_array_less(self.output_patch_overlap, 
-                                             self.output_crop_margin)
+                #np.testing.assert_array_less(self.output_patch_overlap, 
+                #                             self.output_crop_margin)
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))
@@ -227,7 +227,7 @@ class Inferencer(object):
         input_patch_stride = self.input_patch_stride 
 
         for iz in tqdm(range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]),
-                       disable=not self.verbose, desc='ConvNet Inferece: '):
+                       disable=not self.verbose, desc='Construct patch slices list: '):
             if iz + input_patch_size[0] > self.input_size[0]:
                 iz = self.input_size[0] - input_patch_size[0]
                 assert iz >= 0
@@ -345,7 +345,7 @@ class Inferencer(object):
         # iterate the offset list
         for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
                       disable=not self.verbose,
-                      desc='ConvNet Inference ...'):
+                      desc='ConvNet inference for patches: '):
             if self.verbose:
                 start = time.time()
 
@@ -354,7 +354,7 @@ class Inferencer(object):
                 self.input_patch_buffer[
                     batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0]).array
 
-            if self.verbose:
+            if self.verbose > 1:
                 end = time.time()
                 print('prepare %d input patches takes %3f sec' %
                       (self.batch_size, end - start))
@@ -365,7 +365,7 @@ class Inferencer(object):
             # the input image should be normalized to [0,1]
             output_patch = self.patch_inferencer(self.input_patch_buffer)
 
-            if self.verbose:
+            if self.verbose > 1:
                 assert output_patch.ndim == 5
                 end = time.time()
                 print('run inference for %d patch takes %3f sec' %
@@ -382,7 +382,7 @@ class Inferencer(object):
                                      global_offset=offset)
                 self.output_buffer.blend(output_chunk)
 
-            if self.verbose:
+            if self.verbose > 1:
                 end = time.time()
                 print('blend patch takes %3f sec' % (end - start))
 

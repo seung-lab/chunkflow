@@ -26,7 +26,3 @@ class AffinityMap(Chunk):
         image = self[-1, :, :, :]
         image = (image * 255).astype(np.uint8)
         return image
-        
-
-
-

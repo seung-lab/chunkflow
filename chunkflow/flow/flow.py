@@ -62,8 +62,8 @@ def default_none(ctx, _, value):
 # the code design is based on:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 @click.group(chain=True)
-@click.option('--verbose/--quiet', default=True,
-              help='print informations or not. default is verbose.')
+@click.option('--verbose', type=click.IntRange(min=0, max=10), default=1,
+              help='print informations level. default is level 1.')
 @click.option('--mip', type=int, default=0,
               help='default mip level of chunks.')
 @click.option('--dry-run/--real-run', default=False,
@@ -302,6 +302,9 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                    roi_start=roi_start, roi_stop=roi_stop,
                                    verbose=state['verbose'])
     print('total number of tasks: ', len(bboxes))
+    
+    if state['verbose'] > 1:
+        print('bounding boxes: ', bboxes)
 
     if queue_name is not None and not state['dry_run']:
         queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
@@ -468,7 +471,7 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               '-f',
               type=str,
               required=True,
-              help='read chunk from file, support .h5 and .tif')
+              help='read chunk from file, support .h5')
 @click.option('--dataset-path',
               '-d',
               type=str,
@@ -519,8 +522,8 @@ def write_h5(tasks, name, input_chunk_name, file_name):
 @click.option('--name', type=str, default='write-tif', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
-@click.option('--file-name', '-f',
-    type=click.Path(dir_okay=False, resolve_path=True), required=True,
+@click.option('--file-name', '-f', default=None, callback=default_none,
+    type=click.Path(dir_okay=False, resolve_path=True), 
     help='file name of tif file, the extention should be .tif or .tiff')
 @operator
 def write_tif(tasks, name, input_chunk_name, file_name):
