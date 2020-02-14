@@ -1,6 +1,6 @@
 language: python
 python:
-- '3.6'
+- '3.8'
 matrix:
   include:
   - python: '3.7'
@@ -16,6 +16,7 @@ install:
 - pip install pytest
 - pip install coveralls
 - pip install pytest-cov
+
 script:
 - coverage run --source=./chunkflow chunkflow generate-tasks -c 0 0 0 -s 0 0 0 -g 1 1 1
 #- coverage run --source=./chunkflow chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
@@ -25,6 +26,7 @@ script:
 - coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference
   --input-patch-size 20 256 256 --patch-num 2 2 2 --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
 - pytest --cov-append --cov=./chunkflow ./tests --verbose
+
 after_success:
 - coveralls
 
