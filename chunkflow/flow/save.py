@@ -89,9 +89,9 @@ class SaveOperator(OperatorBase):
     def _auto_convert_dtype(self, chunk):
         """convert the data type to fit volume datatype"""
         if self.volume.dtype != chunk.dtype:
-            float_chunk = chunk.astype(np.float64)
+            #float_chunk = chunk.astype(np.float64)
             #chunk = float_chunk / np.iinfo(chunk.dtype).max * np.iinfo(self.volume.dtype).max
-            chunk = float_chunk / np.max(chunk) * np.iinfo(self.volume.dtype).max
+            chunk = chunk / chunk.array.max() * np.iinfo(self.volume.dtype).max
             return chunk.astype(self.volume.dtype)
         else:
             return chunk

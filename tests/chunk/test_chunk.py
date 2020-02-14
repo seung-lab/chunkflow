@@ -21,6 +21,10 @@ class Test3DChunk(unittest.TestCase):
         arr = np.random.rand(*self.size).astype('float32')
         self.chunk = Chunk(arr, self.global_offset)
     
+    #def test_math(self):
+    #    self.assertEqual(np.max(self.chunk), np.max(self.chunk.array))
+    #    self.assertEqual(np.min(self.chunk), np.min(self.chunk.array))
+
     def test_create_from_bounding_box(self):
         bbox = Bbox.from_delta(self.global_offset, self.size)
         Chunk.from_bbox( bbox )

@@ -47,7 +47,7 @@ class Inferencer(object):
                  mask_myelin_threshold = None,
                  dry_run: bool = False,
                  verbose: int = 1):
-
+        
         assert input_size is None or patch_num is None 
         
         if output_patch_size is None:
@@ -180,6 +180,9 @@ class Inferencer(object):
         if framework == 'pznet':
             from .patch.pznet import PZNet as PatchInferencer
         elif framework == 'pytorch':
+            # pytorch will not output consistent result if we use batch size > 1
+            # https://discuss.pytorch.org/t/solved-inconsistent-results-during-test-using-different-batch-size/2265 
+            assert self.batch_size == 1
             from .patch.pytorch import PyTorch as PatchInferencer
             # currently, we do not support pytorch backend with different
             # input and output patch size and overlap.
@@ -337,7 +340,7 @@ class Inferencer(object):
         if np.issubdtype(input_chunk.dtype, np.integer):
             # normalize to 0-1 value range
             dtype_max = np.iinfo(input_chunk.dtype).max
-            input_chunk = input_chunk.astype(np.float32) / dtype_max
+            input_chunk = input_chunk.astype(self.dtype) / dtype_max
 
         if self.verbose:
             chunk_time_start = time.time()
@@ -404,15 +407,15 @@ class Inferencer(object):
         if self.mask_output_chunk:
             self.output_buffer *= self.output_chunk_mask
         
-        if self.mask_myelin_threshold:
-            # currently only for masking out affinity map 
-            assert self.output_buffer.shape[0] == 4
-            self.output_buffer = self.output_buffer.mask_using_last_channel(
-                threshold = self.mask_myelin_threshold)
-        
         # theoretically, all the value of output_buffer should not be greater than 1
         # we use a slightly higher value here to accomondate numerical precision issue
         np.testing.assert_array_less(self.output_buffer, 1.0001,
             err_msg='output buffer should not be greater than 1')
         
-        return self.output_buffer
+        if self.mask_myelin_threshold:
+            # currently only for masking out affinity map 
+            assert self.output_buffer.shape[0] == 4
+            return self.output_buffer.mask_using_last_channel(
+                threshold = self.mask_myelin_threshold)
+        else:
+            return self.output_buffer
