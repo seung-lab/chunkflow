@@ -265,9 +265,9 @@ class Chunk(NDArrayOperatorsMixin):
         assert self.ndim==4
 
         mask = (self.array[-1, :, :, :] < threshold)
-        self.array[:-1, :,:,:] *= mask 
-        masked = self.array[:-1, :,:,:]
-        return Chunk(masked, global_offset=self.global_offset)
+        ret = self.array[:-1, ...]
+        ret *= mask
+        return Chunk(ret, global_offset=self.global_offset)
 
     def crop_margin(self, margin_size: tuple = None, output_bbox: Bbox=None):
 

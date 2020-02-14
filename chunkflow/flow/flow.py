@@ -167,6 +167,8 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               type=int, required=True, nargs=3, help='output patch size.')
 @click.option('--channel-num', '-c',
               type=int, default=1, help='output patch channel number. It is 3 for affinity map.')
+@click.option('--dtype', '-d', type=click.Choice(['float16', 'float32']), 
+              default='float32', help='output numerical precision.')
 @click.option('--patch-overlap', '-o',
               type=int, default=None, nargs=3, callback=default_none,
               help='overlap of patches. default is 50% overlap')
@@ -191,7 +193,8 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               help='voxel size or resolution of mip 0 image.')
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
-              patch_size, channel_num, patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
+              patch_size, channel_num, dtype, patch_overlap, crop_chunk_margin, 
+              mip, thumbnail_mip, max_mip,
               queue_name, visibility_timeout, thumbnail, encoding, voxel_size):
     """Prepare storage info files and produce tasks."""
     assert not (volume_stop is None and volume_size is None)
@@ -266,7 +269,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     print('prepare info files in cloud storage...')
     # Note that cloudvolume use fortran order rather than C order
     info = CloudVolume.create_new_info(channel_num, layer_type='image',
-                                       data_type='float32',
+                                       data_type=dtype,
                                        encoding=encoding,
                                        resolution=voxel_size[::-1],
                                        voxel_offset=volume_start[::-1],
