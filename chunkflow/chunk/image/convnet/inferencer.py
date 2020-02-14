@@ -329,9 +329,18 @@ class Inferencer(object):
             self._check_alignment()
          
         if self.dry_run:
-            print('dry run, return zero buffer directly')
-            return self.output_buffer
+            print('dry run, return a special artifical chunk.')
+            size=self.output_buffer.shape
+            
+            if self.mask_myelin_threshold:
+                # eleminate the myelin channel
+                size = (size[0]-1, *size[1:])
 
+            return Chunk.create(
+                size=size,
+                dtype=self.output_buffer.dtype,
+                voxel_offset=self.output_buffer.global_offset
+            )
        
         if input_chunk == 0:
             print('input is all zero, return zero buffer directly')
