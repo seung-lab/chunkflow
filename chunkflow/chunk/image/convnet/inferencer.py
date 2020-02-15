@@ -424,7 +424,13 @@ class Inferencer(object):
         if self.mask_myelin_threshold:
             # currently only for masking out affinity map 
             assert self.output_buffer.shape[0] == 4
-            return self.output_buffer.mask_using_last_channel(
+            output_chunk = self.output_buffer.mask_using_last_channel(
                 threshold = self.mask_myelin_threshold)
+
+            # currently neuroglancer only support float32, not float16
+            if output_chunk.dtype == np.dtype('float16'):
+                output_chunk = output_chunk.astype('float32')
+
+            return output_chunk
         else:
             return self.output_buffer
