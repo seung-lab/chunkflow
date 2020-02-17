@@ -210,6 +210,9 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
         volume_stop = volume_start + volume_size
     else:
         volume_size = volume_stop - volume_start
+    print('volume start: ', volume_start)
+    print('volume stop: ', volume_stop)
+    print('volume size: ', volume_size)
     
     if patch_overlap is None:
         # use 50% patch overlap in default
@@ -219,7 +222,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     if crop_chunk_margin is None:
         crop_chunk_margin = patch_overlap
     assert crop_chunk_margin[1] == crop_chunk_margin[2]
-
+    print('crop chunk margin: ', crop_chunk_margin)
+    
     if thumbnail:
         # thumnail requires maximum mip level of 5
         thumnail_mip = max(thumbnail_mip, 5)
@@ -235,7 +239,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     # assume that the crop margin size is the same with the patch overlap
     patch_num_start = int(ideal_total_patch_num ** (1./3.)  / 2)
     patch_num_stop = patch_num_start * 3
-    
+
     # find the patch number solution with minimum cost by bruteforce search
     cost = sys.float_info.max
     patch_num = None
@@ -253,7 +257,12 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
             if current_cost < cost:
                 cost = current_cost
                 patch_num = (pnz, pnxy, pnxy)
+                
+    print('patch size: ', patch_size)
+    print('patch overlap: ', patch_overlap)
+    print('patch stride: ', patch_stride)
     print('patch number: ', patch_num)
+
     assert mip>=0
     block_mip = (mip + thumbnail_mip) // 2
     block_factor = 2 ** block_mip
@@ -266,7 +275,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                   output_chunk_size[2]//block_factor)
     print('block size: ', block_size)
     
-    print('prepare info files in cloud storage...')
+    print('create and upload info file to ', layer_path)
     # Note that cloudvolume use fortran order rather than C order
     info = CloudVolume.create_new_info(channel_num, layer_type='image',
                                        data_type=dtype,
