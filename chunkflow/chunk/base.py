@@ -276,21 +276,22 @@ class Chunk(NDArrayOperatorsMixin):
                 margin_size = (0,) + margin_size
 
             if self.ndim == 3:
-                chunk = self.array[margin_size[0]:self.shape[0] - margin_size[0],
-                                   margin_size[1]:self.shape[1] - margin_size[1],
-                                   margin_size[2]:self.shape[2] - margin_size[2]]
+                new_array = self.array[margin_size[0]: -margin_size[0],
+                                       margin_size[1]: -margin_size[1],
+                                       margin_size[2]: -margin_size[2]]
             elif self.ndim == 4:
-                chunk = self.array[margin_size[0]:self.shape[0] - margin_size[0],
-                                   margin_size[1]:self.shape[1] - margin_size[1],
-                                   margin_size[2]:self.shape[2] - margin_size[2],
-                                   margin_size[3]:self.shape[3] - margin_size[3]]
+                new_array = self.array[margin_size[0]: -margin_size[0],
+                                       margin_size[1]: -margin_size[1],
+                                       margin_size[2]: -margin_size[2],
+                                       margin_size[3]: -margin_size[3]]
             else:
                 raise ValueError('the array dimension can only by 3 or 4.')
             global_offset = tuple(
-                o + m for o, m in zip(chunk.global_offset, margin_size))
-            return Chunk(chunk, global_offset=global_offset)
+                o + m for o, m in zip(self.global_offset, margin_size))
+            return Chunk(new_array, global_offset=global_offset)
         else:
             print('automatically crop the chunk to output bounding box.')
+            assert output_bbox is not None
             return self.cutout(output_bbox.to_slices())
     
     def connected_component(self, threshold: float = 0.5, 
