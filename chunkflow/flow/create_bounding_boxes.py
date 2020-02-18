@@ -36,7 +36,7 @@ def create_bounding_boxes(chunk_size:tuple, chunk_overlap: tuple=(0,0,0),
 
     if grid_size is None:
         grid_size = (roi_size - chunk_overlap) // stride + 1
-
+    
     # the stride should not be zero if there is more than one chunks
     for g, s in zip(grid_size, stride):
         if g > 1:

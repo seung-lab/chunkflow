@@ -4,23 +4,38 @@ from cloudvolume.lib import Bbox
 from chunkflow.chunk import Chunk
 
 
+def create_chunk(size:tuple = (7, 8, 9), global_offset=(-2, -3, -4)):
+    arr = np.random.rand(*size).astype('float32')
+    chunk = Chunk(arr, global_offset)
+    return chunk
+
 def test_mask_last_channel():
     size = (4, 3, 3, 3)
     global_offset = (0, -1, -1, -1)
-    arr = np.random.rand(*size).astype('float32')
-    chunk = Chunk(arr, global_offset)
+    chunk = create_chunk(size=size, global_offset=global_offset)
     out = chunk.mask_using_last_channel()
     assert out.shape == (3,3,3,3)
     np.testing.assert_array_equal(out, chunk[:3, :,:,:])
 
+def test_crop_margin():
+    size = (7, 8, 9)
+    global_offset = (-2, -3, -4)
+    chunk = create_chunk(size=size, global_offset=global_offset)
+    new_chunk = chunk.crop_margin(margin_size=(1, 2, 3))
+    np.testing.assert_array_equal(new_chunk, chunk.array[1:-1, 2:-2, 3:-3])
+    np.testing.assert_array_equal(
+        new_chunk.global_offset,
+        (-1, -1, -1)
+    )
+
 
 class Test3DChunk(unittest.TestCase):
     def setUp(self):
-        self.size = (3, 3, 3)
+        self.size = (7, 8, 9)
         self.global_offset = (-1, -1, -1)
         arr = np.random.rand(*self.size).astype('float32')
         self.chunk = Chunk(arr, self.global_offset)
-    
+
     #def test_math(self):
     #    self.assertEqual(np.max(self.chunk), np.max(self.chunk.array))
     #    self.assertEqual(np.min(self.chunk), np.min(self.chunk.array))
