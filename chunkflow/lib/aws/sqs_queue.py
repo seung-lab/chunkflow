@@ -1,3 +1,4 @@
+import os
 import boto3
 import hashlib
 from time import sleep
@@ -9,7 +10,7 @@ class SQSQueue(object):
     """upload/fetch messages using AWS Simple Queue Services."""
     def __init__(self,
                  queue_name: str,
-                 visibility_timeout: int = None,
+                 visibility_timeout: int = 3600,
                  wait_if_empty: int = 100,
                  fetch_wait_time_seconds: int = 20,
                  retry_times: int = 30):
@@ -34,14 +35,35 @@ class SQSQueue(object):
             region_name=credentials['AWS_DEFAULT_REGION'],
             aws_secret_access_key=credentials['AWS_SECRET_ACCESS_KEY'],
             aws_access_key_id=credentials['AWS_ACCESS_KEY_ID'])
+
         self.queue_name = queue_name
-        resp = self.client.get_queue_url(QueueName=queue_name)
-        self.queue_url = resp['QueueUrl']
+        
+        if self._exist(queue_name):
+            resp = self.client.get_queue_url(QueueName=queue_name)
+            self.queue_url = resp['QueueUrl']
+        else:
+            print('this queue do not exist, creating queue: ', queue_name)
+            resp = self.client.create_queue(
+                QueueName=queue_name,
+                Attributes={
+                    'ReceiveMessageWaitTimeSeconds': str(fetch_wait_time_seconds),
+                    'VisibilityTimeout': str(visibility_timeout)
+                }
+            )
+            self.queue_url = resp['QueueUrl']
+
         self.visibility_timeout = visibility_timeout
         self.wait_if_empty = wait_if_empty
         self.fetch_wait_time_seconds = fetch_wait_time_seconds
         self.retry_times = retry_times
-
+    
+    def _exist(self, queue_name):
+        resp = self.client.list_queues(QueueNamePrefix=queue_name)
+        if 'QueueUrls' in resp:
+            for queue_url in resp['QueueUrls']:
+                if os.path.basename(queue_url) == queue_name:
+                    return True
+        return False
 
     def __iter__(self):
         return self
