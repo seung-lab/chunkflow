@@ -305,8 +305,12 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     thumbnail_vol.commit_info()
    
     print('create a list of bounding boxes...')
-    roi_start = (volume_start[0], volume_start[1]//factor, volume_start[2]//factor)
-    roi_size = (volume_size[0], volume_size[1]//factor, volume_size[2]//factor)
+    roi_start = (volume_start[0], 
+                 volume_start[1]//factor, 
+                 volume_start[2]//factor)
+    roi_size = (volume_size[0], 
+                volume_size[1]//factor, 
+                volume_size[2]//factor)
     roi_stop = tuple(s+z for s, z in zip(roi_start, roi_size))
 
     # create bounding boxes and ingest to queue
