@@ -9,6 +9,7 @@ import click
 from cloudvolume.lib import Bbox, Vec
 # from cloudvolume.datasource.precomputed.metadata import PrecomputedMetadata
 from cloudvolume import CloudVolume
+from cloudvolume.storage import SimpleStorage
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
@@ -210,7 +211,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
         volume_stop = volume_start + volume_size
     else:
         volume_size = volume_stop - volume_start
-    print('volume start: ', volume_start)
+    print('\nvolume start: ', volume_start)
     print('volume stop: ', volume_stop)
     print('volume size: ', volume_size)
     
@@ -258,7 +259,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                 cost = current_cost
                 patch_num = (pnz, pnxy, pnxy)
                 
-    print('patch size: ', patch_size)
+    print('\npatch size: ', patch_size)
     print('patch overlap: ', patch_overlap)
     print('patch stride: ', patch_stride)
     print('patch number: ', patch_num)
@@ -275,6 +276,13 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                   output_chunk_size[2]//block_factor)
     print('block size: ', block_size)
     
+    print('\ncheck that we are not overwriting existing info file.')
+    storage = SimpleStorage(layer_path)
+    assert not storage.exists('info')
+    thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
+    thumbnail_storage = SimpleStorage(thumbnail_layer_path)
+    assert not thumbnail_storage.exists('info')
+
     print('create and upload info file to ', layer_path)
     # Note that cloudvolume use fortran order rather than C order
     info = CloudVolume.create_new_info(channel_num, layer_type='image',
@@ -287,10 +295,11 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                        max_mip=mip)
     vol = CloudVolume(layer_path, info=info)
     vol.commit_info()
-     
+  
+    thumbnail_factor = 2**thumbnail_mip
     thumbnail_block_size = (output_chunk_size[0]//factor,
-                            output_chunk_size[1]//max_factor,
-                            output_chunk_size[2]//max_factor)
+                            output_chunk_size[1]//thumbnail_factor,
+                            output_chunk_size[2]//thumbnail_factor)
     print('thumbnail block size: ', thumbnail_block_size)
     thumbnail_info = CloudVolume.create_new_info(1, layer_type='image', 
                                                  data_type='uint8',
@@ -300,7 +309,6 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                                  volume_size=volume_size[::-1],
                                                  chunk_size=thumbnail_block_size[::-1],
                                                  max_mip=thumbnail_mip)
-    thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
     thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
     thumbnail_vol.commit_info()
    
