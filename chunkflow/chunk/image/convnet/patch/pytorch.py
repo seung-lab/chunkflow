@@ -55,13 +55,6 @@ class PyTorch(PatchInferencerBase):
             state_dict = chkpt['state_dict'] if 'state_dict' in chkpt else chkpt
             self.model.load_state_dict(state_dict)
         
-        # we need this to make sure
-        # this is equiverlant with model.eval()
-        #self.model.train(False)
-        self.model.eval()
-        #if use_batch_norm and is_static_batch_norm:
-        #    self.model.eval()
-
         if self.is_gpu and next(self.model.parameters()).is_cuda:
             self.model.cuda()
 
