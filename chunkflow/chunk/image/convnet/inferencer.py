@@ -142,11 +142,14 @@ class Inferencer(object):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        assert isinstance(self.output_buffer.array, np.memmap)
-        print('delete the temporal memory map files...')
-        os.remove(self.output_buffer.array.filename)
-        #if self.output_chunk_mask:
-        #    os.remove(self.output_chunk_mask.array.filename)
+        # when we manually interrupt the process, 
+        # output_buffer could be None
+        if self.output_buffer:
+            assert isinstance(self.output_buffer.array, np.memmap)
+            print('delete the temporal memory map files...')
+            os.remove(self.output_buffer.array.filename)
+            #if self.output_chunk_mask:
+            #    os.remove(self.output_chunk_mask.array.filename)
     
     def _update_parameters_for_input_chunk(self, input_chunk):
         """
