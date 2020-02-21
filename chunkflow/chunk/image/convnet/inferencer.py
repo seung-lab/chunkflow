@@ -145,8 +145,8 @@ class Inferencer(object):
     def __exit__(self, exception_type, exception_value, traceback):
         # when we manually interrupt the process, 
         # output_buffer could be None
-        if self.output_buffer:
-            assert isinstance(self.output_buffer.array, np.memmap)
+        if self.output_buffer and isinstance(
+                self.output_buffer.array, np.memmap):
             print('delete the temporal memory map files...')
             os.remove(self.output_buffer.array.filename)
             #if self.output_chunk_mask:
@@ -301,13 +301,18 @@ class Inferencer(object):
     
     def _update_output_buffer(self, input_chunk):
         if self.output_buffer is None:
-            # a random temporal file. will be removed later.
-            output_buffer_mmap_file = mktemp(suffix='.dat')
             output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
-            # the memory map is initialized with 0 in default
-            output_buffer_array = np.memmap(output_buffer_mmap_file, 
-                                           dtype=self.dtype, mode='w+', 
-                                           shape=output_buffer_size)
+            if self.mask_myelin_threshold is None:
+                # a random temporal file. will be removed later.
+                output_buffer_mmap_file = mktemp(suffix='.dat')
+                # the memory map is initialized with 0 in default
+                output_buffer_array = np.memmap(output_buffer_mmap_file, 
+                                               dtype=self.dtype, mode='w+', 
+                                               shape=output_buffer_size)
+            else:
+                # when we use myelin mask, the masking computation will create a full array in RAM!
+                # and it will duplicate the array! thus, we should use normal array in this case.
+                output_buffer_array = np.zeros(output_buffer_size, dtype=self.dtype)
         else:
             # we have to make sure that all the value is 0 initially
             # so we can add patches on it.
