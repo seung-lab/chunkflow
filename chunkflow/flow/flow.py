@@ -6,7 +6,7 @@ from time import time
 import numpy as np
 import click
 
-from cloudvolume.lib import Bbox, Vec
+from cloudvolume.lib import Bbox, Vec, yellow
 # from cloudvolume.datasource.precomputed.metadata import PrecomputedMetadata
 from cloudvolume import CloudVolume
 from cloudvolume.storage import SimpleStorage
@@ -74,6 +74,8 @@ def main(verbose, mip, dry_run):
     state['verbose'] = verbose
     state['mip'] = mip
     state['dry_run'] = dry_run
+    if dry_run:
+        print(yellow('\nYou are using dry-run mode, will not do the work!'))
     pass
 
 
@@ -275,43 +277,46 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                   output_chunk_size[1]//block_factor,
                   output_chunk_size[2]//block_factor)
     print('block size: ', block_size)
-    
-    print('\ncheck that we are not overwriting existing info file.')
-    storage = SimpleStorage(layer_path)
-    assert not storage.exists('info')
-    thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
-    thumbnail_storage = SimpleStorage(thumbnail_layer_path)
-    assert not thumbnail_storage.exists('info')
-
-    print('create and upload info file to ', layer_path)
-    # Note that cloudvolume use fortran order rather than C order
-    info = CloudVolume.create_new_info(channel_num, layer_type='image',
-                                       data_type=dtype,
-                                       encoding=encoding,
-                                       resolution=voxel_size[::-1],
-                                       voxel_offset=volume_start[::-1],
-                                       volume_size=volume_size[::-1],
-                                       chunk_size=block_size[::-1],
-                                       max_mip=mip)
-    vol = CloudVolume(layer_path, info=info)
-    vol.commit_info()
-  
-    thumbnail_factor = 2**thumbnail_mip
-    thumbnail_block_size = (output_chunk_size[0]//factor,
-                            output_chunk_size[1]//thumbnail_factor,
-                            output_chunk_size[2]//thumbnail_factor)
-    print('thumbnail block size: ', thumbnail_block_size)
-    thumbnail_info = CloudVolume.create_new_info(1, layer_type='image', 
-                                                 data_type='uint8',
-                                                 encoding='raw',
-                                                 resolution=voxel_size[::-1],
-                                                 voxel_offset=volume_start[::-1],
-                                                 volume_size=volume_size[::-1],
-                                                 chunk_size=thumbnail_block_size[::-1],
-                                                 max_mip=thumbnail_mip)
-    thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
-    thumbnail_vol.commit_info()
+    print('RAM size of each block: ', 
+          np.prod(block_size)/1024/1024/1024*4*channel_num, ' GB')
    
+    if not state['dry_run']:
+        print('\ncheck that we are not overwriting existing info file.')
+        storage = SimpleStorage(layer_path)
+        assert not storage.exists('info')
+        thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
+        thumbnail_storage = SimpleStorage(thumbnail_layer_path)
+        assert not thumbnail_storage.exists('info')
+
+        print('create and upload info file to ', layer_path)
+        # Note that cloudvolume use fortran order rather than C order
+        info = CloudVolume.create_new_info(channel_num, layer_type='image',
+                                           data_type=dtype,
+                                           encoding=encoding,
+                                           resolution=voxel_size[::-1],
+                                           voxel_offset=volume_start[::-1],
+                                           volume_size=volume_size[::-1],
+                                           chunk_size=block_size[::-1],
+                                           max_mip=mip)
+        vol = CloudVolume(layer_path, info=info)
+        vol.commit_info()
+      
+        thumbnail_factor = 2**thumbnail_mip
+        thumbnail_block_size = (output_chunk_size[0]//factor,
+                                output_chunk_size[1]//thumbnail_factor,
+                                output_chunk_size[2]//thumbnail_factor)
+        print('thumbnail block size: ', thumbnail_block_size)
+        thumbnail_info = CloudVolume.create_new_info(1, layer_type='image', 
+                                                     data_type='uint8',
+                                                     encoding='raw',
+                                                     resolution=voxel_size[::-1],
+                                                     voxel_offset=volume_start[::-1],
+                                                     volume_size=volume_size[::-1],
+                                                     chunk_size=thumbnail_block_size[::-1],
+                                                     max_mip=thumbnail_mip)
+        thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
+        thumbnail_vol.commit_info()
+       
     print('create a list of bounding boxes...')
     roi_start = (volume_start[0], 
                  volume_start[1]//factor, 
@@ -1019,8 +1024,7 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero, s
                 task['skip'] = state['operators'][name].is_all_zero(
                     task['bbox'])
                 if task['skip']:
-                    print('the mask of {} is all zero, will skip to {}'.format(
-                        name, skip_to))
+                    print(yellow(f'the mask of {name} is all zero, will skip to {skip_to}'))
                 task['skip_to'] = skip_to
             else:
                 task['chunk'] = state['operators'][name](task['chunk'])
