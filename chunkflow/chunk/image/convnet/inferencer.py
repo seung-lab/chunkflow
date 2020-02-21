@@ -71,8 +71,9 @@ class Inferencer(object):
                 # we should always crop more than the patch overlap 
                 # since the overlap region is reweighted by patch mask
                 # To-Do: equal should also be OK
-                np.testing.assert_array_less(self.output_patch_overlap, 
-                                             self.output_crop_margin)
+                assert np.alltrue([v<=m for v, m in zip(
+                    self.output_patch_overlap, 
+                    self.output_crop_margin)])
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))
@@ -204,6 +205,7 @@ class Inferencer(object):
             output_patch_size=self.output_patch_size,
             output_patch_overlap=self.output_patch_overlap,
             num_output_channels=self.num_output_channels,
+            dtype=self.dtype,
             bump=bump)
 
     def _check_alignment(self):

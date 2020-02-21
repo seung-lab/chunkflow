@@ -124,7 +124,8 @@ class TestInferencePipeline(unittest.TestCase):
                         input_size=chunk.shape,
                         output_patch_overlap=self.patch_overlap,
                         framework='identity',
-                        batch_size=5) as inferencer:
+                        batch_size=5,
+                        dtype='float32') as inferencer:
             print(inferencer.compute_device)
             chunk = inferencer(chunk)
         print('after inference: {}'.format(chunk.slices))
