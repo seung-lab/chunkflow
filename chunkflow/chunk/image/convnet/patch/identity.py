@@ -13,10 +13,13 @@ class Identity(PatchInferencerBase):
     def __init__(self, convnet_model: str, convnet_weight_path: str,
                  input_patch_size: tuple, output_patch_overlap: tuple,
                  output_patch_size: tuple = None, 
-                 num_output_channels: int = 1, bump: str='wu'):
+                 num_output_channels: int = 1, 
+                 dtype='float32',
+                 bump: str='wu'):
         assert bump == 'wu'
         super().__init__(input_patch_size, output_patch_size,
-                         output_patch_overlap, num_output_channels)
+                         output_patch_overlap, num_output_channels,
+                         dtype=dtype)
 
     def __call__(self, input_patch):
         """
