@@ -276,9 +276,12 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     block_size = (output_chunk_size[0]//factor, 
                   output_chunk_size[1]//block_factor,
                   output_chunk_size[2]//block_factor)
+    print('\noutput chunk size: ', output_chunk_size)
     print('block size: ', block_size)
     print('RAM size of each block: ', 
-          np.prod(block_size)/1024/1024/1024*4*channel_num, ' GB')
+          np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')
+    print('voxel utilization: ', 
+          np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(patch_size))
    
     if not state['dry_run']:
         print('\ncheck that we are not overwriting existing info file.')
