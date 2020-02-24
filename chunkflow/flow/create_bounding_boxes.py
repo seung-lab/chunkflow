@@ -45,7 +45,6 @@ def create_bounding_boxes(chunk_size:tuple, chunk_overlap: tuple=(0,0,0),
     final_output_stop = roi_start + (grid_size-1) * stride + chunk_size
     if verbose:
         print('\nroi start: ', roi_start)
-        print('chunk_size: ', chunk_size, '\n')
         print('stride: ', stride)
         print('grid size: ', grid_size)
         print('final output stop: ', final_output_stop)
