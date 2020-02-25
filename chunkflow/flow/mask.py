@@ -16,7 +16,7 @@ class MaskOperator(OperatorBase):
                  inverse: bool = False,
                  fill_missing: bool = False,
                  check_all_zero=False,
-                 verbose: bool = True,
+                 verbose: int = 1,
                  name: str = 'mask'):
         super().__init__(name=name, verbose=verbose)
 
@@ -33,8 +33,7 @@ class MaskOperator(OperatorBase):
                                     mip=mask_mip)
 
         if verbose:
-            print("mask chunk at mip {} using {}".format(
-                mask_mip, volume_path))
+            print(f'build mask operator based on {volume_path} at mip {mask_mip}')
 
     def __call__(self, x):
         if self.check_all_zero:
@@ -56,7 +55,7 @@ class MaskOperator(OperatorBase):
         if self.verbose:
             print('mask out chunk using {} in mip {}'.format(
                 self.volume_path, self.mask_mip))
-
+        
         if np.alltrue(chunk == 0):
             warn("chunk is all black, return directly")
             return chunk
@@ -76,9 +75,7 @@ class MaskOperator(OperatorBase):
 
         # make it the same type with input
         mask_in_high_mip = mask_in_high_mip.astype(chunk.dtype)
-
-        if self.verbose:
-            print("upsampling mask ...")
+        
         # upsampling factor in XY plane
         #mask = np.zeros(chunk.shape[-3:], dtype=chunk.dtype)
         xyfactor = 2**(self.mask_mip - self.chunk_mip)
