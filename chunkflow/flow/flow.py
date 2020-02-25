@@ -170,7 +170,7 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               type=int, required=True, nargs=3, help='output patch size.')
 @click.option('--channel-num', '-c',
               type=int, default=1, help='output patch channel number. It is 3 for affinity map.')
-@click.option('--dtype', '-d', type=click.Choice(['float16', 'float32']), 
+@click.option('--dtype', '-d', type=click.Choice(['uint8', 'float16', 'float32']), 
               default='float32', help='output numerical precision.')
 @click.option('--patch-overlap', '-o',
               type=int, default=None, nargs=3, callback=default_none,
