@@ -52,6 +52,7 @@ class DownsampleUploadOperator(OperatorBase):
         self.stop_mip = stop_mip
 
     def __call__(self, chunk):
+        assert 3 == chunk.ndim 
         global_offset = chunk.global_offset
 
         num_mips = self.stop_mip - self.chunk_mip
@@ -73,7 +74,6 @@ class DownsampleUploadOperator(OperatorBase):
             # the first chunk in pyramid is already downsampled!
             downsampled_chunk = pyramid[mip - self.chunk_mip - 1]
             # compute new offset, only downsample the y,x dimensions
-            assert 3 == len(global_offset) 
             offset = np.divide(global_offset, np.asarray(
                         [1, 2**(mip - self.chunk_mip), 2**(mip - self.chunk_mip)]))
             bbox = Bbox.from_delta(offset, downsampled_chunk.shape[0:3][::-1])

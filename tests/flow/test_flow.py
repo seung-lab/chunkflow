@@ -145,9 +145,9 @@ class TestInferencePipeline(unittest.TestCase):
         print('save to output volume...')
         save_operator = SaveOperator(self.output_volume_path,
                                      self.mip,
-                                     upload_log=False,
+                                     upload_log=True,
                                      create_thumbnail=True)
-        save_operator(chunk)
+        save_operator(chunk, log={'timer': {'save': 34}})
         print('after saving: {}'.format(chunk.slices))
 
         # evaluate the output

@@ -16,5 +16,7 @@ def test_mesh():
     tempdir = tempfile.mkdtemp()
     #mesher = MeshOperator('file://' + tempdir, 'precomputed', manifest=True)
     mesher = MeshOperator('file://' + tempdir, 'obj')
+    mesher(ck)
 
+    mesher = MeshOperator('file://' + tempdir, 'ply')
     mesher(ck)
