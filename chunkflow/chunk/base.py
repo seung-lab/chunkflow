@@ -1,4 +1,4 @@
-
+from typing import Union
 import os
 from numbers import Number
 import h5py
@@ -26,11 +26,15 @@ class Chunk(NDArrayOperatorsMixin):
     :param global_offset: the offset of this array chunk
     :return: a new chunk with array data and global offset
     """
-    def __init__(self, array: np.ndarray, global_offset: tuple = None):
-        assert isinstance(array, np.ndarray)
+    def __init__(self, array, global_offset: tuple = None):
+        assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         self.array = array
         if global_offset is None:
-            global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
+            if isinstance(array, Chunk):
+                self.array = array.array
+                global_offset = array.global_offset
+            else:
+                global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
         self.global_offset = global_offset
         assert array.ndim == len(global_offset)
         
