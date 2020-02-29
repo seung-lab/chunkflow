@@ -15,3 +15,4 @@ pandas
 zmesh
 fastremap
 matplotlib
+waterz

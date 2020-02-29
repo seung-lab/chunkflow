@@ -45,11 +45,9 @@ class MaskOperator(OperatorBase):
 
     def is_all_zero(self, bbox):
         mask_in_high_mip = self._read_mask_in_high_mip(bbox)
-        if np.alltrue(mask_in_high_mip == 0):
-            # mask is all zero
-            return True
-        else:
-            return False
+        # To-Do: replace with np.array_equiv function
+        # return np.array_equiv(mask_in_high_mip, 0)
+        return np.alltrue(mask_in_high_mip == 0)
 
     def maskout(self, chunk):
         if self.verbose:

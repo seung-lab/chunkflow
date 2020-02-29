@@ -1,5 +1,10 @@
 include requirements.txt
+
+exclude tests
 exclude .travis.yml
 exclude dist
 exclude chunkflow.egg-info
 exclude docs/source/_static
+exclude examples 
+exclude distributed
+exclude docker
