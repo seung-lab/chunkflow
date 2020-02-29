@@ -8,10 +8,14 @@ with open(os.path.join(PACKAGE_DIR, 'requirements.txt')) as f:
     install_requires = f.read().splitlines()
     install_requires = [l for l in install_requires if not l.startswith('#')]
 
-with open(os.path.join(PACKAGE_DIR, 'tests/requirements.txt')) as f:
-    tests_require = f.read().splitlines()
-    tests_require = [l for l in tests_require if not l.startswith('#')]
-
+tests_requirements_file = os.path.join(PACKAGE_DIR, 'tests/requirements.txt')
+# in the release tar.gz file, there will be no tests_requirements_file
+if os.path.isfile(tests_requirements_file):
+    with open(tests_requirements_file) as f:
+        tests_require = f.read().splitlines()
+        tests_require = [l for l in tests_require if not l.startswith('#')]
+else:
+    tests_require = []
 
 with open("README.md", "r") as fh:
     LONG_DESCRIPTION = fh.read()
