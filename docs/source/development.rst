@@ -26,10 +26,12 @@ Release
 Our travis build/test system can automatically release/update a version if you tag the commit. It is recommended to use travis system for new version release.
 
 .. code-block:: console
+
    git tag v1.0.0
    git push origin v1.0.0
 
 Of course, you can also do it manually.
+
 .. code-block:: console
 
    python setup.py sdist
