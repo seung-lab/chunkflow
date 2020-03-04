@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 import shutil
 import tempfile
+from time import sleep
+
 import numpy as np
 from cloudvolume import CloudVolume
 
@@ -38,5 +40,6 @@ def test_save_image():
     
     print('really save the chunk.')
     op(chunk, log={'timer': {'save': 43}})
-
+    
+    sleep(2)
     shutil.rmtree(tempdir)

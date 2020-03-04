@@ -72,7 +72,7 @@ class SaveOperator(OperatorBase):
         chunk = Chunk(arr, global_offset=(0, *bbox.minpt))
         return chunk
 
-    def __call__(self, chunk, log=None, output_bbox=None):
+    def __call__(self, chunk, log=None):
         assert isinstance(chunk, Chunk)
         if self.verbose:
             print('save chunk.')
@@ -92,8 +92,6 @@ class SaveOperator(OperatorBase):
             log['timer'][self.name] = time.time() - start
 
         if self.upload_log:
-            if output_bbox is None:
-                output_bbox = Bbox.from_delta((0, 0, 0), chunk.shape)
             self._upload_log(log, chunk.bbox)
 
     def _auto_convert_dtype(self, chunk):

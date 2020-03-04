@@ -1218,8 +1218,7 @@ def save(tasks, name, volume_path, input_chunk_name, upload_log, nproc, create_t
         if not task['skip']:
             # the time elapsed was recorded internally
             state['operators'][name](task[input_chunk_name],
-                                     log=task.get('log', {'timer': {}}),
-                                     output_bbox=task.get('bbox', None))
+                                     log=task.get('log', {'timer': {}}))
             task['output_volume_path'] = volume_path
         yield task
 
