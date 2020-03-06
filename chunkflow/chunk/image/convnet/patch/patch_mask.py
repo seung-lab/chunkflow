@@ -39,6 +39,11 @@ def make_patch_mask(patch_size, overlap, dtype='float32'):
     bump_map /= base_mask[stride[0]:stride[0] +
                           patch_size[0], stride[1]:stride[1] +
                           patch_size[1], stride[2]:stride[2] + patch_size[2]]
+    
+    np.testing.assert_array_equal(bump_map[
+        overlap[0]:-overlap[0], 
+        overlap[1]:-overlap[1], 
+        overlap[2]:-overlap[2]], 1)
 
     return bump_map.astype(dtype)
 
@@ -61,25 +66,3 @@ def make_bump_map(patch_size):
     #bump_map[bump_map < threshold] = threshold
 
     return np.asarray(bump_map, dtype=np.float64)
-
-
-if __name__ == '__main__':
-    patch_size = (20, 256, 256)
-    bump_map = make_bump_map(patch_size)
-
-    from scipy.stats import describe
-    print('describe bump map:')
-    print(describe(bump_map, axis=None))
-
-    patch_mask = PatchMask(patch_size, (4, 64, 64))
-    print('shape of mask: {}'.format(patch_mask.shape))
-    print('describe patch mask:')
-    print(describe(patch_mask, axis=None))
-
-    import h5py
-    import os
-    file_name = '/tmp/patch_mask.h5'
-    if os.path.exists(file_name):
-        os.remove(file_name)
-    with h5py.File(file_name) as f:
-        f['/main'] = patch_mask

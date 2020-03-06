@@ -4,23 +4,17 @@ import numpy as np
 from .base import Chunk
 
 
+from waterz import evaluate
+
+
 class Segmentation(Chunk):
     """
     a chunk of segmentation volume.
     """
-    def __new__(cls, array, **kwargs):
-        if 'global_offset' in kwargs:
-            global_offset = kwargs['global_offset']
-        elif isinstance(array, Chunk):
-            global_offset = array.global_offset
-        else:
-            global_offset = None
-
-        obj = Chunk(array, global_offset=global_offset, *kwargs).view(cls)
-        return obj
+    def __init__(self, array, global_offset=None):
+        super().__init__(array, global_offset=global_offset)
 
     def evaluate(self, groundtruth):
-        from waterz import evaluate
         if not np.issubdtype(self.dtype, np.uint64):
             this = self.astype(np.uint64)
         else:
@@ -28,5 +22,8 @@ class Segmentation(Chunk):
 
         if not np.issubdtype(groundtruth.dtype, np.uint64):
             groundtruth = groundtruth.astype(np.uint64)
+        
+        if isinstance(groundtruth, Chunk):
+            groundtruth = groundtruth.array
 
-        return evaluate(this, groundtruth)
+        return evaluate(this.array, groundtruth)

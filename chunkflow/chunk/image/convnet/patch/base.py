@@ -36,7 +36,9 @@ class PatchInferencerBase(object):
                                          zip(output_patch_size, self.output_patch_overlap))
 
         # prepare patch mask
-        self.output_patch_mask = PatchMask(output_patch_size, output_patch_overlap)
+        self.output_patch_mask = PatchMask(output_patch_size, 
+                                           output_patch_overlap,
+                                           dtype=dtype)
         # keep a version in cpu for making chunk mask
         self.output_patch_mask_numpy = self.output_patch_mask
 

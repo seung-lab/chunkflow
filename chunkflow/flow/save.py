@@ -11,6 +11,8 @@ from chunkflow.lib.igneous.tasks import downsample_and_upload
 from chunkflow.chunk import Chunk
 
 from .base import OperatorBase
+from chunkflow.lib.igneous.tasks import downsample_and_upload
+#from .downsample_upload import DownsampleUploadOperator
 
 
 class SaveOperator(OperatorBase):
@@ -46,6 +48,7 @@ class SaveOperator(OperatorBase):
             self.log_storage = Storage(log_path)
 
         if create_thumbnail:
+            thumbnail_layer_path = os.path.join(volume_path, 'thumbnail')
             self.thumbnail_volume = CloudVolume(
                 os.path.join(volume_path, 'thumbnail'),
                 compress='gzip',
@@ -54,6 +57,12 @@ class SaveOperator(OperatorBase):
                 autocrop=True,
                 mip=mip,
                 progress=verbose)
+            #self.thumbnail_operator = DownsampleUploadOperator(
+            #    thumbnail_layer_path, chunk_mip = mip,
+            #    start_mip = 6, stop_mip = 7,
+            #    fill_missing = True,
+            #    verbose = verbose
+            #)
 
     def create_chunk_with_zeros(self, bbox):
         """Create a fake all zero chunk. 
@@ -63,7 +72,8 @@ class SaveOperator(OperatorBase):
         chunk = Chunk(arr, global_offset=(0, *bbox.minpt))
         return chunk
 
-    def __call__(self, chunk, log=None, output_bbox=None):
+    def __call__(self, chunk, log=None):
+        assert isinstance(chunk, Chunk)
         if self.verbose:
             print('save chunk.')
         
@@ -71,7 +81,7 @@ class SaveOperator(OperatorBase):
         chunk = self._auto_convert_dtype(chunk)
 
         # transpose czyx to xyzc order
-        arr = np.transpose(chunk)
+        arr = np.transpose(chunk.array)
         self.volume[chunk.slices[::-1]] = arr
         
         if self.create_thumbnail:
@@ -82,16 +92,14 @@ class SaveOperator(OperatorBase):
             log['timer'][self.name] = time.time() - start
 
         if self.upload_log:
-            if output_bbox is None:
-                output_bbox = Bbox.from_delta((0, 0, 0), chunk.shape)
-            self._upload_log(log, output_bbox)
+            self._upload_log(log, chunk.bbox)
 
     def _auto_convert_dtype(self, chunk):
         """convert the data type to fit volume datatype"""
         if self.volume.dtype != chunk.dtype:
-            float_chunk = chunk.astype(np.float64)
+            #float_chunk = chunk.astype(np.float64)
             #chunk = float_chunk / np.iinfo(chunk.dtype).max * np.iinfo(self.volume.dtype).max
-            chunk = float_chunk / np.max(chunk) * np.iinfo(self.volume.dtype).max
+            chunk = chunk / chunk.array.max() * np.iinfo(self.volume.dtype).max
             return chunk.astype(self.volume.dtype)
         else:
             return chunk
@@ -104,7 +112,8 @@ class SaveOperator(OperatorBase):
         image = chunk[-1, :, :, :]
         if np.issubdtype(image.dtype, np.floating):
             image = (image * 255).astype(np.uint8)
-
+        
+        #self.thumbnail_operator(image)
         # transpose to xyzc
         image = np.transpose(image)
         image_bbox = Bbox.from_slices(chunk.slices[::-1][:3])

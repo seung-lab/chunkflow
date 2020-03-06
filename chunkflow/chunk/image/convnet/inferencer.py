@@ -46,8 +46,8 @@ class Inferencer(object):
                  mask_output_chunk: bool = False,
                  mask_myelin_threshold = None,
                  dry_run: bool = False,
-                 verbose: bool = False):
-
+                 verbose: int = 1):
+        
         assert input_size is None or patch_num is None 
         
         if output_patch_size is None:
@@ -71,8 +71,9 @@ class Inferencer(object):
                 # we should always crop more than the patch overlap 
                 # since the overlap region is reweighted by patch mask
                 # To-Do: equal should also be OK
-                np.testing.assert_array_less(self.output_patch_overlap, 
-                                             self.output_crop_margin)
+                assert np.alltrue([v<=m for v, m in zip(
+                    self.output_patch_overlap, 
+                    self.output_crop_margin)])
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))
@@ -142,11 +143,14 @@ class Inferencer(object):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        assert isinstance(self.output_buffer.array, np.memmap)
-        print('delete the temporal memory map files...')
-        os.remove(self.output_buffer.array.filename)
-        #if self.output_chunk_mask:
-        #    os.remove(self.output_chunk_mask.array.filename)
+        # when we manually interrupt the process, 
+        # output_buffer could be None
+        if self.output_buffer:
+            assert isinstance(self.output_buffer.array, np.memmap)
+            print('delete the temporal memory map files...')
+            os.remove(self.output_buffer.array.filename)
+            #if self.output_chunk_mask:
+            #    os.remove(self.output_chunk_mask.array.filename)
     
     def _update_parameters_for_input_chunk(self, input_chunk):
         """
@@ -180,6 +184,9 @@ class Inferencer(object):
         if framework == 'pznet':
             from .patch.pznet import PZNet as PatchInferencer
         elif framework == 'pytorch':
+            # pytorch will not output consistent result if we use batch size > 1
+            # https://discuss.pytorch.org/t/solved-inconsistent-results-during-test-using-different-batch-size/2265 
+            assert self.batch_size == 1
             from .patch.pytorch import PyTorch as PatchInferencer
             # currently, we do not support pytorch backend with different
             # input and output patch size and overlap.
@@ -198,6 +205,7 @@ class Inferencer(object):
             output_patch_size=self.output_patch_size,
             output_patch_overlap=self.output_patch_overlap,
             num_output_channels=self.num_output_channels,
+            dtype=self.dtype,
             bump=bump)
 
     def _check_alignment(self):
@@ -226,8 +234,8 @@ class Inferencer(object):
         input_patch_overlap = self.input_patch_overlap 
         input_patch_stride = self.input_patch_stride 
 
-        for iz in tqdm(range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]),
-                       disable=not self.verbose, desc='ConvNet Inferece: '):
+        print('Construct patch slices list...')
+        for iz in range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]):
             if iz + input_patch_size[0] > self.input_size[0]:
                 iz = self.input_size[0] - input_patch_size[0]
                 assert iz >= 0
@@ -293,13 +301,18 @@ class Inferencer(object):
     
     def _update_output_buffer(self, input_chunk):
         if self.output_buffer is None:
+            output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
+            #if self.mask_myelin_threshold is None:
             # a random temporal file. will be removed later.
             output_buffer_mmap_file = mktemp(suffix='.dat')
-            output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
             # the memory map is initialized with 0 in default
             output_buffer_array = np.memmap(output_buffer_mmap_file, 
                                            dtype=self.dtype, mode='w+', 
                                            shape=output_buffer_size)
+            #else:
+            #    # when we use myelin mask, the masking computation will create a full array in RAM!
+            #    # and it will duplicate the array! thus, we should use normal array in this case.
+            #    output_buffer_array = np.zeros(output_buffer_size, dtype=self.dtype)
         else:
             # we have to make sure that all the value is 0 initially
             # so we can add patches on it.
@@ -326,9 +339,18 @@ class Inferencer(object):
             self._check_alignment()
          
         if self.dry_run:
-            print('dry run, return zero buffer directly')
-            return self.output_buffer
+            print('dry run, return a special artifical chunk.')
+            size=self.output_buffer.shape
+            
+            if self.mask_myelin_threshold:
+                # eleminate the myelin channel
+                size = (size[0]-1, *size[1:])
 
+            return Chunk.create(
+                size=size,
+                dtype=self.output_buffer.dtype,
+                voxel_offset=self.output_buffer.global_offset
+            )
        
         if input_chunk == 0:
             print('input is all zero, return zero buffer directly')
@@ -337,7 +359,7 @@ class Inferencer(object):
         if np.issubdtype(input_chunk.dtype, np.integer):
             # normalize to 0-1 value range
             dtype_max = np.iinfo(input_chunk.dtype).max
-            input_chunk = input_chunk.astype(np.float32) / dtype_max
+            input_chunk = input_chunk.astype(self.dtype) / dtype_max
 
         if self.verbose:
             chunk_time_start = time.time()
@@ -345,7 +367,7 @@ class Inferencer(object):
         # iterate the offset list
         for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
                       disable=not self.verbose,
-                      desc='ConvNet Inference ...'):
+                      desc='ConvNet inference for patches: '):
             if self.verbose:
                 start = time.time()
 
@@ -354,7 +376,7 @@ class Inferencer(object):
                 self.input_patch_buffer[
                     batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0]).array
 
-            if self.verbose:
+            if self.verbose > 1:
                 end = time.time()
                 print('prepare %d input patches takes %3f sec' %
                       (self.batch_size, end - start))
@@ -365,7 +387,7 @@ class Inferencer(object):
             # the input image should be normalized to [0,1]
             output_patch = self.patch_inferencer(self.input_patch_buffer)
 
-            if self.verbose:
+            if self.verbose > 1:
                 assert output_patch.ndim == 5
                 end = time.time()
                 print('run inference for %d patch takes %3f sec' %
@@ -380,9 +402,20 @@ class Inferencer(object):
                 offset = (0,) + tuple(s.start for s in slices[1])
                 output_chunk = Chunk(output_patch[batch_idx, :, :, :, :],
                                      global_offset=offset)
+
+                ## save some patch for debug
+                #bbox = output_chunk.bbox
+                #if bbox.minpt[-1] < 94066 and bbox.maxpt[-1] > 94066 and \
+                #        bbox.minpt[-2]<81545 and bbox.maxpt[-2]>81545 and \
+                #        bbox.minpt[-3]<17298 and bbox.maxpt[-3]>17298:
+                #    print('save patch: ', output_chunk.bbox)
+                #    breakpoint()
+                #    output_chunk.to_tif()
+                #    #input_chunk.cutout(slices[0]).to_tif()
+
                 self.output_buffer.blend(output_chunk)
 
-            if self.verbose:
+            if self.verbose > 1:
                 end = time.time()
                 print('blend patch takes %3f sec' % (end - start))
 
@@ -393,15 +426,21 @@ class Inferencer(object):
         if self.mask_output_chunk:
             self.output_buffer *= self.output_chunk_mask
         
-        if self.mask_myelin_threshold:
-            # currently only for masking out affinity map 
-            assert self.output_buffer.shape[0] == 4
-            self.output_buffer = self.output_buffer.mask_using_last_channel(
-                threshold = self.mask_myelin_threshold)
-        
         # theoretically, all the value of output_buffer should not be greater than 1
         # we use a slightly higher value here to accomondate numerical precision issue
         np.testing.assert_array_less(self.output_buffer, 1.0001,
             err_msg='output buffer should not be greater than 1')
         
-        return self.output_buffer
+        if self.mask_myelin_threshold:
+            # currently only for masking out affinity map 
+            assert self.output_buffer.shape[0] == 4
+            output_chunk = self.output_buffer.mask_using_last_channel(
+                threshold = self.mask_myelin_threshold)
+
+            # currently neuroglancer only support float32, not float16
+            if output_chunk.dtype == np.dtype('float16'):
+                output_chunk = output_chunk.astype('float32')
+
+            return output_chunk
+        else:
+            return self.output_buffer

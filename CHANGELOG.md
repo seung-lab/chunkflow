@@ -3,7 +3,7 @@ ChangeLog history
 
 # chunkflow 0.5.8 (2019-xx-xx)
 ## Breaking Changes
-
+- make `verbose` a integer rather than boolean number for variation of verbosity.
 ## Deprecations 
 
 ## Features

@@ -4,8 +4,9 @@ from .base import PatchEngine
 
 
 class PZNet(PatchEngine):
-    def __init__(self, net_dir, use_bn=True, is_static_batch_norm=False):
-        super().__init__()
+    def __init__(self, net_dir, use_bn=True, is_static_batch_norm=False,
+                 dtype: str='float32'):
+        super().__init__(dtype=dtype)
         sys.path.append(net_dir)
         import pznet
         # self.net = pznet.znet(model_file_name, net_file_name)

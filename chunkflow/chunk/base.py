@@ -1,4 +1,4 @@
-
+from typing import Union
 import os
 from numbers import Number
 import h5py
@@ -26,11 +26,15 @@ class Chunk(NDArrayOperatorsMixin):
     :param global_offset: the offset of this array chunk
     :return: a new chunk with array data and global offset
     """
-    def __init__(self, array: np.ndarray, global_offset: tuple = None):
-        assert isinstance(array, np.ndarray)
+    def __init__(self, array, global_offset: tuple = None):
+        assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         self.array = array
         if global_offset is None:
-            global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
+            if isinstance(array, Chunk):
+                self.array = array.array
+                global_offset = array.global_offset
+            else:
+                global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
         self.global_offset = global_offset
         assert array.ndim == len(global_offset)
         
@@ -83,8 +87,11 @@ class Chunk(NDArrayOperatorsMixin):
 
         return cls(arr, global_offset=global_offset)
     
-    def to_tif(self, file_name: str, global_offset: tuple=None):
+    def to_tif(self, file_name: str=None, global_offset: tuple=None):
+        if file_name is None:
+            file_name = f'{self.bbox.to_filename()}.tif'
         print('write chunk to file: ', file_name)
+
         if self.array.dtype==np.float32:
             # visualization in float32 is not working correctly in ImageJ
             # this might not work correctly if you want to save the image as it is!
@@ -262,9 +269,9 @@ class Chunk(NDArrayOperatorsMixin):
         assert self.ndim==4
 
         mask = (self.array[-1, :, :, :] < threshold)
-        self.array[:-1, :,:,:] *= mask 
-        masked = self.array[:-1, :,:,:]
-        return Chunk(masked, global_offset=self.global_offset)
+        ret = self.array[:-1, ...]
+        ret *= mask
+        return Chunk(ret, global_offset=self.global_offset)
 
     def crop_margin(self, margin_size: tuple = None, output_bbox: Bbox=None):
 
@@ -273,21 +280,22 @@ class Chunk(NDArrayOperatorsMixin):
                 margin_size = (0,) + margin_size
 
             if self.ndim == 3:
-                chunk = self.array[margin_size[0]:self.shape[0] - margin_size[0],
-                                   margin_size[1]:self.shape[1] - margin_size[1],
-                                   margin_size[2]:self.shape[2] - margin_size[2]]
+                new_array = self.array[margin_size[0]: -margin_size[0],
+                                       margin_size[1]: -margin_size[1],
+                                       margin_size[2]: -margin_size[2]]
             elif self.ndim == 4:
-                chunk = self.array[margin_size[0]:self.shape[0] - margin_size[0],
-                                   margin_size[1]:self.shape[1] - margin_size[1],
-                                   margin_size[2]:self.shape[2] - margin_size[2],
-                                   margin_size[3]:self.shape[3] - margin_size[3]]
+                new_array = self.array[margin_size[0]: -margin_size[0],
+                                       margin_size[1]: -margin_size[1],
+                                       margin_size[2]: -margin_size[2],
+                                       margin_size[3]: -margin_size[3]]
             else:
                 raise ValueError('the array dimension can only by 3 or 4.')
             global_offset = tuple(
-                o + m for o, m in zip(chunk.global_offset, margin_size))
-            return Chunk(chunk, global_offset=global_offset)
+                o + m for o, m in zip(self.global_offset, margin_size))
+            return Chunk(new_array, global_offset=global_offset)
         else:
             print('automatically crop the chunk to output bounding box.')
+            assert output_bbox is not None
             return self.cutout(output_bbox.to_slices())
     
     def connected_component(self, threshold: float = 0.5, 

@@ -6,9 +6,10 @@ from time import time
 import numpy as np
 import click
 
-from cloudvolume.lib import Bbox, Vec
+from cloudvolume.lib import Bbox, Vec, yellow
 # from cloudvolume.datasource.precomputed.metadata import PrecomputedMetadata
 from cloudvolume import CloudVolume
+from cloudvolume.storage import SimpleStorage
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.chunk import Chunk
@@ -62,8 +63,8 @@ def default_none(ctx, _, value):
 # the code design is based on:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 @click.group(chain=True)
-@click.option('--verbose/--quiet', default=True,
-              help='print informations or not. default is verbose.')
+@click.option('--verbose', type=click.IntRange(min=0, max=10), default=1,
+              help='print informations level. default is level 1.')
 @click.option('--mip', type=int, default=0,
               help='default mip level of chunks.')
 @click.option('--dry-run/--real-run', default=False,
@@ -73,6 +74,8 @@ def main(verbose, mip, dry_run):
     state['verbose'] = verbose
     state['mip'] = mip
     state['dry_run'] = dry_run
+    if dry_run:
+        print(yellow('\nYou are using dry-run mode, will not do the work!'))
     pass
 
 
@@ -163,14 +166,21 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               type=str, required=True, help='the path of output volume.')
 @click.option('--max-ram-size', '-r',
               default=15, type=int, help='the maximum ram size (GB) of worker process.')
-@click.option('--patch-size', '-z',
+@click.option('--output-patch-size', '-z',
               type=int, required=True, nargs=3, help='output patch size.')
+@click.option('--input-patch-size', '-i',
+              type=int, default=None, nargs=3, callback=default_none,
+              help='input patch size.')
 @click.option('--channel-num', '-c',
-              type=int, default=1, help='output patch channel number. It is 3 for affinity map.')
-@click.option('--patch-overlap', '-o',
+              type=int, default=1, 
+              help='output patch channel number. It is 3 for affinity map.')
+@click.option('--dtype', '-d', type=click.Choice(['uint8', 'float16', 'float32']), 
+              default='float32', help='output numerical precision.')
+@click.option('--output-patch-overlap', '-o',
               type=int, default=None, nargs=3, callback=default_none,
               help='overlap of patches. default is 50% overlap')
-@click.option('--crop-chunk-margin', '-c', type=int, nargs=3, default=None,
+@click.option('--crop-chunk-margin', '-c', 
+              type=int, nargs=3, default=None,
               callback=default_none, help='size of margin to be cropped.')
 @click.option('--mip', '-m', type=click.IntRange(min=0, max=3), default=0, 
               help='the output mip level (default is 0).')
@@ -191,7 +201,8 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               help='voxel size or resolution of mip 0 image.')
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
-              patch_size, channel_num, patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
+              output_patch_size, input_patch_size, channel_num, dtype, 
+              output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
               queue_name, visibility_timeout, thumbnail, encoding, voxel_size):
     """Prepare storage info files and produce tasks."""
     assert not (volume_stop is None and volume_size is None)
@@ -207,32 +218,37 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
         volume_stop = volume_start + volume_size
     else:
         volume_size = volume_stop - volume_start
+    print('\nvolume start: ', volume_start)
+    print('volume stop: ', volume_stop)
+    print('volume size: ', volume_size)
     
-    if patch_overlap is None:
+    if output_patch_overlap is None:
         # use 50% patch overlap in default
-        patch_overlap = tuple(s//2 for s in patch_size)
-    assert patch_overlap[1] == patch_overlap[2]
+        output_patch_overlap = tuple(s//2 for s in output_patch_size)
+    assert output_patch_overlap[1] == output_patch_overlap[2]
 
     if crop_chunk_margin is None:
-        crop_chunk_margin = patch_overlap
+        crop_chunk_margin = output_patch_overlap
     assert crop_chunk_margin[1] == crop_chunk_margin[2]
-
+    print('crop chunk margin: ', crop_chunk_margin)
+    
     if thumbnail:
         # thumnail requires maximum mip level of 5
         thumnail_mip = max(thumbnail_mip, 5)
     
-    patch_stride = tuple(s - o for s, o in zip(patch_size, patch_overlap))
+    patch_stride = tuple(s - o for s, o in zip(
+        output_patch_size, output_patch_overlap))
     # total number of voxels per patch in one stride
     patch_voxel_num = np.product( patch_stride )
     # use half of the maximum ram size to store output buffer
     ideal_total_patch_num = int(max_ram_size*1e9/2/4/channel_num/patch_voxel_num)
     # the xy size should be the same
-    assert patch_size[1] == patch_size[2]
+    assert output_patch_size[1] == output_patch_size[2]
     # compute the output chunk/block size in cloud storage
     # assume that the crop margin size is the same with the patch overlap
     patch_num_start = int(ideal_total_patch_num ** (1./3.)  / 2)
     patch_num_stop = patch_num_start * 3
-    
+
     # find the patch number solution with minimum cost by bruteforce search
     cost = sys.float_info.max
     patch_num = None
@@ -240,61 +256,96 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     max_factor = 2**max_mip
     factor = 2**mip
     for pnxy in range(patch_num_start, patch_num_stop):
-        if (pnxy*patch_stride[2]+patch_overlap[2]-2*crop_chunk_margin[2]) % max_factor != 0:
+        if (pnxy * patch_stride[2] + output_patch_overlap[2] -
+                2 * crop_chunk_margin[2]) % max_factor != 0:
             continue
         # patch number in z
         for pnz in range(patch_num_start, patch_num_stop):
-            if (pnz*patch_stride[0]+patch_overlap[0]-2*crop_chunk_margin[0]) % factor != 0:
+            if (pnz * patch_stride[0] + output_patch_overlap[0] -
+                    2 * crop_chunk_margin[0]) % factor != 0:
                 continue
             current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 #+ (pnxy / pnz - 1) ** 2
             if current_cost < cost:
                 cost = current_cost
                 patch_num = (pnz, pnxy, pnxy)
+    
+    print('\ninput patch size: ', input_patch_size)
+    print('output patch size: ', output_patch_size)
+    print('output patch overlap: ', output_patch_overlap)
+    print('output patch stride: ', patch_stride)
     print('patch number: ', patch_num)
+
     assert mip>=0
     block_mip = (mip + thumbnail_mip) // 2
     block_factor = 2 ** block_mip
     
     output_chunk_size = tuple(n*s+o-2*c for n, s, o, c in zip(
-        patch_num, patch_stride, patch_overlap, crop_chunk_margin))
+        patch_num, patch_stride, output_patch_overlap, crop_chunk_margin))
+    
+    input_chunk_size = tuple(ocs + ccm*2 + ips - ops for ocs, ccm, ips, ops in zip(
+        output_chunk_size, crop_chunk_margin, 
+        input_patch_size, output_patch_size))
 
+    input_chunk_start = tuple(vs - ccm - (ips-ops)//2 for vs, ccm, ips, ops in zip(
+        volume_start, crop_chunk_margin, input_patch_size, output_patch_size))
+    
     block_size = (output_chunk_size[0]//factor, 
                   output_chunk_size[1]//block_factor,
                   output_chunk_size[2]//block_factor)
-    print('block size: ', block_size)
     
-    print('prepare info files in cloud storage...')
-    # Note that cloudvolume use fortran order rather than C order
-    info = CloudVolume.create_new_info(channel_num, layer_type='image',
-                                       data_type='float32',
-                                       encoding=encoding,
-                                       resolution=voxel_size[::-1],
-                                       voxel_offset=volume_start[::-1],
-                                       volume_size=volume_size[::-1],
-                                       chunk_size=block_size[::-1],
-                                       max_mip=mip)
-    vol = CloudVolume(layer_path, info=info)
-    vol.commit_info()
-     
-    thumbnail_block_size = (output_chunk_size[0]//factor,
-                            output_chunk_size[1]//max_factor,
-                            output_chunk_size[2]//max_factor)
-    print('thumbnail block size: ', thumbnail_block_size)
-    thumbnail_info = CloudVolume.create_new_info(1, layer_type='image', 
-                                                 data_type='uint8',
-                                                 encoding='raw',
-                                                 resolution=voxel_size[::-1],
-                                                 voxel_offset=volume_start[::-1],
-                                                 volume_size=volume_size[::-1],
-                                                 chunk_size=thumbnail_block_size[::-1],
-                                                 max_mip=thumbnail_mip)
-    thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
-    thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
-    thumbnail_vol.commit_info()
+    print('\ninput chunk size: ', input_chunk_size)
+    print('input chunk start: ', input_chunk_start)
+    print('output chunk size: ', output_chunk_size)
+    print('block size: ', block_size)
+    print('RAM size of each block: ', 
+          np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')
+    print('voxel utilization: ', 
+          np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size))
    
+    if not state['dry_run']:
+        print('\ncheck that we are not overwriting existing info file.')
+        storage = SimpleStorage(layer_path)
+        assert not storage.exists('info')
+        thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
+        thumbnail_storage = SimpleStorage(thumbnail_layer_path)
+        assert not thumbnail_storage.exists('info')
+
+        print('create and upload info file to ', layer_path)
+        # Note that cloudvolume use fortran order rather than C order
+        info = CloudVolume.create_new_info(channel_num, layer_type='image',
+                                           data_type=dtype,
+                                           encoding=encoding,
+                                           resolution=voxel_size[::-1],
+                                           voxel_offset=volume_start[::-1],
+                                           volume_size=volume_size[::-1],
+                                           chunk_size=block_size[::-1],
+                                           max_mip=mip)
+        vol = CloudVolume(layer_path, info=info)
+        vol.commit_info()
+      
+        thumbnail_factor = 2**thumbnail_mip
+        thumbnail_block_size = (output_chunk_size[0]//factor,
+                                output_chunk_size[1]//thumbnail_factor,
+                                output_chunk_size[2]//thumbnail_factor)
+        print('thumbnail block size: ', thumbnail_block_size)
+        thumbnail_info = CloudVolume.create_new_info(1, layer_type='image', 
+                                                     data_type='uint8',
+                                                     encoding='raw',
+                                                     resolution=voxel_size[::-1],
+                                                     voxel_offset=volume_start[::-1],
+                                                     volume_size=volume_size[::-1],
+                                                     chunk_size=thumbnail_block_size[::-1],
+                                                     max_mip=thumbnail_mip)
+        thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
+        thumbnail_vol.commit_info()
+       
     print('create a list of bounding boxes...')
-    roi_start = (volume_start[0], volume_start[1]//factor, volume_start[2]//factor)
-    roi_size = (volume_size[0], volume_size[1]//factor, volume_size[2]//factor)
+    roi_start = (volume_start[0], 
+                 volume_start[1]//factor, 
+                 volume_start[2]//factor)
+    roi_size = (volume_size[0], 
+                volume_size[1]//factor, 
+                volume_size[2]//factor)
     roi_stop = tuple(s+z for s, z in zip(roi_start, roi_size))
 
     # create bounding boxes and ingest to queue
@@ -302,6 +353,9 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                    roi_start=roi_start, roi_stop=roi_stop,
                                    verbose=state['verbose'])
     print('total number of tasks: ', len(bboxes))
+    
+    if state['verbose'] > 1:
+        print('bounding boxes: ', bboxes)
 
     if queue_name is not None and not state['dry_run']:
         queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
@@ -468,7 +522,7 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               '-f',
               type=str,
               required=True,
-              help='read chunk from file, support .h5 and .tif')
+              help='read chunk from file, support .h5')
 @click.option('--dataset-path',
               '-d',
               type=str,
@@ -519,8 +573,8 @@ def write_h5(tasks, name, input_chunk_name, file_name):
 @click.option('--name', type=str, default='write-tif', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
-@click.option('--file-name', '-f',
-    type=click.Path(dir_okay=False, resolve_path=True), required=True,
+@click.option('--file-name', '-f', default=None, callback=default_none,
+    type=click.Path(dir_okay=False, resolve_path=True), 
     help='file name of tif file, the extention should be .tif or .tiff')
 @operator
 def write_tif(tasks, name, input_chunk_name, file_name):
@@ -992,8 +1046,7 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero, s
                 task['skip'] = state['operators'][name].is_all_zero(
                     task['bbox'])
                 if task['skip']:
-                    print('the mask of {} is all zero, will skip to {}'.format(
-                        name, skip_to))
+                    print(yellow(f'the mask of {name} is all zero, will skip to {skip_to}'))
                 task['skip_to'] = skip_to
             else:
                 task['chunk'] = state['operators'][name](task['chunk'])
@@ -1184,8 +1237,7 @@ def save(tasks, name, volume_path, input_chunk_name, upload_log, nproc, create_t
         if not task['skip']:
             # the time elapsed was recorded internally
             state['operators'][name](task[input_chunk_name],
-                                     log=task.get('log', {'timer': {}}),
-                                     output_bbox=task.get('bbox', None))
+                                     log=task.get('log', {'timer': {}}))
             task['output_volume_path'] = volume_path
         yield task
 

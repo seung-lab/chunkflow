@@ -31,13 +31,14 @@ class PyTorch(PatchInferencerBase):
                  input_patch_size: tuple, 
                  output_patch_size: tuple, 
                  output_patch_overlap: tuple,
-                 use_batch_norm: bool = True,
-                 is_static_batch_norm: bool = False,
-                 num_output_channels: int = 1, bump: str='wu'):
+                 num_output_channels: int = 1, 
+                 dtype: str='float32',
+                 bump: str='wu'):
         # To-Do: support zung bump function
         assert bump == 'wu'
         super().__init__(input_patch_size, output_patch_size, 
-                         output_patch_overlap, num_output_channels)
+                         output_patch_overlap, num_output_channels, 
+                         dtype=dtype)
 
         self.num_output_channels = num_output_channels
         if torch.cuda.is_available():
@@ -69,8 +70,6 @@ class PyTorch(PatchInferencerBase):
         #for param_tensor in self.model.state_dict():
         #    print(param_tensor, "\t", self.model.state_dict()[param_tensor].size())
 
-        if use_batch_norm and is_static_batch_norm:
-            self.model.eval()
 
         if hasattr(net_source, "pre_process"):
             self.pre_process = net_source.pre_process

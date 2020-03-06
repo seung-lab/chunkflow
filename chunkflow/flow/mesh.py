@@ -20,7 +20,7 @@ class MeshOperator(OperatorBase):
                  output_path: str,
                  output_format: str,
                  mip: int = None,
-                 voxel_size: tuple = None,
+                 voxel_size: tuple = (1, 1, 1),
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
                  dust_threshold: int = None,
@@ -145,7 +145,7 @@ class MeshOperator(OperatorBase):
         else:
             raise ValueError('unsupported format!')
 
-    def __call__(self, seg: np.ndarray):
+    def __call__(self, seg: Chunk):
         """Meshing the segmentation.
         
         Parameters
@@ -158,6 +158,8 @@ class MeshOperator(OperatorBase):
         assert np.issubdtype(seg.dtype, np.integer)
         
         bbox = seg.bbox
+        # use ndarray after getting the bounding box
+        seg = seg.array
 
         seg = self._only_keep_selected(seg)
         if np.all(seg==0):

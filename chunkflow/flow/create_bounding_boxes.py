@@ -13,7 +13,7 @@ def create_bounding_boxes(chunk_size:tuple, chunk_overlap: tuple=(0,0,0),
         dataset_size = vol.mip_shape(mip)[:3][::-1]
         dataset_offset = vol.mip_voxel_offset(mip)[::-1]
         if roi_stop is None:
-            roi_stop = Vec(o+s for o, s in zip(dataset_offset, dataset_size))
+            roi_stop = Vec(*[o+s for o, s in zip(dataset_offset, dataset_size)])
         if roi_start is None:
             # note that we normally start from -overlap to keep the chunks aligned!
             roi_start = dataset_offset - chunk_overlap
@@ -36,7 +36,7 @@ def create_bounding_boxes(chunk_size:tuple, chunk_overlap: tuple=(0,0,0),
 
     if grid_size is None:
         grid_size = (roi_size - chunk_overlap) // stride + 1
-
+    
     # the stride should not be zero if there is more than one chunks
     for g, s in zip(grid_size, stride):
         if g > 1:
@@ -45,7 +45,6 @@ def create_bounding_boxes(chunk_size:tuple, chunk_overlap: tuple=(0,0,0),
     final_output_stop = roi_start + (grid_size-1) * stride + chunk_size
     if verbose:
         print('\nroi start: ', roi_start)
-        print('chunk_size: ', chunk_size, '\n')
         print('stride: ', stride)
         print('grid size: ', grid_size)
         print('final output stop: ', final_output_stop)
