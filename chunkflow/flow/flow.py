@@ -221,9 +221,9 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
         volume_stop = volume_start + volume_size
     else:
         volume_size = volume_stop - volume_start
-    print('\nvolume start: ', volume_start)
-    print('volume stop: ', volume_stop)
-    print('volume size: ', volume_size)
+    print('\noutput volume start: ', volume_start)
+    print('output volume stop: ', volume_stop)
+    print('output volume size: ', volume_size)
     
     if output_patch_overlap is None:
         # use 50% patch overlap in default
@@ -233,7 +233,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     if crop_chunk_margin is None:
         crop_chunk_margin = output_patch_overlap
     assert crop_chunk_margin[1] == crop_chunk_margin[2]
-    print('crop chunk margin: ', crop_chunk_margin)
+    print('output crop chunk margin: ', crop_chunk_margin)
     
     if thumbnail:
         # thumnail requires maximum mip level of 5
@@ -297,8 +297,9 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                   output_chunk_size[2]//block_factor)
     
     print('\ninput chunk size: ', input_chunk_size)
-    print('input chunk start: ', input_chunk_start)
+    print('input volume start: ', input_chunk_start)
     print('output chunk size: ', output_chunk_size)
+    print('output volume start: ', volume_start)
     print('block size: ', block_size)
     print('RAM size of each block: ', 
           np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')

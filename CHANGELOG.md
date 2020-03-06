@@ -1,10 +1,9 @@
 ChangeLog history
 =================
 
-# chunkflow 0.5.8 (2019-xx-xx)
+# chunkflow 0.6.2 (2020-03-06)
 ## Breaking Changes
 - make `verbose` a integer rather than boolean number for variation of verbosity.
-## Deprecations 
 
 ## Features
 - add setup-env operator to automatically compute patch number, cloud storage block size and other metadata. ingest tasks into AWS SQS queue. After this operation, you are ready to launch workers!
@@ -13,8 +12,10 @@ ChangeLog history
 - avoid creating a mask buffer by directly applying the high-mip mask to low-mip chunk
 
 ## Bug Fixes 
+- fix a typo of thumbnail_mip
 
 ## Improved Documentation 
+- add more complex production inference example
 
 # chunkflow 0.5.7 (2019-02-02)
 ## Breaking Changes
@@ -122,7 +123,7 @@ ChangeLog history
 # Template 
 the following texts are templates for adding change log
 
-# chunkflow 0.1.0 (2019-xx-xx)
+# chunkflow 0.1.0 (2020-xx-xx)
 ## Breaking Changes
 
 ## Deprecations 
