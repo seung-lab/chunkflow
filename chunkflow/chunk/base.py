@@ -265,6 +265,15 @@ class Chunk(NDArrayOperatorsMixin):
         global_offset = self.global_offset[:axis] + self.global_offset[axis+1:]
         return Chunk(arr, global_offset=global_offset)
 
+    def channel_voting(self):
+        assert self.ndim == 4
+        assert self.shape[0] <= 256
+        out = np.empty(self.shape[1:], dtype=np.uint8)
+        np.argmax(self.array, axis=0, out=out)
+        # our selected channel index start from 1
+        out += 1
+        return Chunk(out, global_offset=self.global_offset[1:])
+
     def mask_using_last_channel(self, threshold: float = 0.3) -> np.ndarray:
         assert self.ndim==4
 

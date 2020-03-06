@@ -288,6 +288,9 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     input_chunk_size = tuple(ocs + ccm*2 + ips - ops for ocs, ccm, ips, ops in zip(
         output_chunk_size, crop_chunk_margin, 
         input_patch_size, output_patch_size))
+    
+    expand_margin_size = tuple((ics - ocs) // 2 for ics, ocs in zip(
+        input_chunk_size, output_chunk_size))
 
     input_chunk_start = tuple(vs - ccm - (ips-ops)//2 for vs, ccm, ips, ops in zip(
         volume_start, crop_chunk_margin, input_patch_size, output_patch_size))
@@ -299,6 +302,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     print('\ninput chunk size: ', input_chunk_size)
     print('input volume start: ', input_chunk_start)
     print('output chunk size: ', output_chunk_size)
+    print('cutout expand margin size: ', expand_margin_size)
     print('output volume start: ', volume_start)
     print('block size: ', block_size)
     print('RAM size of each block: ', 
@@ -1244,6 +1248,21 @@ def save(tasks, name, volume_path, input_chunk_name, upload_log, nproc, create_t
                                      log=task.get('log', {'timer': {}}))
             task['output_volume_path'] = volume_path
         yield task
+
+
+@main.command('channel-voting')
+@click.option('--name', type=str, default='channel-voting', help='name of operator')
+@click.option('--input-chunk-name', type=str, default=DEFAULT_CHUNK_NAME)
+@click.option('--output-chunk-name', type=str, default=DEFAULT_CHUNK_NAME)
+@operator
+def channel_voting(tasks, name, input_chunk_name, output_chunk_name):
+    """all channels vote to get a uint8 volume. The channel with max intensity wins."""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            task[output_chunk_name] = task[input_chunk_name].channel_voting() 
+        yield task
+
 
 @main.command('view')
 @click.option('--name', type=str, default='view', help='name of this operator')
