@@ -213,6 +213,9 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     if isinstance(volume_size, tuple):
         volume_size = Vec(*volume_size)
 
+    if input_patch_size is None:
+        input_patch_size = output_patch_size
+
     if volume_size:
         assert volume_stop is None
         volume_stop = volume_start + volume_size
@@ -234,7 +237,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     
     if thumbnail:
         # thumnail requires maximum mip level of 5
-        thumnail_mip = max(thumbnail_mip, 5)
+        thumbnail_mip = max(thumbnail_mip, 5)
     
     patch_stride = tuple(s - o for s, o in zip(
         output_patch_size, output_patch_overlap))
