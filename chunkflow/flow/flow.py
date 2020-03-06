@@ -303,6 +303,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
     print('input volume start: ', input_chunk_start)
     print('output chunk size: ', output_chunk_size)
     print('cutout expand margin size: ', expand_margin_size)
+
     print('output volume start: ', volume_start)
     print('block size: ', block_size)
     print('RAM size of each block: ', 
