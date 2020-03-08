@@ -31,6 +31,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | Operator Name   | Function |
 | --------------- | -------- |
 | agglomerate     | Watershed and agglomeration to segment affinity map |
+| channel-voting  | Vote across channels of semantic map |
 | cloud-watch     | Realtime speedometer in AWS CloudWatch |
 | connected-components | Threshold the boundary map to get a segmentation |
 | copy-var        | Copy a variable to a new name |
