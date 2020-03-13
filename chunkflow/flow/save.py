@@ -4,7 +4,7 @@ import json
 import numpy as np
 
 from cloudvolume import CloudVolume
-from cloudvolume.lib import Vec, Bbox
+from cloudvolume.lib import Vec, Bbox, yellow
 from cloudvolume.storage import Storage
 
 from chunkflow.lib.igneous.tasks import downsample_and_upload
@@ -97,6 +97,8 @@ class SaveOperator(OperatorBase):
     def _auto_convert_dtype(self, chunk):
         """convert the data type to fit volume datatype"""
         if self.volume.dtype != chunk.dtype:
+            print(yellow(f'converting chunk data type {chunk.dtype} ' + 
+                         f'to volume data type: {self.volume.dtype}'))
             #float_chunk = chunk.astype(np.float64)
             #chunk = float_chunk / np.iinfo(chunk.dtype).max * np.iinfo(self.volume.dtype).max
             chunk = chunk / chunk.array.max() * np.iinfo(self.volume.dtype).max

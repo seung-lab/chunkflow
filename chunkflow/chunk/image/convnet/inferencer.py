@@ -430,7 +430,7 @@ class Inferencer(object):
         # we use a slightly higher value here to accomondate numerical precision issue
         np.testing.assert_array_less(self.output_buffer, 1.0001,
             err_msg='output buffer should not be greater than 1')
-        
+
         if self.mask_myelin_threshold:
             # currently only for masking out affinity map 
             assert self.output_buffer.shape[0] == 4

@@ -4,10 +4,26 @@ from cloudvolume.lib import Bbox
 from chunkflow.chunk import Chunk
 
 
-def create_chunk(size:tuple = (7, 8, 9), global_offset=(-2, -3, -4)):
-    arr = np.random.rand(*size).astype('float32')
+def create_chunk(size:tuple = (7, 8, 9), global_offset=(-2, -3, -4), 
+                 dtype=np.float32):
+    # make the tests consistent in multiple runs
+    np.random.seed(1)
+    arr = np.random.rand(*size).astype(dtype)
     chunk = Chunk(arr, global_offset)
     return chunk
+
+def test_channel_voting():
+    chunk = create_chunk(size=(5, 2,3,4), 
+                         global_offset=(0, 3,4,5), dtype=np.float32)
+    out = chunk.channel_voting()
+    
+    gt = np.array([[[4, 1, 3, 2], [3, 1, 4, 3], [1, 3, 3, 4]], 
+                   [[4, 4, 2, 3], [1, 1, 2, 3], [2, 0, 1, 0]]], np.uint8)
+    # out latest voting result start from 1
+    gt = gt + 1
+    
+    np.testing.assert_array_equal(out.array, gt)
+    np.testing.assert_array_equal(out.global_offset, (3,4,5))
 
 def test_mask_last_channel():
     size = (4, 3, 3, 3)
