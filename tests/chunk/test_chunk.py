@@ -3,10 +3,11 @@ import unittest
 from cloudvolume.lib import Bbox
 from chunkflow.chunk import Chunk
 
-np.random.seed(1)
 
 def create_chunk(size:tuple = (7, 8, 9), global_offset=(-2, -3, -4), 
                  dtype=np.float32):
+    # make the tests consistent in multiple runs
+    np.random.seed(1)
     arr = np.random.rand(*size).astype(dtype)
     chunk = Chunk(arr, global_offset)
     return chunk
@@ -20,6 +21,7 @@ def test_channel_voting():
                    [[4, 4, 2, 3], [1, 1, 2, 3], [2, 0, 1, 0]]], np.uint8)
     # out latest voting result start from 1
     gt = gt + 1
+    
     np.testing.assert_array_equal(out.array, gt)
     np.testing.assert_array_equal(out.global_offset, (3,4,5))
 
