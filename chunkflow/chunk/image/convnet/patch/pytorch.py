@@ -16,10 +16,7 @@ class PyTorch(PatchInferencerBase):
     patch_overlap: overlap of neighboring patches.
     model_file_name: file name of model
     weight_file_name: file name of trained weight.
-    use_batch_norm: use batch normalization or not.
-    is_static_batch_norm: whether the batch norm is static or instance level?
     num_output_channels: number of output channels.
-    mask: the weight mask applied to output patch.
     
     You can make some customized processing in your model file. 
     You can define `load_model` function to customize your way of 
@@ -34,7 +31,7 @@ class PyTorch(PatchInferencerBase):
                  num_output_channels: int = 1, 
                  dtype: str='float32',
                  bump: str='wu'):
-        # To-Do: support zung bump function
+        # To-Do: support zung function
         assert bump == 'wu'
         super().__init__(input_patch_size, output_patch_size, 
                          output_patch_overlap, num_output_channels, 

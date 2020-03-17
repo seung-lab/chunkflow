@@ -195,6 +195,8 @@ class Inferencer(object):
             from .patch.pytorch_multitask import PyTorchMultitask as PatchInferencer
         elif framework == 'identity':
             from .patch.identity import Identity as PatchInferencer
+        elif framework == 'general':
+            from .patch.general import General as PatchInferencer
         else:
             raise Exception(f'invalid inference backend: {self.framework}')
         

@@ -955,9 +955,9 @@ def copy_var(tasks, name, from_name, to_name):
 @click.option('--dtype', '-d', type=click.Choice(['float32', 'float16']),
               default='float32', help='numerical precision.')
 @click.option('--framework', '-f',
-              type=click.Choice(['identity', 'pznet', 'pytorch',
+              type=click.Choice(['general', 'identity', 'pznet', 'pytorch',
                                  'pytorch-multitask']),
-              default='pytorch-multitask', help='inference framework')
+              default='general', help='inference framework')
 @click.option('--batch-size', '-b',
               type=int, default=1, help='mini batch size of input patch.')
 @click.option('--bump', type=click.Choice(['wu', 'zung']), default='wu',
