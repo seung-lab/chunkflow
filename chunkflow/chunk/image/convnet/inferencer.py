@@ -135,7 +135,7 @@ class Inferencer(object):
         if framework in ('pznet', 'identity'):
             import platform
             self.compute_device = platform.processor()
-        else:
+        elif 'pytorch' in framework:
             import torch
             self.compute_device = torch.cuda.get_device_name(0)
 
