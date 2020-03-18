@@ -77,6 +77,10 @@ class PyTorch(PatchInferencerBase):
             self.post_process = net_source.post_process
         else:
             self.post_process = self._identity
+    
+    @property
+    def compute_device(self):
+        return torch.cuda.get_device_name(0)
 
     def _pre_process(self, input_patch):
         input_patch = torch.from_numpy(input_patch)

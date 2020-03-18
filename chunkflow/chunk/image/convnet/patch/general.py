@@ -45,7 +45,12 @@ class General(PatchInferencerBase):
         assert hasattr(net_source, "PatchInferencer")
         self.patch_inferencer = net_source.PatchInferencer(
             convnet_weight_path, self.output_patch_mask)
-       
+    
+    @property
+    def compute_device(self):
+        # To-Do: make the device available to log
+        return 'unknown'
+
     def __call__(self, input_patch):
         # make sure that the patch is 5d ndarray
         input_patch = self._reshape_patch_to_5d(input_patch)

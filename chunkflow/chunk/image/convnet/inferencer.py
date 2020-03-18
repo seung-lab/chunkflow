@@ -131,15 +131,10 @@ class Inferencer(object):
         if isinstance(convnet_weight_path, str):
             convnet_weight_path = os.path.expanduser(convnet_weight_path)
         self._prepare_patch_inferencer(framework, convnet_model, convnet_weight_path, bump)
-    
-        if framework in ('pznet', 'identity'):
-            import platform
-            self.compute_device = platform.processor()
-        elif 'pytorch' in framework:
-            import torch
-            self.compute_device = torch.cuda.get_device_name(0)
-        else:
-            self.compute_device = 'unknown'
+   
+    @property
+    def compute_device(self):
+        return self.patch_inferencer.compute_device
 
     def __enter__(self):
         return self
