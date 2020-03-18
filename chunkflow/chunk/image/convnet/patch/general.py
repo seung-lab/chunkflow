@@ -1,7 +1,6 @@
 # from .inference_engine import InferenceEngine
 # import imp
 import numpy as np
-import torch
 from .base import PatchInferencerBase
 from chunkflow.lib import load_source
 
