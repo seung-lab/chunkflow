@@ -1004,6 +1004,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         mask_myelin_threshold=mask_myelin_threshold,
         dry_run=state['dry_run'],
         verbose=state['verbose']) as inferencer:
+        
         state['operators'][name] = inferencer 
 
         for task in tasks:

@@ -138,6 +138,8 @@ class Inferencer(object):
         elif 'pytorch' in framework:
             import torch
             self.compute_device = torch.cuda.get_device_name(0)
+        else:
+            self.compute_device = 'unknown'
 
     def __enter__(self):
         return self
