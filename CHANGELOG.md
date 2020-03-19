@@ -10,6 +10,7 @@ ChangeLog history
 - support combined convnet inference including semantic and affinity map inference.
 
 ## Bug Fixes 
+- log-summary operator will work for combined inference
 
 ## Improved Documentation 
 - added corresponding documentation

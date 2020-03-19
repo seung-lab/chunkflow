@@ -1,0 +1,1 @@
+{"timer": {"cutout": 76.88676476478577, "normalize-section-contrast": 2.3699328899383545, "sem-inference": 537.3570463657379, "save-sem": 8.875961303710938, "mask-image": 5.057928085327148, "aff-inference": 271.429256439209, "mask-aff": 3.7008891105651855, "save-aff": 89.11688446998596}, "bbox": "16384-16492_88342-90390_110902-112950", "compute_device": "TITAN X (Pascal)"}
