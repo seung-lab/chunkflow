@@ -13,8 +13,8 @@ from tqdm import tqdm
 
 
 def load_log(log_dir):
-    dfs = []
-    skiped_num = 0
+    
+    collected = dict()
 
     for file_name in tqdm(os.listdir(log_dir), desc='loading log files'):
         complete_file_name = os.path.join(log_dir, file_name)
@@ -22,31 +22,26 @@ def load_log(log_dir):
         with open(complete_file_name) as f:
             d = json.load(f)
 
-        if 'compute_device' not in d:
-            # the mask is all black, most of the operations were skiped
-            skiped_num += 1
-            continue
-
         timing = d['timer']
+        
+        if not collected:
+            # this is the first time, construct the keys
+            collected['compute_device'] = []
+            collected['complete_task'] = []
+            for k in timing.keys():
+                collected[k] = []
 
         time_per_task = 0.0
         for t in d['timer'].values():
             time_per_task += t
-        item = pd.DataFrame(
-            {
-                'compute_device': d['compute_device'],
-                'inference': timing['inference'],
-                'save': timing['save'],
-                'cutout': timing['cutout'],
-                'complete_task': time_per_task,
-            },
-            index=[0])
-        dfs.append(item)
+        collected['complete_task'].append( time_per_task )
 
-    df = pd.concat(dfs)
-    print(
-        '\n There are {} tasks that have black mask and most of operations were skipped.'
-        .format(skiped_num))
+        collected['compute_device'].append( d['compute_device'] )
+
+        for k, v in timing.items():
+            collected[k].append( v )
+
+    df = pd.DataFrame.from_dict(collected, orient='columns')
     return df
 
 

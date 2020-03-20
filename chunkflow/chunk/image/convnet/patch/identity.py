@@ -1,3 +1,4 @@
+import platform
 import numpy as np
 from .base import PatchInferencerBase
 
@@ -20,6 +21,10 @@ class Identity(PatchInferencerBase):
         super().__init__(input_patch_size, output_patch_size,
                          output_patch_overlap, num_output_channels,
                          dtype=dtype)
+    
+    @property
+    def compute_device(self):
+        return platform.processor()
 
     def __call__(self, input_patch):
         """

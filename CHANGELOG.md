@@ -1,5 +1,19 @@
 ChangeLog history
 =================
+# chunkflow 0.6.3 (2020-03-xx)
+## Breaking Changes
+- remove convnet inference backend `pytorch-multitask` since it could be included by the `pytorch` backend.
+## Deprecations 
+
+## Features
+- a general convnet inference backend
+- support combined convnet inference including semantic and affinity map inference.
+
+## Bug Fixes 
+- log-summary operator will work for combined inference
+
+## Improved Documentation 
+- added corresponding documentation
 
 # chunkflow 0.6.2 (2020-03-06)
 ## Breaking Changes

@@ -12,7 +12,11 @@ class PZNet(PatchEngine):
         # self.net = pznet.znet(model_file_name, net_file_name)
         self.net = pznet.znet()
         self.net.load_net(net_dir)
-
+    
+    @property
+    def compute_device(self):
+        return platform.processor()
+    
     def __call__(self, patch):
         """
         args:

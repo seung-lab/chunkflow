@@ -788,6 +788,10 @@ def log_summary(log_dir, output_size):
 @main.command('normalize-section-contrast')
 @click.option('--name', type=str, default='normalize-section-contrast',
               help='name of operator.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
 @click.option('--levels-path', '-p', type=str, required=True,
               help='the path of section histograms.')
 @click.option('--lower-clip-fraction', '-l', type=float, default=0.01, 
@@ -799,7 +803,8 @@ def log_summary(log_dir, output_size):
 @click.option('--maxval', type=int, default=255,
               help='the maximum intensity of transformed chunk.')
 @operator
-def normalize_contrast_contrast(tasks, name, levels_path, lower_clip_fraction,
+def normalize_contrast_contrast(tasks, name, input_chunk_name, output_chunk_name, 
+                                levels_path, lower_clip_fraction,
                                 upper_clip_fraction, minval, maxval):
     """Normalize the section contrast using precomputed histograms."""
     
@@ -813,7 +818,7 @@ def normalize_contrast_contrast(tasks, name, levels_path, lower_clip_fraction,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task['chunk'] = state['operators'][name](task['chunk'])
+            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -823,6 +828,10 @@ def normalize_contrast_contrast(tasks, name, levels_path, lower_clip_fraction,
               type=str,
               default='normalize-section-mu',
               help='name of operator.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
 @click.option('--nominalmin',
               type=float,
               default=None,
@@ -836,7 +845,8 @@ def normalize_contrast_contrast(tasks, name, levels_path, lower_clip_fraction,
               default=False,
               help='clip transformed values to be within the target range.')
 @operator
-def normalize_section_shang(tasks, name, nominalmin, nominalmax, clipvalues):
+def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name, 
+                            nominalmin, nominalmax, clipvalues):
     """Normalize voxel values based on slice min/max within the chunk, Shang's method.
     The transformed chunk has floating point values.
     """
@@ -851,7 +861,7 @@ def normalize_section_shang(tasks, name, nominalmin, nominalmax, clipvalues):
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task['chunk'] = state['operators'][name](task['chunk'])
+            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -955,9 +965,9 @@ def copy_var(tasks, name, from_name, to_name):
 @click.option('--dtype', '-d', type=click.Choice(['float32', 'float16']),
               default='float32', help='numerical precision.')
 @click.option('--framework', '-f',
-              type=click.Choice(['identity', 'pznet', 'pytorch',
+              type=click.Choice(['general', 'identity', 'pznet', 'pytorch',
                                  'pytorch-multitask']),
-              default='pytorch-multitask', help='inference framework')
+              default='general', help='inference framework')
 @click.option('--batch-size', '-b',
               type=int, default=1, help='mini batch size of input patch.')
 @click.option('--bump', type=click.Choice(['wu', 'zung']), default='wu',
@@ -994,6 +1004,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         mask_myelin_threshold=mask_myelin_threshold,
         dry_run=state['dry_run'],
         verbose=state['verbose']) as inferencer:
+        
         state['operators'][name] = inferencer 
 
         for task in tasks:
@@ -1014,10 +1025,12 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
 
 @main.command('mask')
 @click.option('--name', type=str, default='mask', help='name of this operator')
-@click.option('--volume-path',
-              type=str,
-              required=True,
-              help='mask volume path')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
+@click.option('--volume-path', '-v',
+              type=str, required=True, help='mask volume path')
 @click.option('--mip', type=int, default=5, help='mip level of mask')
 @click.option('--inverse/--no-inverse',
               default=False,
@@ -1033,7 +1046,8 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
               'check all zero will return boolean result.')
 @click.option('--skip-to', type=str, default='save', help='skip to a operator')
 @operator
-def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero, skip_to):
+def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path, 
+         mip, inverse, fill_missing, check_all_zero, skip_to):
     """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
@@ -1058,7 +1072,7 @@ def mask(tasks, name, volume_path, mip, inverse, fill_missing, check_all_zero, s
                     print(yellow(f'the mask of {name} is all zero, will skip to {skip_to}'))
                 task['skip_to'] = skip_to
             else:
-                task['chunk'] = state['operators'][name](task['chunk'])
+                task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
             # Note that mask operation could be used several times,
             # this will only record the last masking operation
             task['log']['timer'][name] = time() - start
