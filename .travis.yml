@@ -35,6 +35,7 @@ script:
 - pytest --cov-append --cov=./chunkflow ./tests --verbose
 
 after_success:
+- coverage combine
 - coveralls
 
 deploy:
