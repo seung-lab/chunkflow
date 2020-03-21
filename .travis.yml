@@ -32,7 +32,7 @@ script:
   --input-patch-size 20 256 256 --patch-num 2 2 2 --framework "general" --convnet-model "chunkflow/chunk/image/convnet/patch/general_identity.py" --batch-size 3 cloud-watch --log-name chunkflow-test
 
 # unit tests
-- coverage run -a --source=./chunkflow -m pytest ./tests 
+#- coverage run -a --source=./chunkflow -m pytest ./tests 
 
 # this is not working as expected. might be related to this issue:
 # https://github.com/pytest-dev/pytest-cov/issues/277
