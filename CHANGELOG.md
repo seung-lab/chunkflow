@@ -8,6 +8,7 @@ ChangeLog history
 ## Features
 - a general convnet inference backend
 - support combined convnet inference including semantic and affinity map inference.
+- all-zero option for create-chunk operator and inference test in travis
 
 ## Bug Fixes 
 - log-summary operator will work for combined inference

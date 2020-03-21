@@ -77,6 +77,8 @@ class Chunk(NDArrayOperatorsMixin):
 
             if np.dtype(dtype) == np.uint8:
                 chunk = (chunk * 255).astype( dtype )
+            elif np.dtype(dtype) == np.uint32:
+                chunk = (chunk>0.5).astype(dtype) 
             elif np.issubdtype(dtype, np.floating):
                 chunk = chunk.astype(dtype)
             else:
