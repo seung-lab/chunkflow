@@ -469,33 +469,26 @@ def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
               type=str,
               default='create-chunk',
               help='name of operator')
-@click.option('--size',
-              type=int,
-              nargs=3,
-              default=(64, 64, 64),
-              help='the size of created chunk')
+@click.option('--size', '-s',
+              type=int, nargs=3, default=(64, 64, 64), help='the size of created chunk')
 @click.option('--dtype',
               type=click.Choice(
                   ['uint8', 'uint32', 'uint16', 'float32', 'float64']),
-              default='uint8',
-              help='the data type of chunk')
+              default='uint8', help='the data type of chunk')
+@click.option('--all-zero/--not-all-zero', default=False, help='all zero or not.')
 @click.option('--voxel-offset',
-              type=int,
-              nargs=3,
-              default=(0, 0, 0),
-              help='offset in voxel number.')
-@click.option('--output-chunk-name',
-              '-o',
-              type=str,
-              default="chunk",
-              help="name of created chunk")
+              type=int, nargs=3, default=(0, 0, 0), help='offset in voxel number.')
+@click.option('--output-chunk-name', '-o',
+              type=str, default="chunk", help="name of created chunk")
 @operator
-def create_chunk(tasks, name, size, dtype, voxel_offset, output_chunk_name):
+def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_name):
     """Create a fake chunk for easy test."""
     print("creating chunk: ", output_chunk_name)
     for task in tasks:
         task[output_chunk_name] = Chunk.create(
-            size=size, dtype=np.dtype(dtype), voxel_offset=voxel_offset)
+            size=size, dtype=np.dtype(dtype), 
+            all_zero = all_zero,
+            voxel_offset=voxel_offset)
         yield task
 
 

@@ -7,7 +7,7 @@ from numpy.lib.mixins import NDArrayOperatorsMixin
 
 import tifffile
 import cc3d
-from cloudvolume.lib import Bbox
+from cloudvolume.lib import Bbox, yellow
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
 from .validate import validate_by_template_matching
@@ -60,24 +60,27 @@ class Chunk(NDArrayOperatorsMixin):
 
     @classmethod
     def create(cls, size: tuple = (64, 64, 64),
-               dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0)):
+               dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0),
+               all_zero: bool = False):
         if isinstance(dtype, str):
             dtype = np.dtype(dtype)
 
-        ix, iy, iz = np.meshgrid(*[np.linspace(0, 1, n) for 
-                                   n in size[-3:]], indexing='ij')
-        chunk = np.abs(np.sin(4 * (ix + iy)))
-        if len(size) == 4:
-            chunk = np.expand_dims(chunk, axis=0)
-            chunk = np.repeat(chunk, size[0], axis=0)
-            
-
-        if np.dtype(dtype) == np.uint8:
-            chunk = (chunk * 255).astype( dtype )
-        elif np.issubdtype(dtype, np.floating):
-            chunk = chunk.astype(dtype)
+        if all_zero:
+            chunk = np.zeros(size, dtype=dtype)
         else:
-            raise NotImplementedError()
+            ix, iy, iz = np.meshgrid(*[np.linspace(0, 1, n) for 
+                                       n in size[-3:]], indexing='ij')
+            chunk = np.abs(np.sin(4 * (ix + iy)))
+            if len(size) == 4:
+                chunk = np.expand_dims(chunk, axis=0)
+                chunk = np.repeat(chunk, size[0], axis=0)
+
+            if np.dtype(dtype) == np.uint8:
+                chunk = (chunk * 255).astype( dtype )
+            elif np.issubdtype(dtype, np.floating):
+                chunk = chunk.astype(dtype)
+            else:
+                raise NotImplementedError()
 
         return cls(chunk, global_offset=voxel_offset)
 
@@ -95,6 +98,7 @@ class Chunk(NDArrayOperatorsMixin):
         if self.array.dtype==np.float32:
             # visualization in float32 is not working correctly in ImageJ
             # this might not work correctly if you want to save the image as it is!
+            print(yellow('transforming data type from float32 to uint8'))
             img = self.array*255 
             img = img.astype( np.uint8 )
         else:
