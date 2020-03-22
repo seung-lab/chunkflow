@@ -314,12 +314,13 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
           np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size))
    
     if not state['dry_run']:
+        storage = SimpleStorage(layer_path)
+        thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
+        thumbnail_storage = SimpleStorage(thumbnail_layer_path)
+
         if not overwrite_info:
             print('\ncheck that we are not overwriting existing info file.')
-            storage = SimpleStorage(layer_path)
             assert not storage.exists('info')
-            thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
-            thumbnail_storage = SimpleStorage(thumbnail_layer_path)
             assert not thumbnail_storage.exists('info')
 
         print('create and upload info file to ', layer_path)
