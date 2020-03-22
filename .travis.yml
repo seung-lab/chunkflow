@@ -31,6 +31,9 @@ script:
 - coverage run -a --source=./chunkflow chunkflow create-chunk --size 36 448 448 inference
   --input-patch-size 20 256 256 --patch-num 2 2 2 --framework "general" --convnet-model "chunkflow/chunk/image/convnet/patch/general_identity.py" --batch-size 3 cloud-watch --log-name chunkflow-test
 
+# the coverage run commands are not working correctly in travis. they works locally though.
+# I have created an topic to discuss about this issue.
+# https://travis-ci.community/t/python-coverage-run-get-lower-coverage-rate-in-travis-than-local/7692/2
 - coverage report
 
 # unit tests

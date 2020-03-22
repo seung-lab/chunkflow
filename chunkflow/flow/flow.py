@@ -199,11 +199,13 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               help='Neuroglancer precomputed block compression algorithm.')
 @click.option('--voxel-size', '-v', type=int, nargs=3, default=(40, 4, 4),
               help='voxel size or resolution of mip 0 image.')
+@click.option('--overwrite-info/--no-overwrite-info', default=False,
+              help='normally we should avoid overwriting info file to avoid errors.')
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
               output_patch_size, input_patch_size, channel_num, dtype, 
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
-              queue_name, visibility_timeout, thumbnail, encoding, voxel_size):
+              queue_name, visibility_timeout, thumbnail, encoding, voxel_size, overwrite_info):
     """Prepare storage info files and produce tasks."""
     assert not (volume_stop is None and volume_size is None)
     if isinstance(volume_start, tuple):
@@ -312,12 +314,13 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
           np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size))
    
     if not state['dry_run']:
-        print('\ncheck that we are not overwriting existing info file.')
-        storage = SimpleStorage(layer_path)
-        assert not storage.exists('info')
-        thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
-        thumbnail_storage = SimpleStorage(thumbnail_layer_path)
-        assert not thumbnail_storage.exists('info')
+        if not overwrite_info:
+            print('\ncheck that we are not overwriting existing info file.')
+            storage = SimpleStorage(layer_path)
+            assert not storage.exists('info')
+            thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
+            thumbnail_storage = SimpleStorage(thumbnail_layer_path)
+            assert not thumbnail_storage.exists('info')
 
         print('create and upload info file to ', layer_path)
         # Note that cloudvolume use fortran order rather than C order
