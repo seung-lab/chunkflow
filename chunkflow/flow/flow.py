@@ -628,6 +628,24 @@ def delete_task_in_queue(tasks, name):
                 task_handle, queue.queue_name))
 
 
+@main.command('delete-chunk')
+@click.option('--name', type=str, default='delete-var', help='delete variable/chunk in task')
+@click.option('--chunk-name', '-c',
+              type=str, required=True, help='the chunk name need to be deleted')
+@operator
+def delete_chunk(tasks, name, chunk_name):
+    """Delete a Chunk in task to release RAM"""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if task['skip']:
+            print('skip deleting ', chunk_name)
+        else:
+            if state['verbose']:
+                print('delete chunk: ', chunk_name)
+            del task[chunk_name]
+            yield task
+ 
+
 @main.command('cutout')
 @click.option('--name',
               type=str, default='cutout', help='name of this operator')
