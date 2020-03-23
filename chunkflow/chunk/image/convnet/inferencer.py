@@ -117,7 +117,6 @@ class Inferencer(object):
         self.output_chunk_mask = None
         self.dtype = dtype        
         self.mask_myelin_threshold = mask_myelin_threshold
-        self.output_buffer = None
         self.dry_run = dry_run
         
         # allocate a buffer to avoid redundant memory allocation
@@ -140,15 +139,7 @@ class Inferencer(object):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        # when we manually interrupt the process, 
-        # output_buffer could be None
         pass
-        #if self.output_buffer:
-            #assert isinstance(self.output_buffer.array, np.memmap)
-            #print('delete the temporal memory map files...')
-            #os.remove(self.output_buffer.array.filename)
-            #if self.output_chunk_mask:
-            #    os.remove(self.output_chunk_mask.array.filename)
     
     def _update_parameters_for_input_chunk(self, input_chunk):
         """
@@ -175,7 +166,6 @@ class Inferencer(object):
 
         self._construct_patch_slices_list(input_chunk.global_offset)
         self._construct_output_chunk_mask(input_chunk)
-        self._update_output_buffer(input_chunk)
 
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, bump):
         # prepare for inference
@@ -273,7 +263,7 @@ class Inferencer(object):
             # To-Do: clean up extra temporal files if we created 
             # multiple mmap files
             #output_mask_mmap_file = mktemp(suffix='.dat')
-            # the memory map is initialized with 0 in default
+            ## the memory map is initialized with 0 in default
             #output_mask_array = np.memmap(output_mask_mmap_file, 
             #                                   dtype=self.dtype, mode='w+', 
             #                                   shape=self.output_size)
@@ -299,33 +289,27 @@ class Inferencer(object):
         # this mask will result in 1
         self.output_chunk_mask.array = 1.0 / self.output_chunk_mask.array
     
-    def _update_output_buffer(self, input_chunk):
-        if self.output_buffer is None:
-            output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
-            #if self.mask_myelin_threshold is None:
-            # a random temporal file. will be removed later.
-            #output_buffer_mmap_file = mktemp(suffix='.dat')
-            # the memory map is initialized with 0 in default
-            #output_buffer_array = np.memmap(output_buffer_mmap_file, 
-            #                               dtype=self.dtype, mode='w+', 
-            #                               shape=output_buffer_size)
-            #else:
-            #    # when we use myelin mask, the masking computation will create a full array in RAM!
-            #    # and it will duplicate the array! thus, we should use normal array in this case.
-            output_buffer_array = np.zeros(output_buffer_size, dtype=self.dtype)
-        else:
-            # we have to make sure that all the value is 0 initially
-            # so we can add patches on it.
-            output_buffer_array = self.output_buffer.array
-            output_buffer_array.fill(0)
-
+    def _get_output_buffer(self, input_chunk):
+        output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
+        #if self.mask_myelin_threshold is None:
+        # a random temporal file. will be removed later.
+        #output_buffer_mmap_file = mktemp(suffix='.dat')
+        ## the memory map is initialized with 0 in default
+        #output_buffer_array = np.memmap(output_buffer_mmap_file, 
+        #                               dtype=self.dtype, mode='w+', 
+        #                               shape=output_buffer_size)
+        ##else:
+        #    # when we use myelin mask, the masking computation will create a full array in RAM!
+        #    # and it will duplicate the array! thus, we should use normal array in this case.
+        output_buffer_array = np.zeros(output_buffer_size, dtype=self.dtype)
+        
         output_global_offset = tuple(io + ocso for io, ocso in zip(
             input_chunk.global_offset, self.output_offset))
         
-        self.output_buffer = Chunk(output_buffer_array,
+        output_buffer = Chunk(output_buffer_array,
                                    global_offset=(0,) + output_global_offset)
-        assert self.output_buffer == 0
-        return
+        assert output_buffer == 0
+        return output_buffer
 
     def __call__(self, input_chunk: np.ndarray):
         """
@@ -335,12 +319,14 @@ class Inferencer(object):
         assert isinstance(input_chunk, Chunk)
         
         self._update_parameters_for_input_chunk(input_chunk)
+        output_buffer = self._get_output_buffer(input_chunk)
+
         if not self.mask_output_chunk:
             self._check_alignment()
          
         if self.dry_run:
             print('dry run, return a special artifical chunk.')
-            size=self.output_buffer.shape
+            size=output_buffer.shape
             
             if self.mask_myelin_threshold:
                 # eleminate the myelin channel
@@ -348,13 +334,13 @@ class Inferencer(object):
 
             return Chunk.create(
                 size=size,
-                dtype=self.output_buffer.dtype,
-                voxel_offset=self.output_buffer.global_offset
+                dtype = output_buffer.dtype,
+                voxel_offset=output_buffer.global_offset
             )
        
         if input_chunk == 0:
             print('input is all zero, return zero buffer directly')
-            return self.output_buffer
+            return output_buffer
         
         if np.issubdtype(input_chunk.dtype, np.integer):
             # normalize to 0-1 value range
@@ -413,7 +399,7 @@ class Inferencer(object):
                 #    output_chunk.to_tif()
                 #    #input_chunk.cutout(slices[0]).to_tif()
 
-                self.output_buffer.blend(output_chunk)
+                output_buffer.blend(output_chunk)
 
             if self.verbose > 1:
                 end = time.time()
@@ -424,17 +410,17 @@ class Inferencer(object):
                   (time.time() - chunk_time_start))
         
         if self.mask_output_chunk:
-            self.output_buffer *= self.output_chunk_mask
+            output_buffer *= self.output_chunk_mask
         
         # theoretically, all the value of output_buffer should not be greater than 1
         # we use a slightly higher value here to accomondate numerical precision issue
-        np.testing.assert_array_less(self.output_buffer, 1.0001,
+        np.testing.assert_array_less(output_buffer, 1.0001,
             err_msg='output buffer should not be greater than 1')
 
         if self.mask_myelin_threshold:
             # currently only for masking out affinity map 
-            assert self.output_buffer.shape[0] == 4
-            output_chunk = self.output_buffer.mask_using_last_channel(
+            assert output_buffer.shape[0] == 4
+            output_chunk = output_buffer.mask_using_last_channel(
                 threshold = self.mask_myelin_threshold)
 
             # currently neuroglancer only support float32, not float16
@@ -443,4 +429,4 @@ class Inferencer(object):
 
             return output_chunk
         else:
-            return self.output_buffer
+            return output_buffer

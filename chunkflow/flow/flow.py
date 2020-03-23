@@ -199,11 +199,13 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
               help='Neuroglancer precomputed block compression algorithm.')
 @click.option('--voxel-size', '-v', type=int, nargs=3, default=(40, 4, 4),
               help='voxel size or resolution of mip 0 image.')
+@click.option('--overwrite-info/--no-overwrite-info', default=False,
+              help='normally we should avoid overwriting info file to avoid errors.')
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
               output_patch_size, input_patch_size, channel_num, dtype, 
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
-              queue_name, visibility_timeout, thumbnail, encoding, voxel_size):
+              queue_name, visibility_timeout, thumbnail, encoding, voxel_size, overwrite_info):
     """Prepare storage info files and produce tasks."""
     assert not (volume_stop is None and volume_size is None)
     if isinstance(volume_start, tuple):
@@ -312,12 +314,14 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
           np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size))
    
     if not state['dry_run']:
-        print('\ncheck that we are not overwriting existing info file.')
         storage = SimpleStorage(layer_path)
-        assert not storage.exists('info')
         thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
         thumbnail_storage = SimpleStorage(thumbnail_layer_path)
-        assert not thumbnail_storage.exists('info')
+
+        if not overwrite_info:
+            print('\ncheck that we are not overwriting existing info file.')
+            assert not storage.exists('info')
+            assert not thumbnail_storage.exists('info')
 
         print('create and upload info file to ', layer_path)
         # Note that cloudvolume use fortran order rather than C order
@@ -469,33 +473,26 @@ def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
               type=str,
               default='create-chunk',
               help='name of operator')
-@click.option('--size',
-              type=int,
-              nargs=3,
-              default=(64, 64, 64),
-              help='the size of created chunk')
+@click.option('--size', '-s',
+              type=int, nargs=3, default=(64, 64, 64), help='the size of created chunk')
 @click.option('--dtype',
               type=click.Choice(
                   ['uint8', 'uint32', 'uint16', 'float32', 'float64']),
-              default='uint8',
-              help='the data type of chunk')
+              default='uint8', help='the data type of chunk')
+@click.option('--all-zero/--not-all-zero', default=False, help='all zero or not.')
 @click.option('--voxel-offset',
-              type=int,
-              nargs=3,
-              default=(0, 0, 0),
-              help='offset in voxel number.')
-@click.option('--output-chunk-name',
-              '-o',
-              type=str,
-              default="chunk",
-              help="name of created chunk")
+              type=int, nargs=3, default=(0, 0, 0), help='offset in voxel number.')
+@click.option('--output-chunk-name', '-o',
+              type=str, default="chunk", help="name of created chunk")
 @operator
-def create_chunk(tasks, name, size, dtype, voxel_offset, output_chunk_name):
+def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_name):
     """Create a fake chunk for easy test."""
     print("creating chunk: ", output_chunk_name)
     for task in tasks:
         task[output_chunk_name] = Chunk.create(
-            size=size, dtype=np.dtype(dtype), voxel_offset=voxel_offset)
+            size=size, dtype=np.dtype(dtype), 
+            all_zero = all_zero,
+            voxel_offset=voxel_offset)
         yield task
 
 
@@ -630,6 +627,24 @@ def delete_task_in_queue(tasks, name):
             print('deleted task {} in queue: {}'.format(
                 task_handle, queue.queue_name))
 
+
+@main.command('delete-chunk')
+@click.option('--name', type=str, default='delete-var', help='delete variable/chunk in task')
+@click.option('--chunk-name', '-c',
+              type=str, required=True, help='the chunk name need to be deleted')
+@operator
+def delete_chunk(tasks, name, chunk_name):
+    """Delete a Chunk in task to release RAM"""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if task['skip']:
+            print('skip deleting ', chunk_name)
+        else:
+            if state['verbose']:
+                print('delete chunk: ', chunk_name)
+            del task[chunk_name]
+            yield task
+ 
 
 @main.command('cutout')
 @click.option('--name',
@@ -1113,26 +1128,29 @@ def crop_margin(tasks, name, margin_size,
 
 @main.command('mesh')
 @click.option('--name', type=str, default='mesh', help='name of operator')
-@click.option('--chunk-name', '-c',
-              type=str, default='chunk', help='name of chunk needs to be meshed.')
-@click.option('--mip', '-c',
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='name of chunk needs to be meshed.')
+@click.option('--mip', '-m',
     type=int, default=None, help='mip level of segmentation chunk.')
 @click.option('--voxel-size', '-v', type=int, nargs=3, default=None, callback=default_none, 
     help='voxel size of the segmentation. zyx order.')
 @click.option('--output-path', '-o', type=str, default='file:///tmp/mesh/', 
     help='output path of meshes, follow the protocol rule of CloudVolume. \
               The path will be adjusted if there is a info file with precomputed format.')
-@click.option('--output-format', '-f', type=click.Choice(['ply', 'obj', 'precomputed']), default='precomputed', 
-    help='output format, could be one of ply|obj|precomputed.')
-@click.option('--simplification-factor', '-s', type=int, default=100, help='mesh simplification factor.')
-@click.option('--max-simplification-error', '-m', type=int, default=40, help='max simplification error.')
+@click.option('--output-format', '-t', type=click.Choice(['ply', 'obj', 'precomputed']), 
+              default='precomputed', help='output format, could be one of ply|obj|precomputed.')
+@click.option('--simplification-factor', '-f', type=int, default=100, 
+              help='mesh simplification factor.')
+@click.option('--max-simplification-error', '-e', type=int, default=40, 
+              help='max simplification error.')
 @click.option('--dust-threshold', '-d',
     type=int, default=None, help='do not mesh segments with voxel number less than threshold.')
-@click.option('--ids', '-i', type=str, default=None, 
-              help='a list of segment ids to mesh. This is for sparse meshing. The ids should be separated by comma without space, such as "34,56,78,90"')
+@click.option('--ids', type=str, default=None, 
+              help='a list of segment ids to mesh. This is for sparse meshing. ' + 
+              'The ids should be separated by comma without space, such as "34,56,78,90"')
 @click.option('--manifest/--no-manifest', default=False, help='create manifest file or not.')
 @operator
-def mesh(tasks, name, chunk_name, mip, voxel_size, output_path, output_format,
+def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_format,
          simplification_factor, max_simplification_error, dust_threshold, 
          ids, manifest):
     """Perform meshing for segmentation chunk."""
@@ -1155,7 +1173,7 @@ def mesh(tasks, name, chunk_name, mip, voxel_size, output_path, output_format,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[chunk_name] = state['operators'][name](task[chunk_name])
+            state['operators'][name]( task[input_chunk_name] )
             task['log']['timer'][name] = time() - start
         yield task
 

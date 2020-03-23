@@ -39,6 +39,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | crop-margin     | Crop the margin of a chunk |
 | custom-operator | Import local code as a customized operator |
 | cutout          | Cutout chunk from a local/cloud storage volume |
+| delete-chunk    | Delete chunk in task to reduce RAM requirement |
 | delete-task-in-queue | Delete the task in AWS SQS queue |
 | downsample-upload | Downsample the chunk hierarchically and upload to volume |
 | evaluate-segmentation | Compare segmentation chunks |

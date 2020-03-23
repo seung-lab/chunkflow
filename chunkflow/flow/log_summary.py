@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+pd.set_option('precision', 0)
 
 def load_log(log_dir):
     
@@ -47,15 +48,15 @@ def load_log(log_dir):
 
 def print_log_statistics(df, output_size=None):
     grouped_df = df.groupby('compute_device')
-
-    print('\n\ngrouped dataframe')
-    print(grouped_df)
+    
+    print('\n\nmean time (sec):')
+    print(grouped_df.mean())
 
     print('\n\nmax time (sec):')
     print(grouped_df.max())
-
-    print('\n\nmean time (sec):')
-    print(grouped_df.mean())
+    
+    print('\n\nmin time (sec):')
+    print(grouped_df.min())
 
     if output_size:
         print('\n\nmean speed (mv/s)')
