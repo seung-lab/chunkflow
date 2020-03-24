@@ -34,7 +34,8 @@ class CutoutOperator(OperatorBase):
                                fill_missing=self.fill_missing,
                                progress=self.verbose,
                                mip=self.mip,
-                               parallel=False)
+                               cache=False,
+                               parallel=1)
 
         if blackout_sections:
             with Storage(volume_path) as stor:
@@ -47,7 +48,8 @@ class CutoutOperator(OperatorBase):
                                             fill_missing=self.fill_missing,
                                             progress=self.verbose,
                                             mip=self.validate_mip,
-                                            parallel=False)
+                                            cache=False,
+                                            parallel=1)
 
     def __call__(self, output_bbox):
         

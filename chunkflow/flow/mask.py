@@ -30,6 +30,7 @@ class MaskOperator(OperatorBase):
                                     bounded=False,
                                     fill_missing=fill_missing,
                                     progress=verbose,
+                                    parallel=1,
                                     mip=mask_mip)
 
         if verbose:

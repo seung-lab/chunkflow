@@ -72,7 +72,7 @@ class MeshOperator(OperatorBase):
 
         if output_format == 'precomputed':
             # adjust the mesh path according to info
-            vol = CloudVolume(self.output_path, mip)
+            vol = CloudVolume(self.output_path, mip, parallel=1)
             info = vol.info
             if 'mesh' not in info:
                 # add mesh to info and update it
