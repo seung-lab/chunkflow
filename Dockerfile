@@ -30,11 +30,12 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     && pip install -U pip \
     && hash -r pip \
     && pip install --upgrade setuptools \
-    && pip install numpy setuptools cython tornado==5.0 python-dateutil==2.8.0 --no-cache-dir \ 
+    && pip install numpy setuptools cython tornado>=5.0 python-dateutil>=2.8.0 --no-cache-dir \ 
     # && pip install fpzip --no-binary :all: --no-cache-dir \
     # && git clone --single-branch --depth 1 https://github.com/seung-lab/cloud-volume.git \
     # && pip install --no-cache-dir -r $HOME/workspace/cloud-volume/requirements.txt \
     && pip install -r requirements.txt --no-cache-dir \
+    && pip install -r tests/requirements.txt --no-cache-dir \
     # install the commandline chunkflow
     && pip install -e . \
     # cleanup build dependencies 
@@ -48,6 +49,9 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     # setup environment variables
     && echo "export LC_ALL=C.UTF-8" >> $HOME/.bashrc \
     && echo "export LANG=C.UTF-8" >> $HOME/.bashrc \
-    && echo "export PYTHONPATH=$HOME/workspace/chunkflow:\$PYTHONPATH" >> $HOME/.bashrc  
+    && echo "export PYTHONPATH=$HOME/workspace/chunkflow:\$PYTHONPATH" >> $HOME/.bashrc \
+    # the test will not pass due to missing of credentials.
+    # && pytest tests \
+    && chunkflow
 
 WORKDIR $HOME/workspace/

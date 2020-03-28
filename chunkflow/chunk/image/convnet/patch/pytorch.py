@@ -51,7 +51,11 @@ class PyTorch(PatchInferencerBase):
             self.model = net_source.load_model(convnet_weight_path)
         else:
             self.model = net_source.InstantiatedModel
-            chkpt = torch.load(convnet_weight_path)
+            if self.is_gpu:
+                map_location = 'cuda'
+            else:
+                map_location = 'cpu'
+            chkpt = torch.load(convnet_weight_path, map_location=map_location)
             state_dict = chkpt['state_dict'] if 'state_dict' in chkpt else chkpt
             self.model.load_state_dict(state_dict)
         

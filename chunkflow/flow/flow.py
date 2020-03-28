@@ -320,8 +320,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
 
         if not overwrite_info:
             print('\ncheck that we are not overwriting existing info file.')
-            assert not storage.exists('info')
-            assert not thumbnail_storage.exists('info')
+            assert storage.exists('info')
+            assert thumbnail_storage.exists('info')
 
         print('create and upload info file to ', layer_path)
         # Note that cloudvolume use fortran order rather than C order
@@ -334,7 +334,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                            chunk_size=block_size[::-1],
                                            max_mip=mip)
         vol = CloudVolume(layer_path, info=info)
-        vol.commit_info()
+        if overwrite_info:
+            vol.commit_info()
       
         thumbnail_factor = 2**thumbnail_mip
         thumbnail_block_size = (output_chunk_size[0]//factor,
@@ -350,7 +351,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                                      chunk_size=thumbnail_block_size[::-1],
                                                      max_mip=thumbnail_mip)
         thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
-        thumbnail_vol.commit_info()
+        if overwrite_info:
+            thumbnail_vol.commit_info()
        
     print('create a list of bounding boxes...')
     roi_start = (volume_start[0], 
