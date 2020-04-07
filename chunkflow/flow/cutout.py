@@ -29,30 +29,21 @@ class CutoutOperator(OperatorBase):
         self.blackout_sections = blackout_sections
         self.dry_run = dry_run
 
-        self.vol = CloudVolume(self.volume_path,
-                               bounded=False,
-                               fill_missing=self.fill_missing,
-                               progress=self.verbose,
-                               mip=self.mip,
-                               cache=False,
-                               parallel=1)
-
         if blackout_sections:
             with Storage(volume_path) as stor:
                 self.blackout_section_ids = stor.get_json(
                     'blackout_section_ids.json')['section_ids']
 
-        if self.validate_mip:
-            self.validate_vol = CloudVolume(self.volume_path,
-                                            bounded=False,
-                                            fill_missing=self.fill_missing,
-                                            progress=self.verbose,
-                                            mip=self.validate_mip,
-                                            cache=False,
-                                            parallel=1)
-
     def __call__(self, output_bbox):
-        
+        #gevent.monkey.patch_all(thread=False)
+        vol = CloudVolume(self.volume_path,
+                          bounded=False,
+                          fill_missing=self.fill_missing,
+                          progress=self.verbose,
+                          mip=self.mip,
+                          cache=False,
+                          green_threads=True)
+       
         chunk_slices = tuple(
             slice(s.start - m, s.stop + m)
             for s, m in zip(output_bbox.to_slices(), self.expand_margin_size))
@@ -66,7 +57,7 @@ class CutoutOperator(OperatorBase):
                                              self.volume_path))
 
         # always reverse the indexes since cloudvolume use x,y,z indexing
-        chunk = self.vol[chunk_slices[::-1]]
+        chunk = vol[chunk_slices[::-1]]
         # the cutout is fortran ordered, so need to transpose and make it C order
         chunk = chunk.transpose()
         # we can delay this transpose later
@@ -89,7 +80,8 @@ class CutoutOperator(OperatorBase):
             chunk = self._blackout_sections(chunk)
 
         if self.validate_mip:
-            self._validate_chunk(chunk)
+            self._validate_chunk(chunk, vol)
+        
         return chunk
 
     def _blackout_sections(self, chunk):
@@ -108,7 +100,7 @@ class CutoutOperator(OperatorBase):
                 chunk[z0, :, :] = 0
         return chunk
 
-    def _validate_chunk(self, chunk):
+    def _validate_chunk(self, chunk, vol):
         """
         check that all the input voxels was downloaded without black region  
         We have found some black regions in previous inference run, 
@@ -116,6 +108,15 @@ class CutoutOperator(OperatorBase):
         """
         if chunk.ndim == 4 and chunk.shape[0] > 1:
             chunk = chunk[0, :, :, :]
+        
+        validate_vol = CloudVolume(self.volume_path,
+                                   bounded=False,
+                                   fill_missing=self.fill_missing,
+                                   progress=self.verbose,
+                                   mip=self.validate_mip,
+                                   cache=False,
+                                   green_threads=True)
+
 
         chunk_mip = self.mip
         if self.verbose:
@@ -134,11 +135,11 @@ class CutoutOperator(OperatorBase):
         ],
                            dtype=np.int32)
         clamped_offset = tuple(go + f - (go - vo) % f for go, vo, f in zip(
-            global_offset[::-1], self.vol.voxel_offset, factor3))
+            global_offset[::-1], vol.voxel_offset, factor3))
         clamped_stop = tuple(
             go + s - (go + s - vo) % f
             for go, s, vo, f in zip(global_offset[::-1], chunk.shape[::-1],
-                                    self.vol.voxel_offset, factor3))
+                                    vol.voxel_offset, factor3))
         clamped_slices = tuple(
             slice(o, s) for o, s in zip(clamped_offset, clamped_stop))
         clamped_bbox = Bbox.from_slices(clamped_slices)
@@ -146,7 +147,7 @@ class CutoutOperator(OperatorBase):
         # transform to xyz order
         clamped_input = np.transpose(clamped_input)
         # get the corresponding bounding box for validation
-        validate_bbox = self.vol.bbox_to_mip(clamped_bbox,
+        validate_bbox = vol.bbox_to_mip(clamped_bbox,
                                              mip=chunk_mip,
                                              to_mip=self.validate_mip)
         #validate_bbox = clamped_bbox // factor3
@@ -162,7 +163,7 @@ class CutoutOperator(OperatorBase):
         # validation by template matching
         assert validate_by_template_matching(clamped_input)
 
-        validate_input = self.validate_vol[validate_bbox.to_slices()]
+        validate_input = validate_vol[validate_bbox.to_slices()]
         if validate_input.shape[3] == 1:
             validate_input = np.squeeze(validate_input, axis=3)
 
