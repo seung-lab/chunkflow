@@ -5,10 +5,6 @@ import tinybrain
 import numpy as np
 from cloudvolume.lib import Bbox
 
-# Using Green Threads
-import gevent.monkey
-gevent.monkey.patch_all(thread=False)
-
 class DownsampleUploadOperator(OperatorBase):
     """
     Multiple mip level downsampling including image and segmenation.
@@ -47,7 +43,7 @@ class DownsampleUploadOperator(OperatorBase):
                                     bounded=False,
                                     autocrop=True,
                                     mip=mip,
-                                    green_threads=True,
+                                    # green_threads=True,
                                     progress=verbose)
 
         self.vols = vols
