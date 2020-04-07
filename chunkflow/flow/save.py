@@ -21,14 +21,13 @@ class SaveOperator(OperatorBase):
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
-                 nproc: int = 0,
+                 nproc: int = 1,
                  verbose: bool = True,
                  name: str = 'save'):
         super().__init__(name=name, verbose=verbose)
-        if nproc < 0:
-            nproc = True
-        elif nproc == 0:
-            nproc = False
+        
+        if nproc==0:
+            print(yellow('parallel=0 in CloudVolume will create memory overhead!'))
 
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
@@ -40,6 +39,7 @@ class SaveOperator(OperatorBase):
             bounded=False,
             autocrop=True,
             mip=mip,
+            cache=False,
             parallel=nproc,
             progress=verbose)
 
@@ -56,6 +56,8 @@ class SaveOperator(OperatorBase):
                 bounded=False,
                 autocrop=True,
                 mip=mip,
+                cache=False,
+                parallel=nproc,
                 progress=verbose)
             #self.thumbnail_operator = DownsampleUploadOperator(
             #    thumbnail_layer_path, chunk_mip = mip,

@@ -320,8 +320,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
 
         if not overwrite_info:
             print('\ncheck that we are not overwriting existing info file.')
-            assert not storage.exists('info')
-            assert not thumbnail_storage.exists('info')
+            assert storage.exists('info')
+            assert thumbnail_storage.exists('info')
 
         print('create and upload info file to ', layer_path)
         # Note that cloudvolume use fortran order rather than C order
@@ -334,7 +334,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                            chunk_size=block_size[::-1],
                                            max_mip=mip)
         vol = CloudVolume(layer_path, info=info)
-        vol.commit_info()
+        if overwrite_info:
+            vol.commit_info()
       
         thumbnail_factor = 2**thumbnail_mip
         thumbnail_block_size = (output_chunk_size[0]//factor,
@@ -350,7 +351,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                                      chunk_size=thumbnail_block_size[::-1],
                                                      max_mip=thumbnail_mip)
         thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
-        thumbnail_vol.commit_info()
+        if overwrite_info:
+            thumbnail_vol.commit_info()
        
     print('create a list of bounding boxes...')
     roi_start = (volume_start[0], 
@@ -1046,7 +1048,8 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
               type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
 @click.option('--volume-path', '-v',
               type=str, required=True, help='mask volume path')
-@click.option('--mip', type=int, default=5, help='mip level of mask')
+@click.option('--mip', '-m', 
+              type=int, default=5, help='mip level of mask')
 @click.option('--inverse/--no-inverse',
               default=False,
               help='inverse the mask or not. default is True. ' +
@@ -1250,7 +1253,7 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
 @click.option('--upload-log/--no-upload-log',
               default=True, help='the log will be put inside volume-path')
 @click.option('--nproc', '-p', 
-    type=int, default=0,
+    type=int, default=1,
     help='number of processes, negative means using all the cores, ' +
     '0/1 means turning off multiple processing, n>1 means using n processes')
 @click.option('--create-thumbnail/--no-create-thumbnail',

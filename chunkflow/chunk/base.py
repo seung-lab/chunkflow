@@ -12,6 +12,8 @@ from cloudvolume.lib import Bbox, yellow
 # Offset = Tuple[int, int, int]
 from .validate import validate_by_template_matching
 
+# from memory_profiler import profile
+
 
 class Chunk(NDArrayOperatorsMixin):
     r"""
@@ -270,7 +272,8 @@ class Chunk(NDArrayOperatorsMixin):
         arr = np.squeeze(self, axis=0)
         global_offset = self.global_offset[:axis] + self.global_offset[axis+1:]
         return Chunk(arr, global_offset=global_offset)
-
+    
+    # @profile(precision=0)
     def channel_voting(self):
         assert self.ndim == 4
         assert self.shape[0] <= 256
