@@ -1252,21 +1252,16 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--upload-log/--no-upload-log',
               default=True, help='the log will be put inside volume-path')
-@click.option('--nproc', '-p', 
-    type=int, default=1,
-    help='number of processes, negative means using all the cores, ' +
-    '0/1 means turning off multiple processing, n>1 means using n processes')
 @click.option('--create-thumbnail/--no-create-thumbnail',
     default=False, help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
 @operator
-def save(tasks, name, volume_path, input_chunk_name, upload_log, nproc, create_thumbnail):
+def save(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnail):
     """Save chunk to volume."""
     state['operators'][name] = SaveOperator(volume_path,
                                             state['mip'],
                                             upload_log=upload_log,
                                             create_thumbnail=create_thumbnail,
-                                            nproc=nproc,
                                             verbose=state['verbose'],
                                             name=name)
 

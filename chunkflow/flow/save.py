@@ -14,6 +14,9 @@ from .base import OperatorBase
 from chunkflow.lib.igneous.tasks import downsample_and_upload
 #from .downsample_upload import DownsampleUploadOperator
 
+# Using Green Threads
+# import gevent.monkey
+
 
 class SaveOperator(OperatorBase):
     def __init__(self,
@@ -21,56 +24,25 @@ class SaveOperator(OperatorBase):
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
-                 nproc: int = 1,
                  verbose: bool = True,
                  name: str = 'save'):
         super().__init__(name=name, verbose=verbose)
         
-        if nproc==0:
-            print(yellow('parallel=0 in CloudVolume will create memory overhead!'))
-
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
-
-        self.volume = CloudVolume(
-            volume_path,
-            fill_missing=True,
-            bounded=False,
-            autocrop=True,
-            mip=mip,
-            cache=False,
-            parallel=nproc,
-            progress=verbose)
+        self.verbose = verbose
+        self.volume_path = volume_path
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')
             self.log_storage = Storage(log_path)
 
-        if create_thumbnail:
-            thumbnail_layer_path = os.path.join(volume_path, 'thumbnail')
-            self.thumbnail_volume = CloudVolume(
-                os.path.join(volume_path, 'thumbnail'),
-                compress='gzip',
-                fill_missing=True,
-                bounded=False,
-                autocrop=True,
-                mip=mip,
-                cache=False,
-                parallel=nproc,
-                progress=verbose)
-            #self.thumbnail_operator = DownsampleUploadOperator(
-            #    thumbnail_layer_path, chunk_mip = mip,
-            #    start_mip = 6, stop_mip = 7,
-            #    fill_missing = True,
-            #    verbose = verbose
-            #)
-
-    def create_chunk_with_zeros(self, bbox):
+    def create_chunk_with_zeros(self, bbox, num_channels, dtype):
         """Create a fake all zero chunk. 
         this is used in skip some operation based on mask."""
-        shape = (self.volume.num_channels, *bbox.size3())
-        arr = np.zeros(shape, dtype=self.volume.dtype)
+        shape = (num_channels, *bbox.size3())
+        arr = np.zeros(shape, dtype=dtype)
         chunk = Chunk(arr, global_offset=(0, *bbox.minpt))
         return chunk
 
@@ -80,11 +52,23 @@ class SaveOperator(OperatorBase):
             print('save chunk.')
         
         start = time.time()
-        chunk = self._auto_convert_dtype(chunk)
+        
+        # gevent.monkey.patch_all(thread=False)
+        volume = CloudVolume(
+            self.volume_path,
+            fill_missing=True,
+            bounded=False,
+            autocrop=True,
+            mip=self.mip,
+            cache=False,
+            # green_threads=True,
+            progress=self.verbose)
 
+        chunk = self._auto_convert_dtype(chunk, volume)
+        
         # transpose czyx to xyzc order
         arr = np.transpose(chunk.array)
-        self.volume[chunk.slices[::-1]] = arr
+        volume[chunk.slices[::-1]] = arr
         
         if self.create_thumbnail:
             self._create_thumbnail(chunk)
@@ -96,21 +80,34 @@ class SaveOperator(OperatorBase):
         if self.upload_log:
             self._upload_log(log, chunk.bbox)
 
-    def _auto_convert_dtype(self, chunk):
+    def _auto_convert_dtype(self, chunk, volume):
         """convert the data type to fit volume datatype"""
-        if self.volume.dtype != chunk.dtype:
+        if volume.dtype != chunk.dtype:
             print(yellow(f'converting chunk data type {chunk.dtype} ' + 
-                         f'to volume data type: {self.volume.dtype}'))
-            #float_chunk = chunk.astype(np.float64)
-            #chunk = float_chunk / np.iinfo(chunk.dtype).max * np.iinfo(self.volume.dtype).max
-            chunk = chunk / chunk.array.max() * np.iinfo(self.volume.dtype).max
-            return chunk.astype(self.volume.dtype)
+                         f'to volume data type: {volume.dtype}'))
+            # float_chunk = chunk.astype(np.float64)
+            # chunk = float_chunk / np.iinfo(chunk.dtype).max * np.iinfo(self.volume.dtype).max
+            chunk = chunk / chunk.array.max() * np.iinfo(volume.dtype).max
+            return chunk.astype(volume.dtype)
         else:
             return chunk
 
     def _create_thumbnail(self, chunk):
         if self.verbose:
             print('creating thumbnail...')
+
+        thumbnail_layer_path = os.path.join(self.volume_path, 'thumbnail')
+        thumbnail_volume = CloudVolume(
+            thumbnail_layer_path,
+            compress='gzip',
+            fill_missing=True,
+            bounded=False,
+            autocrop=True,
+            mip=self.mip,
+            cache=False,
+            # green_threads=True,
+            progress=self.verbose)
+
         # only use the last channel, it is the Z affinity
         # if this is affinitymap
         image = chunk[-1, :, :, :]
@@ -124,7 +121,7 @@ class SaveOperator(OperatorBase):
 
         downsample_and_upload(image,
                               image_bbox,
-                              self.thumbnail_volume,
+                              thumbnail_volume,
                               Vec(*(image.shape)),
                               mip=self.mip,
                               max_mip=6,
