@@ -105,7 +105,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
         """
         if z not in self.lookup_tables:
             data = self.stor.get_file(f'{z}')
-            assert data is not None
+            assert data is not None, f'histogram of section {z} is missing!'
             data = json.loads(data.decode('utf-8'))
             levels = np.array(data['levels'], dtype=np.uint64)
             lower, upper = self.find_section_clamping_values(levels)

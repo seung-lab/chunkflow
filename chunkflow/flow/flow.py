@@ -1048,7 +1048,8 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
               type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
 @click.option('--volume-path', '-v',
               type=str, required=True, help='mask volume path')
-@click.option('--mip', type=int, default=5, help='mip level of mask')
+@click.option('--mip', '-m', 
+              type=int, default=5, help='mip level of mask')
 @click.option('--inverse/--no-inverse',
               default=False,
               help='inverse the mask or not. default is True. ' +
