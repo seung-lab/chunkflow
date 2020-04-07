@@ -43,7 +43,7 @@ class DownsampleUploadOperator(OperatorBase):
                                     bounded=False,
                                     autocrop=True,
                                     mip=mip,
-                                    # green_threads=True,
+                                    green_threads=True,
                                     progress=verbose)
 
         self.vols = vols

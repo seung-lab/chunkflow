@@ -8,9 +8,6 @@ from tinybrain import downsample_with_averaging
 from chunkflow.chunk import Chunk
 from .base import OperatorBase
 
-# Using Green Threads
-# import gevent.monkey
-
 
 class CutoutOperator(OperatorBase):
     def __init__(self,
@@ -44,8 +41,8 @@ class CutoutOperator(OperatorBase):
                           fill_missing=self.fill_missing,
                           progress=self.verbose,
                           mip=self.mip,
-                          cache=False)
-                          #green_threads=True)
+                          cache=False,
+                          green_threads=True)
        
         chunk_slices = tuple(
             slice(s.start - m, s.stop + m)
@@ -117,8 +114,8 @@ class CutoutOperator(OperatorBase):
                                    fill_missing=self.fill_missing,
                                    progress=self.verbose,
                                    mip=self.validate_mip,
-                                   cache=False)
-                                   #green_threads=True)
+                                   cache=False,
+                                   green_threads=True)
 
 
         chunk_mip = self.mip

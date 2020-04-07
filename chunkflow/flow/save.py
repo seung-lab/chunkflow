@@ -14,9 +14,6 @@ from .base import OperatorBase
 from chunkflow.lib.igneous.tasks import downsample_and_upload
 #from .downsample_upload import DownsampleUploadOperator
 
-# Using Green Threads
-# import gevent.monkey
-
 
 class SaveOperator(OperatorBase):
     def __init__(self,
@@ -61,7 +58,7 @@ class SaveOperator(OperatorBase):
             autocrop=True,
             mip=self.mip,
             cache=False,
-            # green_threads=True,
+            green_threads=True,
             progress=self.verbose)
 
         chunk = self._auto_convert_dtype(chunk, volume)
@@ -105,7 +102,7 @@ class SaveOperator(OperatorBase):
             autocrop=True,
             mip=self.mip,
             cache=False,
-            # green_threads=True,
+            green_threads=True,
             progress=self.verbose)
 
         # only use the last channel, it is the Z affinity
