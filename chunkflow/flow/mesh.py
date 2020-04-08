@@ -63,7 +63,8 @@ class MeshOperator(OperatorBase):
         self.output_format = output_format
         self.dust_threshold = dust_threshold
         self.manifest = manifest
-        
+        self.ids = ids
+
         if manifest:
             assert output_format == 'precomputed'
 
@@ -86,18 +87,19 @@ class MeshOperator(OperatorBase):
 
         self.storage = Storage(mesh_path)
         
-        if ids.endswith('.json'):
-            # assume that ids is a json file in the storage path
-            json_storage = Storage(output_path)
-            ids_str = json_storage.get_file(ids)
-            self.ids = set(json.loads(ids_str))
-            assert len(self.ids) > 0
-            if self.verbose:
-                print(f'number of selected objects: {len(self.ids)}')
-        else:
-            # a simple string, like "34,45,56,23"
-            # this is used for small object numbers
-            self.ids = set([int(id) for id in ids.split(',')])
+        if ids:
+            if ids.endswith('.json'):
+                # assume that ids is a json file in the storage path
+                json_storage = Storage(output_path)
+                ids_str = json_storage.get_file(ids)
+                self.ids = set(json.loads(ids_str))
+                assert len(self.ids) > 0
+                if self.verbose:
+                    print(f'number of selected objects: {len(self.ids)}')
+            else:
+                # a simple string, like "34,45,56,23"
+                # this is used for small object numbers
+                self.ids = set([int(id) for id in ids.split(',')])
 
     def _get_mesh_data(self, obj_id, offset):
         mesh = self.mesher.get_mesh(
