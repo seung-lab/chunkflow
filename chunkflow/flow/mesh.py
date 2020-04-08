@@ -1,10 +1,9 @@
 import os
 import json
 import numpy as np
-from tqdm import tqdm
 
+from tqdm import tqdm
 from zmesh import Mesher
-import fastremap
 
 from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
@@ -23,8 +22,6 @@ class MeshOperator(OperatorBase):
                  voxel_size: tuple = (1, 1, 1),
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
-                 dust_threshold: int = None,
-                 ids: str = None,
                  manifest: bool = False,
                  name: str = 'meshing',
                  verbose: bool = True):
@@ -41,10 +38,6 @@ class MeshOperator(OperatorBase):
             mesh simplification factor.
         max_simplification_error:
             maximum tolerance error of meshing.
-        dust_threshold:
-            do not mesh tiny objects with voxel number less than threshold
-        ids:
-            only mesh the selected segmentation ids, other segments will not be meshed.
         manifest:
             create manifest files or not. This should 
             not be True if you are only doing meshing for a segmentation chunk.
@@ -61,9 +54,7 @@ class MeshOperator(OperatorBase):
         # zmesh use fortran order, translate zyx to xyz
         self.output_path = output_path
         self.output_format = output_format
-        self.dust_threshold = dust_threshold
         self.manifest = manifest
-        self.ids = ids
 
         if manifest:
             assert output_format == 'precomputed'
@@ -86,20 +77,6 @@ class MeshOperator(OperatorBase):
             self.mesher = Mesher(voxel_size[::-1])
 
         self.storage = Storage(mesh_path)
-        
-        if ids:
-            if ids.endswith('.json'):
-                # assume that ids is a json file in the storage path
-                json_storage = Storage(output_path)
-                ids_str = json_storage.get_file(ids)
-                self.ids = set(json.loads(ids_str))
-                assert len(self.ids) > 0
-                if self.verbose:
-                    print(f'number of selected objects: {len(self.ids)}')
-            else:
-                # a simple string, like "34,45,56,23"
-                # this is used for small object numbers
-                self.ids = set([int(id) for id in ids.split(',')])
 
     def _get_mesh_data(self, obj_id, offset):
         mesh = self.mesher.get_mesh(
@@ -121,32 +98,6 @@ class MeshOperator(OperatorBase):
             raise NotImplementedError
         return data
 
-    def _remove_dust(self, seg: np.ndarray):
-        """
-        this function is adopted from igneous.
-        """
-        if self.verbose:
-            print('remove dust segments')
-
-        if self.dust_threshold or self.ids:
-            segids, voxel_nums = np.unique(seg, return_counts=True)
-            dust_segids = [sid for sid, ct in
-                           zip(segids, voxel_nums) if ct < self.dust_threshold]
-
-            seg = fastremap.mask(seg, dust_segids, in_place=True)
-        return seg
-
-    def _only_keep_selected(self, seg: np.ndarray):
-        if self.verbose:
-            print('only keep selected segment ids, and remove others.')
-
-        # precompute the remap function
-        if self.ids:
-            #segids = set(np.unique(seg))
-            #ids = self.ids.intersection( segids )
-            seg = fastremap.mask_except(seg, list(self.ids), in_place=True)
-        return seg
-    
     def _get_file_name(self, bbox, obj_id):
         if self.output_format == 'precomputed':
             # bbox is in z,y,x order, should transform to x,y,z order 
@@ -174,13 +125,6 @@ class MeshOperator(OperatorBase):
         bbox = seg.bbox
         # use ndarray after getting the bounding box
         seg = seg.array
-
-        seg = self._only_keep_selected(seg)
-        if np.all(seg==0):
-            if self.verbose:
-                print('no segmentation id is selected!')
-            return
-        seg = self._remove_dust(seg)
 
         if self.verbose:
             print('computing meshes from segmentation...')

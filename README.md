@@ -48,6 +48,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | inference       | Convolutional net inference |
 | log-summary     | Summary of logs |
 | mask            | Black out the chunk based on another mask chunk |
+| mask-out-objects| Mask out selected or small objects |
 | mesh            | Build 3D meshes from segmentation chunk |
 | mesh-manifest   | Collect mesh fragments for object |
 | neuroglancer    | Visualize chunks using neuroglancer |
