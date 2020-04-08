@@ -3,6 +3,7 @@ import os
 import sys
 from functools import update_wrapper, wraps
 from time import time
+
 import numpy as np
 import click
 
@@ -988,7 +989,7 @@ def copy_var(tasks, name, from_name, to_name):
 @click.option('--batch-size', '-b',
               type=int, default=1, help='mini batch size of input patch.')
 @click.option('--bump', type=click.Choice(['wu', 'zung']), default='wu',
-              help='bump function type. only works with pytorch-multitask backend.')
+              help='bump function type (only support wu now!).')
 @click.option('--mask-output-chunk/--no-mask-output-chunk', default=False,
               help='mask output chunk will make the whole chunk like one output patch. '
               + 'This will also work with non-aligned chunk size.')
@@ -1150,15 +1151,15 @@ def crop_margin(tasks, name, margin_size,
     type=int, default=None, help='do not mesh segments with voxel number less than threshold.')
 @click.option('--ids', type=str, default=None, 
               help='a list of segment ids to mesh. This is for sparse meshing. ' + 
-              'The ids should be separated by comma without space, such as "34,56,78,90"')
+              'The ids should be separated by comma without space, such as "34,56,78,90"' +
+              ' it can also be a json file contains a list of ids. The json file should be '+
+              'put in the output_path.')
 @click.option('--manifest/--no-manifest', default=False, help='create manifest file or not.')
 @operator
 def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_format,
          simplification_factor, max_simplification_error, dust_threshold, 
          ids, manifest):
     """Perform meshing for segmentation chunk."""
-    if ids:
-        ids = set([int(id) for id in ids.split(',')])
     if mip is None:
         mip = state['mip']
 

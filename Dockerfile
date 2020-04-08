@@ -1,5 +1,5 @@
 # backend: base | pytorch | pznet | pytorch-cuda9
-ARG BACKEND=pytorch
+ARG BACKEND=base
 
 FROM seunglab/chunkflow:${BACKEND}
 

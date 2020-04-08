@@ -24,16 +24,16 @@ class MeshOperator(OperatorBase):
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
                  dust_threshold: int = None,
-                 ids: set = None,
+                 ids: str = None,
                  manifest: bool = False,
                  name: str = 'meshing',
                  verbose: bool = True):
         """
         Parameters
         ------------
-        output_path: 
+        output_path:
             path to store mesh files
-        output_format: 
+        output_format:
             format of output {'ply', 'obj', 'precomputed'}
         voxel_size:
             size of voxels
@@ -62,9 +62,8 @@ class MeshOperator(OperatorBase):
         self.output_path = output_path
         self.output_format = output_format
         self.dust_threshold = dust_threshold
-        self.ids = ids
         self.manifest = manifest
-
+        
         if manifest:
             assert output_format == 'precomputed'
 
@@ -86,6 +85,19 @@ class MeshOperator(OperatorBase):
             self.mesher = Mesher(voxel_size[::-1])
 
         self.storage = Storage(mesh_path)
+        
+        if ids.endswith('.json'):
+            # assume that ids is a json file in the storage path
+            json_storage = Storage(output_path)
+            ids_str = json_storage.get_file(ids)
+            self.ids = set(json.loads(ids_str))
+            assert len(self.ids) > 0
+            if self.verbose:
+                print(f'number of selected objects: {len(self.ids)}')
+        else:
+            # a simple string, like "34,45,56,23"
+            # this is used for small object numbers
+            self.ids = set([int(id) for id in ids.split(',')])
 
     def _get_mesh_data(self, obj_id, offset):
         mesh = self.mesher.get_mesh(
@@ -116,8 +128,8 @@ class MeshOperator(OperatorBase):
 
         if self.dust_threshold or self.ids:
             segids, voxel_nums = np.unique(seg, return_counts=True)
-            dust_segids = [sid for sid, ct in 
-                            zip(segids, voxel_nums) if ct < self.dust_threshold]
+            dust_segids = [sid for sid, ct in
+                           zip(segids, voxel_nums) if ct < self.dust_threshold]
 
             seg = fastremap.mask(seg, dust_segids, in_place=True)
         return seg
