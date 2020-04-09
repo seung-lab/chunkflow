@@ -35,7 +35,9 @@ from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
 from .save import SaveOperator
 from .save_pngs import SavePNGsOperator
+from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
+
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
@@ -607,6 +609,7 @@ def write_tif(tasks, name, input_chunk_name, file_name):
         # keep the pipeline going
         yield task
 
+
 @main.command('save-pngs')
 @click.option('--name', type=str, default='save-pngs', help='name of operator')
 @click.option('--input-chunk-name', '-i',
@@ -622,6 +625,29 @@ def save_pngs(tasks, name, input_chunk_name, output_path):
         handle_task_skip(task, name)
         if not task['skip']:
             state['operators'][name](task[input_chunk_name])
+        yield task
+
+
+@main.command('skeletonize')
+@click.option('--name', '-n', type=str, default='skeletonize',
+              help='create centerlines of objects in a segmentation chunk.')
+@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
+              help='input chunk name.')
+@click.option('--output-name', '-o', type=str, default='skeletons')
+@click.option('--voxel-size', type=int, nargs=3, required=True,
+              help='voxel size of segmentation chunk (zyx order)')
+@click.option('--output-path', type=str, required=True,
+              help='output path with protocols, such as file:///bucket/my/path')
+@operator
+def skeletonize(tasks, name, input_chunk_name, output_name, voxel_size, output_path):
+    """Skeletonize the neurons/objects in a segmentation chunk"""
+    operator = SkeletonizeOperator(output_path,
+                                   name=name,
+                                   verbose=state['verbose'])
+    for task in tasks:
+        seg = task[input_chunk_name]
+        skels = operator(seg, voxel_size)
+        task[output_name] = skels
         yield task
 
 
