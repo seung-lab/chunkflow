@@ -16,3 +16,4 @@ zmesh
 fastremap
 matplotlib
 waterz
+kimimaro
