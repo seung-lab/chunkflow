@@ -284,8 +284,6 @@ class Chunk(NDArrayOperatorsMixin):
         return Chunk(out, global_offset=self.global_offset[1:])
 
     def mask_using_last_channel(self, threshold: float = 0.3) -> np.ndarray:
-        assert self.ndim==4
-
         mask = (self.array[-1, :, :, :] < threshold)
         ret = self.array[:-1, ...]
         ret *= mask

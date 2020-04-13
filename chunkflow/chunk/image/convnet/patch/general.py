@@ -1,5 +1,5 @@
-# from .inference_engine import InferenceEngine
-# import imp
+import platform
+
 import numpy as np
 from .base import PatchInferencerBase
 from chunkflow.lib import load_source
@@ -49,7 +49,7 @@ class General(PatchInferencerBase):
     @property
     def compute_device(self):
         # To-Do: make the device available to log
-        return 'unknown'
+        return platform.processor()
 
     def __call__(self, input_patch):
         # make sure that the patch is 5d ndarray

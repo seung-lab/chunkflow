@@ -1,3 +1,5 @@
+import platform 
+
 import numpy as np
 
 
@@ -11,6 +13,10 @@ class PatchInferencer:
     """
     def __init__(self, model_weight_file, output_patch_mask):
         self.output_patch_mask = output_patch_mask
+    
+    @property 
+    def compute_device(self):
+        return platform.processor()
 
     def __call__(self, input_patch):
         """
