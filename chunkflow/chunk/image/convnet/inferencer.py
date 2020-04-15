@@ -340,7 +340,11 @@ class Inferencer(object):
        
         if input_chunk == 0:
             print('input is all zero, return zero buffer directly')
-            return output_buffer
+            if self.mask_myelin_threshold:
+                assert output_buffer.shape[0] == 4
+                return output_buffer[:-1, ...]
+            else:
+                return output_buffer
         
         if np.issubdtype(input_chunk.dtype, np.integer):
             # normalize to 0-1 value range
