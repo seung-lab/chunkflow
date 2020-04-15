@@ -27,6 +27,7 @@ from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
+from .mask_out_objects import MaskOutObjectsOperator
 from .mesh import MeshOperator
 from .mesh_manifest import MeshManifestOperator
 from .neuroglancer import NeuroglancerOperator
@@ -34,32 +35,36 @@ from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
 from .save import SaveOperator
 from .save_pngs import SavePNGsOperator
+from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
+
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
+DEFAULT_CHUNK_NAME = 'chunk'
+
 
 def get_initial_task():
     return {'skip': False, 'log': {'timer': {}}}
 
-DEFAULT_CHUNK_NAME = 'chunk'
 
 def handle_task_skip(task, name):
     if task['skip'] and task['skip_to'] == name:
         # have already skipped to target operator
         task['skip'] = False
 
+
 def default_none(ctx, _, value):
     """
-    click currently can not use None with tuple type 
-    it will return an empty tuple if the default=None 
-    details:
+    click currently can not use None with tuple type
+    it will return an empty tuple if the default=None details:
     https://github.com/pallets/click/issues/789
     """
     if not value:
         return None
     else:
         return value
+
 
 # the code design is based on:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
@@ -88,7 +93,7 @@ def process_commands(operators, verbose, mip, dry_run):
     into the other, similar to how a pipe on unix works.
     """
     # It turns out that a tuple will not work correctly!
-    stream = [ get_initial_task(), ]
+    stream = [get_initial_task(), ]
 
     # Pipe it through all stream operators.
     for operator in operators:
@@ -101,7 +106,10 @@ def process_commands(operators, verbose, mip, dry_run):
 
 
 def operator(func):
-    """Help decorator to rewrite a function so that it returns another function from it."""
+    """
+    Help decorator to rewrite a function so that
+    it returns another function from it.
+    """
     @wraps(func)
     def wrapper(*args, **kwargs):
         def operator(stream):
@@ -126,24 +134,30 @@ def generator(func):
 
 @main.command('generate-tasks')
 @click.option('--layer-path', '-l',
-              type=str, default=None, help='dataset layer path to fetch dataset information.')
+              type=str, default=None,
+              help='dataset layer path to fetch dataset information.')
 @click.option('--mip', '-m',
               type=int, default=0, help='mip level of the dataset layer.')
 @click.option('--roi-start', '-s',
               type=int, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
 @click.option('--chunk-size', '-c',
-              type=int, required=True, nargs=3, help='(z y x), size/shape of chunks')
+              type=int, required=True, nargs=3,
+              help='(z y x), size/shape of chunks')
 @click.option('--grid-size', '-g',
               type=int, default=None, nargs=3, callback=default_none,
               help='(z y x), grid size of output blocks')
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
 @generator
-def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name):
+def generate_tasks(layer_path, mip, roi_start, chunk_size, 
+                   grid_size, queue_name):
     """Generate tasks."""
-    bboxes = create_bounding_boxes(chunk_size, layer_path=layer_path,
-                    roi_start=roi_start, mip=mip, grid_size=grid_size, verbose=state['verbose'])
+    bboxes = create_bounding_boxes(
+        chunk_size, layer_path=layer_path,
+        roi_start=roi_start, mip=mip, grid_size=grid_size,
+        verbose=state['verbose'])
+
     if queue_name is not None:
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
@@ -190,7 +204,7 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size, grid_size, queue_name
 @click.option('--max-mip', '-x', type=click.IntRange(min=5, max=16), default=8, 
               help='maximum MIP level for masks.')
 @click.option('--queue-name', '-q',
-              type=str, default=None, callback=default_none, help='sqs queue name.')
+              type=str, default=None, help='sqs queue name.')
 @click.option('--visibility-timeout', '-t',
               type=int, default=3600, help='visibility timeout of the AWS SQS queue.')
 @click.option('--thumbnail/--no-thumbnail', default=True, help='create thumbnail or not.')
@@ -582,7 +596,7 @@ def write_h5(tasks, name, input_chunk_name, file_name):
 @click.option('--name', type=str, default='write-tif', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
-@click.option('--file-name', '-f', default=None, callback=default_none,
+@click.option('--file-name', '-f', default=None,
     type=click.Path(dir_okay=False, resolve_path=True), 
     help='file name of tif file, the extention should be .tif or .tiff')
 @operator
@@ -594,6 +608,7 @@ def write_tif(tasks, name, input_chunk_name, file_name):
             task[input_chunk_name].to_tif(file_name)
         # keep the pipeline going
         yield task
+
 
 @main.command('save-pngs')
 @click.option('--name', type=str, default='save-pngs', help='name of operator')
@@ -610,6 +625,29 @@ def save_pngs(tasks, name, input_chunk_name, output_path):
         handle_task_skip(task, name)
         if not task['skip']:
             state['operators'][name](task[input_chunk_name])
+        yield task
+
+
+@main.command('skeletonize')
+@click.option('--name', '-n', type=str, default='skeletonize',
+              help='create centerlines of objects in a segmentation chunk.')
+@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
+              help='input chunk name.')
+@click.option('--output-name', '-o', type=str, default='skeletons')
+@click.option('--voxel-size', type=int, nargs=3, required=True,
+              help='voxel size of segmentation chunk (zyx order)')
+@click.option('--output-path', type=str, required=True,
+              help='output path with protocols, such as file:///bucket/my/path')
+@operator
+def skeletonize(tasks, name, input_chunk_name, output_name, voxel_size, output_path):
+    """Skeletonize the neurons/objects in a segmentation chunk"""
+    operator = SkeletonizeOperator(output_path,
+                                   name=name,
+                                   verbose=state['verbose'])
+    for task in tasks:
+        seg = task[input_chunk_name]
+        skels = operator(seg, voxel_size)
+        task[output_name] = skels
         yield task
 
 
@@ -994,7 +1032,7 @@ def copy_var(tasks, name, from_name, to_name):
               help='mask output chunk will make the whole chunk like one output patch. '
               + 'This will also work with non-aligned chunk size.')
 @click.option('--mask-myelin-threshold', '-y', default=None, type=float,
-              callback=default_none, help='mask myelin if netoutput have myelin channel.')
+              help='mask myelin if netoutput have myelin channel.')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--output-chunk-name', '-o',
@@ -1098,6 +1136,35 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
         yield task
 
 
+@main.command('mask-out-objects')
+@click.option('--name', '-n', type=str, default='mask-out-objects',
+              help='remove some objects in segmentation chunk.')
+@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME)
+@click.option('--output_chunk_name', '-o', type=str, default=DEFAULT_CHUNK_NAME)
+@click.option('--dust-size-threshold', '-d', type=int, default=None,
+              help='eliminate small objects with voxel number less than threshold.')
+@click.option('--selected-obj-ids', '-s', type=str, default=None,
+               help="""a list of segment ids to mesh. This is for sparse meshing. 
+               The ids should be separated by comma without space, such as "34,56,78,90"
+               it can also be a json file contains a list of ids. The json file should be
+               put in the output_path.""")
+@operator
+def mask_out_objects(tasks, name, input_chunk_name, output_chunk_name,
+                     dust_size_threshold, selected_obj_ids):
+    
+    operator = MaskOutObjectsOperator(
+        dust_size_threshold,
+        selected_obj_ids,
+        name=name,
+        verbose=state['verbose']
+    )
+    state['operators'][name] = operator
+    
+    for task in tasks:
+        task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+        yield task
+
+
 @main.command('crop-margin')
 @click.option('--name',
               type=str,
@@ -1147,18 +1214,10 @@ def crop_margin(tasks, name, margin_size,
               help='mesh simplification factor.')
 @click.option('--max-simplification-error', '-e', type=int, default=40, 
               help='max simplification error.')
-@click.option('--dust-threshold', '-d',
-    type=int, default=None, help='do not mesh segments with voxel number less than threshold.')
-@click.option('--ids', type=str, default=None, 
-              help='a list of segment ids to mesh. This is for sparse meshing. ' + 
-              'The ids should be separated by comma without space, such as "34,56,78,90"' +
-              ' it can also be a json file contains a list of ids. The json file should be '+
-              'put in the output_path.')
 @click.option('--manifest/--no-manifest', default=False, help='create manifest file or not.')
 @operator
 def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_format,
-         simplification_factor, max_simplification_error, dust_threshold, 
-         ids, manifest):
+         simplification_factor, max_simplification_error, manifest):
     """Perform meshing for segmentation chunk."""
     if mip is None:
         mip = state['mip']
@@ -1170,8 +1229,6 @@ def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_for
         voxel_size=voxel_size,
         simplification_factor=simplification_factor,
         max_simplification_error=max_simplification_error,
-        dust_threshold=dust_threshold,
-        ids = ids,
         manifest=manifest)
     for task in tasks:
         handle_task_skip(task, name)

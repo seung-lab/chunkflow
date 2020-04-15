@@ -1,10 +1,12 @@
 __doc__ = """Image chunk class"""
 
+import multiprocessing
+
 import numpy as np
 from .base import Chunk
 
-
 from waterz import evaluate
+import kimimaro
 
 
 class Segmentation(Chunk):
@@ -13,6 +15,13 @@ class Segmentation(Chunk):
     """
     def __init__(self, array, global_offset=None):
         super().__init__(array, global_offset=global_offset)
+        assert array.ndim == 3
+        assert np.issubdtype(array.dtype, np.integer)
+
+    @classmethod
+    def from_chunk(cls, chunk):
+        assert isinstance(chunk, Chunk)
+        return cls(chunk.array, global_offset=chunk.global_offset)
 
     def evaluate(self, groundtruth):
         if not np.issubdtype(self.dtype, np.uint64):
@@ -27,3 +36,12 @@ class Segmentation(Chunk):
             groundtruth = groundtruth.array
 
         return evaluate(this.array, groundtruth)
+
+    def skeletonize(self, voxel_size):
+        skels = kimimaro.skeletonize(
+            self.array,
+            anisotropy=voxel_size,
+            parallel=multiprocessing.cpu_count() // 2
+        )
+        return skels
+
