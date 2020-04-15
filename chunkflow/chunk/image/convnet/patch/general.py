@@ -49,7 +49,10 @@ class General(PatchInferencerBase):
     @property
     def compute_device(self):
         # To-Do: make the device available to log
-        return platform.processor()
+        if hasattr(self.patch_inferencer, 'compute_device'):
+            return self.patch_inferencer.compute_device
+        else:
+            return platform.processor()
 
     def __call__(self, input_patch):
         # make sure that the patch is 5d ndarray
