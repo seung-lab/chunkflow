@@ -371,9 +371,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                            chunk_size=block_size[::-1],
                                            max_mip=mip)
         vol = CloudVolume(layer_path, info=info)
-        if overwrite_info:
-            vol.commit_info()
-      
+        vol.commit_info()
+
         thumbnail_factor = 2**thumbnail_mip
         thumbnail_block_size = (output_chunk_size[0]//factor,
                                 output_chunk_size[1]//thumbnail_factor,
@@ -388,9 +387,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
                                                      chunk_size=thumbnail_block_size[::-1],
                                                      max_mip=thumbnail_mip)
         thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
-        if overwrite_info:
-            thumbnail_vol.commit_info()
-       
+        thumbnail_vol.commit_info()
+
     print('create a list of bounding boxes...')
     roi_start = (volume_start[0], 
                  volume_start[1]//factor, 
