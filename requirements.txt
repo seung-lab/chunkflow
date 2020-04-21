@@ -16,5 +16,6 @@ zmesh
 fastremap
 matplotlib
 waterz
+networkx==2.1
 kimimaro
 kombu
