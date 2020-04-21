@@ -2,7 +2,7 @@
 import os
 import sys
 from functools import update_wrapper, wraps
-from time import time
+from time import time, sleep
 
 import numpy as np
 import click
@@ -17,6 +17,11 @@ from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
+
+from kombu import Connection
+from kombu.simple import SimpleQueue
+
+import tenacity
 
 # import operator functions
 from .agglomerate import AgglomerateOperator
@@ -43,6 +48,16 @@ from .view import ViewOperator
 state = {'operators': {}}
 DEFAULT_CHUNK_NAME = 'chunk'
 
+
+retry = tenacity.retry(
+  reraise=True,
+  stop=tenacity.stop_after_attempt(10),
+  wait=tenacity.wait_random_exponential(multiplier=0.5, max=60.0),
+)
+
+@retry
+def submit_task(queue, payload):
+    queue.put(payload)
 
 def get_initial_task():
     return {'skip': False, 'log': {'timer': {}}}
@@ -159,8 +174,15 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
         verbose=state['verbose'])
 
     if queue_name is not None:
-        queue = SQSQueue(queue_name)
-        queue.send_message_list(bboxes)
+        if queue_name.startswith("amqp://"):
+            with Connection(queue_name, connect_timeout=60) as conn:
+                queue = conn.SimpleQueue("chunkflow")
+                for bbox in bboxes:
+                    msg = bbox.to_filename()
+                    submit_task(queue, msg)
+        else:
+            queue = SQSQueue(queue_name)
+            queue.send_message_list(bboxes)
     else:
         for bbox in bboxes:
             task = get_initial_task()
@@ -388,8 +410,15 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path, max_ram_size,
         print('bounding boxes: ', bboxes)
 
     if queue_name is not None and not state['dry_run']:
-        queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
-        queue.send_message_list(bboxes)
+        if queue_name.startswith("amqp://"):
+            with Connection(queue_name, connect_timeout=60) as conn:
+                queue = conn.SimpleQueue("chunkflow")
+                for bbox in bboxes:
+                    msg = bbox.to_filename()
+                    submit_task(queue, msg)
+        else:
+            queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
+            queue.send_message_list(bboxes)
     else:
         for bbox in bboxes:
             task = get_initial_task()
@@ -446,6 +475,39 @@ def fetch_task(queue_name, visibility_timeout, retry_times):
         task['bbox'] = bbox
         task['log']['bbox'] = bbox.to_filename()
         yield task
+
+
+@main.command('fetch-task-kombu')
+@click.option('--queue-name', '-q',
+                type=str, default=None, help='queue name')
+@click.option('--visibility-timeout', '-v',
+    type=int, default=None,
+    help='visibility timeout of sqs queue; default is using the timeout of the queue.')
+@click.option('--retry-times', '-r',
+              type=int, default=30,
+              help='the times of retrying if the queue is empty.')
+@generator
+def fetch_task_kombu(queue_name, visibility_timeout, retry_times):
+    """Fetch task from queue."""
+    # This operator is actually a generator,
+    # it replaces old tasks to a completely new tasks and loop over it!
+    with Connection(queue_name, connect_timeout=60) as conn:
+        queue = conn.SimpleQueue("chunkflow")
+        while retry_times >= 0:
+            try:
+                msg = queue.get_nowait()
+            except SimpleQueue.Empty:
+                retry_times -= 1
+                sleep(10)
+                continue
+            print("get message from the queue: {}".format(msg.payload))
+            bbox = Bbox.from_filename(msg.payload)
+            task = get_initial_task()
+            task['queue'] = queue
+            task['task_handle'] = msg
+            task['bbox'] = bbox
+            task['log']['bbox'] = bbox.to_filename()
+            yield task
 
 
 @main.command('agglomerate')
@@ -667,6 +729,24 @@ def delete_task_in_queue(tasks, name):
             queue.delete(task_handle)
             print('deleted task {} in queue: {}'.format(
                 task_handle, queue.queue_name))
+
+
+@main.command('delete-task-in-queue-kombu')
+@click.option('--name', type=str, default='delete-task-in-queue',
+              help='name of this operator')
+@operator
+def delete_task_in_queue_kombu(tasks, name):
+    """Delete the task in queue."""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if task['skip'] or state['dry_run']:
+            print('skip deleting task in queue!')
+        else:
+            queue = task['queue']
+            msg = task['task_handle']
+            msg.ack()
+            print('deleted task {} in queue: {}'.format(
+                msg.payload, queue))
 
 
 @main.command('delete-chunk')
