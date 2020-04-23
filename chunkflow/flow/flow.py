@@ -1146,12 +1146,12 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
 @click.option('--selected-obj-ids', '-s', type=str, default=None,
                help="""a list of segment ids to mesh. This is for sparse meshing. 
                The ids should be separated by comma without space, such as "34,56,78,90"
-               it can also be a json file contains a list of ids. The json file should be
-               put in the output_path.""")
+               it can also be a json file contains a list of ids. The json file path should
+               contain protocols, such as "gs://bucket/my/json/file/path.""")
 @operator
 def mask_out_objects(tasks, name, input_chunk_name, output_chunk_name,
                      dust_size_threshold, selected_obj_ids):
-    
+    """Mask out objects in a segmentation chunk."""
     operator = MaskOutObjectsOperator(
         dust_size_threshold,
         selected_obj_ids,

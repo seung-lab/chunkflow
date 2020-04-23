@@ -27,9 +27,13 @@ class SkeletonizeOperator(OperatorBase):
         self.storage = Storage(output_path)
 
     def __call__(self, seg, voxel_size):
+        if seg is None:
+            print('no segmentation, skip computation.')
+            return None
+ 
         if self.verbose:
             print('skeletonize segmentation...')
-
+       
         seg = Segmentation.from_chunk(seg)
         skels = seg.skeletonize(voxel_size)
         bbox_str = seg.bbox.to_filename()
