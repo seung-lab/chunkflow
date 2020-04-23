@@ -185,5 +185,6 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     
     if verbose > 1:
         print('bounding boxes: ', bboxes)
-
+    
+    return bboxes
 
