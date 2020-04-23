@@ -33,7 +33,7 @@ class SkeletonizeOperator(OperatorBase):
  
         if self.verbose:
             print('skeletonize segmentation...')
-       
+      
         seg = Segmentation.from_chunk(seg)
         skels = seg.skeletonize(voxel_size)
         bbox_str = seg.bbox.to_filename()
