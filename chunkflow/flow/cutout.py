@@ -42,8 +42,8 @@ class CutoutOperator(OperatorBase):
                           progress=self.verbose,
                           mip=self.mip,
                           cache=False,
-                          green_threads=True)
-       
+                          green_threads=False)
+
         chunk_slices = tuple(
             slice(s.start - m, s.stop + m)
             for s, m in zip(output_bbox.to_slices(), self.expand_margin_size))
@@ -115,7 +115,7 @@ class CutoutOperator(OperatorBase):
                                    progress=self.verbose,
                                    mip=self.validate_mip,
                                    cache=False,
-                                   green_threads=True)
+                                   green_threads=False)
 
 
         chunk_mip = self.mip

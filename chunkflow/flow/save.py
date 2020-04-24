@@ -58,7 +58,7 @@ class SaveOperator(OperatorBase):
             autocrop=True,
             mip=self.mip,
             cache=False,
-            green_threads=True,
+            green_threads=False,
             progress=self.verbose)
 
         chunk = self._auto_convert_dtype(chunk, volume)
@@ -102,7 +102,7 @@ class SaveOperator(OperatorBase):
             autocrop=True,
             mip=self.mip,
             cache=False,
-            green_threads=True,
+            green_threads=False,
             progress=self.verbose)
 
         # only use the last channel, it is the Z affinity
