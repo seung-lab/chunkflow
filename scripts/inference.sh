@@ -1,5 +1,6 @@
 #!/bin/bash
-source env.sh
+python /root/workspace/chunkflow/scripts/setup_worker.py /run/variables/inference_param > /root/workspace/env.sh
+source /root/workspace/env.sh
 
 if [ -n "$PYTORCH_MODEL_PKG" ]; then
     gsutil cp ${PYTORCH_MODEL_PKG} .

@@ -1,5 +1,7 @@
 #!/bin/bash
-source env.sh
+python /root/workspace/chunkflow/scripts/setup_env.py /run/variables/inference_param > /root/workspace/env.sh
+source /root/workspace/env.sh
+
 chunkflow setup-env -l ${AFF_PATH} \
     --volume-start ${VOL_START} --volume-stop ${VOL_STOP} \
     --max-ram-size ${MAX_RAM} \
