@@ -489,6 +489,7 @@ def fetch_task_kombu(queue_name, visibility_timeout, retry_times):
     """Fetch task from queue."""
     # This operator is actually a generator,
     # it replaces old tasks to a completely new tasks and loop over it!
+    waiting_period = 1
     with Connection(queue_name, connect_timeout=60) as conn:
         queue = conn.SimpleQueue("chunkflow")
         while retry_times >= 0:
@@ -496,7 +497,8 @@ def fetch_task_kombu(queue_name, visibility_timeout, retry_times):
                 msg = queue.get_nowait()
             except SimpleQueue.Empty:
                 retry_times -= 1
-                sleep(10)
+                sleep(waiting_period)
+                waiting_period = min(waiting_period*2, 60)
                 continue
             print("get message from the queue: {}".format(msg.payload))
             bbox = Bbox.from_filename(msg.payload)
