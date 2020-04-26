@@ -16,6 +16,7 @@ from chunkflow.chunk.image.convnet.inferencer import Inferencer
 
 # import operator functions
 from .agglomerate import AgglomerateOperator
+from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
 from .create_bounding_boxes import create_bounding_boxes
 from .custom_operator import CustomOperator
@@ -323,6 +324,35 @@ def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
         task[output_chunk_name] = state['operators'][name](
             task[input_chunk_name], fragments=fragments)
         yield task
+
+
+@main.command('aggregate-skeleton-fragments')
+@click.option('--name', type=str, default='aggregate-skeleton-fragments',
+              help='name of operator')
+@click.option('--input-name', '-i', type=str, default='prefix',
+              help='input prefix name in task stream.')
+@click.option('--prefix', '-p', type=str, default=None,
+              help='prefix of skeleton fragments.')
+@click.option('--fragments-path', '-f', type=str, required=True,
+              help='storage path of skeleton fragments.')
+@click.option('--output-path', '-o', type=str, default=None,
+              help='storage path of aggregated skeletons.')
+@operator
+def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path, output_path):
+    """Merge skeleton fragments."""
+    if output_path is None:
+        output_path = fragments_path
+
+    state['operators'][name] = AggregateSkeletonFragmentsOperator(fragments_path, output_path)
+    if prefix:
+        state['operators'][name](prefix)
+    else:
+        for task in tasks:
+            start = time()
+            state['operators'][name](task[input_name])
+            task['log']['timer'][name] = time() - start
+            yield task
+
 
 
 @main.command('create-chunk')
