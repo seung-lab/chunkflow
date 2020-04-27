@@ -222,9 +222,11 @@ Smart Way
 ---------------------------
 It is recommended to use the smart way and all the parameters could be automatically calculated and computation environments setup. For example, you can use the following command to automatically calculate inference patch aligned output chunk size, create `info` metadata, including thumbnail, in cloud storage, and ingest tasks to AWS SQS queue.
 
-   chunkflow setup-env -l "gs://my-bucket/my/output/layer/path" --volume-start 17010 120000 160000 --volume-stop 17888 200000 240000 -r 14 -z 20 256 256 -c 3 -m 1 --thumbnail -e raw -v 40 4 4 --max-mip 6 -q my-sqs-queue-name 
+   chunkflow setup-env -l "gs://my-bucket/my/output/layer/path" -r 14 -z 20 256 256 -c 3 -m 1 --thumbnail -e raw -v 40 4 4 --max-mip 6 -q my-sqs-queue-name 
 
-This command will setup all the neccessary computational environment for the convolutional inference, you can then start your workers to consume the tasks in queue.
+.. note:: The output contains the parameters you need to use in later chunkflow command, such as patch number and output patch overlap.
+
+This command will setup all the neccessary computational environment for the convolutional inference, you can then start your workers to consume the tasks in queue. 
 
 Naive Way
 ----------------------------
