@@ -19,6 +19,7 @@ install:
 
 script:
 # unit tests
+- bash tests/command_line.sh
 - pytest --cov-append --cov=./chunkflow ./tests --verbose
 
 after_success:
