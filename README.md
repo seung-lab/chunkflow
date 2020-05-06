@@ -9,6 +9,14 @@ chunkflow
 [![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2Fjingpeng_wu)](https://twitter.com/jingpeng_wu)
 <!---[![Docker Build Status](https://img.shields.io/docker/cloud/build/seunglab/chunkflow.svg)]#(https://hub.docker.com/r/seunglab/chunkflow)--->
 
+
+## Features
+- **Composable** operators. The chunk operators could be freely composed in commandline for flexible usage.
+- **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
+- All operations support **3D** image volumes.
+
+
+## Image Segmentation Example
 Perform Convolutional net inference to segment 3D image volume with one single command!
 
 ```shell
@@ -18,15 +26,8 @@ you can see your 3D image and segmentation directly in [Neuroglancer](https://gi
 
 ![Image_Segmentation](https://github.com/seung-lab/chunkflow/blob/master/docs/source/_static/image/image_seg.png)
 
-
-
-## Features
-- **Composable** operators. The chunk operators could be freely composed in commandline for flexible usage.
-- **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
-- All operations support **3D** image volumes.
-
 ## Operators
-After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the available operators here. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
+After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the 35 available operators here. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
 
 | Operator Name   | Function |
 | --------------- | -------- |
