@@ -314,11 +314,19 @@ class Chunk(NDArrayOperatorsMixin):
             assert output_bbox is not None
             return self.cutout(output_bbox.to_slices())
     
+    def threshold(self, threshold: float):
+        global_offset = self.global_offset
+        seg = self > threshold
+        if seg.ndim == 4:
+            assert seg.shape[0] == 1
+            seg = seg[0, ...]
+            global_offset = global_offset[1:]
+        return Chunk(seg, global_offset=global_offset)
+    
     def connected_component(self, threshold: float = 0.5, 
                             connectivity: int = 26):
         """threshold the map chunk and get connected components."""
-        global_offset = self.global_offset
-        seg = self > threshold
+        seg = self.threshold(threshold)
         seg = cc3d.connected_components(seg.array, connectivity=connectivity)
         return Chunk(seg, global_offset=global_offset)
 
