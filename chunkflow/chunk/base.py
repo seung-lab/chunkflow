@@ -321,6 +321,7 @@ class Chunk(NDArrayOperatorsMixin):
             assert seg.shape[0] == 1
             seg = seg[0, ...]
             global_offset = global_offset[1:]
+        seg = seg.astype(np.uint8)
         return Chunk(seg, global_offset=global_offset)
     
     def connected_component(self, threshold: float = 0.5, 

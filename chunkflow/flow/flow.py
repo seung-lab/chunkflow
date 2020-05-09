@@ -1234,7 +1234,7 @@ def threshold(tasks, name, input_chunk_name, output_chunk_name,
             if state['verbose']:
                 print('Segment probability map using a threshold...')
             task[output_chunk_name] = task[input_chunk_name].threshold(threshold)
-            task['log']['timer']['name'] = time() - start
+            task['log']['timer'][name] = time() - start
         yield task
 
 
