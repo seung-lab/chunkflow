@@ -356,7 +356,7 @@ class Inferencer(object):
 
         # iterate the offset list
         for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
-                      disable=not self.verbose,
+                      disable=(self.verbose <= 0),
                       desc='ConvNet inference for patches: '):
             if self.verbose:
                 start = time.time()

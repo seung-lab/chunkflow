@@ -5,7 +5,7 @@ import os
 
 import numpy as np
 
-from cloudvolume.lib import Vec
+from cloudvolume.lib import Vec, yellow
 from cloudvolume.storage import SimpleStorage
 from cloudvolume import CloudVolume
 
@@ -122,6 +122,8 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
 
     print('output volume start: ' + tuple2string(volume_start))
     print('block size ' + tuple2string(block_size))
+    print('size of each block (uncompressed, uint8, 1 channel): ', 
+          np.prod(block_size)/1e6, ' MB')
     print('RAM size of each block: ',
           np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')
     voxel_utilization = np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size)
@@ -156,14 +158,15 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
                                 output_chunk_size[1]//thumbnail_factor,
                                 output_chunk_size[2]//thumbnail_factor)
         print('thumbnail block size: ' + tuple2string(thumbnail_block_size))
-        thumbnail_info = CloudVolume.create_new_info(1, layer_type='image', 
-                                                     data_type='uint8',
-                                                     encoding='raw',
-                                                     resolution=voxel_size[::-1],
-                                                     voxel_offset=volume_start[::-1],
-                                                     volume_size=volume_size[::-1],
-                                                     chunk_size=thumbnail_block_size[::-1],
-                                                     max_mip=thumbnail_mip)
+        thumbnail_info = CloudVolume.create_new_info(
+            1, layer_type='image', 
+            data_type='uint8',
+            encoding='raw',
+            resolution=voxel_size[::-1],
+            voxel_offset=volume_start[::-1],
+            volume_size=volume_size[::-1],
+            chunk_size=thumbnail_block_size[::-1],
+            max_mip=thumbnail_mip)
         thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
         if overwrite_info:
             thumbnail_vol.commit_info()
@@ -186,5 +189,8 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     if verbose > 1:
         print('bounding boxes: ', bboxes)
     
+    print(yellow(
+        'Note that you should reuse the printed out parameters in the production run.' + 
+        ' These parameters are not ingested to AWS SQS queue.'))
     return bboxes
 

@@ -829,18 +829,21 @@ def custom_operator(tasks, name, input_chunk_name, output_chunk_name, opprogram,
 @click.option('--name', type=str, default='connected-components', 
               help='threshold a map and get the labels.')
 @click.option('--input-chunk-name', '-i',
-              type=str, default='chunk', help='input chunk name')
+              type=str, default=DEFAULT_CHUNK_NAME, 
+              help='input chunk name')
 @click.option('--output-chunk-name', '-o',
-              type=str, default='chunk', help='output chunk name')
+              type=str, default=DEFAULT_CHUNK_NAME, 
+              help='output chunk name')
 @click.option('--threshold', '-t', type=float, default=0.5,
               help='threshold to cut the map.')
 @click.option('--connectivity', '-c', 
-              type=click.Choice([6, 18, 26]),
-              default=26, help='number of neighboring voxels used.')
+              type=click.Choice(['6', '18', '26']),
+              default='26', help='number of neighboring voxels used.')
 @operator 
 def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
                          threshold, connectivity):
     """Threshold the probability map to get a segmentation."""
+    connectivity = int(connectivity)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
@@ -1206,6 +1209,32 @@ def save(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnai
             state['operators'][name](task[input_chunk_name],
                                      log=task.get('log', {'timer': {}}))
             task['output_volume_path'] = volume_path
+        yield task
+
+
+@main.command('threshold')
+@click.option('--name', type=str, default='threshold', 
+              help='threshold a map and get the labels.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, 
+              help='input chunk name')
+@click.option('--output-chunk-name', '-o',
+              type=str, default=DEFAULT_CHUNK_NAME, 
+              help='output chunk name')
+@click.option('--threshold', '-t', type=float, default=0.5,
+              help='threshold to cut the map.')
+@operator 
+def threshold(tasks, name, input_chunk_name, output_chunk_name, 
+              threshold):
+    """Threshold the probability map."""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            start = time()
+            if state['verbose']:
+                print('Segment probability map using a threshold...')
+            task[output_chunk_name] = task[input_chunk_name].threshold(threshold)
+            task['log']['timer'][name] = time() - start
         yield task
 
 
