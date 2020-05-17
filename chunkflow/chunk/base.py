@@ -321,6 +321,8 @@ class Chunk(NDArrayOperatorsMixin):
             assert seg.shape[0] == 1
             seg = seg[0, ...]
             global_offset = global_offset[1:]
+        # neuroglancer do not support bool datatype
+        # numpy store bool as uint8 datatype, so this will not increase size.
         seg = seg.astype(np.uint8)
         return Chunk(seg, global_offset=global_offset)
     
