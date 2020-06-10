@@ -32,7 +32,8 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     if input_patch_size is None:
         input_patch_size = output_patch_size
 
-    if volume_size:
+    if volume_size is not None:
+        assert len(volume_size) == 3
         assert volume_stop is None
         volume_stop = volume_start + volume_size
     else:

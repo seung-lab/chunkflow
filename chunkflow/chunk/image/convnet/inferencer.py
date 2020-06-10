@@ -399,7 +399,6 @@ class Inferencer(object):
                 #        bbox.minpt[-2]<81545 and bbox.maxpt[-2]>81545 and \
                 #        bbox.minpt[-3]<17298 and bbox.maxpt[-3]>17298:
                 #    print('save patch: ', output_chunk.bbox)
-                #    breakpoint()
                 #    output_chunk.to_tif()
                 #    #input_chunk.cutout(slices[0]).to_tif()
 

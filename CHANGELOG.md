@@ -7,6 +7,7 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
+- threshold operator
 
 ## Bug Fixes 
 

@@ -315,23 +315,24 @@ class Chunk(NDArrayOperatorsMixin):
             return self.cutout(output_bbox.to_slices())
     
     def threshold(self, threshold: float):
-        global_offset = self.global_offset
         seg = self > threshold
         if seg.ndim == 4:
+            global_offset = self.global_offset
             assert seg.shape[0] == 1
             seg = seg[0, ...]
             global_offset = global_offset[1:]
+            seg.global_offset = global_offset
         # neuroglancer do not support bool datatype
         # numpy store bool as uint8 datatype, so this will not increase size.
         seg = seg.astype(np.uint8)
-        return Chunk(seg, global_offset=global_offset)
+        return seg
     
     def connected_component(self, threshold: float = 0.5, 
                             connectivity: int = 26):
         """threshold the map chunk and get connected components."""
         seg = self.threshold(threshold)
         seg = cc3d.connected_components(seg.array, connectivity=connectivity)
-        return Chunk(seg, global_offset=global_offset)
+        return Chunk(seg, global_offset=self.global_offset)
 
     def where(self, mask: np.ndarray) -> tuple:
         """
