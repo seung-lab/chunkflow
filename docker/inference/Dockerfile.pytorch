@@ -5,4 +5,6 @@ FROM pytorch/pytorch:1.4-cuda10.1-cudnn7-runtime
 #FROM gcr.io/tpu-pytorch/xla:r0.5
 
 # make pip3 command available
-RUN ln -s /opt/conda/bin/pip /usr/bin/pip3 
+RUN ln -s /opt/conda/bin/pip /usr/bin/pip3 \
+    && apt update \
+    && apt install python3-dev

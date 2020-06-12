@@ -47,7 +47,6 @@ class Inferencer(object):
                  mask_myelin_threshold = None,
                  dry_run: bool = False,
                  verbose: int = 1):
-        
         assert input_size is None or patch_num is None 
         
         if output_patch_size is None:
@@ -183,8 +182,8 @@ class Inferencer(object):
             from .patch.pytorch_multitask import PyTorchMultitask as PatchInferencer
         elif framework == 'identity':
             from .patch.identity import Identity as PatchInferencer
-        elif framework == 'general':
-            from .patch.general import General as PatchInferencer
+        elif framework == 'universal':
+            from .patch.universal import Universal as PatchInferencer
         else:
             raise Exception(f'invalid inference backend: {self.framework}')
         

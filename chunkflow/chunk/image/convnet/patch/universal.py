@@ -5,7 +5,7 @@ from .base import PatchInferencerBase
 from chunkflow.lib import load_source
 
 
-class General(PatchInferencerBase):
+class Universal(PatchInferencerBase):
     """perform inference for an image patch using an arbitrary backend.
     Parameters
     ----------

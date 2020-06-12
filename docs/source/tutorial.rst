@@ -112,14 +112,14 @@ Convolutional Network Inference
 ================================
 Given a trained convolution network model, it can process small patches of image and output a map, such as synapse cleft or boundary map. Due to the missing context around patch boundary, we normally need to reweight the patch. We trust the central region more and trust the marginal region less. The ``inference`` operator performs reweighting of patches and blend them together automatically, so the input chunk size can be arbitrary without patch alignment. The only restriction is the RAM size. After blending, the output chunk will looks like a single patch and could be used for further processing.
 
-We currently support multiple backends, including ``general``, ``pytorch`` and ``pznet``. It is recommended to use the ``general`` backend since it works universally. We load the source code dynamically. For an example, please take a look at our identity_backend_. 
+We currently support multiple backends, including ``universal``, ``pytorch`` and ``pznet``. It is recommended to use the ``universal`` backend since it works universally. We load the source code dynamically. For an example, please take a look at our identity_backend_. 
 
-.. _identity_backend: https://github.com/seung-lab/chunkflow/tree/master/chunkflow/chunk/image/convnet/patch/general_identity.py
+.. _identity_backend: https://github.com/seung-lab/chunkflow/tree/master/chunkflow/examples/inference/universal_identity.py
 
 .. note::
    For pytorch backend, chunkflow will automatically use GPU for both inference and reweighting if there is GPU and cuda available.
 
-In order to provide a general interface for broader application, the ConvNet model should be instantiated, called ``InstantiatedModel``, with all of it's parameter setup inside. Chunkflow also provide a interface for customized preprocessing and postprocessing. You can define ``pre_process`` and ``post_process`` function to add your specialized operations. You can also define your own ``load_model`` function, and make some special loading operation, which is useful to load model trained with old version of pytorch (version<=0.4.0). This is an example of code:
+In order to provide a universal interface for broader application, the ConvNet model should be instantiated, called ``InstantiatedModel``, with all of it's parameter setup inside. Chunkflow also provide a interface for customized preprocessing and postprocessing. You can define ``pre_process`` and ``post_process`` function to add your specialized operations. You can also define your own ``load_model`` function, and make some special loading operation, which is useful to load model trained with old version of pytorch (version<=0.4.0). This is an example of code:
 
 .. code-block:: python
    
