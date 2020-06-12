@@ -1,8 +1,9 @@
 ChangeLog history
 =================
 
-# chunkflow 0.6.4 (2020-xx-xx)
+# chunkflow 1.0.0 (2020-xx-xx)
 ## Breaking Changes
+- rename inference backend `general` to `universal`
 
 ## Deprecations 
 
