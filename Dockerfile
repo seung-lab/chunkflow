@@ -1,5 +1,5 @@
 # backend: base | pytorch | pznet | pytorch-cuda9
-ARG BACKEND=pytorch
+ARG BACKEND=pznet_python3.8
 
 FROM seunglab/chunkflow:${BACKEND}
 
@@ -22,7 +22,6 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
         wget \
         git \
         build-essential \
-		python3-dev \
         parallel \
     # test whether pip is working 
     # there is an issue of pip:
@@ -34,10 +33,9 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     && pip install -U pip \
     && hash -r pip \
     && pip install --upgrade setuptools \
-    && pip install numpy setuptools cython networkx==2.1 tornado>=5.0 python-dateutil>=2.8.0 --no-cache-dir \ 
+    && pip install numpy setuptools cython --no-cache-dir \ 
+    && pip install -U protobuf scipy --no-cache-dir \
     # && pip install fpzip --no-binary :all: --no-cache-dir \
-    # && git clone --single-branch --depth 1 https://github.com/seung-lab/cloud-volume.git \
-    # && pip install --no-cache-dir -r $HOME/workspace/cloud-volume/requirements.txt \
     # setup environment variables 
     # we have to setup first, otherwise click installation will fail
     && echo "export LC_ALL=C.UTF-8" >> $HOME/.bashrc \
@@ -50,7 +48,6 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     # cleanup system libraries 
     && apt-get remove --purge -y  \
 		build-essential \
-		python3-dev \
     && apt-get clean \
     && apt-get autoremove --purge -y \
     && rm -rf /var/lib/apt/lists/* \
