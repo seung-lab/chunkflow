@@ -6,13 +6,11 @@ import platform
 class PatchInferencer:
     def __init__(self, model_weight_file, output_patch_mask):
         self.output_patch_mask = output_patch_mask
-
+        
         sys.path.append(model_weight_file)
-        import pznet
+        from pznet.pznet import PZNet
 
-        # self.net = pznet.znet(model_file_name, net_file_name)
-        self.net = pznet.znet()
-        self.net.load_net(model_weight_file)
+        self.net = PZNet(model_weight_file)
     
     @property
     def compute_device(self):

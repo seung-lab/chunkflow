@@ -2,3 +2,4 @@ yapf
 flake8
 setuptools
 twine
+memory-profiler

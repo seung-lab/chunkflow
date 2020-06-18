@@ -1,7 +1,8 @@
-# backend: base | pytorch | pznet | pytorch-cuda9
-ARG BACKEND=base
+# backend: base | pytorch | pznet 
+ARG BACKEND=pytorch
 
 FROM seunglab/chunkflow:${BACKEND}
+#FROM seunglab/pznet:latest
 
 LABEL maintainer = "Jingpeng Wu" \
     email = "jingpeng@princeton.edu"
@@ -55,4 +56,4 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     # && pytest tests \
     && chunkflow
 
-WORKDIR $HOME/workspace/
+WORKDIR $HOME/workspace/chunkflow/
