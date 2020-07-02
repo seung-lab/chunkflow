@@ -99,5 +99,4 @@ class MaskOutObjectsOperator(OperatorBase):
             return
         seg = self._remove_dust(seg)
         
-        seg = Chunk(seg, global_offset=global_offset)
-        return seg
+        return Chunk(seg, global_offset=global_offset)
