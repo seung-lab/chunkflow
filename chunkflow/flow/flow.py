@@ -283,6 +283,8 @@ def fetch_task(queue_name, visibility_timeout, num, retry_times):
                      retry_times=retry_times)
     while num!=0:
         task_handle, bbox_str = queue.handle_and_message
+        if task_handle is None:
+            return
         num -= 1
         
         print('get task: ', bbox_str)

@@ -118,6 +118,9 @@ class MeshOperator(OperatorBase):
         seg:
             3D segmentation chunk.
         """
+        if seg is None:
+            return
+
         assert isinstance(seg, Chunk)
         assert seg.ndim == 3
         assert np.issubdtype(seg.dtype, np.integer)
