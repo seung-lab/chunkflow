@@ -89,19 +89,24 @@ class SQSQueue(object):
         return resp
 
     def _check_md5(self, resp):
-        body = resp['Messages'][0]['Body']
-        md5_of_body = resp['Messages'][0]['MD5OfBody']
-        assert md5_of_body == hashlib.md5(body.encode('utf-8')).hexdigest()
-        assert body is not None
+        if 'Messages' in resp:
+            body = resp['Messages'][0]['Body']
+            md5_of_body = resp['Messages'][0]['MD5OfBody']
+            assert md5_of_body == hashlib.md5(body.encode('utf-8')).hexdigest()
+            assert body is not None
 
     @property
     def handle_and_message(self):
         resp = self._receive_message()
-        self._check_md5(resp)
-        receipt_handle = resp['Messages'][0]['ReceiptHandle']
-        assert isinstance(receipt_handle, str)
-        body = resp['Messages'][0]['Body']
-        return receipt_handle, body
+        if 'Messages' in resp:
+            self._check_md5(resp)
+            receipt_handle = resp['Messages'][0]['ReceiptHandle']
+            assert isinstance(receipt_handle, str)
+            body = resp['Messages'][0]['Body']
+            return receipt_handle, body
+        else:
+            print('no more tasks!')
+            return None, None
 
     def __next__(self):
         resp = self._receive_message()
