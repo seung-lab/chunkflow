@@ -1,7 +1,18 @@
 ChangeLog history
 =================
+# chunkflow 1.0.1 (2020-xx-xx)
+## Breaking Changes
 
-# chunkflow 1.0.0 (2020-xx-xx)
+## Deprecations 
+
+## Features
+
+## Bug Fixes 
+- cutout whole volume in default
+
+## Improved Documentation 
+
+# chunkflow 1.0.0 (2020-08-14)
 ## Breaking Changes
 - rename inference backend `general` to `universal`
 
@@ -155,7 +166,7 @@ ChangeLog history
 # Template 
 the following texts are templates for adding change log
 
-# chunkflow 0.1.0 (2020-xx-xx)
+# chunkflow 1.1.0 (2020-xx-xx)
 ## Breaking Changes
 
 ## Deprecations 
