@@ -614,7 +614,7 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin
 
     for task in tasks:
         handle_task_skip(task, name)
-        if chunk_start is None and chunk_size is None:
+        if 'bbox' in task:
             bbox = task['bbox']
         else:
             # use bounding box of volume
