@@ -5,6 +5,7 @@ chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g
 
 chunkflow log-summary -l tests/data/log
 
+chunkflow create-chunk normalize-intensity
 chunkflow create-chunk write-h5 --file-name="/tmp/img.h5" connected-components --threshold 128 write-tif --file-name=/tmp/seg.h5
 if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 chunkflow read-h5 --file-name=/tmp/img.h5

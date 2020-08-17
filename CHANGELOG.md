@@ -6,7 +6,7 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
-
+- new operator: normalize-intensity
 ## Bug Fixes 
 - cutout whole volume in default
 
