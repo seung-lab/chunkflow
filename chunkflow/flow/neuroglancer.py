@@ -29,18 +29,18 @@ class NeuroglancerOperator(OperatorBase):
             for chunk_name, chunk in chunks.items():
                 global_offset = chunk.global_offset
                 chunk = np.ascontiguousarray(chunk)
-
+                
                 s.layers.append(
                     name=chunk_name,
                     layer=ng.LocalVolume(
                         data=chunk,
-                        dimensions=neuroglancer.CordinateSpace(
-                            scales=[1, *self.voxel_size[::-1]],
-                            units = ['', 'nm', 'nm', 'nm'],
-                            names = ['c^', 'x', 'y', 'z']
+                        dimensions=ng.CoordinateSpace(
+                            scales=self.voxel_size[::-1],
+                            units = ['nm', 'nm', 'nm'],
+                            names = ['x', 'y', 'z']
                         ),
                         # offset is in nm, not voxels
-                        offset=list(o * v for o, v in zip(
+                        voxel_offset=tuple(o * v for o, v in zip(
                             global_offset[::-1][-3:], self.voxel_size[::-1])))
                 )
         print('Open this url in browser: ')
