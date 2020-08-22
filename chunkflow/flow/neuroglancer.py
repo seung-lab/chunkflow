@@ -18,10 +18,10 @@ class NeuroglancerOperator(OperatorBase):
     def __call__(self, chunks: dict):
         """
         Parameters:
-        chunks: multiple chunks 
+        chunks: multiple chunks
         """
-        ng.set_static_content_source(
-            url='https://neuromancer-seung-import.appspot.com')
+        # ng.set_static_content_source(
+        #     url='https://neuromancer-seung-import.appspot.com')
         ng.set_server_bind_address(bind_port=self.port)
         viewer = ng.Viewer()
 
@@ -29,19 +29,34 @@ class NeuroglancerOperator(OperatorBase):
             for chunk_name, chunk in chunks.items():
                 global_offset = chunk.global_offset
                 chunk = np.ascontiguousarray(chunk)
-                
+                # neuroglancer uses F order
+                chunk = np.transpose(chunk)
+
+                if np.ndim(chunk) == 3:
+                    dimensions = ng.CoordinateSpace(
+                        scales=self.voxel_size[::-1],
+                        units=['nm', 'nm', 'nm'],
+                        names=['x', 'y', 'z']
+                    )
+                elif np.ndim(chunk) == 4:
+                    dimensions = ng.CoordinateSpace(
+                        scales=self.voxel_size[::-1] + [1],
+                        units=['nm', 'nm', 'nm', ''],
+                        names=['x', 'y', 'z', 'c^']
+                    )
+                else:
+                    raise ValueError('only support 3/4 dimension volume.')
+
                 s.layers.append(
                     name=chunk_name,
                     layer=ng.LocalVolume(
                         data=chunk,
-                        dimensions=ng.CoordinateSpace(
-                            scales=self.voxel_size[::-1],
-                            units = ['nm', 'nm', 'nm'],
-                            names = ['x', 'y', 'z']
-                        ),
+                        dimensions=dimensions,
                         # offset is in nm, not voxels
-                        voxel_offset=tuple(o * v for o, v in zip(
-                            global_offset[::-1][-3:], self.voxel_size[::-1])))
+                        # chunkflow use C order with zyx, 
+                        # while neuroglancer use F order with xyz
+                        voxel_offset=global_offset[::-1][:3]
+                    )
                 )
         print('Open this url in browser: ')
         print(viewer)
