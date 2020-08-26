@@ -721,8 +721,31 @@ def log_summary(log_dir, output_size):
     yield task
         
 
-@main.command('normalize-section-contrast')
-@click.option('--name', type=str, default='normalize-section-contrast',
+@main.command('normalize-intensity')
+@click.option('--name', type=str, default='normalize-intensity', help='name of operator')
+@click.option('--input-chunk-name', '-i', type=str, 
+    default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--output-chunk-name', '-o', type=str,
+    default=DEFAULT_CHUNK_NAME, help='output chunk name')
+@operator
+def normalize_intensity(tasks, name, input_chunk_name, output_chunk_name):
+    """transform gray image to float (-1:1). x=(x-127.5) - 1.0"""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            start = time()
+            chunk = task[input_chunk_name]
+            assert np.issubdtype(chunk.dtype, np.uint8)
+            chunk = chunk.astype('float32')
+            chunk /= 127.5
+            chunk -= 1.0
+            task[output_chunk_name] = chunk
+            task['log']['timer'][name] = time() - start
+        yield task
+
+
+@main.command('normalize-contrast-nkem')
+@click.option('--name', type=str, default='normalize-contrast-nkem',
               help='name of operator.')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
@@ -739,7 +762,7 @@ def log_summary(log_dir, output_size):
 @click.option('--maxval', type=int, default=255,
               help='the maximum intensity of transformed chunk.')
 @operator
-def normalize_contrast_contrast(tasks, name, input_chunk_name, output_chunk_name, 
+def normalize_contrast_nkem(tasks, name, input_chunk_name, output_chunk_name, 
                                 levels_path, lower_clip_fraction,
                                 upper_clip_fraction, minval, maxval):
     """Normalize the section contrast using precomputed histograms."""

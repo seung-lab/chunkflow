@@ -54,7 +54,8 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | mesh            | Build 3D meshes from segmentation chunk |
 | mesh-manifest   | Collect mesh fragments for object |
 | neuroglancer    | Visualize chunks using neuroglancer |
-| normalize-section-contrast | Normalize image contrast |
+| normalize-intensity | Normalize image intensity to -1:1 |
+| normalize-contrast-nkem | Normalize image contrast using histograms |
 | normalize-section-shang | Normalization algorithm created by Shang |
 | quantize        | Quantize the affinity map |
 | read-h5         | Read HDF5 files |
