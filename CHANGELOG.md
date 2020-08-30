@@ -7,6 +7,7 @@ ChangeLog history
 
 ## Features
 - a plugin system with a median filter example
+- new operator: normalize-intensity
 
 ## Bug Fixes 
 - cutout whole volume in default

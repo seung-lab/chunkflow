@@ -60,6 +60,10 @@ class Test3DChunk(unittest.TestCase):
         bbox = Bbox.from_delta(self.global_offset, self.size)
         Chunk.from_bbox( bbox )
 
+    def test_computation(self):
+        self.chunk /= 127.5
+        self.chunk -= 1
+
     def test_bbox(self):
         self.assertEqual(self.chunk.bbox,
                          Bbox.from_delta(self.global_offset, self.size))
