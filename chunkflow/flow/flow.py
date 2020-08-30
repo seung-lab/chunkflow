@@ -19,7 +19,6 @@ from .agglomerate import AgglomerateOperator
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
 from .create_bounding_boxes import create_bounding_boxes
-from .custom_operator import CustomOperator
 from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
@@ -30,6 +29,7 @@ from .mesh_manifest import MeshManifestOperator
 from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
+from .plugin import Plugin
 from .save import SaveOperator
 from .save_pngs import SavePNGsOperator
 from .setup_env import setup_environment
@@ -825,27 +825,27 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
         yield task
 
 
-@main.command('custom-operator')
+@main.command('plugin')
 @click.option('--name',
               type=str,
-              default='custom-operator-1',
-              help='name of operator.')
+              default='plugin-1',
+              help='name of plugin. Multiple plugins should have different names.')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--output-chunk-name', '-o',
               type=str, default='chunk', help='output chunk name')
-@click.option('--opprogram', type=str, help='python file to call.')
+@click.option('--file', '-f', type=str, help='''python file to call. 
+                If it is just a name rather than full path, 
+                we\'ll look for it in the plugin folder.''')
 @click.option('--args', type=str, default='', help='args to pass in')
 @operator
-def custom_operator(tasks, name, input_chunk_name, output_chunk_name, opprogram, args):
-    """Custom operation on the chunk.
-    The custom python file should contain a callable named "op_call" such that 
-    a call of `op_call(chunk, args)` can be made to operate on the chunk.
+def plugin(tasks, name, input_chunk_name, output_chunk_name, file, args):
+    """Insert custom program as a plugin.
+    The custom python file should contain a callable named "exec" such that 
+    a call of `exec(chunk, args)` can be made to operate on the chunk.
     """
 
-    state['operators'][name] = CustomOperator(opprogram=opprogram,
-                                              args=args,
-                                              name=name)
+    state['operators'][name] = Plugin(file, args=args, name=name, verbose=state['verbose'])
     if state['verbose']:
         print('Received args for ', name, ':', args)
 
@@ -853,7 +853,7 @@ def custom_operator(tasks, name, input_chunk_name, output_chunk_name, opprogram,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+            task[output_chunk_name] = state['operators'][name](task[input_chunk_name], *args)
             task['log']['timer'][name] = time() - start
         yield task
 

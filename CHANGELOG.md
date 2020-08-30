@@ -2,11 +2,13 @@ ChangeLog history
 =================
 # chunkflow 1.0.1 (2020-xx-xx)
 ## Breaking Changes
-
+- renamed custom-operator to plugin
 ## Deprecations 
 
 ## Features
+- a plugin system with a median filter example
 - new operator: normalize-intensity
+
 ## Bug Fixes 
 - cutout whole volume in default
 
