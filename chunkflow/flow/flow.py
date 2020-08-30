@@ -811,7 +811,9 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
               type=str, default='chunk', help='input chunk name')
 @click.option('--output-chunk-name', '-o',
               type=str, default='chunk', help='output chunk name')
-@click.option('--file', '-f', type=str, help='python file to call.')
+@click.option('--file', '-f', type=str, help='''python file to call. 
+                If it is just a name rather than full path, 
+                we\'ll look for it in the plugin folder.''')
 @click.option('--args', type=str, default='', help='args to pass in')
 @operator
 def plugin(tasks, name, input_chunk_name, output_chunk_name, file, args):
