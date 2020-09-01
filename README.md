@@ -14,6 +14,7 @@ chunkflow
 - **Composable** operators. The chunk operators could be freely composed in commandline for flexible usage.
 - **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
 - All operations support **3D** image volumes.
+- You can insert your own code as a plugin.
 
 
 ## Image Segmentation Example
@@ -39,7 +40,6 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | copy-var        | Copy a variable to a new name |
 | create-chunk    | Create a fake chunk for easy test |
 | crop-margin     | Crop the margin of a chunk |
-| custom-operator | Import local code as a customized operator |
 | cutout          | Cutout chunk from a local/cloud storage volume |
 | delete-chunk    | Delete chunk in task to reduce RAM requirement |
 | delete-task-in-queue | Delete the task in AWS SQS queue |
@@ -57,6 +57,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | normalize-intensity | Normalize image intensity to -1:1 |
 | normalize-contrast-nkem | Normalize image contrast using histograms |
 | normalize-section-shang | Normalization algorithm created by Shang |
+| plugin          | Import local code as a customized operator. |
 | quantize        | Quantize the affinity map |
 | read-h5         | Read HDF5 files |
 | read-tif        | Read TIFF files |
