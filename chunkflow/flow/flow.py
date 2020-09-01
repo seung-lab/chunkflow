@@ -423,17 +423,17 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               help='read chunk from file, support .h5')
 @click.option('--dataset-path', '-d', type=str, default='/main',
               help='the dataset path inside HDF5 file.')
-@click.option('--cutout-start', '-t', nargs=3, callback=default_none,
+@click.option('--cutout-start', '-t', type=int, nargs=3, callback=default_none,
               help='cutout voxel offset in the array')
-@click.option('--cutout-stop', '-p', nargs=3, callback=default_none,
+@click.option('--cutout-stop', '-p', type=int, nargs=3, callback=default_none,
                help='cutout stop corrdinate.')
-@click.option('--cutout-size', '-s', nargs=3, callback=default_none,
+@click.option('--cutout-size', '-s', type=int, nargs=3, callback=default_none,
                help='cutout size of the chunk.')
 @click.option('--output-chunk-name', '-o',
               type=str, default='chunk',
               help='chunk name in the global state')
 @operator
-def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
+def read_h5(tasks, name: str, file_name: str, dataset_path: str,
             cutout_start: tuple, cutout_stop: tuple, cutout_size: tuple, 
             output_chunk_name: str):
     """Read HDF5 files."""
