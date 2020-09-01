@@ -112,27 +112,60 @@ class Chunk(NDArrayOperatorsMixin):
     @classmethod
     def from_h5(cls, file_name: str,
                 dataset_path: str = '/main',
-                global_offset: tuple = None):
+                cutout_start: tuple=None,
+                cutout_stop: tuple=None,
+                cutout_size: tuple=None):
 
         assert os.path.exists(file_name)
         assert h5py.is_hdf5(file_name)
 
         print('read from HDF5 file: {}'.format(file_name))
 
-        global_offset_path = os.path.join(os.path.dirname(file_name),
+        voxel_offset_path = os.path.join(os.path.dirname(file_name),
                                        'global_offset')
         with h5py.File(file_name, 'r') as f:
-            arr = np.asarray(f[dataset_path])
+            arr = f[dataset_path]
+            
+            if voxel_offset_path in f:
+                voxel_offset = tuple(f[voxel_offset_path])
+            else:
+                voxel_offset = tuple(0 for _ in range(arr.ndim))
 
-            if global_offset is None:
-                if global_offset_path in f:
-                    global_offset = tuple(f[global_offset_path])
+            if cutout_start is None:
+                cutout_start = voxel_offset
 
-        print('global offset: {}'.format(global_offset))
+            for c, v in zip(cutout_start, voxel_offset):
+                assert c >= v, "can only cutout after the global voxel offset."
 
-        return cls(arr, global_offset=global_offset)
+            if cutout_start is not None:
+                if cutout_stop is None:
+                    if cutout_size is None:
+                        cutout_size = arr.shape
+                    cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
-    def to_h5(self, file_name: str):
+                if arr.ndim == 3:
+                    arr = arr[
+                        cutout_start[0]-voxel_offset[0]:cutout_stop[0],
+                        cutout_start[1]-voxel_offset[1]:cutout_stop[1],
+                        cutout_start[2]-voxel_offset[2]:cutout_stop[2],
+                    ]
+                elif arr.ndim == 4:
+                    assert len(cutout_start) == 4
+                    assert len(cutout_stop) == 4
+                    arr = arr[
+                        cutout_start[0]-voxel_offset[0]:cutout_stop[0],
+                        cutout_start[1]-voxel_offset[1]:cutout_stop[1],
+                        cutout_start[2]-voxel_offset[2]:cutout_stop[2],
+                        cutout_start[3]-voxel_offset[3]:cutout_stop[3],
+                    ]
+        
+        arr = np.asarray(arr)
+
+        print('voxel offset: {}'.format(cutout_start))
+
+        return cls(arr, global_offset=cutout_start)
+
+    def to_h5(self, file_name: str, with_offset: bool=True):
         assert '.h5' in file_name
 
         print('write chunk to file: ', file_name)
@@ -141,7 +174,8 @@ class Chunk(NDArrayOperatorsMixin):
 
         with h5py.File(file_name, 'w') as f:
             f.create_dataset('/main', data=self.array)
-            f.create_dataset('/global_offset', data=self.global_offset)
+            if with_offset:
+                f.create_dataset('/global_offset', data=self.global_offset)
     
     def __array__(self):
         return self.array

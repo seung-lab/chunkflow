@@ -1,8 +1,10 @@
 import unittest
+import pytest
 
 from chunkflow.lib.aws.cloud_watch import CloudWatch
 
 
+@pytest.mark.skip(reason="need credential")
 class TestCloudWatch(unittest.TestCase):
     def setUp(self):
         print('test cloud watch...')

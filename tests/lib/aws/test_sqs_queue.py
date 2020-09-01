@@ -1,7 +1,9 @@
-from chunkflow.lib.aws.sqs_queue import SQSQueue
+import pytest
 import unittest
+from chunkflow.lib.aws.sqs_queue import SQSQueue
 
 
+@pytest.mark.skip(reason="need credential")
 class TestSQSQueue(unittest.TestCase):
     def setUp(self):
         queue_name = 'chunkflow-test'

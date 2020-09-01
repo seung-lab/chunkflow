@@ -417,30 +417,24 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
 
 
 @main.command('read-h5')
-@click.option('--name',
-              type=str,
-              default='read-h5',
+@click.option('--name', type=str, default='read-h5',
               help='read file from local disk.')
-@click.option('--file-name',
-              '-f',
-              type=str,
-              required=True,
+@click.option('--file-name', '-f', type=str, required=True,
               help='read chunk from file, support .h5')
-@click.option('--dataset-path',
-              '-d',
-              type=str,
-              default='/main',
+@click.option('--dataset-path', '-d', type=str, default='/main',
               help='the dataset path inside HDF5 file.')
-@click.option('--offset',
-              type=int,
-              nargs=3,
-              callback=default_none,
-              help='global offset of this chunk')
+@click.option('--cutout-start', '-t', nargs=3, callback=default_none,
+              help='cutout voxel offset in the array')
+@click.option('--cutout-stop', '-p', nargs=3, callback=default_none,
+               help='cutout stop corrdinate.')
+@click.option('--cutout-size', '-s', nargs=3, callback=default_none,
+               help='cutout size of the chunk.')
 @click.option('--output-chunk-name', '-o',
               type=str, default='chunk',
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
+            cutout_start: tuple, cutout_stop: tuple, cutout_size: tuple, 
             output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
@@ -448,7 +442,9 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
         assert output_chunk_name not in task
         task[output_chunk_name] = Chunk.from_h5(file_name,
                                                 dataset_path=dataset_path,
-                                                global_offset=offset)
+                                                cutout_start=cutout_start,
+                                                cutout_stop=cutout_stop,
+                                                cutout_size=cutout_size)
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -462,13 +458,15 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str, offset: tuple,
               type=click.Path(dir_okay=False, resolve_path=True),
               required=True,
               help='file name of hdf5 file.')
+@click.option('--with-offset/--without-offset', default=True, type=bool,
+    help='add global_offset dataset or not.')
 @operator
-def write_h5(tasks, name, input_chunk_name, file_name):
+def write_h5(tasks, name, input_chunk_name, file_name, with_offset):
     """Write chunk to HDF5 file."""
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            task[input_chunk_name].to_h5(file_name)
+            task[input_chunk_name].to_h5(file_name, with_offset)
         yield task
 
 
