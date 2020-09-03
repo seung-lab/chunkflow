@@ -59,7 +59,6 @@ class NeuroglancerOperator(OperatorBase):
                 else:
                     raise ValueError('only support 3/4 dimension volume.')
 
-                breakpoint()
                 s.layers.append(
                     name=chunk_name,
                     layer=ng.LocalVolume(
