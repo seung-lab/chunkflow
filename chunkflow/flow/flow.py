@@ -1183,13 +1183,9 @@ def neuroglancer(tasks, name, voxel_size, port, chunk_names):
                                                     port=port,
                                                     voxel_size=voxel_size)
     for task in tasks:
-        chunks = dict()
-        for chunk_name in chunk_names.split(","):
-            chunks[chunk_name] = task[chunk_name]
-
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](chunks)
+            state['operators'][name](task, selected=chunk_names)
         yield task
 
 @main.command('quantize')

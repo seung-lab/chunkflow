@@ -15,22 +15,34 @@ class NeuroglancerOperator(OperatorBase):
         self.port = port
         self.voxel_size = voxel_size
 
-    def __call__(self, chunks: dict):
+    def __call__(self, chunks: dict, selected: str=None):
         """
         Parameters:
         chunks: multiple chunks
         """
+        if selected is None:
+            selected = chunks.keys()
+        elif isinstance(selected, str):
+            selected = selected.split(',')
+        
         # ng.set_static_content_source(
         #     url='https://neuromancer-seung-import.appspot.com')
-        ng.set_server_bind_address(bind_port=self.port)
+        ng.set_server_bind_address(bind_address='0.0.0.0', bind_port=self.port)
         viewer = ng.Viewer()
 
         with viewer.txn() as s:
-            for chunk_name, chunk in chunks.items():
+            for chunk_name in selected:
+                chunk = chunks[chunk_name]
                 global_offset = chunk.global_offset
                 chunk = np.ascontiguousarray(chunk)
                 # neuroglancer uses F order
                 chunk = np.transpose(chunk)
+
+                # neuroglancer do not support int type
+                if np.issubdtype(chunk.dtype, np.int64):
+                    assert chunk.min() >= 0
+                    chunk = chunk.astype(np.uint64)
+
 
                 if np.ndim(chunk) == 3:
                     dimensions = ng.CoordinateSpace(
