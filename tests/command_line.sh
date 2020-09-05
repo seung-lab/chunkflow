@@ -1,6 +1,9 @@
 #!/bin/bash
 chunkflow generate-tasks -c 0 0 0 -s 0 0 0 -g 1 1 1
 
+# this example is from [nuclease](https://github.com/janelia-flyem/neuclease)
+chunkflow cutout-dvid-label --server "http://hemibrain-dvid.janelia.org" --start 20789 21341 17019 --size 16 128 128
+
 chunkflow create-chunk plugin -f median_filter
 
 chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
@@ -19,11 +22,11 @@ chunkflow --dry-run --verbose 1 setup-env -l "gs://my/path" --volume-start 2002 
 
 chunkflow create-chunk --size 36 448 448 inference --input-patch-size 20 256 256 --patch-num 2 2 2 \
     --framework "universal" --convnet-model "./examples/inference/universal_identity.py" \
-    --batch-size 3 cloud-watch --log-name chunkflow-test
+    --batch-size 3 #cloud-watch --log-name chunkflow-test
 
-chunkflow create-chunk --size 36 448 448 inference --input-patch-size 20 256 256 --patch-num 2 2 2 --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
+chunkflow create-chunk --size 36 448 448 inference --input-patch-size 20 256 256 --patch-num 2 2 2 --framework identity --batch-size 3 #cloud-watch --log-name chunkflow-test
 
-chunkflow create-chunk --all-zero --size 36 448 448 inference --input-patch-size 20 256 256 --patch-num 2 2 2 --framework identity --batch-size 3 cloud-watch --log-name chunkflow-test
+chunkflow create-chunk --all-zero --size 36 448 448 inference --input-patch-size 20 256 256 --patch-num 2 2 2 --framework identity --batch-size 3 #cloud-watch --log-name chunkflow-test
 
 chunkflow create-chunk --size 36 448 448 --dtype "uint32" \
 	connected-components mask-out-objects -d 50 -s "2,3,4"\

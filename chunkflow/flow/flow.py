@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from functools import update_wrapper, wraps
 from time import time
+from typing import Generator, Tuple
 
 import numpy as np
 import click
@@ -13,6 +14,7 @@ from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
+from chunkflow.lib.utils import coordinates2bbox
 
 # import operator functions
 from .agglomerate import AgglomerateOperator
@@ -20,6 +22,7 @@ from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
 from .create_bounding_boxes import create_bounding_boxes
 from .cutout import CutoutOperator
+from .cutout_dvid_label import CutoutDVIDLabel
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
@@ -589,10 +592,13 @@ def delete_chunk(tasks, name, chunk_name):
 @click.option('--blackout-sections/--no-blackout-sections',
     default=False, help='blackout some sections. ' +
     'the section ids json file should named blackout_section_ids.json. default is False.')
-@click.option('--output-chunk-name', '-o',
-    type=str, default='chunk', help='Variable name to store the cutout to for later retrieval.'
+@click.option(
+    '--output-chunk-name', '-o',
+    type=str, default=DEFAULT_CHUNK_NAME, 
+    help='Variable name to store the cutout to for later retrieval.'
     + 'Chunkflow operators by default operates on a variable named "chunk" but' +
-    ' sometimes you may need to have a secondary volume to work on.')
+    ' sometimes you may need to have a secondary volume to work on.'
+)
 @operator
 def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin_size,
            fill_missing, validate_mip, blackout_sections, output_chunk_name):
@@ -634,6 +640,55 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin
             task[output_chunk_name] = state['operators'][name](bbox)
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
+        yield task
+
+
+@main.command('cutout-dvid-label')
+@click.option(
+    '--name', type=str, default='cutout-dvid-label',
+    help='cutout a subvolume from a DVID repo'
+)
+@click.option(
+    '--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
+    help='output chunk name.'
+)
+@click.option(
+    '--server', '-s', required=True, type=str, 
+    help='something like http://hemibrain-dvid.janelia.org:8000'
+)
+@click.option(
+    '--uuid', '-u', type=str, 
+    default=None, callback=default_none,
+    help='uuid of the DVID repo.'
+)
+@click.option(
+    '--start', '-t', type=int, nargs=3,
+    required=True, 
+    help='start coordinate, zyx order'
+)
+@click.option(
+    '--size', '-z', type=int, nargs=3,
+    default=None, callback=default_none,
+    help='cutout size. zyx order.'
+)
+@click.option(
+    '--stop', '-p', type=int, nargs=3,
+    default=None, callback=default_none,
+    help='cutout stop coordinate, zyx order.'
+)
+@operator
+def cutout_dvid_label(tasks: Generator, name, output_chunk_name, 
+                        server, uuid, start, size, stop):
+    """Cutout a subvolume from a DVID label repo."""
+    operator = CutoutDVIDLabel(server, uuid)
+    
+    for task in tasks:
+        handle_task_skip(task, name)
+        if 'bbox' in task:
+            bbox = task['bbox']
+        else:
+            bbox = coordinates2bbox(start, size, stop) 
+        task[output_chunk_name] = operator(bbox)
         yield task
 
 

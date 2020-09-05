@@ -41,6 +41,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | create-chunk    | Create a fake chunk for easy test |
 | crop-margin     | Crop the margin of a chunk |
 | cutout          | Cutout chunk from a local/cloud storage volume |
+| cutout-dvid-label| Cutout a chunk from a DVID repo |
 | delete-chunk    | Delete chunk in task to reduce RAM requirement |
 | delete-task-in-queue | Delete the task in AWS SQS queue |
 | downsample-upload | Downsample the chunk hierarchically and upload to volume |
