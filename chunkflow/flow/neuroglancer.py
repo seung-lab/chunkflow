@@ -24,7 +24,7 @@ class NeuroglancerOperator(OperatorBase):
             selected = chunks.keys()
         elif isinstance(selected, str):
             selected = selected.split(',')
-        
+
         # ng.set_static_content_source(
         #     url='https://neuromancer-seung-import.appspot.com')
         ng.set_server_bind_address(bind_address='0.0.0.0', bind_port=self.port)
@@ -76,18 +76,32 @@ class NeuroglancerOperator(OperatorBase):
                 else:
                     raise ValueError('only support 3/4 dimension volume.')
                 
-                s.layers.append(
-                    name=chunk_name,
-                    layer=ng.LocalVolume(
-                        data=chunk,
-                        dimensions=dimensions,
-                        # offset is in nm, not voxels
-                        # chunkflow use C order with zyx, 
-                        # while neuroglancer use F order with xyz
-                        voxel_offset=global_offset[::-1],
-                    ),
-                    shader=shader
-                )
+                if shader:
+                    s.layers.append(
+                        name=chunk_name,
+                        layer=ng.LocalVolume(
+                            data=chunk,
+                            dimensions=dimensions,
+                            # offset is in nm, not voxels
+                            # chunkflow use C order with zyx, 
+                            # while neuroglancer use F order with xyz
+                            voxel_offset=global_offset[::-1],
+                        ),
+                        shader=shader
+                    )
+                else:
+                    s.layers.append(
+                        name=chunk_name,
+                        layer=ng.LocalVolume(
+                            data=chunk,
+                            dimensions=dimensions,
+                            # offset is in nm, not voxels
+                            # chunkflow use C order with zyx, 
+                            # while neuroglancer use F order with xyz
+                            voxel_offset=global_offset[::-1],
+                        ),
+                    )
+
         print('Open this url in browser: ')
         print(viewer)
         input('Press Enter to exit neuroglancer.')
