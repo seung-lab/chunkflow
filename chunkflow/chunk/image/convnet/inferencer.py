@@ -283,7 +283,7 @@ class Inferencer(object):
             patch_mask = Chunk(self.patch_inferencer.output_patch_mask_numpy,
                                global_offset=patch_global_offset)
             self.output_chunk_mask.blend(patch_mask)
-        
+
         # normalize weight, so accumulated inference result multiplies
         # this mask will result in 1
         self.output_chunk_mask.array = 1.0 / self.output_chunk_mask.array

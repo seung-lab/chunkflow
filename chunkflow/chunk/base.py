@@ -285,10 +285,10 @@ class Chunk(NDArrayOperatorsMixin):
             return self
     
     def max(self, *args, **kwargs):
-        return self.array.max(args, kwargs)
+        return self.array.max(*args, **kwargs)
 
     def min(self, *args, **kwargs):
-        return self.array.min(args, kwargs)
+        return self.array.min(*args, **kwargs)
 
     def transpose(self):
         """To-Do: support arbitrary axis transpose"""

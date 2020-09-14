@@ -34,31 +34,48 @@ class NeuroglancerOperator(OperatorBase):
             for chunk_name in selected:
                 chunk = chunks[chunk_name]
                 global_offset = chunk.global_offset
+                
                 chunk = np.ascontiguousarray(chunk)
                 # neuroglancer uses F order
-                chunk = np.transpose(chunk)
 
                 # neuroglancer do not support int type
                 if np.issubdtype(chunk.dtype, np.int64):
                     assert chunk.min() >= 0
                     chunk = chunk.astype(np.uint64)
+                elif chunk.dtype == np.dtype('<f4'):
+                    chunk = chunk.astype(np.float32)
 
-
-                if np.ndim(chunk) == 3:
+                if chunk.ndim == 3:
+                    chunk = np.transpose(chunk)
                     dimensions = ng.CoordinateSpace(
                         scales=self.voxel_size[::-1],
                         units=['nm', 'nm', 'nm'],
                         names=['x', 'y', 'z']
                     )
-                elif np.ndim(chunk) == 4:
+                    if np.issubdtype(chunk.dtype, np.uint32) or \
+                            np.issubdtype(chunk.dtype, np.uint64):
+                        shader = None
+                    else:
+                        shader="""void main () {
+                            emitGrayscale(toNormalized(getDataValue()));
+                            }"""
+                elif chunk.ndim == 4:
+                    chunk = np.transpose(chunk, axes=(0, 3, 2, 1))
                     dimensions = ng.CoordinateSpace(
-                        scales=self.voxel_size[::-1] + [1],
-                        units=['nm', 'nm', 'nm', ''],
-                        names=['x', 'y', 'z', 'c^']
+                        scales=(1, *self.voxel_size[::-1]),
+                        units=['', 'nm', 'nm', 'nm'],
+                        names=['c^', 'x', 'y', 'z']
                     )
+                    shader="""
+                        void main() {
+                        emitRGB(vec3(toNormalized(getDataValue(0)),
+                                    toNormalized(getDataValue(1)),
+                                    toNormalized(getDataValue(2))));
+                        }
+                        """
                 else:
                     raise ValueError('only support 3/4 dimension volume.')
-
+                
                 s.layers.append(
                     name=chunk_name,
                     layer=ng.LocalVolume(
@@ -67,8 +84,9 @@ class NeuroglancerOperator(OperatorBase):
                         # offset is in nm, not voxels
                         # chunkflow use C order with zyx, 
                         # while neuroglancer use F order with xyz
-                        voxel_offset=global_offset[::-1][:3]
-                    )
+                        voxel_offset=global_offset[::-1],
+                    ),
+                    shader=shader
                 )
         print('Open this url in browser: ')
         print(viewer)

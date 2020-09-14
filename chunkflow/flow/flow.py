@@ -978,7 +978,8 @@ def copy_var(tasks, name, from_name, to_name):
 @click.option('--num-output-channels', '-c',
               type=int, default=3, help='number of output channels')
 @click.option('--dtype', '-d', type=click.Choice(['float32', 'float16']),
-              default='float32', help='numerical precision.')
+              default='float32', help="""Even if we perform inference using float16, 
+                    the result will still be converted to float32.""")
 @click.option('--framework', '-f',
               type=click.Choice(['universal', 'identity', 'pytorch']),
               default='universal', help='inference framework')

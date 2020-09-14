@@ -30,7 +30,7 @@ class Plugin(OperatorBase):
 
         if not path.isfile(plugin_file):
             plugin_file = path.join(path.dirname(path.realpath(__file__)), '../plugins', plugin_file)
-            
+
         assert path.isfile(plugin_file)
 
         program = load_source(plugin_file)

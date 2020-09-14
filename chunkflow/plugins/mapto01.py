@@ -6,5 +6,3 @@ def exec(chunk: np.ndarray):
     assert chunk.max() <= 1
     chunk = (chunk + 1.0) / 2.0
     return chunk
-
- 
