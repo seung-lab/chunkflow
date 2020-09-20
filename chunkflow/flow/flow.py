@@ -458,6 +458,9 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
               type=click.Path(dir_okay=False, resolve_path=True),
               required=True,
               help='file name of hdf5 file.')
+@click.option('--compression', '-c', type=click.Choice(["gzip", "lzf", "szip"]),
+              default="gzip",
+              help="compression used in the dataset.")
 @click.option('--with-offset/--without-offset', default=True, type=bool,
     help='add global_offset dataset or not.')
 @operator

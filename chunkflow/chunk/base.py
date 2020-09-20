@@ -165,7 +165,7 @@ class Chunk(NDArrayOperatorsMixin):
 
         return cls(arr, global_offset=cutout_start)
 
-    def to_h5(self, file_name: str, with_offset: bool=True):
+    def to_h5(self, file_name: str, with_offset: bool=True, compression="gzip"):
         assert '.h5' in file_name
 
         print('write chunk to file: ', file_name)
@@ -173,7 +173,7 @@ class Chunk(NDArrayOperatorsMixin):
             os.remove(file_name)
 
         with h5py.File(file_name, 'w') as f:
-            f.create_dataset('/main', data=self.array)
+            f.create_dataset('/main', data=self.array, compression=compression)
             if with_offset:
                 f.create_dataset('/global_offset', data=self.global_offset)
     
