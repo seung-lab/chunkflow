@@ -425,8 +425,7 @@ class Inferencer(object):
             output_chunk = output_buffer.mask_using_last_channel(
                 threshold = self.mask_myelin_threshold)
 
-            # currently neuroglancer only support float32, not float16
-            if output_chunk.dtype == np.dtype('float16'):
+            if output_chunk.dtype == np.dtype('<f4'):
                 output_chunk = output_chunk.astype('float32')
 
             return output_chunk

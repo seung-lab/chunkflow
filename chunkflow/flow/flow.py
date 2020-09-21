@@ -421,7 +421,7 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               help='read file from local disk.')
 @click.option('--file-name', '-f', type=str, required=True,
               help='read chunk from file, support .h5')
-@click.option('--dataset-path', '-d', type=str, default='/main',
+@click.option('--dataset-path', '-d', type=str, default=None, callback=default_none,
               help='the dataset path inside HDF5 file.')
 @click.option('--cutout-start', '-t', type=int, nargs=3, callback=default_none,
               help='cutout voxel offset in the array')
@@ -440,11 +440,13 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     for task in tasks:
         start = time()
         assert output_chunk_name not in task
-        task[output_chunk_name] = Chunk.from_h5(file_name,
-                                                dataset_path=dataset_path,
-                                                cutout_start=cutout_start,
-                                                cutout_stop=cutout_stop,
-                                                cutout_size=cutout_size)
+        task[output_chunk_name] = Chunk.from_h5(
+            file_name,
+            dataset_path=dataset_path,
+            cutout_start=cutout_start,
+            cutout_stop=cutout_stop,
+            cutout_size=cutout_size
+        )
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -1193,13 +1195,14 @@ def neuroglancer(tasks, name, voxel_size, port, chunk_names):
 
 @main.command('quantize')
 @click.option('--name', type=str, default='quantize', help='name of this operator')
-@click.option('--input-chunk-name', type=str, default='chunk', help = 'input chunk name')
-@click.option('--output-chunk-name', type=str, default='chunk', help= 'output chunk name')
+@click.option('--input-chunk-name', '-i', type=str, default='chunk', help = 'input chunk name')
+@click.option('--output-chunk-name', '-o', type=str, default='chunk', help= 'output chunk name')
 @operator
 def quantize(tasks, name, input_chunk_name, output_chunk_name):
     """Transorm the last channel to uint8."""
     for task in tasks:
         aff = task[input_chunk_name]
+        aff = AffinityMap(aff)
         assert isinstance(aff, AffinityMap)
         quantized_image = aff.quantize()
         task[output_chunk_name] = quantized_image
