@@ -355,3 +355,8 @@ You should see the summary like this:
 |log_summary|
 
 .. |log_summary| image:: _static/image/log_summary.png
+
+
+Add a New Plugin
+========================
+Create a new python file with a function called ``exec`` with a parameter called ``chunk`` (You can also use other names). It is that simple, you can use your plugin now. Example usage could be found in the ``tests/command_lines.sh`` file. If you put your plugin file in the ``plugins`` folder, chunkflow will find it automaticaly, otherwise, you need to specify the exact path of your plugin in the ``--file`` parameter.
