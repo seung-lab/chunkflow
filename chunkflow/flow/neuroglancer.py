@@ -34,7 +34,7 @@ class NeuroglancerOperator(OperatorBase):
             for chunk_name in selected:
                 chunk = chunks[chunk_name]
                 global_offset = chunk.global_offset
-                
+
                 chunk = np.ascontiguousarray(chunk)
                 # neuroglancer uses F order
 
@@ -42,7 +42,7 @@ class NeuroglancerOperator(OperatorBase):
                 if np.issubdtype(chunk.dtype, np.int64):
                     assert chunk.min() >= 0
                     chunk = chunk.astype(np.uint64)
-                elif chunk.dtype == np.dtype('<f4'):
+                elif chunk.dtype == np.dtype('<f4') or chunk.dtype == np.dtype('float16'):
                     chunk = chunk.astype(np.float32)
 
                 if chunk.ndim == 3:
@@ -57,8 +57,8 @@ class NeuroglancerOperator(OperatorBase):
                         shader = None
                     else:
                         shader="""void main () {
-                            emitGrayscale(toNormalized(getDataValue()));
-                            }"""
+emitGrayscale(toNormalized(getDataValue()));
+}"""
                 elif chunk.ndim == 4:
                     chunk = np.transpose(chunk, axes=(0, 3, 2, 1))
                     dimensions = ng.CoordinateSpace(
@@ -66,13 +66,12 @@ class NeuroglancerOperator(OperatorBase):
                         units=['', 'nm', 'nm', 'nm'],
                         names=['c^', 'x', 'y', 'z']
                     )
-                    shader="""
-                        void main() {
-                        emitRGB(vec3(toNormalized(getDataValue(0)),
-                                    toNormalized(getDataValue(1)),
-                                    toNormalized(getDataValue(2))));
-                        }
-                        """
+                    shader="""void main() {
+emitRGB(vec3(toNormalized(getDataValue(0)),
+            toNormalized(getDataValue(1)),
+            toNormalized(getDataValue(2))));
+}
+"""
                 else:
                     raise ValueError('only support 3/4 dimension volume.')
                 

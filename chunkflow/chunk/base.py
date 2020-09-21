@@ -111,7 +111,7 @@ class Chunk(NDArrayOperatorsMixin):
 
     @classmethod
     def from_h5(cls, file_name: str,
-                dataset_path: str = '/main',
+                dataset_path: str = None,
                 cutout_start: tuple=None,
                 cutout_stop: tuple=None,
                 cutout_size: tuple=None):
@@ -124,6 +124,11 @@ class Chunk(NDArrayOperatorsMixin):
         voxel_offset_path = os.path.join(os.path.dirname(file_name),
                                        'global_offset')
         with h5py.File(file_name, 'r') as f:
+            if dataset_path is None:
+                for key in f.keys():
+                    if 'offset' not in key:
+                        # the first name without offset inside
+                        dataset_path = key
             arr = f[dataset_path]
             
             if voxel_offset_path in f:
@@ -160,6 +165,10 @@ class Chunk(NDArrayOperatorsMixin):
                     ]
         
         arr = np.asarray(arr)
+        if arr.dtype == np.dtype('<f4'):
+            arr = arr.astype('float32')
+        elif arr.dtype == np.dtype('<f8'):
+            arr = arr.astype('float64') 
 
         print('voxel offset: {}'.format(cutout_start))
 
