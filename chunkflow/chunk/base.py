@@ -133,7 +133,7 @@ class Chunk(NDArrayOperatorsMixin):
                 if voxel_offset_path in f:
                     voxel_offset = tuple(f[voxel_offset_path])
                 else:
-                    voxel_offset = tuple(0 for _ in range(arr.ndim))
+                    voxel_offset = tuple(0 for _ in range(dset.ndim))
 
             if cutout_start is None:
                 cutout_start = voxel_offset
@@ -144,7 +144,7 @@ class Chunk(NDArrayOperatorsMixin):
             if cutout_start is not None:
                 if cutout_stop is None:
                     if cutout_size is None:
-                        cutout_size = arr.shape
+                        cutout_size = dset.shape
                     cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
                 if dset.ndim == 3:
