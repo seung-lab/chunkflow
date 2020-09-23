@@ -9,7 +9,7 @@ from cloudvolume.lib import Vec, yellow
 from cloudvolume.storage import SimpleStorage
 from cloudvolume import CloudVolume
 
-from .create_bounding_boxes import create_bounding_boxes
+from chunkflow.lib.create_bounding_boxes import create_bounding_boxes
 
 
 def tuple2string(tp: tuple):
