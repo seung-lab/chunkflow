@@ -111,6 +111,7 @@ class Chunk(NDArrayOperatorsMixin):
 
     @classmethod
     def from_h5(cls, file_name: str,
+                voxel_offset: tuple=None,
                 dataset_path: str = None,
                 cutout_start: tuple=None,
                 cutout_stop: tuple=None,
@@ -118,8 +119,6 @@ class Chunk(NDArrayOperatorsMixin):
 
         assert os.path.exists(file_name)
         assert h5py.is_hdf5(file_name)
-
-        print('read from HDF5 file: {}'.format(file_name))
 
         voxel_offset_path = os.path.join(os.path.dirname(file_name),
                                        'global_offset')
@@ -129,12 +128,12 @@ class Chunk(NDArrayOperatorsMixin):
                     if 'offset' not in key:
                         # the first name without offset inside
                         dataset_path = key
-            arr = f[dataset_path]
-            
-            if voxel_offset_path in f:
-                voxel_offset = tuple(f[voxel_offset_path])
-            else:
-                voxel_offset = tuple(0 for _ in range(arr.ndim))
+            dset = f[dataset_path]
+            if voxel_offset is None: 
+                if voxel_offset_path in f:
+                    voxel_offset = tuple(f[voxel_offset_path])
+                else:
+                    voxel_offset = tuple(0 for _ in range(arr.ndim))
 
             if cutout_start is None:
                 cutout_start = voxel_offset
@@ -148,29 +147,31 @@ class Chunk(NDArrayOperatorsMixin):
                         cutout_size = arr.shape
                     cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
-                if arr.ndim == 3:
-                    arr = arr[
-                        cutout_start[0]-voxel_offset[0]:cutout_stop[0],
-                        cutout_start[1]-voxel_offset[1]:cutout_stop[1],
-                        cutout_start[2]-voxel_offset[2]:cutout_stop[2],
+                if dset.ndim == 3:
+                    dset = dset[
+                        cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
+                        cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
+                        cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
                     ]
-                elif arr.ndim == 4:
+                elif dset.ndim == 4:
                     assert len(cutout_start) == 4
                     assert len(cutout_stop) == 4
-                    arr = arr[
-                        cutout_start[0]-voxel_offset[0]:cutout_stop[0],
-                        cutout_start[1]-voxel_offset[1]:cutout_stop[1],
-                        cutout_start[2]-voxel_offset[2]:cutout_stop[2],
-                        cutout_start[3]-voxel_offset[3]:cutout_stop[3],
+                    dset = dset[
+                        cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
+                        cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
+                        cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
+                        cutout_start[3]-voxel_offset[3]:cutout_stop[3]-voxel_offset[3],
                     ]
         
-        arr = np.asarray(arr)
+        print('read from HDF5 file: {} and start with {}, ends with {}, size is {}'.format(
+            file_name, cutout_start, cutout_stop, cutout_size))
+        arr = np.asarray(dset)
         if arr.dtype == np.dtype('<f4'):
             arr = arr.astype('float32')
         elif arr.dtype == np.dtype('<f8'):
             arr = arr.astype('float64') 
 
-        print('voxel offset: {}'.format(cutout_start))
+        print('new chunk voxel offset: {}'.format(cutout_start))
 
         return cls(arr, global_offset=cutout_start)
 

@@ -6,9 +6,10 @@ import numpy as np
 import click
 
 from cloudvolume.lib import Bbox, Vec, yellow
-# from cloudvolume.datasource.precomputed.metadata import PrecomputedMetadata
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
+from chunkflow.lib.create_bounding_boxes import create_bounding_boxes
+
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
@@ -18,7 +19,6 @@ from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from .agglomerate import AgglomerateOperator
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
-from .create_bounding_boxes import create_bounding_boxes
 from .cutout import CutoutOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
@@ -155,7 +155,7 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, mip=mip, grid_size=grid_size,
         verbose=state['verbose'])
-
+    
     if queue_name is not None:
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
@@ -423,6 +423,8 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               help='read chunk from file, support .h5')
 @click.option('--dataset-path', '-d', type=str, default=None, callback=default_none,
               help='the dataset path inside HDF5 file.')
+@click.option('--voxel-offset', '-v', type=int, nargs=3,
+              callback=default_none, help='voxel offset of the dataset in hdf5 file.')
 @click.option('--cutout-start', '-t', type=int, nargs=3, callback=default_none,
               help='cutout voxel offset in the array')
 @click.option('--cutout-stop', '-p', type=int, nargs=3, callback=default_none,
@@ -434,17 +436,30 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
-            cutout_start: tuple, cutout_stop: tuple, cutout_size: tuple, 
-            output_chunk_name: str):
+            voxel_offset: tuple, cutout_start: tuple, 
+            cutout_stop: tuple, cutout_size: tuple, output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
+        
         start = time()
-        assert output_chunk_name not in task
+        if 'bbox' in task and cutout_start is None and cutout_stop is None and cutout_size is None:
+            bbox = task['bbox']
+            print('bbox: ', bbox) 
+            current_cutout_start = bbox.minpt
+            current_cutout_stop = bbox.maxpt
+        else:
+            current_cutout_start = cutout_start
+            current_cutout_stop = cutout_stop
+        
+        print(f'cutout start: {current_cutout_start}')
+        print(f'cutout stop: {current_cutout_stop}')
+        
         task[output_chunk_name] = Chunk.from_h5(
             file_name,
             dataset_path=dataset_path,
-            cutout_start=cutout_start,
-            cutout_stop=cutout_stop,
+            voxel_offset=voxel_offset,
+            cutout_start=current_cutout_start,
+            cutout_stop=current_cutout_stop,
             cutout_size=cutout_size
         )
         task['log']['timer'][name] = time() - start
