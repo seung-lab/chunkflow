@@ -40,7 +40,7 @@ class SaveOperator(OperatorBase):
         this is used in skip some operation based on mask."""
         shape = (num_channels, *bbox.size3())
         arr = np.zeros(shape, dtype=dtype)
-        chunk = Chunk(arr, global_offset=(0, *bbox.minpt))
+        chunk = Chunk(arr, voxel_offset=(0, *bbox.minpt))
         return chunk
 
     def __call__(self, chunk, log=None):

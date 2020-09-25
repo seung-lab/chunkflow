@@ -84,7 +84,7 @@ def test_aligned_input_chunk_with_croped_patch():
         dtype=np.uint8)
     
     # make sure that it works with arbitrary global offset
-    image = Chunk(image, global_offset=(123, 345, 567))
+    image = Chunk(image, voxel_offset=(123, 345, 567))
    
     with Inferencer(None, None, input_patch_size,
                     output_patch_size = output_patch_size,

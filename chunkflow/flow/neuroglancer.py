@@ -33,7 +33,7 @@ class NeuroglancerOperator(OperatorBase):
         with viewer.txn() as s:
             for chunk_name in selected:
                 chunk = chunks[chunk_name]
-                global_offset = chunk.global_offset
+                voxel_offset = chunk.voxel_offset
 
                 chunk = np.ascontiguousarray(chunk)
                 # neuroglancer uses F order
@@ -84,7 +84,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                             # offset is in nm, not voxels
                             # chunkflow use C order with zyx, 
                             # while neuroglancer use F order with xyz
-                            voxel_offset=global_offset[::-1],
+                            voxel_offset=voxel_offset[::-1],
                         ),
                         shader=shader
                     )
@@ -97,7 +97,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                             # offset is in nm, not voxels
                             # chunkflow use C order with zyx, 
                             # while neuroglancer use F order with xyz
-                            voxel_offset=global_offset[::-1],
+                            voxel_offset=voxel_offset[::-1],
                         ),
                     )
 

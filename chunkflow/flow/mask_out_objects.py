@@ -88,7 +88,7 @@ class MaskOutObjectsOperator(OperatorBase):
         assert seg.ndim == 3
         assert np.issubdtype(seg.dtype, np.integer)
         
-        global_offset = seg.global_offset
+        voxel_offset = seg.voxel_offset
         # use ndarray after getting the bounding box
         seg = seg.array
 
@@ -99,4 +99,4 @@ class MaskOutObjectsOperator(OperatorBase):
             return
         seg = self._remove_dust(seg)
         
-        return Chunk(seg, global_offset=global_offset)
+        return Chunk(seg, voxel_offset=voxel_offset)

@@ -69,13 +69,13 @@ class CutoutOperator(OperatorBase):
         # this should not be neccessary
         # TODO: remove this step and use 4D array all over this package.
         # always use 4D array will simplify some operations
-        global_offset = tuple(s.start for s in chunk_slices)
+        voxel_offset = tuple(s.start for s in chunk_slices)
         if chunk.shape[0] == 1:
             chunk = np.squeeze(chunk, axis=0)
         else:
-            global_offset = (chunk.shape[0], ) + global_offset
+            voxel_offset = (chunk.shape[0], ) + voxel_offset
         
-        chunk = Chunk(chunk, global_offset=global_offset)
+        chunk = Chunk(chunk, voxel_offset=voxel_offset)
 
         if self.blackout_sections:
             chunk = self._blackout_sections(chunk)
@@ -96,7 +96,7 @@ class CutoutOperator(OperatorBase):
         # current code only works with 3d image
         assert chunk.ndim == 3, "current code assumes that the chunk is 3D image."
         for z in self.blackout_section_ids:
-            z0 = z - chunk.global_offset[0]
+            z0 = z - chunk.voxel_offset[0]
             if z0 >= 0 and z0 < chunk.shape[0]:
                 chunk[z0, :, :] = 0
         return chunk
@@ -127,7 +127,7 @@ class CutoutOperator(OperatorBase):
         # clamp the surrounding regions in XY plane
         # this assumes that the input dataset was downsampled starting from the
         # beginning offset in the info file
-        global_offset = chunk.global_offset
+        voxel_offset = chunk.voxel_offset
 
         # factor3 follows xyz order in CloudVolume
         factor3 = np.array([
@@ -136,10 +136,10 @@ class CutoutOperator(OperatorBase):
         ],
                            dtype=np.int32)
         clamped_offset = tuple(go + f - (go - vo) % f for go, vo, f in zip(
-            global_offset[::-1], self.vol.voxel_offset, factor3))
+            voxel_offset[::-1], self.vol.voxel_offset, factor3))
         clamped_stop = tuple(
             go + s - (go + s - vo) % f
-            for go, s, vo, f in zip(global_offset[::-1], chunk.shape[::-1],
+            for go, s, vo, f in zip(voxel_offset[::-1], chunk.shape[::-1],
                                     vol.voxel_offset, factor3))
         clamped_slices = tuple(
             slice(o, s) for o, s in zip(clamped_offset, clamped_stop))

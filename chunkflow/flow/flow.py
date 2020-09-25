@@ -415,7 +415,7 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
         assert output_chunk_name not in task
         task[output_chunk_name] = Chunk.from_tif(file_name,
                                                     dtype=dtype,
-                                                    global_offset=voxel_offset)
+                                                    voxel_offset=voxel_offset)
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -482,7 +482,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
 @click.option('--compression', '-c', type=click.Choice(["gzip", "lzf", "szip"]),
               default="gzip", help="compression used in the dataset.")
 @click.option('--with-offset/--without-offset', default=True, type=bool,
-              help='add global_offset dataset or not.')
+              help='add voxel_offset dataset or not.')
 @operator
 def write_h5(tasks, name, input_chunk_name, file_name, compression, with_offset):
     """Write chunk to HDF5 file."""

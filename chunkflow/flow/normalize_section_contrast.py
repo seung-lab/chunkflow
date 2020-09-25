@@ -58,9 +58,9 @@ class NormalizeSectionContrastOperator(OperatorBase):
             lookup_table = self.fetch_lookup_table(z)
             slices = (slice(z, z+1), *chunk.slices[-2:])
             image = chunk.cutout(slices)
-            image_global_offset = image.global_offset
+            image_voxel_offset = image.voxel_offset
             image = lookup_table[image]
-            image = Chunk(image, global_offset=image_global_offset)
+            image = Chunk(image, voxel_offset=image_voxel_offset)
             chunk.save(image)
 
         return chunk
