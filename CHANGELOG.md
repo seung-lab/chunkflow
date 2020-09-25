@@ -1,10 +1,18 @@
 ChangeLog history
 =================
-# chunkflow 1.0.2 (2020-xx-xx)
-## Breaking Changes
 
+# chunkflow 1.1.0 (2020-xx-xx)
+## Breaking Changes
+- replace global_offset to voxel_offset to be consistent with neuroglancer info 
 ## Deprecations 
 
+## Features
+
+## Bug Fixes 
+
+## Improved Documentation 
+
+# chunkflow 1.0.2 (2020-xx-xx)
 ## Features
 - hdf5 file with cutout range
 
