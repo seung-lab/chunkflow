@@ -89,9 +89,10 @@ class Chunk(NDArrayOperatorsMixin):
         return cls(chunk, global_offset=voxel_offset)
 
     @classmethod
-    def from_tif(cls, file_name: str, global_offset: tuple=None):
+    def from_tif(cls, file_name: str, global_offset: tuple=None, dtype: str = None):
         arr = tifffile.imread(file_name)
-
+        if dtype:
+            arr = arr.astype(dtype)
         return cls(arr, global_offset=global_offset)
     
     def to_tif(self, file_name: str=None, global_offset: tuple=None):
