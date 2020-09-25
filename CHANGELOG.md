@@ -1,6 +1,19 @@
 ChangeLog history
 =================
-# chunkflow 1.0.1 (2020-xx-xx)
+# chunkflow 1.0.2 (2020-xx-xx)
+## Breaking Changes
+
+## Deprecations 
+
+## Features
+- hdf5 file with cutout range
+
+## Bug Fixes 
+- fix neuroglancer visualization for segmentation.
+
+## Improved Documentation 
+
+# chunkflow 1.0.1 (2020-09-01)
 ## Breaking Changes
 - renamed custom-operator to plugin
 ## Deprecations 
