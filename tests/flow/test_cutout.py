@@ -40,7 +40,7 @@ class TestCutout(unittest.TestCase):
         output_bbox = Bbox.from_delta(offset, shape)
         chunk = operator(output_bbox)
 
-        self.assertEqual(offset, chunk.global_offset)
+        self.assertEqual(offset, chunk.voxel_offset)
         self.assertTrue(chunk == self.img[4:-4, 64:-64, 64:-64])
 
         shutil.rmtree('/tmp/test')

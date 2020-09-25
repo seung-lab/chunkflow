@@ -163,7 +163,7 @@ class Inferencer(object):
         self.output_patch_stride = tuple(s-o for s, o in zip(
             self.output_patch_size, self.output_patch_overlap))
 
-        self._construct_patch_slices_list(input_chunk.global_offset)
+        self._construct_patch_slices_list(input_chunk.voxel_offset)
         self._construct_output_chunk_mask(input_chunk)
 
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, bump):
@@ -271,17 +271,17 @@ class Inferencer(object):
             output_chunk_mask_array = self.output_chunk_mask.array
             output_chunk_mask_array.fill(0)
 
-        output_global_offset = tuple(io + ocso for io, ocso in zip(
-            input_chunk.global_offset, self.output_offset))
+        output_voxel_offset = tuple(io + ocso for io, ocso in zip(
+            input_chunk.voxel_offset, self.output_offset))
  
-        self.output_chunk_mask = Chunk(output_mask_array, global_offset=output_global_offset)
+        self.output_chunk_mask = Chunk(output_mask_array, voxel_offset=output_voxel_offset)
         
         assert len(self.patch_slices_list) > 0
         for _, output_patch_slice in self.patch_slices_list:
             # accumulate weights using the patch mask in RAM
-            patch_global_offset = tuple(s.start for s in output_patch_slice)
+            patch_voxel_offset = tuple(s.start for s in output_patch_slice)
             patch_mask = Chunk(self.patch_inferencer.output_patch_mask_numpy,
-                               global_offset=patch_global_offset)
+                               voxel_offset=patch_voxel_offset)
             self.output_chunk_mask.blend(patch_mask)
 
         # normalize weight, so accumulated inference result multiplies
@@ -302,11 +302,11 @@ class Inferencer(object):
         #    # and it will duplicate the array! thus, we should use normal array in this case.
         output_buffer_array = np.zeros(output_buffer_size, dtype=self.dtype)
         
-        output_global_offset = tuple(io + ocso for io, ocso in zip(
-            input_chunk.global_offset, self.output_offset))
+        output_voxel_offset = tuple(io + ocso for io, ocso in zip(
+            input_chunk.voxel_offset, self.output_offset))
         
         output_buffer = Chunk(output_buffer_array,
-                                   global_offset=(0,) + output_global_offset)
+                                   voxel_offset=(0,) + output_voxel_offset)
         assert output_buffer == 0
         return output_buffer
 
@@ -334,7 +334,7 @@ class Inferencer(object):
             return Chunk.create(
                 size=size,
                 dtype = output_buffer.dtype,
-                voxel_offset=output_buffer.global_offset
+                voxel_offset=output_buffer.voxel_offset
             )
        
         if input_chunk == 0:
@@ -390,7 +390,7 @@ class Inferencer(object):
                 # the slices[1] is for output patch slice
                 offset = (0,) + tuple(s.start for s in slices[1])
                 output_chunk = Chunk(output_patch[batch_idx, :, :, :, :],
-                                     global_offset=offset)
+                                     voxel_offset=offset)
 
                 ## save some patch for debug
                 #bbox = output_chunk.bbox

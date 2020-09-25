@@ -45,4 +45,4 @@ class Plugin(OperatorBase):
         out_array = self.exec(chunk.array, *self.args)
         assert isinstance(out_array, np.ndarray)
 
-        return Chunk(out_array, global_offset=chunk.global_offset)
+        return Chunk(out_array, voxel_offset=chunk.voxel_offset)

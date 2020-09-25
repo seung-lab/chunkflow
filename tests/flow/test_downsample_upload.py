@@ -37,7 +37,7 @@ def test_segmentation():
     # create image dataset using cloud-volume
     img = np.random.randint(np.iinfo(np.uint32).max, 
                             size=size, dtype=np.uint32)
-    chunk = Chunk(img, global_offset=[2, 32, 32])
+    chunk = Chunk(img, voxel_offset=[2, 32, 32])
     hierarchical_downsample(chunk)
     
 def test_image():
@@ -49,7 +49,7 @@ def test_image():
     # create image dataset using cloud-volume
     img = np.random.randint(np.iinfo(np.uint8).max, 
                             size=size, dtype=np.uint8)
-    chunk = Chunk(img, global_offset=[2, 32, 32])
+    chunk = Chunk(img, voxel_offset=[2, 32, 32])
     hierarchical_downsample(chunk, layer_type='image')
     
 def test_psd_map():
@@ -60,5 +60,5 @@ def test_psd_map():
 
     # create image dataset using cloud-volume
     img = np.random.rand(*size).astype(np.float32)
-    chunk = Chunk(img, global_offset=[2, 32, 32])
+    chunk = Chunk(img, voxel_offset=[2, 32, 32])
     hierarchical_downsample(chunk, layer_type='image')
