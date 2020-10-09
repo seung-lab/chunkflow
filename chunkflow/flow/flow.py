@@ -8,7 +8,7 @@ import click
 from cloudvolume.lib import Bbox, Vec, yellow
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
-from chunkflow.lib.create_bounding_boxes import create_bounding_boxes
+from chunkflow.lib.bounding_boxes import BoundingBoxes 
 
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
@@ -151,11 +151,11 @@ def generator(func):
 def generate_tasks(layer_path, mip, roi_start, chunk_size, 
                    grid_size, queue_name):
     """Generate tasks."""
-    bboxes = create_bounding_boxes(
+    bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, mip=mip, grid_size=grid_size,
         verbose=state['verbose'])
-    
+
     if queue_name is not None:
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)

@@ -9,7 +9,7 @@ from cloudvolume.lib import Vec, yellow
 from cloudvolume.storage import SimpleStorage
 from cloudvolume import CloudVolume
 
-from chunkflow.lib.create_bounding_boxes import create_bounding_boxes
+from chunkflow.lib.bounding_boxes import BoundingBoxes 
 
 
 def tuple2string(tp: tuple):
@@ -182,9 +182,10 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     roi_stop = tuple(s+z for s, z in zip(roi_start, roi_size))
 
     # create bounding boxes and ingest to queue
-    bboxes = create_bounding_boxes(output_chunk_size,
-                                   roi_start=roi_start, roi_stop=roi_stop,
-                                   verbose=verbose)
+    bboxes = BoundingBoxes.from_manual_setup(
+            output_chunk_size,
+            roi_start=roi_start, roi_stop=roi_stop,
+            verbose=verbose)
     print('total number of tasks: ', len(bboxes))
     
     if verbose > 1:
