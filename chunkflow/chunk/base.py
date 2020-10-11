@@ -25,20 +25,20 @@ class Chunk(NDArrayOperatorsMixin):
     and `examples<https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
 
     :param array: the data array chunk in a big dataset
-    :param global_offset: the offset of this array chunk
+    :param voxel_offset: the offset of this array chunk
     :return: a new chunk with array data and global offset
     """
-    def __init__(self, array, global_offset: tuple = None):
+    def __init__(self, array, voxel_offset: tuple = None):
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         self.array = array
-        if global_offset is None:
+        if voxel_offset is None:
             if isinstance(array, Chunk):
                 self.array = array.array
-                global_offset = array.global_offset
+                voxel_offset = array.voxel_offset
             else:
-                global_offset = tuple(np.zeros(array.ndim, dtype=np.int))
-        self.global_offset = global_offset
-        assert array.ndim == len(global_offset)
+                voxel_offset = tuple(np.zeros(array.ndim, dtype=np.int))
+        self.voxel_offset = voxel_offset
+        assert array.ndim == len(voxel_offset)
         
     # One might also consider adding the built-in list type to this
     # list, to support operations like np.add(array_like, list)
@@ -51,8 +51,8 @@ class Chunk(NDArrayOperatorsMixin):
         :param bbox: cloudvolume bounding box 
         :return: construct a new Chunk
         """
-        global_offset = (bbox.minpt.z, bbox.minpt.y, bbox.minpt.x)
-        return cls(array, global_offset=global_offset)
+        voxel_offset = (bbox.minpt.z, bbox.minpt.y, bbox.minpt.x)
+        return cls(array, voxel_offset=voxel_offset)
     
     @classmethod
     def from_bbox(cls, bbox: Bbox, dtype: type = np.uint8):
@@ -86,15 +86,17 @@ class Chunk(NDArrayOperatorsMixin):
             else:
                 raise NotImplementedError()
 
-        return cls(chunk, global_offset=voxel_offset)
+        return cls(chunk, voxel_offset=voxel_offset)
 
     @classmethod
-    def from_tif(cls, file_name: str, global_offset: tuple=None):
+    def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None):
         arr = tifffile.imread(file_name)
-        print('tif file voxel offset: ', global_offset)
-        return cls(arr, global_offset=global_offset)
+
+        if dtype:
+            arr = arr.astype(dtype)
+        return cls(arr, voxel_offset=voxel_offset)
     
-    def to_tif(self, file_name: str=None, global_offset: tuple=None):
+    def to_tif(self, file_name: str=None, voxel_offset: tuple=None):
         if file_name is None:
             file_name = f'{self.bbox.to_filename()}.tif'
         print('write chunk to file: ', file_name)
@@ -121,7 +123,7 @@ class Chunk(NDArrayOperatorsMixin):
         assert h5py.is_hdf5(file_name)
 
         voxel_offset_path = os.path.join(os.path.dirname(file_name),
-                                       'global_offset')
+                                       'voxel_offset')
         with h5py.File(file_name, 'r') as f:
             if dataset_path is None:
                 for key in f.keys():
@@ -176,7 +178,7 @@ class Chunk(NDArrayOperatorsMixin):
 
         print('new chunk voxel offset: {}'.format(cutout_start))
 
-        return cls(arr, global_offset=cutout_start)
+        return cls(arr, voxel_offset=cutout_start)
 
     def to_h5(self, file_name: str, with_offset: bool=True, compression="gzip"):
         assert '.h5' in file_name
@@ -188,7 +190,7 @@ class Chunk(NDArrayOperatorsMixin):
         with h5py.File(file_name, 'w') as f:
             f.create_dataset('/main', data=self.array, compression=compression)
             if with_offset:
-                f.create_dataset('/global_offset', data=self.global_offset)
+                f.create_dataset('/voxel_offset', data=self.voxel_offset)
     
     def __array__(self):
         return self.array
@@ -218,7 +220,7 @@ class Chunk(NDArrayOperatorsMixin):
         
         if type(result) is tuple:
             # multiple return values
-            return tuple(type(self)(x, global_offset=self.global_offset) for x in result)
+            return tuple(type(self)(x, voxel_offset=self.voxel_offset) for x in result)
         elif method == 'at':
             # no return value
             return None
@@ -226,7 +228,7 @@ class Chunk(NDArrayOperatorsMixin):
             return result
         elif isinstance(result, np.ndarray):
             # one return value
-            return type(self)(result, global_offset=self.global_offset)
+            return type(self)(result, voxel_offset=self.voxel_offset)
         else:
             return result
 
@@ -237,12 +239,12 @@ class Chunk(NDArrayOperatorsMixin):
         self.array[key] = value
 
     def __repr__(self):
-        return f'array: {self.array}\n global offset: {self.global_offset}'
+        return f'array: {self.array}\n global offset: {self.voxel_offset}'
     
     def __eq__(self, value):
         if isinstance(value, type(self)):
             return np.array_equal(self.array, value.array) and np.array_equal(
-                self.global_offset, value.global_offset)
+                self.voxel_offset, value.voxel_offset)
         elif isinstance(value, Number):
             return np.all(self.array==value)
         elif isinstance(value, np.ndarray):
@@ -256,7 +258,7 @@ class Chunk(NDArrayOperatorsMixin):
         :getter: the global slice in the big volume
         """
         return tuple(
-            slice(o, o + s) for o, s in zip(self.global_offset, self.shape))
+            slice(o, o + s) for o, s in zip(self.voxel_offset, self.shape))
 
     @property
     def is_image(self) -> bool:
@@ -276,7 +278,7 @@ class Chunk(NDArrayOperatorsMixin):
         """
         :getter: the cloudvolume bounding box in the big volume
         """
-        return Bbox.from_delta(self.global_offset, self.array.shape)
+        return Bbox.from_delta(self.voxel_offset, self.array.shape)
     
     @property
     def ndim(self) -> int:
@@ -293,7 +295,7 @@ class Chunk(NDArrayOperatorsMixin):
     def astype(self, dtype: np.dtype):
         if dtype != self.array.dtype:
             new_array = self.array.astype(dtype)
-            return type(self)(new_array, global_offset=self.global_offset)
+            return type(self)(new_array, voxel_offset=self.voxel_offset)
         else:
             return self
     
@@ -306,8 +308,8 @@ class Chunk(NDArrayOperatorsMixin):
     def transpose(self):
         """To-Do: support arbitrary axis transpose"""
         new_array = self.array.transpose()
-        new_global_offset = self.global_offset[::-1]
-        return type(self)(new_array, global_offset=new_global_offset)
+        new_voxel_offset = self.voxel_offset[::-1]
+        return type(self)(new_array, voxel_offset=new_voxel_offset)
     
     def fill(self, x):
         self.array.fill(x)
@@ -317,8 +319,8 @@ class Chunk(NDArrayOperatorsMixin):
         assert self.array.ndim == 4
         axis = 0
         arr = np.squeeze(self, axis=0)
-        global_offset = self.global_offset[:axis] + self.global_offset[axis+1:]
-        return Chunk(arr, global_offset=global_offset)
+        voxel_offset = self.voxel_offset[:axis] + self.voxel_offset[axis+1:]
+        return Chunk(arr, voxel_offset=voxel_offset)
     
     # @profile(precision=0)
     def channel_voting(self):
@@ -328,13 +330,13 @@ class Chunk(NDArrayOperatorsMixin):
         np.argmax(self.array, axis=0, out=out)
         # our selected channel index start from 1
         out += 1
-        return Chunk(out, global_offset=self.global_offset[1:])
+        return Chunk(out, voxel_offset=self.voxel_offset[1:])
 
     def mask_using_last_channel(self, threshold: float = 0.3) -> np.ndarray:
         mask = (self.array[-1, :, :, :] < threshold)
         ret = self.array[:-1, ...]
         ret *= mask
-        return Chunk(ret, global_offset=self.global_offset)
+        return Chunk(ret, voxel_offset=self.voxel_offset)
 
     def crop_margin(self, margin_size: tuple = None, output_bbox: Bbox=None):
 
@@ -353,9 +355,9 @@ class Chunk(NDArrayOperatorsMixin):
                                        margin_size[3]: -margin_size[3]]
             else:
                 raise ValueError('the array dimension can only by 3 or 4.')
-            global_offset = tuple(
-                o + m for o, m in zip(self.global_offset, margin_size))
-            return Chunk(new_array, global_offset=global_offset)
+            voxel_offset = tuple(
+                o + m for o, m in zip(self.voxel_offset, margin_size))
+            return Chunk(new_array, voxel_offset=voxel_offset)
         else:
             print('automatically crop the chunk to output bounding box.')
             assert output_bbox is not None
@@ -364,11 +366,11 @@ class Chunk(NDArrayOperatorsMixin):
     def threshold(self, threshold: float):
         seg = self > threshold
         if seg.ndim == 4:
-            global_offset = self.global_offset
+            voxel_offset = self.voxel_offset
             assert seg.shape[0] == 1
             seg = seg.array[0, ...]
-            global_offset = global_offset[1:]
-            seg = Chunk(seg, global_offset = global_offset)
+            voxel_offset = voxel_offset[1:]
+            seg = Chunk(seg, voxel_offset = voxel_offset)
         # neuroglancer do not support bool datatype
         # numpy store bool as uint8 datatype, so this will not increase size.
         seg = seg.astype(np.uint8)
@@ -379,7 +381,7 @@ class Chunk(NDArrayOperatorsMixin):
         """threshold the map chunk and get connected components."""
         seg = self.threshold(threshold)
         seg = cc3d.connected_components(seg.array, connectivity=connectivity)
-        return Chunk(seg, global_offset=self.global_offset)
+        return Chunk(seg, voxel_offset=self.voxel_offset)
 
     def where(self, mask: np.ndarray) -> tuple:
         """
@@ -390,7 +392,7 @@ class Chunk(NDArrayOperatorsMixin):
         """
         isinstance(mask, np.ndarray)
         assert mask.shape == self.shape
-        return tuple(i + o for i, o in zip(np.where(mask), self.global_offset))
+        return tuple(i + o for i, o in zip(np.where(mask), self.voxel_offset))
 
     def add_overlap(self, other):
         """
@@ -414,8 +416,8 @@ class Chunk(NDArrayOperatorsMixin):
             slices = (slice(0, self.shape[0]), ) + slices
         internalSlices = self._get_internal_slices(slices)
         arr = self.array[internalSlices]
-        global_offset = tuple(s.start for s in slices)
-        return Chunk(arr, global_offset=global_offset)
+        voxel_offset = tuple(s.start for s in slices)
+        return Chunk(arr, voxel_offset=voxel_offset)
 
     def save(self, patch):
         """
@@ -432,12 +434,12 @@ class Chunk(NDArrayOperatorsMixin):
         """
         internal_slices = tuple(
             slice(max(s.start - o, 0), min(s.stop - o, h)) for s, o, h in 
-            zip(patch.slices, self.global_offset, self.shape)
+            zip(patch.slices, self.voxel_offset, self.shape)
         )
         shape = (s.stop - s.start for s in internal_slices)
         patch_starts = (
             i.start - s.start + o for s, o, i in 
-            zip(patch.slices, self.global_offset, internal_slices)
+            zip(patch.slices, self.voxel_offset, internal_slices)
         )
         patch_slices = tuple(slice(s, s+h) for s, h in zip(patch_starts, shape))
 
@@ -451,7 +453,7 @@ class Chunk(NDArrayOperatorsMixin):
     def _get_internal_slices(self, slices):
         return tuple(
             slice(s.start - o, s.stop - o)
-            for s, o in zip(slices, self.global_offset))
+            for s, o in zip(slices, self.voxel_offset))
 
 
     def validate(self, verbose: bool = False):

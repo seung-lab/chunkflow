@@ -13,15 +13,15 @@ class Segmentation(Chunk):
     """
     a chunk of segmentation volume.
     """
-    def __init__(self, array, global_offset=None):
-        super().__init__(array, global_offset=global_offset)
+    def __init__(self, array, voxel_offset=None):
+        super().__init__(array, voxel_offset=voxel_offset)
         assert array.ndim == 3
         assert np.issubdtype(array.dtype, np.integer)
 
     @classmethod
     def from_chunk(cls, chunk):
         assert isinstance(chunk, Chunk)
-        return cls(chunk.array, global_offset=chunk.global_offset)
+        return cls(chunk.array, voxel_offset=chunk.voxel_offset)
 
     def evaluate(self, groundtruth):
         if not np.issubdtype(self.dtype, np.uint64):

@@ -29,9 +29,9 @@ class AgglomerateOperator(OperatorBase):
         """
         if isinstance(affs, Chunk):
             # the segmentation is 3d, so we only need the zyx
-            global_offset = affs.global_offset[-3:]
+            voxel_offset = affs.voxel_offset[-3:]
         else:
-            global_offset = None
+            voxel_offset = None
 
         # our affinity map channel order is x,y,z!
         # meaning the first channel is x, the second is y,
@@ -53,4 +53,4 @@ class AgglomerateOperator(OperatorBase):
         # there is only one threshold, so there is also only one result
         # in generator
         seg = next(seg_generator)
-        return Chunk(seg, global_offset=global_offset)
+        return Chunk(seg, voxel_offset=voxel_offset)
