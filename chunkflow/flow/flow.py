@@ -399,19 +399,19 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_
 @click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
               help='read chunk from file, support .h5 and .tif')
-@click.option('--offset', type=int, nargs=3, callback=default_none,
+@click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
               help='global offset of this chunk')
 @click.option('--output-chunk-name', '-o', type=str, default='chunk',
               help='chunk name in the global state')
 @operator
-def read_tif(tasks, name: str, file_name: str, offset: tuple,
+def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
              output_chunk_name: str):
     """Read tiff files."""
     for task in tasks:
         start = time()
         assert output_chunk_name not in task
         task[output_chunk_name] = Chunk.from_tif(file_name,
-                                                    global_offset=offset)
+                                                    global_offset=voxel_offset)
         task['log']['timer'][name] = time() - start
         yield task
 
