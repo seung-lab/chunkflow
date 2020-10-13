@@ -399,7 +399,7 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_
 @click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
               help='read chunk from file, support .h5 and .tif')
-@click.option('--voxel-offset', type=int, nargs=3, callback=default_none,
+@click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
               help='global offset of this chunk')
 @click.option('--dtype', '-d',
               type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),

@@ -91,6 +91,7 @@ class Chunk(NDArrayOperatorsMixin):
     @classmethod
     def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None):
         arr = tifffile.imread(file_name)
+
         if dtype:
             arr = arr.astype(dtype)
         return cls(arr, voxel_offset=voxel_offset)
@@ -135,6 +136,9 @@ class Chunk(NDArrayOperatorsMixin):
                     voxel_offset = tuple(f[voxel_offset_path])
                 else:
                     voxel_offset = tuple(0 for _ in range(dset.ndim))
+            elif len(voxel_offset)==3 and dset.ndim==4:
+                # special treatment for affinity map
+                voxel_offset = (0, *voxel_offset)
 
             if cutout_start is None:
                 cutout_start = voxel_offset

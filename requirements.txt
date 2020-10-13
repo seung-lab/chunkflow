@@ -1,7 +1,7 @@
 python-dateutil==2.8.0
 boto3
 numpy>=1.16
-six>=1.12.0
+six>=1.13.0
 cloud-volume>=0.47.0
 click 
 tqdm>=4.36.1
