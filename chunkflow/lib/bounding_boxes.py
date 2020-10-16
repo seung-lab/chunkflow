@@ -79,6 +79,11 @@ class BoundingBoxes(UserList):
 
         return cls(bboxes)
 
+    @classmethod
+    def from_file(cls, file_path: str):
+        arr = np.load(file_path)
+        return cls.from_array(arr)
+
     def as_array(self) -> np.ndarray:
         task_num = len(self.data)
 
@@ -90,7 +95,6 @@ class BoundingBoxes(UserList):
 
     def to_file(self, file_name: str) -> None:
         if file_name.endswith('.npy'):
-            with open(file_name, 'wb'):
-                np.save(f, self.as_array())
+            np.save(file_name, self.as_array())
         else:
             raise ValueError('only support npy format now.')

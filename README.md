@@ -55,7 +55,8 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | delete-task-in-queue | Delete the task in AWS SQS queue |
 | downsample-upload | Downsample the chunk hierarchically and upload to volume |
 | evaluate-segmentation | Compare segmentation chunks |
-| fetch-task      | Fetch task from AWS SQS queue one by one |
+| fetch-task-from-sqs | Fetch task from AWS SQS queue one by one |
+| fetch-task-from-file | Fetch task from a file |
 | generate-tasks  | Generate tasks one by one |
 | inference       | Convolutional net inference |
 | log-summary     | Summary of logs |

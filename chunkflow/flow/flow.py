@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 from functools import update_wrapper, wraps
 from time import time
 
@@ -145,16 +146,24 @@ def generator(func):
 @click.option('--grid-size', '-g',
               type=int, default=None, nargs=3, callback=default_none,
               help='(z y x), grid size of output blocks')
+@click.option('--file-path', '-f', default = None,
+              type=click.Path(writable=True, dir_okay=False, resolve_path=True),
+              help='output tasks as an numpy array formated as npy.')
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
 @generator
 def generate_tasks(layer_path, mip, roi_start, chunk_size, 
-                   grid_size, queue_name):
+                   grid_size, file_path, queue_name):
     """Generate tasks."""
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, mip=mip, grid_size=grid_size,
         verbose=state['verbose'])
+    
+    # write out as a file
+    # this could be used for iteration in slurm cluster.
+    if file_path:
+        bboxes.to_file(file_path)
 
     if queue_name is not None:
         queue = SQSQueue(queue_name)
@@ -260,7 +269,32 @@ def cloud_watch(tasks, name, log_name):
             state['operators'][name](task['log'])
         yield task
 
-@main.command('fetch-task')
+
+@main.command('fetch-task-from-file')
+@click.option('--file-path', '-f',
+              type=click.Path(file_okay=True, dir_okay=False, exists=True, 
+                              readable=True, resolve_path=True),
+              help='file contains bounding boxes or tasks.')
+@click.option('--task-index', '-i', 
+              type=int, default=None,
+              help='index of task in the tasks.')
+@click.option('--slurm-job-array/--no-slurm-job-array',
+              default=False, help='use the slurm job array '+
+              'environment variable to identify task index.')
+@generator
+def fetch_task_from_file(file_path, task_index, slurm_job_array):
+    if(slurm_job_array):
+        assert os.environ['SLURM_ARRAY_JOB_ID'] == 0
+        assert os.environ['SLURM_ARRAY_TASK_ID'] >= 0
+        task_index = os.environ['SLURM_ARRAY_TASK_ID']
+    assert task_index is not None
+
+    bbox_array = np.load(file_path, mmap_mode='r')
+    bbox = Bbox.from_vec(bbox_array[task_index, :])
+    return bbox
+
+
+@main.command('fetch-task-from-sqs')
 @click.option('--queue-name', '-q',
                 type=str, default=None, help='sqs queue name')
 @click.option('--visibility-timeout', '-v',
@@ -274,7 +308,7 @@ def cloud_watch(tasks, name, log_name):
               type=int, default=30,
               help='the times of retrying if the queue is empty.')
 @generator
-def fetch_task(queue_name, visibility_timeout, num, retry_times):
+def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
     """Fetch task from queue."""
     # This operator is actually a generator,
     # it replaces old tasks to a completely new tasks and loop over it!
@@ -403,7 +437,7 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_
               help='global offset of this chunk')
 @click.option('--dtype', '-d',
               type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
-              )
+              help='convert to data type')
 @click.option('--output-chunk-name', '-o', type=str, default='chunk',
               help='chunk name in the global state')
 @operator
