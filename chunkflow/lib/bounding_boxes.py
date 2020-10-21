@@ -1,8 +1,9 @@
-from tqdm import tqdm
+import os
 from itertools import product
 from collections import UserList
 
 import numpy as np
+import h5py 
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
@@ -19,15 +20,28 @@ class BoundingBoxes(UserList):
             mip:int=0, grid_size: tuple=None, verbose: bool=True):
     
         if layer_path:
-            vol = CloudVolume(layer_path, mip=mip)
-            # dataset shape as z,y,x
-            dataset_size = vol.mip_shape(mip)[:3][::-1]
-            dataset_offset = vol.mip_voxel_offset(mip)[::-1]
-            if roi_stop is None:
-                roi_stop = Vec(*[o+s for o, s in zip(dataset_offset, dataset_size)])
-            if roi_start is None:
-                # note that we normally start from -overlap to keep the chunks aligned!
-                roi_start = dataset_offset - chunk_overlap
+            if layer_path.endswith('.h5'):
+                assert os.path.exists(layer_path)
+                roi_size = None
+                with h5py.File(layer_path, mode='r') as f:
+                    for key in f.keys():
+                        if 'offset' in key:
+                            roi_start = Vec(*(f[key]))
+                        else:
+                            roi_size = Vec(*f[key].shape)
+                if roi_start is None:
+                    roi_start = Vec(0, 0, 0)
+                roi_stop = roi_start + roi_size
+            else:
+                vol = CloudVolume(layer_path, mip=mip)
+                # dataset shape as z,y,x
+                dataset_size = vol.mip_shape(mip)[:3][::-1]
+                dataset_offset = vol.mip_voxel_offset(mip)[::-1]
+                if roi_stop is None:
+                    roi_stop = Vec(*[o+s for o, s in zip(dataset_offset, dataset_size)])
+                if roi_start is None:
+                    # note that we normally start from -overlap to keep the chunks aligned!
+                    roi_start = dataset_offset - chunk_overlap
 
         chunk_size = Vec(*chunk_size)
         chunk_overlap = Vec(*chunk_overlap)

@@ -186,6 +186,11 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
               help='size of output volume.')
 @click.option('--layer-path', '-l',
               type=str, required=True, help='the path of output volume.')
+@click.option('--block-size', '-b',
+              type=int, nargs=3, default=None, callback=default_none,
+              hep='block size of output volume.')
+@click.option('--output-chunk-size', 
+              type=int, default=)
 @click.option('--max-ram-size', '-r',
               default=15, type=int, help='the maximum ram size (GB) of worker process.')
 @click.option('--output-patch-size', '-z',
@@ -234,8 +239,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
         state['dry_run'], volume_start, volume_stop, volume_size, layer_path, 
         max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
         output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
-        queue_name, visibility_timeout, thumbnail, encoding, voxel_size, 
-        overwrite_info, state['verbose'])
+        thumbnail, encoding, voxel_size, overwrite_info, state['verbose'])
  
     if queue_name is not None and not state['dry_run']:
         queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)

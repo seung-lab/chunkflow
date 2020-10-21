@@ -9,16 +9,17 @@ from cloudvolume.lib import Vec, yellow
 from cloudvolume.storage import SimpleStorage
 from cloudvolume import CloudVolume
 
-from chunkflow.lib.bounding_boxes import BoundingBoxes 
+from chunkflow.lib.bounding_boxes import BoundingBoxes
 
 
 def tuple2string(tp: tuple):
     return ' '.join(str(i) for i in tp)
 
 def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_path, 
-              max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
+              block_size, output_chunk_size, max_ram_size, output_patch_size, 
+              input_patch_size, channel_num, dtype, 
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
-              queue_name, visibility_timeout, thumbnail, encoding, voxel_size, 
+              thumbnail, encoding, voxel_size, 
               overwrite_info, verbose):
     """Prepare storage info files and produce tasks."""
     assert not (volume_stop is None and volume_size is None)
@@ -55,9 +56,86 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     if thumbnail:
         # thumnail requires maximum mip level of 5
         thumbnail_mip = max(thumbnail_mip, 5)
+
+    block_size, output_chunk_size = get_optimized_block_size(
+        output_patch_size, output_patch_overlap, max_ram_size,
+        channel_num, max_mip, crop_chunk_margin,
+        input_patch_size, mip, thumbnail_mip, volume_start
+    )
+
+    if not dry_run:
+        storage = SimpleStorage(layer_path)
+        thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
+        thumbnail_storage = SimpleStorage(thumbnail_layer_path)
+
+        if not overwrite_info:
+            print('\ncheck that we are not overwriting existing info file.')
+            assert storage.exists('info')
+            assert thumbnail_storage.exists('info')
+
+        if overwrite_info:
+            print('create and upload info file to ', layer_path)
+            # Note that cloudvolume use fortran order rather than C order
+            info = CloudVolume.create_new_info(channel_num, layer_type='image',
+                                            data_type=dtype,
+                                            encoding=encoding,
+                                            resolution=voxel_size[::-1],
+                                            voxel_offset=volume_start[::-1],
+                                            volume_size=volume_size[::-1],
+                                            chunk_size=block_size[::-1],
+                                            max_mip=mip)
+            vol = CloudVolume(layer_path, info=info)
+            vol.commit_info()
+      
+        if overwrite_info:
+            thumbnail_factor = 2**thumbnail_mip
+            thumbnail_block_size = (output_chunk_size[0]//factor,
+                                    output_chunk_size[1]//thumbnail_factor,
+                                    output_chunk_size[2]//thumbnail_factor)
+            print('thumbnail block size: ' + tuple2string(thumbnail_block_size))
+            thumbnail_info = CloudVolume.create_new_info(
+                1, layer_type='image', 
+                data_type='uint8',
+                encoding='raw',
+                resolution=voxel_size[::-1],
+                voxel_offset=volume_start[::-1],
+                volume_size=volume_size[::-1],
+                chunk_size=thumbnail_block_size[::-1],
+                max_mip=thumbnail_mip)
+            thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
+                thumbnail_vol.commit_info()
+       
+    print('create a list of bounding boxes...')
+    roi_start = (volume_start[0],
+                 volume_start[1]//factor,
+                 volume_start[2]//factor)
+    roi_size = (volume_size[0],
+                volume_size[1]//factor,
+                volume_size[2]//factor)
+    roi_stop = tuple(s+z for s, z in zip(roi_start, roi_size))
+
+    # create bounding boxes and ingest to queue
+    bboxes = BoundingBoxes.from_manual_setup(
+            output_chunk_size,
+            roi_start=roi_start, roi_stop=roi_stop,
+            verbose=verbose)
+    print('total number of tasks: ', len(bboxes))
     
+    if verbose > 1:
+        print('bounding boxes: ', bboxes)
+    
+    print(yellow(
+        'Note that you should reuse the printed out parameters in the production run.' + 
+        ' These parameters are not ingested to AWS SQS queue.'))
+    return bboxes
+
+
+def get_optimized_block_size(
+        output_patch_size, output_patch_overlap, max_ram_size,
+        channel_num, max_mip, crop_chunk_margin,
+        input_patch_size, mip, thumbnail_mip, volume_start):
     patch_stride = tuple(s - o for s, o in zip(
-        output_patch_size, output_patch_overlap))
+    output_patch_size, output_patch_overlap))
     # total number of voxels per patch in one stride
     patch_voxel_num = np.product(patch_stride)
     # use half of the maximum ram size to store output buffer
@@ -113,9 +191,9 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
         volume_start, crop_chunk_margin, input_patch_size, output_patch_size))
     
     block_size = (output_chunk_size[0]//factor,
-                  output_chunk_size[1]//block_factor,
-                  output_chunk_size[2]//block_factor)
-    
+                output_chunk_size[1]//block_factor,
+                output_chunk_size[2]//block_factor)
+
     print('\n--input-chunk-size ' + tuple2string(input_chunk_size))
     print('--input-volume-start ' + tuple2string(input_chunk_start))
     print('--output-chunk-size ' + tuple2string(output_chunk_size))
@@ -124,75 +202,10 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     print('output volume start: ' + tuple2string(volume_start))
     print('block size ' + tuple2string(block_size))
     print('size of each block (uncompressed, uint8, 1 channel): ', 
-          np.prod(block_size)/1e6, ' MB')
+            np.prod(block_size)/1e6, ' MB')
     print('RAM size of each block: ',
-          np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')
+            np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')
     voxel_utilization = np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size)
     print('voxel utilization: {:.2f}'.format(voxel_utilization))
-   
-    if not dry_run:
-        storage = SimpleStorage(layer_path)
-        thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
-        thumbnail_storage = SimpleStorage(thumbnail_layer_path)
 
-        if not overwrite_info:
-            print('\ncheck that we are not overwriting existing info file.')
-            assert storage.exists('info')
-            assert thumbnail_storage.exists('info')
-
-        print('create and upload info file to ', layer_path)
-        # Note that cloudvolume use fortran order rather than C order
-        info = CloudVolume.create_new_info(channel_num, layer_type='image',
-                                           data_type=dtype,
-                                           encoding=encoding,
-                                           resolution=voxel_size[::-1],
-                                           voxel_offset=volume_start[::-1],
-                                           volume_size=volume_size[::-1],
-                                           chunk_size=block_size[::-1],
-                                           max_mip=mip)
-        vol = CloudVolume(layer_path, info=info)
-        if overwrite_info:
-            vol.commit_info()
-      
-        thumbnail_factor = 2**thumbnail_mip
-        thumbnail_block_size = (output_chunk_size[0]//factor,
-                                output_chunk_size[1]//thumbnail_factor,
-                                output_chunk_size[2]//thumbnail_factor)
-        print('thumbnail block size: ' + tuple2string(thumbnail_block_size))
-        thumbnail_info = CloudVolume.create_new_info(
-            1, layer_type='image', 
-            data_type='uint8',
-            encoding='raw',
-            resolution=voxel_size[::-1],
-            voxel_offset=volume_start[::-1],
-            volume_size=volume_size[::-1],
-            chunk_size=thumbnail_block_size[::-1],
-            max_mip=thumbnail_mip)
-        thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
-        if overwrite_info:
-            thumbnail_vol.commit_info()
-       
-    print('create a list of bounding boxes...')
-    roi_start = (volume_start[0],
-                 volume_start[1]//factor,
-                 volume_start[2]//factor)
-    roi_size = (volume_size[0],
-                volume_size[1]//factor,
-                volume_size[2]//factor)
-    roi_stop = tuple(s+z for s, z in zip(roi_start, roi_size))
-
-    # create bounding boxes and ingest to queue
-    bboxes = BoundingBoxes.from_manual_setup(
-            output_chunk_size,
-            roi_start=roi_start, roi_stop=roi_stop,
-            verbose=verbose)
-    print('total number of tasks: ', len(bboxes))
-    
-    if verbose > 1:
-        print('bounding boxes: ', bboxes)
-    
-    print(yellow(
-        'Note that you should reuse the printed out parameters in the production run.' + 
-        ' These parameters are not ingested to AWS SQS queue.'))
-    return bboxes
-
+    return block_size, output_chunk_size
