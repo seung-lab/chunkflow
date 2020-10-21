@@ -15,8 +15,90 @@ from chunkflow.lib.bounding_boxes import BoundingBoxes
 def tuple2string(tp: tuple):
     return ' '.join(str(i) for i in tp)
 
+
+def get_optimized_block_size(
+        output_patch_size, output_patch_overlap, max_ram_size,
+        channel_num, max_mip, crop_chunk_margin,
+        input_patch_size, mip, thumbnail_mip, volume_start):
+    patch_stride = tuple(s - o for s, o in zip(
+    output_patch_size, output_patch_overlap))
+    # total number of voxels per patch in one stride
+    patch_voxel_num = np.product(patch_stride)
+    # use half of the maximum ram size to store output buffer
+    ideal_total_patch_num = int(max_ram_size*1e9/2/4/channel_num/patch_voxel_num)
+    # the xy size should be the same
+    assert output_patch_size[1] == output_patch_size[2]
+    # compute the output chunk/block size in cloud storage
+    # assume that the crop margin size is the same with the patch overlap
+    patch_num_start = int(ideal_total_patch_num ** (1./3.) / 2)
+    patch_num_stop = patch_num_start * 3
+
+    # find the patch number solution with minimum cost by bruteforce search
+    cost = sys.float_info.max
+    patch_num = None
+    # patch number in x and y
+    max_factor = 2**max_mip
+    factor = 2**mip
+    for pnxy in range(patch_num_start, patch_num_stop):
+        if (pnxy * patch_stride[2] + output_patch_overlap[2] -
+                2 * crop_chunk_margin[2]) % max_factor != 0:
+            continue
+        # patch number in z
+        for pnz in range(patch_num_start, patch_num_stop):
+            if (pnz * patch_stride[0] + output_patch_overlap[0] -
+                    2 * crop_chunk_margin[0]) % factor != 0:
+                continue
+            current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 #+ (pnxy / pnz - 1) ** 2
+            if current_cost < cost:
+                cost = current_cost
+                patch_num = (pnz, pnxy, pnxy)
+    
+    print('\n--input-patch-size ', tuple2string(input_patch_size))
+    print('--output-patch-size ', tuple2string(output_patch_size))
+    print('--output-patch-overlap ', tuple2string(output_patch_overlap))
+    print('--output-patch-stride ', tuple2string(patch_stride))
+    print('--patch-num ', patch_num)
+
+    assert mip>=0
+    block_mip = (mip + thumbnail_mip) // 2
+    block_factor = 2 ** block_mip
+    
+    output_chunk_size = tuple(n*s+o-2*c for n, s, o, c in zip(
+        patch_num, patch_stride, output_patch_overlap, crop_chunk_margin))
+    
+    input_chunk_size = tuple(ocs + ccm*2 + ips - ops for ocs, ccm, ips, ops in zip(
+        output_chunk_size, crop_chunk_margin,
+        input_patch_size, output_patch_size))
+    
+    expand_margin_size = tuple((ics - ocs) // 2 for ics, ocs in zip(
+        input_chunk_size, output_chunk_size))
+
+    input_chunk_start = tuple(vs - ccm - (ips-ops)//2 for vs, ccm, ips, ops in zip(
+        volume_start, crop_chunk_margin, input_patch_size, output_patch_size))
+    
+    block_size = (output_chunk_size[0]//factor,
+                output_chunk_size[1]//block_factor,
+                output_chunk_size[2]//block_factor)
+
+    print('\n--input-chunk-size ' + tuple2string(input_chunk_size))
+    print('--input-volume-start ' + tuple2string(input_chunk_start))
+    print('--output-chunk-size ' + tuple2string(output_chunk_size))
+    print('cutout expand margin size ' + tuple2string(expand_margin_size))
+
+    print('output volume start: ' + tuple2string(volume_start))
+    print('block size ' + tuple2string(block_size))
+    print('size of each block (uncompressed, uint8, 1 channel): ', 
+            np.prod(block_size)/1e6, ' MB')
+    print('RAM size of each block: ',
+            np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')
+    voxel_utilization = np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size)
+    print('voxel utilization: {:.2f}'.format(voxel_utilization))
+
+    return block_size, output_chunk_size
+
+
 def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_path, 
-              block_size, output_chunk_size, max_ram_size, output_patch_size, 
+              max_ram_size, output_patch_size, 
               input_patch_size, channel_num, dtype, 
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
               thumbnail, encoding, voxel_size, 
@@ -103,7 +185,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
                 chunk_size=thumbnail_block_size[::-1],
                 max_mip=thumbnail_mip)
             thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
-                thumbnail_vol.commit_info()
+            thumbnail_vol.commit_info()
        
     print('create a list of bounding boxes...')
     roi_start = (volume_start[0],
@@ -130,82 +212,3 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     return bboxes
 
 
-def get_optimized_block_size(
-        output_patch_size, output_patch_overlap, max_ram_size,
-        channel_num, max_mip, crop_chunk_margin,
-        input_patch_size, mip, thumbnail_mip, volume_start):
-    patch_stride = tuple(s - o for s, o in zip(
-    output_patch_size, output_patch_overlap))
-    # total number of voxels per patch in one stride
-    patch_voxel_num = np.product(patch_stride)
-    # use half of the maximum ram size to store output buffer
-    ideal_total_patch_num = int(max_ram_size*1e9/2/4/channel_num/patch_voxel_num)
-    # the xy size should be the same
-    assert output_patch_size[1] == output_patch_size[2]
-    # compute the output chunk/block size in cloud storage
-    # assume that the crop margin size is the same with the patch overlap
-    patch_num_start = int(ideal_total_patch_num ** (1./3.) / 2)
-    patch_num_stop = patch_num_start * 3
-
-    # find the patch number solution with minimum cost by bruteforce search
-    cost = sys.float_info.max
-    patch_num = None
-    # patch number in x and y
-    max_factor = 2**max_mip
-    factor = 2**mip
-    for pnxy in range(patch_num_start, patch_num_stop):
-        if (pnxy * patch_stride[2] + output_patch_overlap[2] -
-                2 * crop_chunk_margin[2]) % max_factor != 0:
-            continue
-        # patch number in z
-        for pnz in range(patch_num_start, patch_num_stop):
-            if (pnz * patch_stride[0] + output_patch_overlap[0] -
-                    2 * crop_chunk_margin[0]) % factor != 0:
-                continue
-            current_cost = ( pnxy * pnxy * pnz / ideal_total_patch_num - 1) ** 2 #+ (pnxy / pnz - 1) ** 2
-            if current_cost < cost:
-                cost = current_cost
-                patch_num = (pnz, pnxy, pnxy)
-    
-    print('\n--input-patch-size ', tuple2string(input_patch_size))
-    print('--output-patch-size ', tuple2string(output_patch_size))
-    print('--output-patch-overlap ', tuple2string(output_patch_overlap))
-    print('--output-patch-stride ', tuple2string(patch_stride))
-    print('--patch-num ', patch_num)
-
-    assert mip>=0
-    block_mip = (mip + thumbnail_mip) // 2
-    block_factor = 2 ** block_mip
-    
-    output_chunk_size = tuple(n*s+o-2*c for n, s, o, c in zip(
-        patch_num, patch_stride, output_patch_overlap, crop_chunk_margin))
-    
-    input_chunk_size = tuple(ocs + ccm*2 + ips - ops for ocs, ccm, ips, ops in zip(
-        output_chunk_size, crop_chunk_margin,
-        input_patch_size, output_patch_size))
-    
-    expand_margin_size = tuple((ics - ocs) // 2 for ics, ocs in zip(
-        input_chunk_size, output_chunk_size))
-
-    input_chunk_start = tuple(vs - ccm - (ips-ops)//2 for vs, ccm, ips, ops in zip(
-        volume_start, crop_chunk_margin, input_patch_size, output_patch_size))
-    
-    block_size = (output_chunk_size[0]//factor,
-                output_chunk_size[1]//block_factor,
-                output_chunk_size[2]//block_factor)
-
-    print('\n--input-chunk-size ' + tuple2string(input_chunk_size))
-    print('--input-volume-start ' + tuple2string(input_chunk_start))
-    print('--output-chunk-size ' + tuple2string(output_chunk_size))
-    print('cutout expand margin size ' + tuple2string(expand_margin_size))
-
-    print('output volume start: ' + tuple2string(volume_start))
-    print('block size ' + tuple2string(block_size))
-    print('size of each block (uncompressed, uint8, 1 channel): ', 
-            np.prod(block_size)/1e6, ' MB')
-    print('RAM size of each block: ',
-            np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')
-    voxel_utilization = np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size)
-    print('voxel utilization: {:.2f}'.format(voxel_utilization))
-
-    return block_size, output_chunk_size

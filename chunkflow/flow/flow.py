@@ -186,11 +186,6 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
               help='size of output volume.')
 @click.option('--layer-path', '-l',
               type=str, required=True, help='the path of output volume.')
-@click.option('--block-size', '-b',
-              type=int, nargs=3, default=None, callback=default_none,
-              hep='block size of output volume.')
-@click.option('--output-chunk-size', 
-              type=int, default=)
 @click.option('--max-ram-size', '-r',
               default=15, type=int, help='the maximum ram size (GB) of worker process.')
 @click.option('--output-patch-size', '-z',
