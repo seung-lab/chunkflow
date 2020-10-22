@@ -49,6 +49,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | connected-components | Threshold the boundary map to get a segmentation |
 | copy-var        | Copy a variable to a new name |
 | create-chunk    | Create a fake chunk for easy test |
+| create-info     | Create info file of Neuroglancer Precomputed volume |
 | crop-margin     | Crop the margin of a chunk |
 | cutout          | Cutout chunk from a local/cloud storage volume |
 | delete-chunk    | Delete chunk in task to reduce RAM requirement |

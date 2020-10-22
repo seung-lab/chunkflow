@@ -6,6 +6,7 @@ from time import time
 import numpy as np
 import click
 
+from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox, Vec, yellow
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
@@ -269,6 +270,49 @@ def cloud_watch(tasks, name, log_name):
         yield task
 
 
+@main.command('create-info')
+@click.option('--layer-path', '-l', type=str, required=True, help='path of layer.')
+@click.option('--channel-num', '-c', type=int, default=1, help='number of channel')
+@click.option('--layer-type', '-t',
+              type=click.Choice(['image', 'segmentation']),
+              default='image', help='type of layer. either image or segmentation.')
+@click.option('--data-type', '-d',
+              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32']),
+              required=True, help='data type of array')
+@click.option('--encoding', '-e',
+              type=click.Choice(['raw', 'jpeg', 'compressed_segmentation', 
+                    'kempressed', 'npz', 'fpzip', 'npz_uint8']),
+              default='raw', help='compression algorithm.')
+@click.option('--voxel-size', '-s', required=True, type=int, nargs=3,
+              help='voxel size with unit of nm')
+@click.option('--voxel-offset', '-o', default=(0,0,0), type=int, nargs=3,
+              help='voxel offset of array')
+@click.option('--volume-size', '-v',
+              required=True, type=int, nargs=3,
+              help='total size of the volume.')
+@click.option('--block-size', '-b',
+              type=int, nargs=3, required=True,
+              help='chunk size of each file.')
+@click.option('--max-mip', '-m',
+              type=int, default=0, 
+              help = 'maximum mip level.')
+@operator
+def create_info(tasks,layer_path, channel_num, layer_type, data_type, encoding, voxel_size, 
+                voxel_offset, volume_size, block_size, max_mip):
+    info = CloudVolume.create_new_info(
+        channel_num, layer_type=layer_type,
+        data_type=data_type,
+        encoding=encoding,
+        resolution=voxel_size[::-1],
+        voxel_offset=voxel_offset[::-1],
+        volume_size=volume_size[::-1],
+        chunk_size=block_size[::-1],
+        max_mip=max_mip)
+    vol = CloudVolume(layer_path, info=info)
+    vol.commit_info()
+    return info
+
+
 @main.command('fetch-task-from-file')
 @click.option('--file-path', '-f',
               type=click.Path(file_okay=True, dir_okay=False, exists=True, 
@@ -280,8 +324,8 @@ def cloud_watch(tasks, name, log_name):
 @click.option('--slurm-job-array/--no-slurm-job-array',
               default=False, help='use the slurm job array '+
               'environment variable to identify task index.')
-@generator
-def fetch_task_from_file(file_path, task_index, slurm_job_array):
+@operator
+def fetch_task_from_file(tasks,file_path, task_index, slurm_job_array):
     if(slurm_job_array):
         assert os.environ['SLURM_ARRAY_JOB_ID'] == 0
         assert os.environ['SLURM_ARRAY_TASK_ID'] >= 0
