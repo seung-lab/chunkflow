@@ -94,7 +94,7 @@ def get_optimized_block_size(
     voxel_utilization = np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size)
     print('voxel utilization: {:.2f}'.format(voxel_utilization))
 
-    return block_size, output_chunk_size
+    return block_size, output_chunk_size, factor
 
 
 def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_path, 
@@ -139,7 +139,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
         # thumnail requires maximum mip level of 5
         thumbnail_mip = max(thumbnail_mip, 5)
 
-    block_size, output_chunk_size = get_optimized_block_size(
+    block_size, output_chunk_size, factor = get_optimized_block_size(
         output_patch_size, output_patch_overlap, max_ram_size,
         channel_num, max_mip, crop_chunk_margin,
         input_patch_size, mip, thumbnail_mip, volume_start

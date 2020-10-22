@@ -72,6 +72,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | plugin          | Import local code as a customized operator. |
 | quantize        | Quantize the affinity map |
 | read-h5         | Read HDF5 files |
+| read-pngs       | Read png files |
 | read-tif        | Read TIFF files |
 | save            | Save chunk to local/cloud storage volume |
 | save-pngs       | Save chunk as a serials of png files |
