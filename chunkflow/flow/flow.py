@@ -233,8 +233,10 @@ def create_info(tasks,layer_path, channel_num, layer_type, data_type, encoding, 
 @click.option('--slurm-job-array/--no-slurm-job-array',
               default=False, help='use the slurm job array '+
               'environment variable to identify task index.')
+@click.option('--granularity', '-g',
+              type=int, default=1, help='number of tasks to do in one run.')
 @operator
-def fetch_task_from_file(tasks, file_path, task_index, slurm_job_array):
+def fetch_task_from_file(tasks, file_path, task_index, slurm_job_array, granularity):
     if(slurm_job_array):
         assert os.environ['SLURM_ARRAY_JOB_ID'] == 0
         assert os.environ['SLURM_ARRAY_TASK_ID'] >= 0
@@ -242,10 +244,12 @@ def fetch_task_from_file(tasks, file_path, task_index, slurm_job_array):
     assert task_index is not None
 
     bbox_array = np.load(file_path)
-    bbox = Bbox.from_list(bbox_array[task_index, :])
-    task = get_initial_task()
-    task['bbox'] = bbox
-    yield task
+    task_stop = min(bbox_array.shape[0], task_index + granularity)
+    for idx in range(task_index, task_stop):
+        bbox = Bbox.from_list(bbox_array[idx, :])
+        task = get_initial_task()
+        task['bbox'] = bbox
+        yield task
 
 
 @main.command('fetch-task-from-sqs')
