@@ -241,9 +241,11 @@ def fetch_task_from_file(tasks, file_path, task_index, slurm_job_array):
         task_index = os.environ['SLURM_ARRAY_TASK_ID']
     assert task_index is not None
 
-    bbox_array = np.load(file_path, mmap_mode='r')
-    bbox = Bbox.from_vec(bbox_array[task_index, :])
-    return bbox
+    bbox_array = np.load(file_path)
+    bbox = Bbox.from_list(bbox_array[task_index, :])
+    task = get_initial_task()
+    task['bbox'] = bbox
+    yield task
 
 
 @main.command('fetch-task-from-sqs')
