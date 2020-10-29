@@ -227,7 +227,7 @@ def create_info(tasks,layer_path, channel_num, layer_type, data_type, encoding, 
               type=click.Path(file_okay=True, dir_okay=False, exists=True, 
                               readable=True, resolve_path=True),
               help='file contains bounding boxes or tasks.')
-@click.option('--task-index', '-i', 
+@click.option('--job-index', '-i', 
               type=int, default=None,
               help='index of task in the tasks.')
 @click.option('--slurm-job-array/--no-slurm-job-array',
@@ -235,17 +235,16 @@ def create_info(tasks,layer_path, channel_num, layer_type, data_type, encoding, 
               'environment variable to identify task index.')
 @click.option('--granularity', '-g',
               type=int, default=1, help='number of tasks to do in one run.')
-@operator
-def fetch_task_from_file(tasks, file_path, task_index, slurm_job_array, granularity):
+@generator
+def fetch_task_from_file(file_path: str, job_index: int, slurm_job_array: bool, granularity: int):
     if(slurm_job_array):
-        assert os.environ['SLURM_ARRAY_JOB_ID'] == 0
-        assert os.environ['SLURM_ARRAY_TASK_ID'] >= 0
-        task_index = os.environ['SLURM_ARRAY_TASK_ID']
-    assert task_index is not None
+        job_index = int(os.environ['SLURM_ARRAY_TASK_ID'])
+    assert job_index is not None
 
     bbox_array = np.load(file_path)
-    task_stop = min(bbox_array.shape[0], task_index + granularity)
-    for idx in range(task_index, task_stop):
+    task_start = job_index * granularity 
+    task_stop = min(bbox_array.shape[0], task_start + granularity)
+    for idx in range(task_start, task_stop):
         bbox = Bbox.from_list(bbox_array[idx, :])
         task = get_initial_task()
         task['bbox'] = bbox
@@ -1229,6 +1228,7 @@ def neuroglancer(tasks, name, voxel_size, port, chunk_names):
         if not task['skip']:
             state['operators'][name](task, selected=chunk_names)
         yield task
+
 
 @main.command('quantize')
 @click.option('--name', type=str, default='quantize', help='name of this operator')

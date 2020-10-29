@@ -60,7 +60,10 @@ class Inferencer(object):
         self.input_size = input_size
         
         if output_crop_margin is None:
-            self.output_crop_margin = self.output_patch_overlap
+            if mask_output_chunk:
+                self.output_crop_margin = (0,0,0)
+            else:
+                self.output_crop_margin = self.output_patch_overlap
         else:
             self.output_crop_margin = output_crop_margin
             # we should always crop more than the patch overlap 
