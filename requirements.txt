@@ -1,5 +1,5 @@
 boto3
-numpy>=1.16
+numpy>=1.17.5
 six>=1.13.0
 cloud-volume>=0.47.0
 click 
