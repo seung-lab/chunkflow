@@ -38,7 +38,7 @@ you can see your 3D image and segmentation directly in [Neuroglancer](https://gi
 ![Image_Segmentation](https://github.com/seung-lab/chunkflow/blob/master/docs/source/_static/image/image_seg.png)
 
 ## Operators
-After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the 36 available operators here. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
+After installation, You can simply type `chunkflow` and it will list all the operators with help message. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
 
 | Operator Name   | Function |
 | --------------- | -------- |

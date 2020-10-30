@@ -5,17 +5,18 @@ ChangeLog history
 ## Breaking Changes
 - replace global_offset to voxel_offset to be consistent with neuroglancer info 
 - change operator name `fetch-task` to `fetch-task-from-sqs` to be more specific.
--
-## Deprecations 
 
 ## Features
 - output tasks as a numpy array and save as npy file.
+- work with slurm cluster
+- fetch task from numpy array
 
 ## Bug Fixes 
+- fetch task from numpy array
 
 ## Improved Documentation 
 
-# chunkflow 1.0.2 (2020-xx-xx)
+# chunkflow 1.0.2 (2020-10-01)
 ## Features
 - hdf5 file with cutout range
 
