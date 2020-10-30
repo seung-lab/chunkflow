@@ -1,4 +1,3 @@
-python-dateutil==2.8.0
 boto3
 numpy>=1.16
 six>=1.13.0

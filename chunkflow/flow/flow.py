@@ -1,10 +1,13 @@
 #!/usr/bin/env python
-from functools import update_wrapper, wraps
+import os
 from time import time
 
 import numpy as np
 import click
 
+from .lib import *
+
+from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox, Vec, yellow
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
@@ -30,104 +33,12 @@ from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
 from .plugin import Plugin
+from .read_pngs import read_png_images
 from .save import SaveOperator
 from .save_pngs import SavePNGsOperator
 from .setup_env import setup_environment
 from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
-
-
-# global dict to hold the operators and parameters
-state = {'operators': {}}
-DEFAULT_CHUNK_NAME = 'chunk'
-
-
-def get_initial_task():
-    return {'skip': False, 'log': {'timer': {}}}
-
-
-def handle_task_skip(task, name):
-    if task['skip'] and task['skip_to'] == name:
-        # have already skipped to target operator
-        task['skip'] = False
-
-
-def default_none(ctx, _, value):
-    """
-    click currently can not use None with tuple type
-    it will return an empty tuple if the default=None details:
-    https://github.com/pallets/click/issues/789
-    """
-    if not value:
-        return None
-    else:
-        return value
-
-
-# the code design is based on:
-# https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
-@click.group(chain=True)
-@click.option('--verbose', type=click.IntRange(min=0, max=10), default=1,
-              help='print informations level. default is level 1.')
-@click.option('--mip', type=int, default=0,
-              help='default mip level of chunks.')
-@click.option('--dry-run/--real-run', default=False,
-              help='dry run or real run. default is real run.')
-def main(verbose, mip, dry_run):
-    """Compose operators and create your own pipeline."""
-    state['verbose'] = verbose
-    state['mip'] = mip
-    state['dry_run'] = dry_run
-    if dry_run:
-        print(yellow('\nYou are using dry-run mode, will not do the work!'))
-    pass
-
-
-@main.resultcallback()
-def process_commands(operators, verbose, mip, dry_run):
-    """This result callback is invoked with an iterable of all 
-    the chained subcommands. As in this example each subcommand 
-    returns a function we can chain them together to feed one 
-    into the other, similar to how a pipe on unix works.
-    """
-    # It turns out that a tuple will not work correctly!
-    stream = [get_initial_task(), ]
-
-    # Pipe it through all stream operators.
-    for operator in operators:
-        stream = operator(stream)
-
-    # Evaluate the stream and throw away the items.
-    if stream:
-        for _ in stream:
-            pass
-
-
-def operator(func):
-    """
-    Help decorator to rewrite a function so that
-    it returns another function from it.
-    """
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        def operator(stream):
-            return func(stream, *args, **kwargs)
-
-        return operator
-
-    return wrapper
-
-
-def generator(func):
-    """Similar to the :func:`operator` but passes through old values unchanged 
-    and does not pass through the values as parameter.
-    """
-    @operator
-    def new_func(stream, *args, **kwargs):
-        for item in func(*args, **kwargs):
-            yield item
-
-    return update_wrapper(new_func, func)
 
 
 @main.command('generate-tasks')
@@ -145,16 +56,25 @@ def generator(func):
 @click.option('--grid-size', '-g',
               type=int, default=None, nargs=3, callback=default_none,
               help='(z y x), grid size of output blocks')
+@click.option('--file-path', '-f', default = None,
+              type=click.Path(writable=True, dir_okay=False, resolve_path=True),
+              help='output tasks as an numpy array formated as npy.')
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
 @generator
 def generate_tasks(layer_path, mip, roi_start, chunk_size, 
-                   grid_size, queue_name):
+                   grid_size, file_path, queue_name):
     """Generate tasks."""
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, mip=mip, grid_size=grid_size,
         verbose=state['verbose'])
+
+    print('total number of tasks: ', len(bboxes)) 
+    # write out as a file
+    # this could be used for iteration in slurm cluster.
+    if file_path:
+        bboxes.to_file(file_path)
 
     if queue_name is not None:
         queue = SQSQueue(queue_name)
@@ -225,8 +145,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
         state['dry_run'], volume_start, volume_stop, volume_size, layer_path, 
         max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
         output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
-        queue_name, visibility_timeout, thumbnail, encoding, voxel_size, 
-        overwrite_info, state['verbose'])
+        thumbnail, encoding, voxel_size, overwrite_info, state['verbose'])
  
     if queue_name is not None and not state['dry_run']:
         queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
@@ -260,7 +179,80 @@ def cloud_watch(tasks, name, log_name):
             state['operators'][name](task['log'])
         yield task
 
-@main.command('fetch-task')
+
+@main.command('create-info')
+@click.option('--layer-path', '-l', type=str, required=True, help='path of layer.')
+@click.option('--channel-num', '-c', type=int, default=1, help='number of channel')
+@click.option('--layer-type', '-t',
+              type=click.Choice(['image', 'segmentation']),
+              default='image', help='type of layer. either image or segmentation.')
+@click.option('--data-type', '-d',
+              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32']),
+              required=True, help='data type of array')
+@click.option('--encoding', '-e',
+              type=click.Choice(['raw', 'jpeg', 'compressed_segmentation', 
+                    'kempressed', 'npz', 'fpzip', 'npz_uint8']),
+              default='raw', help='compression algorithm.')
+@click.option('--voxel-size', '-s', required=True, type=int, nargs=3,
+              help='voxel size with unit of nm')
+@click.option('--voxel-offset', '-o', default=(0,0,0), type=int, nargs=3,
+              help='voxel offset of array')
+@click.option('--volume-size', '-v',
+              required=True, type=int, nargs=3,
+              help='total size of the volume.')
+@click.option('--block-size', '-b',
+              type=int, nargs=3, required=True,
+              help='chunk size of each file.')
+@click.option('--max-mip', '-m',
+              type=int, default=0, 
+              help = 'maximum mip level.')
+@operator
+def create_info(tasks,layer_path, channel_num, layer_type, data_type, encoding, voxel_size, 
+                voxel_offset, volume_size, block_size, max_mip):
+    info = CloudVolume.create_new_info(
+        channel_num, layer_type=layer_type,
+        data_type=data_type,
+        encoding=encoding,
+        resolution=voxel_size[::-1],
+        voxel_offset=voxel_offset[::-1],
+        volume_size=volume_size[::-1],
+        chunk_size=block_size[::-1],
+        max_mip=max_mip)
+    vol = CloudVolume(layer_path, info=info)
+    vol.commit_info()
+    return info
+
+
+@main.command('fetch-task-from-file')
+@click.option('--file-path', '-f',
+              type=click.Path(file_okay=True, dir_okay=False, exists=True, 
+                              readable=True, resolve_path=True),
+              help='file contains bounding boxes or tasks.')
+@click.option('--job-index', '-i', 
+              type=int, default=None,
+              help='index of task in the tasks.')
+@click.option('--slurm-job-array/--no-slurm-job-array',
+              default=False, help='use the slurm job array '+
+              'environment variable to identify task index.')
+@click.option('--granularity', '-g',
+              type=int, default=1, help='number of tasks to do in one run.')
+@generator
+def fetch_task_from_file(file_path: str, job_index: int, slurm_job_array: bool, granularity: int):
+    if(slurm_job_array):
+        job_index = int(os.environ['SLURM_ARRAY_TASK_ID'])
+    assert job_index is not None
+
+    bbox_array = np.load(file_path)
+    task_start = job_index * granularity 
+    task_stop = min(bbox_array.shape[0], task_start + granularity)
+    for idx in range(task_start, task_stop):
+        bbox = Bbox.from_list(bbox_array[idx, :])
+        task = get_initial_task()
+        task['bbox'] = bbox
+        yield task
+
+
+@main.command('fetch-task-from-sqs')
 @click.option('--queue-name', '-q',
                 type=str, default=None, help='sqs queue name')
 @click.option('--visibility-timeout', '-v',
@@ -274,7 +266,7 @@ def cloud_watch(tasks, name, log_name):
               type=int, default=30,
               help='the times of retrying if the queue is empty.')
 @generator
-def fetch_task(queue_name, visibility_timeout, num, retry_times):
+def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
     """Fetch task from queue."""
     # This operator is actually a generator,
     # it replaces old tasks to a completely new tasks and loop over it!
@@ -393,6 +385,32 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_
         yield task
 
 
+@main.command('read-pngs')
+@click.option('--path-prefix', '-p',
+              required=True, type=str,
+              help='directory path prefix of png files.')
+@click.option('--output-chunk-name', '-o',
+              type=str, default=DEFAULT_CHUNK_NAME,
+              help='output chunk name')
+@click.option('--voxel-offset', '-v',
+              type=int, default=(0,0,0), nargs=3,
+              help='cutout chunk from an offset')
+@click.option('--chunk-size', '-s',
+              type=int, nargs=3, required=True,
+              help='cutout chunk size')
+@operator
+def read_pngs(tasks, path_prefix, output_chunk_name, voxel_offset, chunk_size):
+    """Read a serials of png files."""
+    for task in tasks:
+        if 'bbox' not in task:
+            bbox = Bbox.from_delta(voxel_offset, chunk_size)
+        else:
+            bbox = task['bbox']
+
+        task[output_chunk_name] = read_png_images(path_prefix, bbox)
+        yield task
+
+
 @main.command('read-tif')
 @click.option('--name', type=str, default='read-tif',
               help='read tif file from local disk.')
@@ -403,7 +421,7 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_
               help='global offset of this chunk')
 @click.option('--dtype', '-d',
               type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
-              )
+              help='convert to data type')
 @click.option('--output-chunk-name', '-o', type=str, default='chunk',
               help='chunk name in the global state')
 @operator
@@ -1211,6 +1229,7 @@ def neuroglancer(tasks, name, voxel_size, port, chunk_names):
         if not task['skip']:
             state['operators'][name](task, selected=chunk_names)
         yield task
+
 
 @main.command('quantize')
 @click.option('--name', type=str, default='quantize', help='name of this operator')

@@ -55,10 +55,10 @@ class Chunk(NDArrayOperatorsMixin):
         return cls(array, voxel_offset=voxel_offset)
     
     @classmethod
-    def from_bbox(cls, bbox: Bbox, dtype: type = np.uint8):
+    def from_bbox(cls, bbox: Bbox, dtype: type = np.uint8, all_zero: bool=False):
         assert isinstance(bbox, Bbox)
         size = bbox.maxpt - bbox.minpt
-        return cls.create(size=size, dtype=dtype, voxel_offset=bbox.minpt)
+        return cls.create(size=size, dtype=dtype, voxel_offset=bbox.minpt, all_zero=all_zero)
 
     @classmethod
     def create(cls, size: tuple = (64, 64, 64),

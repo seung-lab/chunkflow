@@ -59,20 +59,19 @@ class Inferencer(object):
         self.batch_size = batch_size
         self.input_size = input_size
         
-        if mask_output_chunk:
-            # the chunk mask will handle the boundaries 
-            self.output_crop_margin = (0, 0, 0)
-        else:
-            if output_crop_margin is None:
-                self.output_crop_margin = self.output_patch_overlap
+        if output_crop_margin is None:
+            if mask_output_chunk:
+                self.output_crop_margin = (0,0,0)
             else:
-                self.output_crop_margin = output_crop_margin
-                # we should always crop more than the patch overlap 
-                # since the overlap region is reweighted by patch mask
-                # To-Do: equal should also be OK
-                assert np.alltrue([v<=m for v, m in zip(
-                    self.output_patch_overlap, 
-                    self.output_crop_margin)])
+                self.output_crop_margin = self.output_patch_overlap
+        else:
+            self.output_crop_margin = output_crop_margin
+            # we should always crop more than the patch overlap 
+            # since the overlap region is reweighted by patch mask
+            # To-Do: equal should also be OK
+            assert np.alltrue([v<=m for v, m in zip(
+                self.output_patch_overlap, 
+                self.output_crop_margin)])
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))

@@ -38,7 +38,7 @@ you can see your 3D image and segmentation directly in [Neuroglancer](https://gi
 ![Image_Segmentation](https://github.com/seung-lab/chunkflow/blob/master/docs/source/_static/image/image_seg.png)
 
 ## Operators
-After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the 36 available operators here. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
+After installation, You can simply type `chunkflow` and it will list all the operators with help message. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
 
 | Operator Name   | Function |
 | --------------- | -------- |
@@ -49,13 +49,15 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | connected-components | Threshold the boundary map to get a segmentation |
 | copy-var        | Copy a variable to a new name |
 | create-chunk    | Create a fake chunk for easy test |
+| create-info     | Create info file of Neuroglancer Precomputed volume |
 | crop-margin     | Crop the margin of a chunk |
 | cutout          | Cutout chunk from a local/cloud storage volume |
 | delete-chunk    | Delete chunk in task to reduce RAM requirement |
 | delete-task-in-queue | Delete the task in AWS SQS queue |
 | downsample-upload | Downsample the chunk hierarchically and upload to volume |
 | evaluate-segmentation | Compare segmentation chunks |
-| fetch-task      | Fetch task from AWS SQS queue one by one |
+| fetch-task-from-sqs | Fetch task from AWS SQS queue one by one |
+| fetch-task-from-file | Fetch task from a file |
 | generate-tasks  | Generate tasks one by one |
 | inference       | Convolutional net inference |
 | log-summary     | Summary of logs |
@@ -70,6 +72,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | plugin          | Import local code as a customized operator. |
 | quantize        | Quantize the affinity map |
 | read-h5         | Read HDF5 files |
+| read-pngs       | Read png files |
 | read-tif        | Read TIFF files |
 | save            | Save chunk to local/cloud storage volume |
 | save-pngs       | Save chunk as a serials of png files |
