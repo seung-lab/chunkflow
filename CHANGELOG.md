@@ -1,7 +1,7 @@
 ChangeLog history
 =================
 
-# chunkflow 1.0.3 (2020-xx-xx)
+# chunkflow 1.0.3 (2020-10-29)
 ## Breaking Changes
 - replace global_offset to voxel_offset to be consistent with neuroglancer info 
 - change operator name `fetch-task` to `fetch-task-from-sqs` to be more specific.
