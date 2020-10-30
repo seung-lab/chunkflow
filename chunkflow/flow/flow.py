@@ -69,7 +69,8 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, mip=mip, grid_size=grid_size,
         verbose=state['verbose'])
-    
+
+    print('total number of tasks: ', len(bboxes)) 
     # write out as a file
     # this could be used for iteration in slurm cluster.
     if file_path:

@@ -7,6 +7,9 @@ class AffinityMap(Chunk):
     a chunk of affinity map. It has x,y,z three channels with single precision.
     """
     def __init__(self, array, voxel_offset=None):
+        assert array.ndim == 4
+        assert np.issubdtype(array.dtype, np.float32)
+        assert array.shape[0] == 3
         super().__init__(array, voxel_offset=voxel_offset)
 
     def quantize(self):
