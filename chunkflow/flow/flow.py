@@ -74,6 +74,8 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
     # write out as a file
     # this could be used for iteration in slurm cluster.
     if file_path:
+        if not file_path.endswith('.npy'):
+            file_path += len(bboxes) + '.npy'
         bboxes.to_file(file_path)
 
     if queue_name is not None:
@@ -170,13 +172,13 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
 @operator
 def cloud_watch(tasks, name, log_name):
     """Real time speedometer in AWS CloudWatch."""
-    state['operators'][name] = CloudWatchOperator(log_name=log_name,
+    operator = CloudWatchOperator(log_name=log_name,
                                                   name=name,
                                                   verbose=state['verbose'])
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task['log'])
+            operator(task['log'])
         yield task
 
 
@@ -312,7 +314,7 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
 def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
                 fragments_chunk_name, scoring_function, input_chunk_name, output_chunk_name):
     """Watershed and agglomeration to segment affinity map."""
-    state['operators'][name] = AgglomerateOperator(name=name, verbose=state['verbose'],
+    operator = AgglomerateOperator(name=name, verbose=state['verbose'],
                                                    threshold=threshold, 
                                                    aff_threshold_low=aff_threshold_low,
                                                    aff_threshold_high=aff_threshold_high,
@@ -323,7 +325,7 @@ def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
         else:
             fragments = None 
         
-        task[output_chunk_name] = state['operators'][name](
+        task[output_chunk_name] = operator(
             task[input_chunk_name], fragments=fragments)
         yield task
 
@@ -345,13 +347,13 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
     if output_path is None:
         output_path = fragments_path
 
-    state['operators'][name] = AggregateSkeletonFragmentsOperator(fragments_path, output_path)
+    operator = AggregateSkeletonFragmentsOperator(fragments_path, output_path)
     if prefix:
-        state['operators'][name](prefix)
+        operator(prefix)
     else:
         for task in tasks:
             start = time()
-            state['operators'][name](task[input_name])
+            operator(task[input_name])
             task['log']['timer'][name] = time() - start
             yield task
 
@@ -494,7 +496,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
               type=str, default='chunk', help='input chunk name')
 @click.option('--file-name',
               '-f',
-              type=click.Path(dir_okay=False, resolve_path=True),
+              type=click.Path(dir_okay=True, resolve_path=True),
               required=True,
               help='file name of hdf5 file.')
 @click.option('--compression', '-c', type=click.Choice(["gzip", "lzf", "szip"]),
@@ -538,12 +540,12 @@ def write_tif(tasks, name, input_chunk_name, file_name):
 @operator
 def save_pngs(tasks, name, input_chunk_name, output_path):
     """Save as 2D PNG images."""
-    state['operators'][name] = SavePNGsOperator(output_path=output_path,
+    operator = SavePNGsOperator(output_path=output_path,
                                                 name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task[input_chunk_name])
+            operator(task[input_chunk_name])
         yield task
 
 
@@ -640,7 +642,8 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin
     """Cutout chunk from volume."""
     if mip is None:
         mip = state['mip']
-    state['operators'][name] = CutoutOperator(
+    
+    operator = CutoutOperator(
         volume_path,
         mip=mip,
         expand_margin_size=expand_margin_size,
@@ -658,12 +661,12 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin
         else:
             # use bounding box of volume
             if chunk_start is None:
-                chunk_start = state['operators'][name].vol.mip_bounds(mip).minpt
+                chunk_start = operator.vol.mip_bounds(mip).minpt
             else:
                 chunk_start = Vec(*chunk_start)
 
             if chunk_size is None:
-                chunk_stop = state['operators'][name].vol.mip_bounds(mip).maxpt
+                chunk_stop = operator.vol.mip_bounds(mip).maxpt
                 chunk_size = chunk_stop - chunk_start
             else:
                 chunk_size = Vec(*chunk_size)
@@ -672,7 +675,7 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin
         if not task['skip']:
             start = time()
             assert output_chunk_name not in task
-            task[output_chunk_name] = state['operators'][name](bbox)
+            task[output_chunk_name] = operator(bbox)
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
         yield task
@@ -725,7 +728,7 @@ def downsample_upload(tasks, name, input_chunk_name, volume_path,
     if chunk_mip is None:
         chunk_mip = state['mip']
 
-    state['operators'][name] = DownsampleUploadOperator(
+    operator = DownsampleUploadOperator(
         volume_path,
         chunk_mip=chunk_mip,
         start_mip=start_mip,
@@ -738,7 +741,7 @@ def downsample_upload(tasks, name, input_chunk_name, volume_path,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            state['operators'][name](task[input_chunk_name])
+            operator(task[input_chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -806,7 +809,7 @@ def normalize_contrast_nkem(tasks, name, input_chunk_name, output_chunk_name,
                                 upper_clip_fraction, minval, maxval):
     """Normalize the section contrast using precomputed histograms."""
     
-    state['operators'][name] = NormalizeSectionContrastOperator(
+    operator = NormalizeSectionContrastOperator(
         levels_path,
         lower_clip_fraction=lower_clip_fraction,
         upper_clip_fraction=upper_clip_fraction,
@@ -816,7 +819,7 @@ def normalize_contrast_nkem(tasks, name, input_chunk_name, output_chunk_name,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+            task[output_chunk_name] = operator(task[input_chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -849,7 +852,7 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
     The transformed chunk has floating point values.
     """
 
-    state['operators'][name] = NormalizeSectionShangOperator(
+    operator = NormalizeSectionShangOperator(
         nominalmin=nominalmin,
         nominalmax=nominalmax,
         clipvalues=clipvalues,
@@ -859,7 +862,7 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+            task[output_chunk_name] = operator(task[input_chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -884,7 +887,7 @@ def plugin(tasks, name, input_chunk_name, output_chunk_name, file, args):
     a call of `exec(chunk, args)` can be made to operate on the chunk.
     """
 
-    state['operators'][name] = Plugin(file, args=args, name=name, verbose=state['verbose'])
+    operator = Plugin(file, args=args, name=name, verbose=state['verbose'])
     if state['verbose']:
         print('Received args for ', name, ':', args)
 
@@ -892,7 +895,7 @@ def plugin(tasks, name, input_chunk_name, output_chunk_name, file, args):
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[output_chunk_name] = state['operators'][name](task[input_chunk_name], *args)
+            task[output_chunk_name] = operator(task[input_chunk_name], *args)
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -1006,7 +1009,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         dry_run=state['dry_run'],
         verbose=state['verbose']) as inferencer:
         
-        state['operators'][name] = inferencer 
+        operator = inferencer 
 
         for task in tasks:
             handle_task_skip(task, name)
@@ -1015,7 +1018,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
                     task['log'] = {'timer': {}}
                 start = time()
 
-                task[output_chunk_name] = state['operators'][name](
+                task[output_chunk_name] = operator(
                     task[input_chunk_name])
 
                 task['log']['timer'][name] = time() - start
@@ -1053,7 +1056,7 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
     """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
-    state['operators'][name] = MaskOperator(volume_path,
+    operator = MaskOperator(volume_path,
                                             mip,
                                             state['mip'],
                                             inverse=inverse,
@@ -1068,13 +1071,13 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
             start = time()
             if check_all_zero:
                 # skip following operators since the mask is all zero after required inverse
-                task['skip'] = state['operators'][name].is_all_zero(
+                task['skip'] = operator.is_all_zero(
                     task['bbox'])
                 if task['skip']:
                     print(yellow(f'the mask of {name} is all zero, will skip to {skip_to}'))
                 task['skip_to'] = skip_to
             else:
-                task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+                task[output_chunk_name] = operator(task[input_chunk_name])
             # Note that mask operation could be used several times,
             # this will only record the last masking operation
             task['log']['timer'][name] = time() - start
@@ -1103,10 +1106,10 @@ def mask_out_objects(tasks, name, input_chunk_name, output_chunk_name,
         name=name,
         verbose=state['verbose']
     )
-    state['operators'][name] = operator
+    operator = operator
     
     for task in tasks:
-        task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+        task[output_chunk_name] = operator(task[input_chunk_name])
         yield task
 
 
@@ -1167,7 +1170,7 @@ def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_for
     if mip is None:
         mip = state['mip']
 
-    state['operators'][name] = MeshOperator(
+    operator = MeshOperator(
         output_path,
         output_format,
         mip=mip,
@@ -1179,7 +1182,7 @@ def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_for
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            state['operators'][name]( task[input_chunk_name] )
+            operator( task[input_chunk_name] )
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -1192,15 +1195,15 @@ def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_for
 @operator
 def mesh_manifest(tasks, name, input_name, prefix, volume_path):
     """Generate mesh manifest files."""
-    state['operators'][name] = MeshManifestOperator(volume_path)
+    operator = MeshManifestOperator(volume_path)
     if prefix:
-        state['operators'][name](prefix)
+        operator(prefix)
     else:
         for task in tasks:
             handle_task_skip(task, name)
             if not task['skip']:
                 start = time()
-                state['operators'][name](task[input_name])
+                operator(task[input_name])
                 task['log']['timer'][name] = time() - start
             yield task
  
@@ -1221,13 +1224,13 @@ def mesh_manifest(tasks, name, input_name, prefix, volume_path):
 @operator
 def neuroglancer(tasks, name, voxel_size, port, chunk_names):
     """Visualize the chunk using neuroglancer."""
-    state['operators'][name] = NeuroglancerOperator(name=name,
+    operator = NeuroglancerOperator(name=name,
                                                     port=port,
                                                     voxel_size=voxel_size)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task, selected=chunk_names)
+            operator(task, selected=chunk_names)
         yield task
 
 
@@ -1259,7 +1262,7 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
 @operator
 def save(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnail):
     """Save chunk to volume."""
-    state['operators'][name] = SaveOperator(volume_path,
+    operator = SaveOperator(volume_path,
                                             state['mip'],
                                             upload_log=upload_log,
                                             create_thumbnail=create_thumbnail,
@@ -1271,12 +1274,12 @@ def save(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnai
         if task['skip'] and task['skip_to'] == name:
             task['skip'] = False
             # create fake chunk to save
-            task[input_chunk_name] = state['operators'][name].create_chunk_with_zeros(
+            task[input_chunk_name] = operator.create_chunk_with_zeros(
                 task['bbox'])
 
         if not task['skip']:
             # the time elapsed was recorded internally
-            state['operators'][name](task[input_chunk_name],
+            operator(task[input_chunk_name],
                                      log=task.get('log', {'timer': {}}))
             task['output_volume_path'] = volume_path
         yield task
@@ -1335,11 +1338,11 @@ def channel_voting(tasks, name, input_chunk_name, output_chunk_name):
 @operator
 def view(tasks, name, image_chunk_name, segmentation_chunk_name):
     """Visualize the chunk using cloudvolume view in browser."""
-    state['operators'][name] = ViewOperator(name=name)
+    operator = ViewOperator(name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task[image_chunk_name],
+            operator(task[image_chunk_name],
                                      seg=segmentation_chunk_name)
         yield task
 

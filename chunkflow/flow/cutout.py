@@ -73,7 +73,7 @@ class CutoutOperator(OperatorBase):
         if chunk.shape[0] == 1:
             chunk = np.squeeze(chunk, axis=0)
         else:
-            voxel_offset = (chunk.shape[0], ) + voxel_offset
+            voxel_offset = (0, ) + voxel_offset
         
         chunk = Chunk(chunk, voxel_offset=voxel_offset)
 

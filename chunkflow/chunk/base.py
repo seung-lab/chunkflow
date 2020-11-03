@@ -122,18 +122,17 @@ class Chunk(NDArrayOperatorsMixin):
         assert os.path.exists(file_name)
         assert h5py.is_hdf5(file_name)
 
-        voxel_offset_path = os.path.join(os.path.dirname(file_name),
-                                       'voxel_offset')
         with h5py.File(file_name, 'r') as f:
             if dataset_path is None:
                 for key in f.keys():
-                    if 'offset' not in key:
+                    if 'offset' not in key and 'unique' not in key:
                         # the first name without offset inside
                         dataset_path = key
+                        break
             dset = f[dataset_path]
             if voxel_offset is None: 
-                if voxel_offset_path in f:
-                    voxel_offset = tuple(f[voxel_offset_path])
+                if 'voxel_offset' in f:
+                    voxel_offset = tuple(f['voxel_offset'])
                 else:
                     voxel_offset = tuple(0 for _ in range(dset.ndim))
             elif len(voxel_offset)==3 and dset.ndim==4:
@@ -180,18 +179,29 @@ class Chunk(NDArrayOperatorsMixin):
 
         return cls(arr, voxel_offset=cutout_start)
 
-    def to_h5(self, file_name: str, with_offset: bool=True, compression="gzip"):
-        assert '.h5' in file_name
+    def to_h5(self, file_name: str, with_offset: bool=True, 
+                with_unique: bool= True, compression="gzip"):
+
+        if not file_name.endswith('.h5'):
+            file_name += '/' + self.bbox.to_filename() + '.h5'
 
         print('write chunk to file: ', file_name)
         if os.path.exists(file_name):
+            print(yellow(f'deleting existing file: {file_name}'))
             os.remove(file_name)
+
 
         with h5py.File(file_name, 'w') as f:
             f.create_dataset('/main', data=self.array, compression=compression)
             if with_offset:
                 f.create_dataset('/voxel_offset', data=self.voxel_offset)
-    
+
+            if with_unique and self.is_segmentation:
+                unique = np.unique(self.array)
+                if unique[0]:
+                    unique = unique[1:]
+                f.create_dataset('/unique_nonzeros', data = unique)
+
     def __array__(self):
         return self.array
     
@@ -298,6 +308,10 @@ class Chunk(NDArrayOperatorsMixin):
             return type(self)(new_array, voxel_offset=self.voxel_offset)
         else:
             return self
+
+    def ascontiguousarray(self):
+        np.ascontiguousarray(self.array)
+        return self
     
     def max(self, *args, **kwargs):
         return self.array.max(*args, **kwargs)
@@ -379,8 +393,12 @@ class Chunk(NDArrayOperatorsMixin):
     def connected_component(self, threshold: float = 0.5, 
                             connectivity: int = 26):
         """threshold the map chunk and get connected components."""
-        seg = self.threshold(threshold)
-        seg = cc3d.connected_components(seg.array, connectivity=connectivity)
+        if not self.is_segmentation:
+            seg = self.threshold(threshold)
+            seg = seg.array
+        else:
+            seg = self.array 
+        seg = cc3d.connected_components(seg, connectivity=connectivity)
         return Chunk(seg, voxel_offset=self.voxel_offset)
 
     def where(self, mask: np.ndarray) -> tuple:

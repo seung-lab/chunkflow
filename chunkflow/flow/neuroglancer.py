@@ -29,13 +29,12 @@ class NeuroglancerOperator(OperatorBase):
         #     url='https://neuromancer-seung-import.appspot.com')
         ng.set_server_bind_address(bind_address='0.0.0.0', bind_port=self.port)
         viewer = ng.Viewer()
-
         with viewer.txn() as s:
             for chunk_name in selected:
                 chunk = chunks[chunk_name]
                 voxel_offset = chunk.voxel_offset
 
-                chunk = np.ascontiguousarray(chunk)
+                # chunk = np.ascontiguousarray(chunk)
                 # neuroglancer uses F order
 
                 # neuroglancer do not support int type
@@ -47,6 +46,7 @@ class NeuroglancerOperator(OperatorBase):
 
                 if chunk.ndim == 3:
                     chunk = np.transpose(chunk)
+                    adjusted_voxel_offset = voxel_offset[::-1]
                     dimensions = ng.CoordinateSpace(
                         scales=self.voxel_size[::-1],
                         units=['nm', 'nm', 'nm'],
@@ -56,11 +56,20 @@ class NeuroglancerOperator(OperatorBase):
                             np.issubdtype(chunk.dtype, np.uint64):
                         shader = None
                     else:
-                        shader="""void main () {
-emitGrayscale(toNormalized(getDataValue()));
+                        shader="""#uicontrol int channel slider(min=0, max=4)
+#uicontrol vec3 color color(default="white")
+#uicontrol float brightness slider(min=-1, max=1)
+#uicontrol float contrast slider(min=-3, max=3, step=0.01)
+void main() {
+  emitRGB(color *
+          (toNormalized(getDataValue(channel)) + brightness) *
+          exp(contrast));
 }"""
                 elif chunk.ndim == 4:
                     chunk = np.transpose(chunk, axes=(0, 3, 2, 1))
+                    adjusted_voxel_offset = (voxel_offset[0], *voxel_offset[-3:][::-1])
+                    # chunk = np.transpose(chunk)
+                    # chunk = np.ascontiguousarray(chunk)
                     dimensions = ng.CoordinateSpace(
                         scales=(1, *self.voxel_size[::-1]),
                         units=['', 'nm', 'nm', 'nm'],
@@ -74,7 +83,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
 """
                 else:
                     raise ValueError('only support 3/4 dimension volume.')
-                
+                    
                 if shader:
                     s.layers.append(
                         name=chunk_name,
@@ -84,7 +93,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                             # offset is in nm, not voxels
                             # chunkflow use C order with zyx, 
                             # while neuroglancer use F order with xyz
-                            voxel_offset=voxel_offset[::-1],
+                            voxel_offset=adjusted_voxel_offset,
                         ),
                         shader=shader
                     )
