@@ -16,3 +16,4 @@ fastremap
 matplotlib
 waterz
 kimimaro
+PIL

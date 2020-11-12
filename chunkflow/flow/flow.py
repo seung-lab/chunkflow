@@ -394,22 +394,29 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME,
               help='output chunk name')
-@click.option('--voxel-offset', '-v',
+@click.option('--cutout-offset', '-c',
               type=int, default=(0,0,0), nargs=3,
               help='cutout chunk from an offset')
+@click.option('--volume-offset', '-t',
+              type=int, nargs=3, default=(0,0,0),
+              help = 'the offset of png images volume, could be negative.')
 @click.option('--chunk-size', '-s',
-              type=int, nargs=3, required=True,
+              type=int, nargs=3, default=None, callback=default_none,
               help='cutout chunk size')
 @operator
-def read_pngs(tasks, path_prefix, output_chunk_name, voxel_offset, chunk_size):
+def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset, volume_offset, chunk_size):
     """Read a serials of png files."""
     for task in tasks:
-        if 'bbox' not in task:
-            bbox = Bbox.from_delta(voxel_offset, chunk_size)
-        else:
+        if chunk_size is None:
+            assert 'bbox' in task, "no chunk_size, we are looking for bounding box in task"
             bbox = task['bbox']
+        else:
+            bbox = Bbox.from_delta(cutout_offset, chunk_size)
 
-        task[output_chunk_name] = read_png_images(path_prefix, bbox)
+        task[output_chunk_name] = read_png_images(
+            path_prefix, bbox, 
+            volume_offset=volume_offset,
+            verbose = state['verbose'])
         yield task
 
 
