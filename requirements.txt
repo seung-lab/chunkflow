@@ -16,4 +16,4 @@ fastremap
 matplotlib
 waterz
 kimimaro
-PIL
+Pillow
