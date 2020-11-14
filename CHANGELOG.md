@@ -4,6 +4,8 @@ ChangeLog history
 # chunkflow 1.0.4 (2020-xx-xx)
 ## Breaking Changes
 - read-pngs parameter name change.
+- rename several operators to make them more consistent: cutout --> read-precomputed, save --> write-precomputed, save-pngs --> write-pngs
+
 ## Deprecations 
 
 ## Features

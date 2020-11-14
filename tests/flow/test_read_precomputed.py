@@ -6,10 +6,10 @@ from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
 from cloudvolume.lib import generate_random_string, Bbox
 
-from chunkflow.flow.cutout import CutoutOperator
+from chunkflow.flow.read_precomputed import ReadPrecomputedOperator
 
 
-class TestCutout(unittest.TestCase):
+class TestReadPrecomputed(unittest.TestCase):
     def setUp(self):
         print('test volume cutout...')
         # compute parameters
@@ -33,7 +33,7 @@ class TestCutout(unittest.TestCase):
 
     def test_cutout(self):
         print('test volume cutout...')
-        operator = CutoutOperator(self.volume_path, mip=self.mip)
+        operator = ReadPrecomputedOperator(self.volume_path, mip=self.mip)
 
         offset = (4, 64, 64)
         shape = (28, 320, 320)
@@ -47,7 +47,7 @@ class TestCutout(unittest.TestCase):
 
     def test_blackout_sections(self):
         print('test blackout sections...')
-        operator = CutoutOperator(self.volume_path,
+        operator = ReadPrecomputedOperator(self.volume_path,
                                   mip=self.mip,
                                   blackout_sections=True)
 

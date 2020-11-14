@@ -22,7 +22,7 @@ from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from .agglomerate import AgglomerateOperator
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
-from .cutout import CutoutOperator
+from .read_precomputed import ReadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
@@ -34,8 +34,8 @@ from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
 from .plugin import Plugin
 from .read_pngs import read_png_images
-from .save import SaveOperator
-from .save_pngs import SavePNGsOperator
+from .write_precomputed import WritePrecomputedOperator
+from .write_pngs import WritePNGsOperator
 from .setup_env import setup_environment
 from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
@@ -538,16 +538,16 @@ def write_tif(tasks, name, input_chunk_name, file_name):
         yield task
 
 
-@main.command('save-pngs')
-@click.option('--name', type=str, default='save-pngs', help='name of operator')
+@main.command('write-pngs')
+@click.option('--name', type=str, default='write-pngs', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--output-path', '-o',
               type=str, default='./saved_pngs/', help='output path of saved 2d images formated as png.')
 @operator
-def save_pngs(tasks, name, input_chunk_name, output_path):
+def write_pngs(tasks, name, input_chunk_name, output_path):
     """Save as 2D PNG images."""
-    operator = SavePNGsOperator(output_path=output_path,
+    operator = WritePNGsOperator(output_path=output_path,
                                                 name=name)
     for task in tasks:
         handle_task_skip(task, name)
@@ -615,9 +615,9 @@ def delete_chunk(tasks, name, chunk_name):
             yield task
  
 
-@main.command('cutout')
+@main.command('read-precomputed')
 @click.option('--name',
-              type=str, default='cutout', help='name of this operator')
+              type=str, default='read-precomputed', help='name of this operator')
 @click.option('--volume-path', '-v',
               type=str, required=True, help='volume path')
 @click.option('--mip', '-m',
@@ -644,13 +644,13 @@ def delete_chunk(tasks, name, chunk_name):
     + 'Chunkflow operators by default operates on a variable named "chunk" but' +
     ' sometimes you may need to have a secondary volume to work on.')
 @operator
-def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin_size,
+def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin_size,
            fill_missing, validate_mip, blackout_sections, output_chunk_name):
     """Cutout chunk from volume."""
     if mip is None:
         mip = state['mip']
     
-    operator = CutoutOperator(
+    operator = ReadPrecomputedOperator(
         volume_path,
         mip=mip,
         expand_margin_size=expand_margin_size,
@@ -1016,8 +1016,6 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         dry_run=state['dry_run'],
         verbose=state['verbose']) as inferencer:
         
-        operator = inferencer 
-
         for task in tasks:
             handle_task_skip(task, name)
             if not task['skip']:
@@ -1025,12 +1023,11 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
                     task['log'] = {'timer': {}}
                 start = time()
 
-                task[output_chunk_name] = operator(
+                task[output_chunk_name] = inferencer(
                     task[input_chunk_name])
 
                 task['log']['timer'][name] = time() - start
-                task['log']['compute_device'] = state[
-                    'operators'][name].compute_device
+                task['log']['compute_device'] = inferencer.compute_device
             yield task
 
 
@@ -1056,7 +1053,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
               default=False,
               help='default is doing maskout. ' +
               'check all zero will return boolean result.')
-@click.option('--skip-to', type=str, default='save', help='skip to a operator')
+@click.option('--skip-to', type=str, default='write-precomputed', help='skip to a operator')
 @operator
 def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path, 
          mip, inverse, fill_missing, check_all_zero, skip_to):
@@ -1256,8 +1253,8 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
         task[output_chunk_name] = quantized_image
         yield task
 
-@main.command('save')
-@click.option('--name', type=str, default='save', help='name of this operator')
+@main.command('write-precomputed')
+@click.option('--name', type=str, default='write-precomputed', help='name of this operator')
 @click.option('--volume-path', '-v', type=str, required=True, help='volume path')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
@@ -1267,9 +1264,9 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
     default=False, help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
 @operator
-def save(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnail):
+def write_precomputed(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnail):
     """Save chunk to volume."""
-    operator = SaveOperator(volume_path,
+    operator = WritePrecomputedOperator(volume_path,
                                             state['mip'],
                                             upload_log=upload_log,
                                             create_thumbnail=create_thumbnail,

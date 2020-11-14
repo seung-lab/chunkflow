@@ -4,7 +4,7 @@ import os
 import shutil
 
 from chunkflow.chunk import Chunk
-from chunkflow.flow.save_pngs import SavePNGsOperator
+from chunkflow.flow.write_pngs import WritePNGsOperator
 
 
 def read_write_h5(chunk):
@@ -40,7 +40,7 @@ def read_write_tif(chunk):
 def save_pngs(chunk):
     # test save images
     output_path = '/tmp/test/'
-    save_pngs_operator = SavePNGsOperator(output_path)
+    save_pngs_operator = WritePNGsOperator(output_path)
     save_pngs_operator(chunk)
     print('remove the temporary directory.')
     shutil.rmtree(output_path)
