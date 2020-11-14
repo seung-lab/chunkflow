@@ -183,7 +183,7 @@ class Chunk(NDArrayOperatorsMixin):
                 with_unique: bool= True, compression="gzip"):
 
         if not file_name.endswith('.h5'):
-            file_name += '/' + self.bbox.to_filename() + '.h5'
+            file_name += self.bbox.to_filename() + '.h5'
 
         print('write chunk to file: ', file_name)
         if os.path.exists(file_name):

@@ -1,6 +1,18 @@
 ChangeLog history
 =================
 
+# chunkflow 1.0.4 (2020-xx-xx)
+## Breaking Changes
+- read-pngs parameter name change.
+## Deprecations 
+
+## Features
+- add a plugin to inverse image / affinitymap intensity
+
+## Bug Fixes 
+
+## Improved Documentation 
+
 # chunkflow 1.0.3 (2020-10-29)
 ## Breaking Changes
 - replace global_offset to voxel_offset to be consistent with neuroglancer info 
