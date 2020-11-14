@@ -17,4 +17,4 @@ matplotlib
 waterz
 kimimaro
 Pillow
-urllib3==1.26.0
+urllib3==1.25.11
