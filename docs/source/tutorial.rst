@@ -87,7 +87,7 @@ We use CloudVolume_ to perform cutout/saving of chunks in a large scale volumeme
 
 Now you can cutout the image chunk from the volume::
 
-   chunkflow cutout --volume-path file:///tmp/your/key/path --start 0 0 0 --stop 128 512 512 write-h5 --file-name /tmp/cutout_chunk.h5
+   chunkflow read-precomputed --volume-path file:///tmp/your/key/path --start 0 0 0 --stop 128 512 512 write-h5 --file-name /tmp/cutout_chunk.h5
 
 .. _CloudVolume: https://github.com/seung-lab/cloud-volume
 

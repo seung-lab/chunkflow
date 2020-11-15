@@ -15,7 +15,7 @@ from chunkflow.lib.igneous.tasks import downsample_and_upload
 #from .downsample_upload import DownsampleUploadOperator
 
 
-class SaveOperator(OperatorBase):
+class WritePrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int,

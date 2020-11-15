@@ -105,7 +105,7 @@ class TestInferencePipeline(unittest.TestCase):
     def test_inference_pipeline(self):
         # run pipeline by composing functions
         print('cutout image chunk...')
-        cutout_operator = CutoutOperator(
+        cutout_operator = ReadPrecomputedOperator(
             self.input_volume_path,
             mip=self.mip,
             expand_margin_size=self.cropping_margin_size)
@@ -143,7 +143,7 @@ class TestInferencePipeline(unittest.TestCase):
         print('after masking: {}'.format(chunk.slices))
 
         print('save to output volume...')
-        save_operator = SaveOperator(self.output_volume_path,
+        save_operator = WritePrecomputedOperator(self.output_volume_path,
                                      self.mip,
                                      upload_log=True,
                                      create_thumbnail=True)

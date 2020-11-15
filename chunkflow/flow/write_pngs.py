@@ -7,7 +7,7 @@ import numpy as np
 from cloudvolume.lib import save_images
 
 
-class SavePNGsOperator(OperatorBase):
+class WritePNGsOperator(OperatorBase):
     def __init__(self,
                  output_path: str = './saved_images/',
                  name: str = 'save-pngs',

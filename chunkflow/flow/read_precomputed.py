@@ -9,7 +9,7 @@ from chunkflow.chunk import Chunk
 from .base import OperatorBase
 
 
-class CutoutOperator(OperatorBase):
+class ReadPrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int = 0,

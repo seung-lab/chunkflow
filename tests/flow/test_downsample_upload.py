@@ -31,7 +31,6 @@ def hierarchical_downsample(chunk, layer_type='segmentation'):
 def test_segmentation():
     print('test downsample and upload...')
     # compute parameters
-    mip = 0
     size = (16, 512, 512)
 
     # create image dataset using cloud-volume
@@ -43,7 +42,6 @@ def test_segmentation():
 def test_image():
     print('test downsample and upload...')
     # compute parameters
-    mip = 0
     size = (16, 512, 512)
 
     # create image dataset using cloud-volume
@@ -55,7 +53,6 @@ def test_image():
 def test_psd_map():
     print('test downsample and upload...')
     # compute parameters
-    mip = 0
     size = (16, 512, 512)
 
     # create image dataset using cloud-volume

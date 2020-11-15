@@ -20,17 +20,3 @@ Terminology
 - chunk: ndarray with global offset and arbitrary shape.
 - block: the array with a shape and global offset aligned with storage backend. The block could be saved directly to storage backend. The alignment with storage files ensures that there is no writting conflict when saved parallelly.
 
-Citation
-========
-For more information, you can read our paper_. If you find it useful and is writing a paper, please cite our paper_:
-
-.. code-block:: bibtex
-
-    @article{wu2019chunkflow,
-      title={Chunkflow: Distributed Hybrid Cloud Processing of Large 3D Images by Convolutional Nets},
-      author={Wu, Jingpeng and Silversmith, William M and Seung, H Sebastian},
-      journal={arXiv preprint arXiv:1904.10489},
-      year={2019}
-    }
-
-.. _paper: https://arxiv.org/abs/1904.10489

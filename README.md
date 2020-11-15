@@ -28,9 +28,7 @@ chunkflow \
     inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt \
         --input-patch-size 20 256 256 --output-patch-overlap 4 64 64 --num-output-channels 3 \
         -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs \
-    write-h5 -i affs --file-name affs.h5 \
     agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg \
-    write-tif -i seg -f seg.tif \
     neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 ```
 you can see your 3D image and segmentation directly in [Neuroglancer](https://github.com/google/neuroglancer)!
@@ -51,13 +49,12 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | create-chunk    | Create a fake chunk for easy test |
 | create-info     | Create info file of Neuroglancer Precomputed volume |
 | crop-margin     | Crop the margin of a chunk |
-| cutout          | Cutout chunk from a local/cloud storage volume |
 | delete-chunk    | Delete chunk in task to reduce RAM requirement |
 | delete-task-in-queue | Delete the task in AWS SQS queue |
 | downsample-upload | Downsample the chunk hierarchically and upload to volume |
 | evaluate-segmentation | Compare segmentation chunks |
-| fetch-task-from-sqs | Fetch task from AWS SQS queue one by one |
 | fetch-task-from-file | Fetch task from a file |
+| fetch-task-from-sqs | Fetch task from AWS SQS queue one by one |
 | generate-tasks  | Generate tasks one by one |
 | inference       | Convolutional net inference |
 | log-summary     | Summary of logs |
@@ -66,21 +63,22 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | mesh            | Build 3D meshes from segmentation chunk |
 | mesh-manifest   | Collect mesh fragments for object |
 | neuroglancer    | Visualize chunks using neuroglancer |
-| normalize-intensity | Normalize image intensity to -1:1 |
 | normalize-contrast-nkem | Normalize image contrast using histograms |
+| normalize-intensity | Normalize image intensity to -1:1 |
 | normalize-section-shang | Normalization algorithm created by Shang |
 | plugin          | Import local code as a customized operator. |
 | quantize        | Quantize the affinity map |
 | read-h5         | Read HDF5 files |
 | read-pngs       | Read png files |
+| read-precomputed| Cutout chunk from a local/cloud storage volume |
 | read-tif        | Read TIFF files |
-| save            | Save chunk to local/cloud storage volume |
-| save-pngs       | Save chunk as a serials of png files |
 | setup-env       | Prepare storage infor files and produce tasks |
 | skeletonize     | Create centerlines of objects in a segmentation chunk |
 | threshold       | Use a threshold to segment the probability map |
 | view            | Another chunk viewer in browser using CloudVolume |
 | write-h5        | Write chunk as HDF5 file |
+| write-pngs      | Save chunk as a serials of png files |
+| write-precomputed| Save chunk to local/cloud storage volume |
 | write-tif       | Write chunk as TIFF file |
 
 
