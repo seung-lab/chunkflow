@@ -24,3 +24,4 @@ data/
 tmp/
 docs/source/tutorial/
 docs/source/_build/
+*.DS_Store

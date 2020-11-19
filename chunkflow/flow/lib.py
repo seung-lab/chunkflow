@@ -2,7 +2,7 @@
 from functools import update_wrapper, wraps
 import click
 from cloudvolume.lib import yellow
-
+import numpy as np
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}

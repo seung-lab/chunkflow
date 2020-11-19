@@ -183,14 +183,18 @@ def cloud_watch(tasks, name, log_name):
 
 
 @main.command('create-info')
-@click.option('--layer-path', '-l', type=str, required=True, help='path of layer.')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME,
+              help="create info for this chunk.")
+@click.option('--output-layer-path', '-l', type=str, default="file://.", 
+              help='path of output layer.')
 @click.option('--channel-num', '-c', type=int, default=1, help='number of channel')
 @click.option('--layer-type', '-t',
               type=click.Choice(['image', 'segmentation']),
               default='image', help='type of layer. either image or segmentation.')
 @click.option('--data-type', '-d',
               type=click.Choice(['uint8', 'uint32', 'uint64', 'float32']),
-              required=True, help='data type of array')
+              default = None, help='data type of array')
 @click.option('--encoding', '-e',
               type=click.Choice(['raw', 'jpeg', 'compressed_segmentation', 
                     'kempressed', 'npz', 'fpzip', 'npz_uint8']),
@@ -200,7 +204,7 @@ def cloud_watch(tasks, name, log_name):
 @click.option('--voxel-offset', '-o', default=(0,0,0), type=int, nargs=3,
               help='voxel offset of array')
 @click.option('--volume-size', '-v',
-              required=True, type=int, nargs=3,
+              type=int, nargs=3, default=None, callback=default_none,
               help='total size of the volume.')
 @click.option('--block-size', '-b',
               type=int, nargs=3, required=True,
@@ -209,20 +213,45 @@ def cloud_watch(tasks, name, log_name):
               type=int, default=0, 
               help = 'maximum mip level.')
 @operator
-def create_info(tasks,layer_path, channel_num, layer_type, data_type, encoding, voxel_size, 
+def create_info(tasks,input_chunk_name, output_layer_path, channel_num, layer_type, data_type, encoding, voxel_size, 
                 voxel_offset, volume_size, block_size, max_mip):
-    info = CloudVolume.create_new_info(
-        channel_num, layer_type=layer_type,
-        data_type=data_type,
-        encoding=encoding,
-        resolution=voxel_size[::-1],
-        voxel_offset=voxel_offset[::-1],
-        volume_size=volume_size[::-1],
-        chunk_size=block_size[::-1],
-        max_mip=max_mip)
-    vol = CloudVolume(layer_path, info=info)
-    vol.commit_info()
-    return info
+    
+    for task in tasks:
+        if input_chunk_name in task:
+            chunk = task[input_chunk_name]
+            if chunk.ndim == 3:
+                channel_num = 1
+            elif chunk.ndim == 4:
+                channel_num = chunk.shape[0]
+            else:
+                raise ValueError('chunk dimension can only be 3 or 4')
+
+            voxel_offset = chunk.voxel_offset
+            volume_size = chunk.shape
+            data_type = chunk.dtype.name
+
+            if np.issubdtype(chunk.dtype, np.uint8) or \
+                    np.issubdtype(chunk.dtype, np.float32) or \
+                    np.issubdtype(chunk.dtype, np.float16):
+                layer_type = 'image'
+            else:
+                layer_type = 'segmentation'
+        
+        assert volume_size is not None 
+        assert data_type is not None
+
+        info = CloudVolume.create_new_info(
+            channel_num, layer_type=layer_type,
+            data_type=data_type,
+            encoding=encoding,
+            resolution=voxel_size[::-1],
+            voxel_offset=voxel_offset[::-1],
+            volume_size=volume_size[::-1],
+            chunk_size=block_size[::-1],
+            max_mip=max_mip)
+        vol = CloudVolume(output_layer_path, info=info)
+        vol.commit_info()
+        yield task
 
 
 @main.command('fetch-task-from-file')
