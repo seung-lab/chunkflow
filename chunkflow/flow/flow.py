@@ -68,7 +68,7 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, mip=mip, grid_size=grid_size,
-        verbose=state['verbose'])
+        )
 
     print('total number of tasks: ', len(bboxes)) 
     # write out as a file
@@ -147,7 +147,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
         state['dry_run'], volume_start, volume_stop, volume_size, layer_path, 
         max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
         output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
-        thumbnail, encoding, voxel_size, overwrite_info, state['verbose'])
+        thumbnail, encoding, voxel_size, overwrite_info)
  
     if queue_name is not None and not state['dry_run']:
         queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
@@ -172,9 +172,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
 @operator
 def cloud_watch(tasks, name, log_name):
     """Real time speedometer in AWS CloudWatch."""
-    operator = CloudWatchOperator(log_name=log_name,
-                                                  name=name,
-                                                  verbose=state['verbose'])
+    operator = CloudWatchOperator(log_name=log_name, name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
@@ -343,11 +341,11 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
 def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
                 fragments_chunk_name, scoring_function, input_chunk_name, output_chunk_name):
     """Watershed and agglomeration to segment affinity map."""
-    operator = AgglomerateOperator(name=name, verbose=state['verbose'],
-                                                   threshold=threshold, 
-                                                   aff_threshold_low=aff_threshold_low,
-                                                   aff_threshold_high=aff_threshold_high,
-                                                   scoring_function=scoring_function)
+    operator = AgglomerateOperator(name=name,
+                                   threshold=threshold, 
+                                   aff_threshold_low=aff_threshold_low,
+                                   aff_threshold_high=aff_threshold_high,
+                                   scoring_function=scoring_function)
     for task in tasks:
         if fragments_chunk_name and fragments_chunk_name in task:
             fragments = task[fragments_chunk_name]
@@ -444,8 +442,7 @@ def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset, volume_offse
 
         task[output_chunk_name] = read_png_images(
             path_prefix, bbox, 
-            volume_offset=volume_offset,
-            verbose = state['verbose'])
+            volume_offset=volume_offset)
         yield task
 
 
@@ -598,9 +595,7 @@ def write_pngs(tasks, name, input_chunk_name, output_path):
 @operator
 def skeletonize(tasks, name, input_chunk_name, output_name, voxel_size, output_path):
     """Skeletonize the neurons/objects in a segmentation chunk"""
-    operator = SkeletonizeOperator(output_path,
-                                   name=name,
-                                   verbose=state['verbose'])
+    operator = SkeletonizeOperator(output_path, name=name)
     for task in tasks:
         seg = task[input_chunk_name]
         skels = operator(seg, voxel_size)
@@ -636,10 +631,9 @@ def delete_chunk(tasks, name, chunk_name):
     for task in tasks:
         handle_task_skip(task, name)
         if task['skip']:
-            print('skip deleting ', chunk_name)
+            logging.info(f'skip deleting {chunk_name}')
         else:
-            if state['verbose']:
-                print('delete chunk: ', chunk_name)
+            logging.info(f'delete chunk: {chunk_name}')
             del task[chunk_name]
             yield task
  
@@ -683,7 +677,6 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
         volume_path,
         mip=mip,
         expand_margin_size=expand_margin_size,
-        verbose=state['verbose'],
         fill_missing=fill_missing,
         validate_mip=validate_mip,
         blackout_sections=blackout_sections,
@@ -770,8 +763,7 @@ def downsample_upload(tasks, name, input_chunk_name, volume_path,
         start_mip=start_mip,
         stop_mip=stop_mip,
         fill_missing=fill_missing,
-        name=name,
-        verbose=state['verbose'])
+        name=name)
 
     for task in tasks:
         handle_task_skip(task, name)
@@ -923,9 +915,8 @@ def plugin(tasks, name, input_chunk_name, output_chunk_name, file, args):
     a call of `exec(chunk, args)` can be made to operate on the chunk.
     """
 
-    operator = Plugin(file, args=args, name=name, verbose=state['verbose'])
-    if state['verbose']:
-        print('Received args for ', name, ':', args)
+    operator = Plugin(file, args=args, name=name)
+    logging.info(f'Received args for {name} : {args}')
 
     for task in tasks:
         handle_task_skip(task, name)
@@ -1042,8 +1033,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         bump=bump,
         mask_output_chunk=mask_output_chunk,
         mask_myelin_threshold=mask_myelin_threshold,
-        dry_run=state['dry_run'],
-        verbose=state['verbose']) as inferencer:
+        dry_run=state['dry_run']) as inferencer:
         
         for task in tasks:
             handle_task_skip(task, name)
@@ -1095,7 +1085,6 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
                                             inverse=inverse,
                                             fill_missing=fill_missing,
                                             check_all_zero=check_all_zero,
-                                            verbose=state['verbose'],
                                             name=name)
 
     for task in tasks:
@@ -1136,8 +1125,7 @@ def mask_out_objects(tasks, name, input_chunk_name, output_chunk_name,
     operator = MaskOutObjectsOperator(
         dust_size_threshold,
         selected_obj_ids,
-        name=name,
-        verbose=state['verbose']
+        name=name
     )
     operator = operator
     
@@ -1299,7 +1287,6 @@ def write_precomputed(tasks, name, volume_path, input_chunk_name, upload_log, cr
                                             state['mip'],
                                             upload_log=upload_log,
                                             create_thumbnail=create_thumbnail,
-                                            verbose=state['verbose'],
                                             name=name)
 
     for task in tasks:
@@ -1337,8 +1324,7 @@ def threshold(tasks, name, input_chunk_name, output_chunk_name,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            if state['verbose']:
-                print('Segment probability map using a threshold...')
+            logging.info('Segment probability map using a threshold...')
             task[output_chunk_name] = task[input_chunk_name].threshold(threshold)
             task['log']['timer'][name] = time() - start
         yield task

@@ -20,8 +20,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
                  minval: int = 1,
                  maxval: int = np.iinfo(np.uint8).max,
                  #maxval: int = np.iinfo(np.uint32).max,
-                 name: str = 'normalize-contrast',
-                 verbose: bool = True):
+                 name: str = 'normalize-contrast'):
         """
         levels_path: (str) path of section histogram files.
         clip_fraction: (float) the fraction of intensity to be clamped.
@@ -30,7 +29,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
                 float(np.iinfo(np.float32)).max. It is meaningless to use value 
                 larger than the max value of uint8.
         """
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         assert 0 <= lower_clip_fraction <= 1
         assert 0 <= upper_clip_fraction <= 1
         assert lower_clip_fraction + upper_clip_fraction <= 1
@@ -45,7 +44,6 @@ class NormalizeSectionContrastOperator(OperatorBase):
         # intensity value lookup table cache
         self.lookup_tables = dict()
         self.stor = SimpleStorage(self.levels_path)
-        self.verbose = verbose
 
     def __call__(self, chunk):
         # this is a image, not affinitymap

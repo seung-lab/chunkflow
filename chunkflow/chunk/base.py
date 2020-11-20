@@ -474,11 +474,10 @@ class Chunk(NDArrayOperatorsMixin):
             for s, o in zip(slices, self.voxel_offset))
 
 
-    def validate(self, verbose: bool = False):
+    def validate(self):
         """validate the completeness of this chunk, there
         should not have black boxes.
 
-        :param verbose: show detailed info or not
         """
-        validate_by_template_matching(self.array, verbose=verbose)
+        validate_by_template_matching(self.array)
 

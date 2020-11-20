@@ -3,6 +3,7 @@ __doc__ = """
 ConvNet Inference of an image chunk
 """
 import os
+import logging
 import time
 import numpy as np
 from tqdm import tqdm
@@ -45,12 +46,16 @@ class Inferencer(object):
                  input_size: tuple = None,
                  mask_output_chunk: bool = False,
                  mask_myelin_threshold = None,
-                 dry_run: bool = False,
-                 verbose: int = 1):
+                 dry_run: bool = False):
         assert input_size is None or patch_num is None 
         
         if output_patch_size is None:
             output_patch_size = input_patch_size 
+
+        if logging.getLogger().getEffectiveLevel() <= 30:
+            self.verbose = True
+        else:
+            self.verbose = False
         
         self.input_patch_size = input_patch_size
         self.output_patch_size = output_patch_size
@@ -110,7 +115,6 @@ class Inferencer(object):
             self.output_size = None
 
         self.num_output_channels = num_output_channels
-        self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
         self.output_chunk_mask = None
         self.dtype = dtype        
@@ -206,8 +210,7 @@ class Inferencer(object):
         # the patches should aligned with input size in case
         # we will not mask the output chunk
         assert np.all(is_align)
-        if self.verbose:
-            print('great! patches aligns in chunk.')
+        logging.info('great! patches aligns in chunk.')
 
     def _construct_patch_slices_list(self, input_chunk_offset):
         """
@@ -253,8 +256,7 @@ class Inferencer(object):
         if not self.mask_output_chunk:
             return
 
-        if self.verbose:
-            print('creating output chunk mask...')
+        logging.info('creating output chunk mask...')
         
         if self.output_chunk_mask is None or not np.array_equal(
                 input_chunk.shape, self.output_chunk_mask.shape):
@@ -349,38 +351,33 @@ class Inferencer(object):
             dtype_max = np.iinfo(input_chunk.dtype).max
             input_chunk = input_chunk.astype(self.dtype) / dtype_max
 
-        if self.verbose:
-            chunk_time_start = time.time()
+        chunk_time_start = time.time()
 
         # iterate the offset list
         for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
                       disable=(self.verbose <= 0),
                       desc='ConvNet inference for patches: '):
-            if self.verbose:
-                start = time.time()
+            start = time.time()
 
             batch_slices = self.patch_slices_list[i:i + self.batch_size]
             for batch_idx, slices in enumerate(batch_slices):
                 self.input_patch_buffer[
                     batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0]).array
 
-            if self.verbose > 1:
-                end = time.time()
-                print('prepare %d input patches takes %3f sec' %
-                      (self.batch_size, end - start))
-                start = end
+            end = time.time()
+            logging.debug('prepare %d input patches takes %3f sec' %
+                    (self.batch_size, end - start))
+            start = end
 
             # the input and output patch is a 5d numpy array with
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
             output_patch = self.patch_inferencer(self.input_patch_buffer)
 
-            if self.verbose > 1:
-                assert output_patch.ndim == 5
-                end = time.time()
-                print('run inference for %d patch takes %3f sec' %
-                      (self.batch_size, end - start))
-                start = end
+            end = time.time()
+            logging.debug('run inference for %d patch takes %3f sec' %
+                    (self.batch_size, end - start))
+            start = end
 
             for batch_idx, slices in enumerate(batch_slices):
                 # only use the required number of channels
@@ -402,12 +399,9 @@ class Inferencer(object):
 
                 output_buffer.blend(output_chunk)
 
-            if self.verbose > 1:
-                end = time.time()
-                print('blend patch takes %3f sec' % (end - start))
-
-        if self.verbose:
-            print("Inference of whole chunk takes %3f sec" %
+            end = time.time()
+            logging.debug('blend patch takes %3f sec' % (end - start))
+            logging.debug("Inference of whole chunk takes %3f sec" %
                   (time.time() - chunk_time_start))
         
         if self.mask_output_chunk:

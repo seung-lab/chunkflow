@@ -33,7 +33,6 @@ def test_save_image():
         volume_path, 0,
         upload_log = True,
         create_thumbnail = False,
-        verbose = True,
         name = 'save'
     )
     

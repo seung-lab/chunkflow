@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import numpy as np
@@ -23,8 +24,7 @@ class MeshOperator(OperatorBase):
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
                  manifest: bool = False,
-                 name: str = 'meshing',
-                 verbose: bool = True):
+                 name: str = 'meshing'):
         """
         Parameters
         ------------
@@ -43,12 +43,10 @@ class MeshOperator(OperatorBase):
             not be True if you are only doing meshing for a segmentation chunk.
         name: 
             operator name.
-        verbose:
-            print out informations or not.
 
         Note that some functions are adopted from igneous.
         """
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         self.simplification_factor = simplification_factor
         self.max_simplification_error = max_simplification_error
         # zmesh use fortran order, translate zyx to xyz
@@ -129,12 +127,10 @@ class MeshOperator(OperatorBase):
         # use ndarray after getting the bounding box
         seg = seg.array
 
-        if self.verbose:
-            print('computing meshes from segmentation...')
+        logging.info('computing meshes from segmentation...')
         self.mesher.mesh(seg)
 
-        if self.verbose:
-            print('write mesh to storage...')
+        logging.info('write mesh to storage...')
         for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
             # print('object id: ', obj_id)
             data = self._get_mesh_data(obj_id, bbox.minpt)

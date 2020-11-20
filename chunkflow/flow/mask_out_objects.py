@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import numpy as np
@@ -13,8 +14,7 @@ from .base import OperatorBase
 class MaskOutObjectsOperator(OperatorBase):
     """Create mesh files from segmentation."""
     def __init__(self, dust_size_threshold: int, selected_obj_ids: str,
-                 name: str='mask-out-objects',
-                 verbose: int=1):
+                 name: str='mask-out-objects'):
         """
         Parameters
         ------------
@@ -27,12 +27,10 @@ class MaskOutObjectsOperator(OperatorBase):
             not be True if you are only doing meshing for a segmentation chunk.
         name: 
             operator name.
-        verbose:
-            print out informations or not.
 
         Note that some functions are adopted from igneous.
         """
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         self.dust_size_threshold = dust_size_threshold
         
         if selected_obj_ids:
@@ -42,8 +40,7 @@ class MaskOutObjectsOperator(OperatorBase):
                 ids_str = json_storage.get_file(os.path.basename(selected_obj_ids))
                 self.ids = set(json.loads(ids_str))
                 assert len(self.ids) > 0
-                if self.verbose:
-                    print(f'number of selected objects: {len(self.ids)}')
+                logging.info(f'number of selected objects: {len(self.ids)}')
             else:
                 # a simple string, like "34,45,56,23"
                 # this is used for small object numbers
@@ -53,8 +50,7 @@ class MaskOutObjectsOperator(OperatorBase):
         """
         this function is adopted from igneous.
         """
-        if self.verbose:
-            print('remove dust segments')
+        logging.info('remove dust segments')
 
         if self.dust_size_threshold or self.ids:
             segids, voxel_nums = np.unique(seg, return_counts=True)
@@ -66,8 +62,7 @@ class MaskOutObjectsOperator(OperatorBase):
         return seg
 
     def _only_keep_selected(self, seg: np.ndarray):
-        if self.verbose:
-            print('only keep selected segment ids, and remove others.')
+        logging.info('only keep selected segment ids, and remove others.')
 
         # precompute the remap function
         if self.ids:
@@ -94,8 +89,7 @@ class MaskOutObjectsOperator(OperatorBase):
 
         seg = self._only_keep_selected(seg)
         if np.alltrue(seg == 0):
-            if self.verbose:
-                print('no segmentation id is selected!')
+            logging.info('no segmentation id is selected!')
             return
         seg = self._remove_dust(seg)
         

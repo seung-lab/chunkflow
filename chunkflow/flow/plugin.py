@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import os.path as path
 
 import numpy as np
@@ -14,14 +15,13 @@ class Plugin(OperatorBase):
     """
     def __init__(self, plugin_file: str,
                  args: tuple = None,
-                 name: str = 'plugin-1',
-                 verbose: bool = False):
+                 name: str = 'plugin-1'):
         r"""
         Loads a custom python file specified in `opprogram`, which 
         should contain a callable named "exec" such that 
         a call of `op_call(chunk, args)` operates on the chunk.
         """
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
 
         self.args = args
 
@@ -39,8 +39,7 @@ class Plugin(OperatorBase):
         self.exec = program.exec  
 
     def __call__(self, chunk: Chunk):
-        if self.verbose:
-            print(self.name, ' on ', chunk.dtype, chunk.shape)
+        logging.info(f'{self.name} on {chunk.dtype} with shape {chunk.shape}')
 
         out_array = self.exec(chunk.array, *self.args)
         assert isinstance(out_array, np.ndarray)

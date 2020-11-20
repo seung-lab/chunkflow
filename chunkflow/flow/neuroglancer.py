@@ -8,10 +8,9 @@ from .base import OperatorBase
 class NeuroglancerOperator(OperatorBase):
     def __init__(self,
                  name: str = 'neuroglancer',
-                 verbose: bool = True,
                  port: int = None,
                  voxel_size: tuple = (1, 1, 1)):
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         self.port = port
         self.voxel_size = voxel_size
 

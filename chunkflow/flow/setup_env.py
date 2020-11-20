@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys
+import logging
 import os
 
 import numpy as np
@@ -102,7 +103,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
               input_patch_size, channel_num, dtype, 
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
               thumbnail, encoding, voxel_size, 
-              overwrite_info, verbose):
+              overwrite_info):
     """Prepare storage info files and produce tasks."""
     assert not (volume_stop is None and volume_size is None)
     if isinstance(volume_start, tuple):
@@ -199,12 +200,10 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     # create bounding boxes and ingest to queue
     bboxes = BoundingBoxes.from_manual_setup(
             output_chunk_size,
-            roi_start=roi_start, roi_stop=roi_stop,
-            verbose=verbose)
-    print('total number of tasks: ', len(bboxes))
+            roi_start=roi_start, roi_stop=roi_stop)
+    logging.info(f'total number of tasks: {len(bboxes)}')
     
-    if verbose > 1:
-        print('bounding boxes: ', bboxes)
+    logging.debug(f'bounding boxes: {bboxes}')
     
     print(yellow(
         'Note that you should reuse the printed out parameters in the production run.' + 
