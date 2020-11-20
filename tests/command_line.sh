@@ -12,13 +12,13 @@ chunkflow create-chunk write-h5 --file-name="/tmp/img.h5" connected-components -
 if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 chunkflow read-h5 --file-name=/tmp/img.h5
 
-chunkflow --dry-run --verbose 1 \
+chunkflow --dry-run --log-level info\
     setup-env -l "gs://my/path" --volume-start 2002 25616 12304 \
     --volume-stop 2068 26128 12816 --max-ram-size 14 --input-patch-size 20 128 128 \
     --output-patch-size 16 96 96 --output-patch-overlap 6 32 32 --channel-num 3 \
     --dtype float32 -m 0 --encoding raw --voxel-size 45 16 16 --max-mip 5
 
-chunkflow \
+chunkflow --log-level debug\
     create-chunk --size 36 448 448 \
     inference --input-patch-size 20 256 256 --patch-num 2 2 2 \
         --framework "universal" --convnet-model "./examples/inference/universal_identity.py" \

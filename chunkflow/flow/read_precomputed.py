@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
@@ -18,9 +20,8 @@ class ReadPrecomputedOperator(OperatorBase):
                  validate_mip: int = None,
                  blackout_sections: bool = None,
                  dry_run: bool = False,
-                 name: str = 'cutout',
-                 verbose: bool = True):
-        super().__init__(name=name, verbose=verbose)
+                 name: str = 'cutout'):
+        super().__init__(name=name)
         self.volume_path = volume_path
         self.mip = mip
         self.expand_margin_size = expand_margin_size
@@ -33,11 +34,13 @@ class ReadPrecomputedOperator(OperatorBase):
             with Storage(volume_path) as stor:
                 self.blackout_section_ids = stor.get_json(
                     'blackout_section_ids.json')['section_ids']
+
+        verbose = (logging.getLogger().getEffectiveLevel() <= 30)
         self.vol = CloudVolume(
             self.volume_path,
             bounded=False,
             fill_missing=self.fill_missing,
-            progress=self.verbose,
+            progress=verbose,
             mip=self.mip,
             cache=False,
             green_threads=True)
@@ -53,8 +56,7 @@ class ReadPrecomputedOperator(OperatorBase):
             input_bbox = Bbox.from_slices(chunk_slices)
             return Chunk.from_bbox(input_bbox)
 
-        if self.verbose:
-            print('cutout {} from {}'.format(chunk_slices[::-1],
+        logging.info('cutout {} from {}'.format(chunk_slices[::-1],
                                              self.volume_path))
 
         # always reverse the indexes since cloudvolume use x,y,z indexing
@@ -113,15 +115,14 @@ class ReadPrecomputedOperator(OperatorBase):
         validate_vol = CloudVolume(self.volume_path,
                                    bounded=False,
                                    fill_missing=self.fill_missing,
-                                   progress=self.verbose,
+                                   progress=False,
                                    mip=self.validate_mip,
                                    cache=False,
                                    green_threads=True)
 
 
         chunk_mip = self.mip
-        if self.verbose:
-            print('validate chunk in mip {}'.format(self.validate_mip))
+        logging.info('validate chunk in mip {}'.format(self.validate_mip))
         assert self.validate_mip >= chunk_mip
         # only use the region corresponds to higher mip level
         # clamp the surrounding regions in XY plane

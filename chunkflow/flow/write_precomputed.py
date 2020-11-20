@@ -1,3 +1,4 @@
+import logging
 import time
 import os
 import json
@@ -21,14 +22,12 @@ class WritePrecomputedOperator(OperatorBase):
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
-                 verbose: bool = True,
                  name: str = 'save'):
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
-        self.verbose = verbose
         self.volume_path = volume_path
 
         if upload_log:
@@ -45,8 +44,7 @@ class WritePrecomputedOperator(OperatorBase):
 
     def __call__(self, chunk, log=None):
         assert isinstance(chunk, Chunk)
-        if self.verbose:
-            print('save chunk.')
+        logging.info('save chunk.')
         
         start = time.time()
         
@@ -59,7 +57,7 @@ class WritePrecomputedOperator(OperatorBase):
             mip=self.mip,
             cache=False,
             green_threads=True,
-            progress=self.verbose)
+            progress=True)
 
         chunk = self._auto_convert_dtype(chunk, volume)
         
@@ -90,8 +88,7 @@ class WritePrecomputedOperator(OperatorBase):
             return chunk
 
     def _create_thumbnail(self, chunk):
-        if self.verbose:
-            print('creating thumbnail...')
+        logging.info('creating thumbnail...')
 
         thumbnail_layer_path = os.path.join(self.volume_path, 'thumbnail')
         thumbnail_volume = CloudVolume(
@@ -103,7 +100,7 @@ class WritePrecomputedOperator(OperatorBase):
             mip=self.mip,
             cache=False,
             green_threads=True,
-            progress=self.verbose)
+            progress=False)
 
         # only use the last channel, it is the Z affinity
         # if this is affinitymap
@@ -130,8 +127,7 @@ class WritePrecomputedOperator(OperatorBase):
         assert log
         assert isinstance(output_bbox, Bbox)
 
-        if self.verbose:
-            print('uploaded log: ', log)
+        logging.info(f'uploaded log: {log}')
 
         # write to google cloud storage
         self.log_storage.put_file(file_path=output_bbox.to_filename() +

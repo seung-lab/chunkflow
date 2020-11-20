@@ -8,13 +8,13 @@ from waterz import agglomerate
 
 class AgglomerateOperator(OperatorBase):
     """Mean/max agglomeration of affinity map including watershed step."""
-    def __init__(self, verbose: bool = True, name: str = 'agglomerate',
+    def __init__(self, name: str = 'agglomerate',
                  threshold: float = 0.7,
                  aff_threshold_low: float = 0.0001,
                  aff_threshold_high: float = 0.9999,
                  scoring_function: str = 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>',
                  flip_channel: bool = True):
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         self.threshold = threshold
         self.aff_threshold_low = aff_threshold_low
         self.aff_threshold_high = aff_threshold_high

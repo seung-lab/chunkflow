@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from collections import defaultdict
@@ -14,8 +15,7 @@ class MeshManifestOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  lod: int = 0,
-                 name: str = 'mesh-manifest',
-                 verbose: bool = True):
+                 name: str = 'mesh-manifest'):
         """
         Parameters
         ------------
@@ -24,7 +24,7 @@ class MeshManifestOperator(OperatorBase):
         lod:
             level of detail. we always use 0!
         """
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         self.lod = lod
         vol = CloudVolume(volume_path)
         info = vol.info
@@ -50,9 +50,8 @@ class MeshManifestOperator(OperatorBase):
             id2filenames[seg_id].append(filename)
 
         for seg_id, frags in id2filenames.items():
-            if self.verbose:
-                print('segment id: ', seg_id)
-                print('fragments: ', frags)
+            logging.info(f'segment id: {seg_id}')
+            logging.info(f'fragments: {frags}')
             self.storage.put_json(
                 # level of detail is alway
                 file_path='{}:{}'.format(seg_id, self.lod),

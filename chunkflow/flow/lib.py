@@ -1,4 +1,5 @@
 
+import logging
 from functools import update_wrapper, wraps
 import click
 from cloudvolume.lib import yellow
@@ -34,24 +35,35 @@ def default_none(ctx, _, value):
 # the code design is based on:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 @click.group(chain=True)
-@click.option('--verbose', type=click.IntRange(min=0, max=10), default=1,
+@click.option('--log-level', '-l', 
+              type=click.Choice(['debug', 'info', 'warning', 'error', 'critical']), 
+              default='info',
               help='print informations level. default is level 1.')
-@click.option('--mip', type=int, default=0,
+@click.option('--mip', '-m',
+              type=int, default=0,
               help='default mip level of chunks.')
 @click.option('--dry-run/--real-run', default=False,
               help='dry run or real run. default is real run.')
-def main(verbose, mip, dry_run):
+def main(log_level, mip, dry_run):
     """Compose operators and create your own pipeline."""
-    state['verbose'] = verbose
+    str2level = {
+        'debug'     : logging.DEBUG,
+        'info'      : logging.INFO,
+        'warning'   : logging.WARNING,
+        'error'     : logging.ERROR,
+        'critical'  : logging.CRITICAL
+    }
+    logging.basicConfig(filename='chunkflow.log', 
+                        level=str2level[log_level])
     state['mip'] = mip
     state['dry_run'] = dry_run
     if dry_run:
-        print(yellow('\nYou are using dry-run mode, will not do the work!'))
+        logging.warning('\nYou are using dry-run mode, will not do the work!')
     pass
 
 
 @main.resultcallback()
-def process_commands(operators, verbose, mip, dry_run):
+def process_commands(operators, log_level, mip, dry_run):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
     returns a function we can chain them together to feed one 

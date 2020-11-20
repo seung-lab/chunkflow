@@ -1,3 +1,4 @@
+import logging
 import os
 from itertools import product
 from collections import UserList
@@ -17,7 +18,7 @@ class BoundingBoxes(UserList):
     def from_manual_setup(cls,
             chunk_size:tuple, chunk_overlap: tuple=(0,0,0),
             roi_start: tuple=None, roi_stop: tuple=None, layer_path: str=None,
-            mip:int=0, grid_size: tuple=None, verbose: bool=True):
+            mip:int=0, grid_size: tuple=None):
     
         if layer_path:
             if layer_path.endswith('.h5'):
@@ -68,11 +69,10 @@ class BoundingBoxes(UserList):
                 assert s > 0
         
         final_output_stop = roi_start + (grid_size-1) * stride + chunk_size
-        if verbose:
-            print('\nroi start: ', roi_start)
-            print('stride: ', stride)
-            print('grid size: ', grid_size)
-            print('final output stop: ', final_output_stop)
+        logging.info(f'\nroi start: {roi_start}')
+        logging.info(f'stride: {stride}')
+        logging.info(f'grid size: {grid_size}')
+        logging.info(f'final output stop: {final_output_stop}')
 
         bboxes = []
         for (z, y, x) in product(range(grid_size[0]), 

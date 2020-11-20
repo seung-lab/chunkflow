@@ -1,4 +1,4 @@
-from warnings import warn
+import logging
 import numpy as np
 
 from cloudvolume import CloudVolume
@@ -16,25 +16,23 @@ class MaskOperator(OperatorBase):
                  inverse: bool = False,
                  fill_missing: bool = False,
                  check_all_zero=False,
-                 verbose: int = 1,
                  name: str = 'mask'):
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
 
         self.mask_mip = mask_mip
         self.chunk_mip = chunk_mip
         self.inverse = inverse
         self.volume_path = volume_path
         self.check_all_zero = check_all_zero
-
+        
         self.mask_vol = CloudVolume(volume_path,
                                     bounded=False,
                                     fill_missing=fill_missing,
-                                    progress=verbose,
+                                    progress=False,
                                     parallel=1,
                                     mip=mask_mip)
 
-        if verbose:
-            print(f'build mask operator based on {volume_path} at mip {mask_mip}')
+        logging.info(f'build mask operator based on {volume_path} at mip {mask_mip}')
 
     def __call__(self, x):
         if self.check_all_zero:
@@ -51,23 +49,22 @@ class MaskOperator(OperatorBase):
         return np.alltrue(mask_in_high_mip == 0)
 
     def maskout(self, chunk):
-        if self.verbose:
-            print('mask out chunk using {} in mip {}'.format(
+        logging.info('mask out chunk using {} in mip {}'.format(
                 self.volume_path, self.mask_mip))
         
         if np.alltrue(chunk == 0):
-            warn("chunk is all black, return directly")
+            logging.warning("chunk is all black, return directly")
             return chunk
 
         chunk_bbox = Bbox.from_slices(chunk.slices[-3:])
         mask_in_high_mip = self._read_mask_in_high_mip(chunk_bbox)
 
         if np.alltrue(mask_in_high_mip == 0):
-            warn('the mask is all black, mask all the voxels directly')
+            logging.warning('the mask is all black, mask all the voxels directly')
             np.multiply(chunk, 0, out=chunk)
             return chunk
         if np.all(mask_in_high_mip):
-            warn("mask elements are all positive, return directly")
+            logging.warning("mask elements are all positive, return directly")
             return chunk
 
         assert np.any(mask_in_high_mip)

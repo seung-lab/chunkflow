@@ -1,5 +1,15 @@
 ChangeLog history
 =================
+# chunkflow 1.0.5 (2020-xx-xx)
+## Breaking Changes
+- use python logging module instead of verbose parameter
+## Deprecations 
+
+## Features
+
+## Bug Fixes 
+
+## Improved Documentation 
 
 # chunkflow 1.0.4 (2020-11-16)
 ## Breaking Changes

@@ -1,4 +1,4 @@
-from chunkflow.chunk import Chunk
+import logging
 from .base import OperatorBase
 from cloudvolume import CloudVolume
 import tinybrain
@@ -22,8 +22,7 @@ class DownsampleUploadOperator(OperatorBase):
                  start_mip: int = None,
                  stop_mip: int = 5,
                  fill_missing: bool = True,
-                 name='downsample-upload',
-                 verbose: bool = False):
+                 name='downsample-upload'):
         """
         volume_path: (str) path of volume
         chunk_mip: (int) the mip level of input chunk
@@ -31,11 +30,12 @@ class DownsampleUploadOperator(OperatorBase):
         stop_mip: (int) the mip level for stoping uploading. Note that the indexing follows python indexing, this stop mip will not be included. For example, if you would like to upload mip level 1 to 4, the start mip will be 1, and the stop mip should be 5.
         fill_missing: (bool) fill missing blocks with zeros or not. See same parameter in cloudvolume.
         """
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         
         if start_mip is None:
             start_mip = chunk_mip + 1
 
+        verbose = (logging.getLogger().getEffectiveLevel() <= 30)
         vols = dict()
         for mip in range(start_mip, stop_mip):
             vols[mip] = CloudVolume(volume_path,
