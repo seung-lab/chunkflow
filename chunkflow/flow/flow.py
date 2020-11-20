@@ -61,16 +61,24 @@ from .view import ViewOperator
               help='output tasks as an numpy array formated as npy.')
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
+@click.option('--disbatch/--no-disbatch', '-d',
+              default=False, help='use disBatch environment variable or not')
 @generator
 def generate_tasks(layer_path, mip, roi_start, chunk_size, 
-                   grid_size, file_path, queue_name):
+                   grid_size, file_path, queue_name, disbatch):
     """Generate tasks."""
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, mip=mip, grid_size=grid_size,
         verbose=state['verbose'])
-
     print('total number of tasks: ', len(bboxes)) 
+
+    if disbatch:
+        assert 'DISBATCH_REPEAT_INDEX' in os.environ
+        disbatch_index = os.environ['DISBATCH_REPEAT_INDEX']
+        bboxes = [bboxes[disbatch_index]]
+        print(f'selected a task with disBatch index {disbatch_index}')
+        
     # write out as a file
     # this could be used for iteration in slurm cluster.
     if file_path:
