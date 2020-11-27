@@ -40,8 +40,13 @@ class Plugin(OperatorBase):
 
     def __call__(self, chunk: Chunk):
         logging.info(f'{self.name} on {chunk.dtype} with shape {chunk.shape}')
+        voxel_offset = chunk.voxel_offset 
+        chunk = self.exec(chunk, *self.args)
+        if isinstance(chunk, np.ndarray):
+            if len(voxel_offset) < chunk.ndim:
+                voxel_offset = tuple(0, *voxel_offset)
+            elif len(voxel_offset) > chunk.ndim:
+                voxel_offset = voxel_offset[1:]
+            chunk = Chunk(chunk, voxel_offset=voxel_offset) 
 
-        out_array = self.exec(chunk.array, *self.args)
-        assert isinstance(out_array, np.ndarray)
-
-        return Chunk(out_array, voxel_offset=chunk.voxel_offset)
+        return chunk

@@ -86,8 +86,8 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
         logging.info(f'selected task indexes from {task_index_start} to {task_index_stop}')
     elif disbatch:
         assert 'DISBATCH_REPEAT_INDEX' in os.environ
-        disbatch_index = os.environ['DISBATCH_REPEAT_INDEX']
-        bboxes = [bboxes[disbatch_index]]
+        disbatch_index = int(os.environ['DISBATCH_REPEAT_INDEX'])
+        bboxes = [bboxes[disbatch_index],]
         logging.info(f'selected a task with disBatch index {disbatch_index}')
         
     # write out as a file
@@ -546,10 +546,8 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
 @click.option('--name', type=str, default='write-h5', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
-@click.option('--file-name',
-              '-f',
-              type=click.Path(dir_okay=True, resolve_path=True),
-              required=True,
+@click.option('--file-name', '-f',
+              type=click.Path(dir_okay=True, resolve_path=False), required=True,
               help='file name of hdf5 file.')
 @click.option('--compression', '-c', type=click.Choice(["gzip", "lzf", "szip"]),
               default="gzip", help="compression used in the dataset.")
