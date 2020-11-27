@@ -61,9 +61,16 @@ from .view import ViewOperator
               help='output tasks as an numpy array formated as npy.')
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
+@click.option('--task-index-start', '-i',
+              type=int, default=None, help='starting index of task list.')
+@click.option('--task-index-stop', '-p',
+              type=int, default=None, help='stop index of task list.')
+@click.option('--disbatch/--no-disbatch', '-d',
+              default=False, help='use disBatch environment variable or not')
 @generator
 def generate_tasks(layer_path, mip, roi_start, chunk_size, 
-                   grid_size, file_path, queue_name):
+                   grid_size, file_path, queue_name, 
+                   task_index_start, task_index_stop, disbatch):
     """Generate tasks."""
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
@@ -71,6 +78,18 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
         )
 
     print('total number of tasks: ', len(bboxes)) 
+
+    if task_index_start:
+        if task_index_stop is None:
+            task_index_stop = task_index_start + 1
+        bboxes = [*bboxes[task_index_start:task_index_stop]]
+        logging.info(f'selected task indexes from {task_index_start} to {task_index_stop}')
+    elif disbatch:
+        assert 'DISBATCH_REPEAT_INDEX' in os.environ
+        disbatch_index = int(os.environ['DISBATCH_REPEAT_INDEX'])
+        bboxes = [bboxes[disbatch_index],]
+        logging.info(f'selected a task with disBatch index {disbatch_index}')
+        
     # write out as a file
     # this could be used for iteration in slurm cluster.
     if file_path:
@@ -527,10 +546,8 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
 @click.option('--name', type=str, default='write-h5', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
-@click.option('--file-name',
-              '-f',
-              type=click.Path(dir_okay=True, resolve_path=True),
-              required=True,
+@click.option('--file-name', '-f',
+              type=click.Path(dir_okay=True, resolve_path=False), required=True,
               help='file name of hdf5 file.')
 @click.option('--compression', '-c', type=click.Choice(["gzip", "lzf", "szip"]),
               default="gzip", help="compression used in the dataset.")

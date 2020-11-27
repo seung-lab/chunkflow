@@ -61,6 +61,7 @@ class ReadPrecomputedOperator(OperatorBase):
 
         # always reverse the indexes since cloudvolume use x,y,z indexing
         chunk = self.vol[chunk_slices[::-1]]
+        chunk = np.asarray(chunk)
         # the cutout is fortran ordered, so need to transpose and make it C order
         chunk = chunk.transpose()
         # we can delay this transpose later
@@ -76,7 +77,7 @@ class ReadPrecomputedOperator(OperatorBase):
             chunk = np.squeeze(chunk, axis=0)
         else:
             voxel_offset = (0, ) + voxel_offset
-        
+
         chunk = Chunk(chunk, voxel_offset=voxel_offset)
 
         if self.blackout_sections:
