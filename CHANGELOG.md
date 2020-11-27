@@ -6,6 +6,8 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
+- work with Flatiron's disBatch.
+- a new operator remap to renumber a serials of segmentation chunks.
 
 ## Bug Fixes 
 

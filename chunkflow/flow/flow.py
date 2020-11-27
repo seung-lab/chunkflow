@@ -34,6 +34,7 @@ from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
 from .plugin import Plugin
 from .read_pngs import read_png_images
+from .remap import remap_segmentation 
 from .write_precomputed import WritePrecomputedOperator
 from .write_pngs import WritePNGsOperator
 from .setup_env import setup_environment
@@ -161,7 +162,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
               queue_name, visibility_timeout, thumbnail, encoding, voxel_size, 
               overwrite_info):
-
+    """Setup convolutional net inference environment."""
     bboxes = setup_environment(
         state['dry_run'], volume_start, volume_stop, volume_size, layer_path, 
         max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
@@ -521,22 +522,14 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
         if 'bbox' in task and cutout_start is None and cutout_stop is None and cutout_size is None:
             bbox = task['bbox']
             print('bbox: ', bbox) 
-            current_cutout_start = bbox.minpt
-            current_cutout_stop = bbox.maxpt
         else:
-            current_cutout_start = cutout_start
-            current_cutout_stop = cutout_stop
-        
-        print(f'cutout start: {current_cutout_start}')
-        print(f'cutout stop: {current_cutout_stop}')
+            bbox = Bbox.from_list(*cutout_start, *cutout_stop)
         
         task[output_chunk_name] = Chunk.from_h5(
             file_name,
             dataset_path=dataset_path,
             voxel_offset=voxel_offset,
-            cutout_start=current_cutout_start,
-            cutout_stop=current_cutout_stop,
-            cutout_size=cutout_size
+            bbox = bbox
         )
         task['log']['timer'][name] = time() - start
         yield task
@@ -724,6 +717,25 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
             task[output_chunk_name] = operator(bbox)
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
+        yield task
+
+
+@main.command('remap')
+@click.option('--input-chunk-name', '-i',
+    type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name.')
+@click.option('--output-chunk-name', '-o',
+    type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name.')
+@operator
+def remap(tasks, input_chunk_name, output_chunk_name):
+    """Renumber a serials of chunks."""
+    # state['remap_start_id'] = 0
+    start_id = 0
+    for task in tasks:
+        seg = task[input_chunk_name]
+        assert seg.is_segmentation
+        # seg, state['remap_start_id'] = remap_segmentation(seg, state['remap_start_id'])
+        seg, start_id = remap_segmentation(seg, start_id)
+        task[output_chunk_name] = seg
         yield task
 
 
