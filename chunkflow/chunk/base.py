@@ -1,4 +1,3 @@
-from typing import Union
 import os
 from numbers import Number
 import h5py
