@@ -517,11 +517,16 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     for task in tasks:
         
         start = time()
-        if 'bbox' in task and cutout_start is None and cutout_stop is None and cutout_size is None:
+        if 'bbox' in task and cutout_start is None:
             bbox = task['bbox']
             print('bbox: ', bbox) 
+        elif cutout_start is not None:
+            if cutout_stop is None:
+                assert cutout_size is not None
+                cutout_stop = tuple(t+s for t,s in zip(cutout_start, cutout_size))
+            bbox = Bbox.from_list([*cutout_start, *cutout_stop])
         else:
-            bbox = Bbox.from_list(*cutout_start, *cutout_stop)
+            bbox = None
         
         task[output_chunk_name] = Chunk.from_h5(
             file_name,

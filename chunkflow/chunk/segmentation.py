@@ -71,7 +71,7 @@ class Segmentation(Chunk):
             # this is used for small object numbers
             selected_obj_ids = set([int(id) for id in selected_obj_ids.split(',')])
         
-        self.array = fastremap.mask_except(self.array, selected_obj_ids)
+        self.array = fastremap.mask_except(self.array, list(selected_obj_ids))
 
 
     def skeletonize(self, voxel_size):
