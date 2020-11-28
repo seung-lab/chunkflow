@@ -26,7 +26,6 @@ from .read_precomputed import ReadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
-from .mask_out_objects import MaskOutObjectsOperator
 from .mesh import MeshOperator
 from .mesh_manifest import MeshManifestOperator
 from .neuroglancer import NeuroglancerOperator
@@ -161,7 +160,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
               queue_name, visibility_timeout, thumbnail, encoding, voxel_size, 
               overwrite_info):
-
+    """Setup convolutional net inference environment."""
     bboxes = setup_environment(
         state['dry_run'], volume_start, volume_stop, volume_size, layer_path, 
         max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
@@ -518,25 +517,22 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     for task in tasks:
         
         start = time()
-        if 'bbox' in task and cutout_start is None and cutout_stop is None and cutout_size is None:
+        if 'bbox' in task and cutout_start is None:
             bbox = task['bbox']
             print('bbox: ', bbox) 
-            current_cutout_start = bbox.minpt
-            current_cutout_stop = bbox.maxpt
+        elif cutout_start is not None:
+            if cutout_stop is None:
+                assert cutout_size is not None
+                cutout_stop = tuple(t+s for t,s in zip(cutout_start, cutout_size))
+            bbox = Bbox.from_list([*cutout_start, *cutout_stop])
         else:
-            current_cutout_start = cutout_start
-            current_cutout_stop = cutout_stop
-        
-        print(f'cutout start: {current_cutout_start}')
-        print(f'cutout stop: {current_cutout_stop}')
+            bbox = None
         
         task[output_chunk_name] = Chunk.from_h5(
             file_name,
             dataset_path=dataset_path,
             voxel_offset=voxel_offset,
-            cutout_start=current_cutout_start,
-            cutout_stop=current_cutout_stop,
-            cutout_size=cutout_size
+            bbox = bbox
         )
         task['log']['timer'][name] = time() - start
         yield task
@@ -724,6 +720,27 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
             task[output_chunk_name] = operator(bbox)
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
+        yield task
+
+
+@main.command('remap-segmentation')
+@click.option('--input-chunk-name', '-i',
+    type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name.')
+@click.option('--output-chunk-name', '-o',
+    type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name.')
+@operator
+def remap_segmentation(tasks, input_chunk_name, output_chunk_name):
+    """Renumber a serials of chunks."""
+    # state['remap_start_id'] = 0
+    start_id = 0
+    for task in tasks:
+        seg = task[input_chunk_name]
+        assert seg.is_segmentation
+        if not isinstance(seg, Segmentation):
+            seg = Segmentation.from_chunk(seg)
+
+        seg, start_id = seg.remap(start_id)
+        task[output_chunk_name] = seg
         yield task
 
 
@@ -1139,15 +1156,25 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
 def mask_out_objects(tasks, name, input_chunk_name, output_chunk_name,
                      dust_size_threshold, selected_obj_ids):
     """Mask out objects in a segmentation chunk."""
-    operator = MaskOutObjectsOperator(
-        dust_size_threshold,
-        selected_obj_ids,
-        name=name
-    )
-    operator = operator
-    
+    if isinstance(selected_obj_ids, str) and selected_obj_ids.endswith('.json'):
+        # assume that ids is a json file in the storage path
+        json_storage = Storage(os.path.dirname(selected_obj_ids))
+        ids_str = json_storage.get_file(os.path.basename(selected_obj_ids))
+        selected_obj_ids = set(json.loads(ids_str))
+        assert len(selected_obj_ids) > 0
+        logging.info(f'number of selected objects: {len(selected_obj_ids)}')
+
     for task in tasks:
-        task[output_chunk_name] = operator(task[input_chunk_name])
+        seg = task[input_chunk_name]
+        if not isinstance(seg, Segmentation):
+            assert isinstance(seg, Chunk)
+            assert seg.is_segmentation
+            seg = Segmentation.from_chunk(seg)
+
+        seg.mask_fragments(dust_size_threshold)
+        seg.mask_except(selected_obj_ids)
+
+        task[output_chunk_name] = seg
         yield task
 
 

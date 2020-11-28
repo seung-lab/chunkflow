@@ -1,4 +1,3 @@
-from typing import Union
 import os
 from numbers import Number
 import h5py
@@ -115,12 +114,19 @@ class Chunk(NDArrayOperatorsMixin):
     def from_h5(cls, file_name: str,
                 voxel_offset: tuple=None,
                 dataset_path: str = None,
-                cutout_start: tuple=None,
-                cutout_stop: tuple=None,
-                cutout_size: tuple=None):
+                bbox: Bbox = None):
+        if bbox:
+            cutout_start = bbox.minpt
+            cutout_stop = bbox.maxpt
+            cutout_size = cutout_stop - cutout_start
+        else: 
+            cutout_start = None
+            cutout_stop = None
+            cutout_size = None
 
-        assert os.path.exists(file_name)
-        assert h5py.is_hdf5(file_name)
+        if not h5py.is_hdf5(file_name):
+            assert bbox
+            file_name += f'{bbox.to_filename()}.h5'
 
         with h5py.File(file_name, 'r') as f:
             if dataset_path is None:
