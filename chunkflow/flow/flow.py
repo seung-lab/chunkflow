@@ -934,29 +934,35 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
               type=str,
               default='plugin-1',
               help='name of plugin. Multiple plugins should have different names.')
-@click.option('--input-chunk-name', '-i',
-              type=str, default='chunk', help='input chunk name')
-@click.option('--output-chunk-name', '-o',
-              type=str, default='chunk', help='output chunk name')
+@click.option('--input-names', '-i',
+              type=str, default='chunk', help='input names with delimiter of comma')
+@click.option('--output-names', '-o',
+              type=str, default='chunk', help='output names with dilimiter of comma')
 @click.option('--file', '-f', type=str, help='''python file to call. 
                 If it is just a name rather than full path, 
                 we\'ll look for it in the plugin folder.''')
-@click.option('--args', type=str, default='', help='args to pass in')
 @operator
-def plugin(tasks, name, input_chunk_name, output_chunk_name, file, args):
+def plugin(tasks, name, input_names, output_names, file):
     """Insert custom program as a plugin.
     The custom python file should contain a callable named "exec" such that 
     a call of `exec(chunk, args)` can be made to operate on the chunk.
     """
 
-    operator = Plugin(file, args=args, name=name)
-    logging.info(f'Received args for {name} : {args}')
+    operator = Plugin(file, name=name)
+
+    input_name_list = input_names.split(',')
+    output_name_list = output_names.split(',')
 
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[output_chunk_name] = operator(task[input_chunk_name], *args)
+            inputs = [task[i] for i in input_name_list]
+            outputs = operator(inputs)
+            if outputs is not None:
+                assert len(outputs) == len(output_name_list)
+                for output_name, output in zip(output_name_list, outputs):
+                    task[output_name] = output
             task['log']['timer'][name] = time() - start
         yield task
 

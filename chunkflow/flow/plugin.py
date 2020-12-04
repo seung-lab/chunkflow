@@ -14,7 +14,6 @@ class Plugin(OperatorBase):
     Chunk operation using a custom python file.
     """
     def __init__(self, plugin_file: str,
-                 args: tuple = None,
                  name: str = 'plugin-1'):
         r"""
         Loads a custom python file specified in `opprogram`, which 
@@ -23,7 +22,6 @@ class Plugin(OperatorBase):
         """
         super().__init__(name=name)
 
-        self.args = args
 
         if not plugin_file.endswith('.py'):
             plugin_file += '.py'
@@ -38,15 +36,5 @@ class Plugin(OperatorBase):
         # assuming this is a func / static functor for now, maybe make it a class?
         self.exec = program.exec  
 
-    def __call__(self, chunk: Chunk):
-        logging.info(f'{self.name} on {chunk.dtype} with shape {chunk.shape}')
-        voxel_offset = chunk.voxel_offset 
-        chunk = self.exec(chunk, *self.args)
-        if isinstance(chunk, np.ndarray):
-            if len(voxel_offset) < chunk.ndim:
-                voxel_offset = tuple(0, *voxel_offset)
-            elif len(voxel_offset) > chunk.ndim:
-                voxel_offset = voxel_offset[1:]
-            chunk = Chunk(chunk, voxel_offset=voxel_offset) 
-
-        return chunk
+    def __call__(self, inputs):
+        return self.exec(*inputs)

@@ -3,6 +3,7 @@ ChangeLog history
 # chunkflow 1.0.5 (2020-xx-xx)
 ## Breaking Changes
 - use python logging module instead of verbose parameter
+- changed the `plugin` operator parameter input and output names. So it can accept both chunk and other data, such as bounding box.
 ## Deprecations 
 
 ## Features
