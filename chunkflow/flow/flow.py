@@ -496,8 +496,11 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
               help='read file from local disk.')
 @click.option('--file-name', '-f', type=str, required=True,
               help='read chunk from file, support .h5')
-@click.option('--dataset-path', '-d', type=str, default=None, callback=default_none,
+@click.option('--dataset-path', '-d', type=str, default=None,
               help='the dataset path inside HDF5 file.')
+@click.option('--dtype', '-e',
+              type=click.Choice(['float32', 'float64', 'uint32', 'uint64', 'uint8']),
+              default=None, help='transform data type.')
 @click.option('--voxel-offset', '-v', type=int, nargs=3,
               callback=default_none, help='voxel offset of the dataset in hdf5 file.')
 @click.option('--cutout-start', '-t', type=int, nargs=3, callback=default_none,
@@ -511,7 +514,7 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
-            voxel_offset: tuple, cutout_start: tuple, 
+            dtype: str, voxel_offset: tuple, cutout_start: tuple, 
             cutout_stop: tuple, cutout_size: tuple, output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
@@ -528,12 +531,14 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
         else:
             bbox = None
         
-        task[output_chunk_name] = Chunk.from_h5(
+        chunk = Chunk.from_h5(
             file_name,
             dataset_path=dataset_path,
             voxel_offset=voxel_offset,
             bbox = bbox
         )
+        chunk = chunk.astype(dtype)
+        task[output_chunk_name] = chunk
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -1234,9 +1239,10 @@ def crop_margin(tasks, name, margin_size,
 @click.option('--max-simplification-error', '-e', type=int, default=40, 
               help='max simplification error.')
 @click.option('--manifest/--no-manifest', default=False, help='create manifest file or not.')
+@click.option('--shard/--no-shard', default=False, help='combine meshes as one file')
 @operator
 def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_format,
-         simplification_factor, max_simplification_error, manifest):
+         simplification_factor, max_simplification_error, manifest, shard):
     """Perform meshing for segmentation chunk."""
     if mip is None:
         mip = state['mip']
@@ -1248,7 +1254,10 @@ def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_for
         voxel_size=voxel_size,
         simplification_factor=simplification_factor,
         max_simplification_error=max_simplification_error,
-        manifest=manifest)
+        manifest=manifest,
+        shard=shard,
+    )
+
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:

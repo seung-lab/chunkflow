@@ -24,6 +24,8 @@ class MeshOperator(OperatorBase):
                  voxel_size: tuple = (1, 1, 1),
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
+                 manifest: bool = False,
+                 shard: bool = False,
                  name: str = 'mesh'):
         """
         Parameters
@@ -38,6 +40,9 @@ class MeshOperator(OperatorBase):
             mesh simplification factor.
         max_simplification_error:
             maximum tolerance error of meshing.
+        manifest:
+            create manifest files or not. This should 
+            not be True if you are only doing meshing for a segmentation chunk.
         name: 
             operator name.
 
@@ -49,6 +54,11 @@ class MeshOperator(OperatorBase):
         # zmesh use fortran order, translate zyx to xyz
         self.output_path = output_path
         self.output_format = output_format
+        self.manifest = manifest
+        self.shard = shard
+
+        if manifest:
+            assert output_format == 'precomputed'
 
         if output_format == 'precomputed':
             # adjust the mesh path according to info
@@ -128,7 +138,8 @@ class MeshOperator(OperatorBase):
         self.mesher.mesh(seg)
 
         logging.info('write mesh to storage...')
-        if 'precomputed' in self.output_format:
+        if self.shard:
+            assert 'precomputed' in self.output_format
             meshes = []
             mesh_bboxes = {}
             for obj_id in self.mesher.ids():
@@ -160,6 +171,17 @@ class MeshOperator(OperatorBase):
                     cache_control=None,
                     compress='gzip'
                 )
+
+                # create manifest file
+                if self.manifest:
+                    self.storage.put_json(
+                        f'{obj_id}:0',
+                        {'fragments': [file_name]}
+                    )
+                    self.storage.put_json(
+                        'info',
+                        {"@type": "neuroglancer_legacy_mesh"}
+                    )
 
         # release memory
         self.mesher.clear()
