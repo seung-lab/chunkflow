@@ -7,4 +7,4 @@ def exec(chunk: np.ndarray):
         chunk = 1.0 - chunk
     else:
         raise TypeError("unsupported chunk data type.")
-    return chunk
+    return [chunk]

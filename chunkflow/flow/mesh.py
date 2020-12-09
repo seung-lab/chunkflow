@@ -1,14 +1,15 @@
 import logging
 import os
 import json
+import pickle
 import numpy as np
 
 from tqdm import tqdm
 from zmesh import Mesher
 
 from cloudvolume import CloudVolume
-from cloudvolume.storage import Storage
 from cloudvolume.lib import Bbox
+from cloudfiles import CloudFiles
 
 from chunkflow.chunk import Chunk
 from .base import OperatorBase
@@ -24,7 +25,8 @@ class MeshOperator(OperatorBase):
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
                  manifest: bool = False,
-                 name: str = 'meshing'):
+                 shard: bool = False,
+                 name: str = 'mesh'):
         """
         Parameters
         ------------
@@ -53,11 +55,10 @@ class MeshOperator(OperatorBase):
         self.output_path = output_path
         self.output_format = output_format
         self.manifest = manifest
+        self.shard = shard
 
         if manifest:
             assert output_format == 'precomputed'
-
-        mesh_path = output_path
 
         if output_format == 'precomputed':
             # adjust the mesh path according to info
@@ -68,13 +69,14 @@ class MeshOperator(OperatorBase):
                 info['mesh'] = 'mesh_err_{}'.format(max_simplification_error)
                 vol.info = info
                 vol.commit_info()
-            mesh_path = os.path.join(output_path, info['mesh'])
+            self.mesh_path = os.path.join(output_path, info['mesh'])
             self.voxel_size = vol.resolution[::-1]
             self.mesher = Mesher( vol.resolution )
         else: 
+            self.mesh_path = output_path
             self.mesher = Mesher(voxel_size[::-1])
 
-        self.storage = Storage(mesh_path)
+        self.storage = CloudFiles(self.mesh_path)
 
     def _get_mesh_data(self, obj_id, offset):
         mesh = self.mesher.get_mesh(
@@ -94,7 +96,12 @@ class MeshOperator(OperatorBase):
             data = mesh.to_obj()
         else:
             raise NotImplementedError
-        return data
+
+        mesh_bounds = Bbox(
+            np.amin(mesh.vertices, axis=0),
+            np.amax(mesh.vertices, axis=0)
+        )
+        return data, mesh_bounds
 
     def _get_file_name(self, bbox, obj_id):
         if self.output_format == 'precomputed':
@@ -131,20 +138,50 @@ class MeshOperator(OperatorBase):
         self.mesher.mesh(seg)
 
         logging.info('write mesh to storage...')
-        for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
-            # print('object id: ', obj_id)
-            data = self._get_mesh_data(obj_id, bbox.minpt)
-            file_name = self._get_file_name(bbox, obj_id)
-            self.storage.put_file(
-                file_name, data,
-                cache_control=None,
-                compress='gzip'
-            )
+        if self.shard:
+            assert 'precomputed' in self.output_format
+            meshes = []
+            mesh_bboxes = {}
+            for obj_id in self.mesher.ids():
+                data, mesh_bbox = self._get_mesh_data(obj_id, bbox.minpt)
+                meshes.append(data)
+                mesh_bboxes[obj_id] = mesh_bbox.to_list()
 
-            # create manifest file
-            if self.manifest:
-                self.storage.put_file('{}:0'.format(obj_id),
-                                json.dumps({'fragments': [str(obj_id)]}))
+            # use shared format in default!
+            self.storage.put(
+                f"{self.mesh_path}/{bbox.to_filename()}.frags",
+                content=pickle.dumps(meshes),
+                compress='gzip',
+                content_type="application/python-pickle",
+                cache_control=False,
+            )
+            self.storage.put_json(
+                f"{self.mesh_path}/{bbox.to_filename()}.spatial",
+                mesh_bboxes,
+                compress='gzip',
+                cache_control=False,
+            )
+        else:
+            for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
+                # print('object id: ', obj_id)
+                data, _ = self._get_mesh_data(obj_id, bbox.minpt)
+                file_name = self._get_file_name(bbox, obj_id)
+                self.storage.put(
+                    file_name, data,
+                    cache_control=None,
+                    compress='gzip'
+                )
+
+                # create manifest file
+                if self.manifest:
+                    self.storage.put_json(
+                        f'{obj_id}:0',
+                        {'fragments': [file_name]}
+                    )
+                    self.storage.put_json(
+                        'info',
+                        {"@type": "neuroglancer_legacy_mesh"}
+                    )
 
         # release memory
         self.mesher.clear()

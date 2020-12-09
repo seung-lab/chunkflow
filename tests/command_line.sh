@@ -12,6 +12,18 @@ chunkflow create-chunk write-h5 --file-name="/tmp/img.h5" connected-components -
 if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 chunkflow read-h5 --file-name=/tmp/img.h5
 
+mkdir /tmp/seg
+chunkflow \
+    create-chunk --size 128 128 128 --dtype uint32 --not-all-zero \
+    create-info --voxel-size 8 8 8 --block-size 64 64 64 --output-layer-path file:///tmp/seg/ 
+
+# somehow, we have to separate creation of info and writing out precomputed operation!
+chunkflow \
+    create-chunk --size 128 128 128 --dtype uint32 --not-all-zero \
+    write-precomputed --volume-path file:///tmp/seg \
+    mesh --voxel-size 8 8 8 --output-format precomputed --output-path file:///tmp/seg 
+rm -rf /tmp/seg
+
 chunkflow --dry-run --log-level info\
     setup-env -l "gs://my/path" --volume-start 2002 25616 12304 \
     --volume-stop 2068 26128 12816 --max-ram-size 14 --input-patch-size 20 128 128 \
