@@ -7,10 +7,12 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
-- work with Flatiron's disBatch.
+- work with Flatiron disBatch.
 - a new operator remap to renumber a serials of segmentation chunks.
+- support disbatch in manifest operator
 
 ## Bug Fixes 
+- fix manifest by updating cloud storage to CloudFiles
 
 ## Improved Documentation 
 
