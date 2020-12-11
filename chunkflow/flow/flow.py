@@ -1266,27 +1266,37 @@ def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_for
             task['log']['timer'][name] = time() - start
         yield task
 
+
 @main.command('mesh-manifest')
 @click.option('--name', type=str, default='mesh-manifest', help='name of operator')
 @click.option('--input-name', '-i', type=str, default='prefix', help='input key name in task.')
-@click.option('--prefix', '-p', type=str, default=None, help='prefix of meshes.')
+@click.option('--prefix', '-p', type=int, default=None, help='prefix of meshes.')
+@click.option('--disbatch/--no-disbatch', default=False, help='use disBatch task index as prefix')
+@click.option('--digits', '-d', type=int, default=1, help='number of digits of prefix')
 @click.option('--volume-path', '-v', type=str, required=True, help='cloudvolume path of dataset layer.' + 
               ' The mesh directory will be automatically figure out using the info file.')
 @operator
-def mesh_manifest(tasks, name, input_name, prefix, volume_path):
+def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path):
     """Generate mesh manifest files."""
     operator = MeshManifestOperator(volume_path)
     if prefix:
-        operator(prefix)
-    else:
+        operator(prefix, digits)
+    elif disbatch:
+            assert 'DISBATCH_REPEAT_INDEX' in os.environ
+            prefix = os.environ['DISBATCH_REPEAT_INDEX']
+            operator(prefix, digits)
+    elif input_name:
         for task in tasks:
             handle_task_skip(task, name)
             if not task['skip']:
                 start = time()
-                operator(task[input_name])
+                operator(task[input_name], digits)
                 task['log']['timer'][name] = time() - start
             yield task
- 
+    else:
+        logging.error('requires one of parameters: prefix, input_name, disbatch')
+
+
 @main.command('neuroglancer')
 @click.option('--name',
               type=str,

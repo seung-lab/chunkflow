@@ -3,9 +3,13 @@ import os
 import re
 from collections import defaultdict
 from time import sleep
+from typing import Union
+
+from tqdm import tqdm
 
 from cloudvolume import CloudVolume
-from cloudvolume.storage import Storage
+from cloudfiles import CloudFiles
+
 
 from .base import OperatorBase
 
@@ -30,11 +34,18 @@ class MeshManifestOperator(OperatorBase):
         info = vol.info
         assert 'mesh' in info
         self.mesh_path = os.path.join(volume_path, info['mesh'])
-        self.storage = Storage(self.mesh_path)
+        self.storage = CloudFiles(self.mesh_path)
    
-    def __call__(self, prefix: str):
+    def __call__(self, prefix: Union[int, str], digits: int) -> None:
+        assert int(prefix) < 10**digits
+        prefix = str(prefix).zfill(digits)
+
         id2filenames = defaultdict(list)
-        for filename in self.storage.list_files(prefix=prefix):
+        for filename in tqdm(
+            self.storage.list(prefix=prefix),
+            desc='list mesh files'
+            ):
+
             filename = os.path.basename(filename)
             # `match` implies the beginning (^). `search` matches whole string
             matches = re.search(r'(\d+):(\d+):', filename)
@@ -49,12 +60,15 @@ class MeshManifestOperator(OperatorBase):
             assert lod == self.lod
             id2filenames[seg_id].append(filename)
 
-        for seg_id, frags in id2filenames.items():
+        for seg_id, frags in tqdm(
+            id2filenames.items(),
+            desc='upload aggregated manifest file'
+            ):
+
             logging.info(f'segment id: {seg_id}')
             logging.info(f'fragments: {frags}')
             self.storage.put_json(
-                # level of detail is alway
-                file_path='{}:{}'.format(seg_id, self.lod),
+                path=f'{seg_id}:{self.lod}',
                 content={"fragments": frags},
             )
             # the last few hundred files will not be uploaded without sleeping!
