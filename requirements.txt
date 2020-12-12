@@ -18,3 +18,4 @@ waterz
 kimimaro
 Pillow
 urllib3==1.25.11
+chardet==3.0.4
