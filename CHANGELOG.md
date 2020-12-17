@@ -8,11 +8,14 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
-- work with Flatiron's disBatch.
+- work with Flatiron disBatch.
 - a new operator remap to renumber a serials of segmentation chunks.
 - shard meshing. It is not validated yet. The data is written, but Neuroglancer is still not showing them. There is something like manifest missing.
 - support downsample in Z
+- support disbatch in manifest operator
+
 ## Bug Fixes 
+- fix manifest by updating cloud storage to CloudFiles
 
 ## Improved Documentation 
 
