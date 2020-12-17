@@ -66,15 +66,16 @@ class DownsampleUploadOperator(OperatorBase):
 
         # tinybrain use F order and require 4D array!
         chunk2 = np.transpose(chunk)
-        chunk2 = np.reshape(chunk2, (*chunk2.shape, 1))
+        # chunk2 = np.reshape(chunk2, (*chunk2.shape, 1))
+        chunk2 = np.expand_dims(chunk2, 3)
 
         if np.issubdtype(chunk.dtype, np.floating) or chunk.dtype == np.uint8:
             pyramid = tinybrain.downsample_with_averaging(chunk2,
-                                                          factor=self.factor,
+                                                          factor=self.factor[::-1],
                                                           num_mips=num_mips)
         else:
             pyramid = tinybrain.downsample_segmentation(chunk2,
-                                                        factor=self.factor,
+                                                        factor=self.factor[::-1],
                                                         num_mips=num_mips)
 
         for mip in range(self.start_mip, self.stop_mip):
