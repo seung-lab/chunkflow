@@ -14,6 +14,7 @@ ChangeLog history
 - support downsample in Z
 - support disbatch in manifest operator
 - add voxel size of chunk
+- automatically use chunk voxel size in neuroglancer operator
 ## Bug Fixes 
 - fix manifest by updating cloud storage to CloudFiles
 
