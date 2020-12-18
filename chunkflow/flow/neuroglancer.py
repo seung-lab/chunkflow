@@ -9,7 +9,7 @@ class NeuroglancerOperator(OperatorBase):
     def __init__(self,
                  name: str = 'neuroglancer',
                  port: int = None,
-                 voxel_size: tuple = (1, 1, 1)):
+                 voxel_size: tuple = None):
         super().__init__(name=name)
         self.port = port
         self.voxel_size = voxel_size
@@ -32,6 +32,12 @@ class NeuroglancerOperator(OperatorBase):
             for chunk_name in selected:
                 chunk = chunks[chunk_name]
                 voxel_offset = chunk.voxel_offset
+                if self.voxel_size:
+                    voxel_size = self.voxel_size
+                elif chunk.voxel_size:
+                    voxel_size = chunk.voxel_size
+                else:
+                    voxel_size = (1, 1, 1)
 
                 # chunk = np.ascontiguousarray(chunk)
                 # neuroglancer uses F order
@@ -47,7 +53,7 @@ class NeuroglancerOperator(OperatorBase):
                     chunk = np.transpose(chunk)
                     adjusted_voxel_offset = voxel_offset[::-1]
                     dimensions = ng.CoordinateSpace(
-                        scales=self.voxel_size[::-1],
+                        scales=voxel_size[::-1],
                         units=['nm', 'nm', 'nm'],
                         names=['x', 'y', 'z']
                     )
@@ -70,7 +76,7 @@ void main() {
                     # chunk = np.transpose(chunk)
                     # chunk = np.ascontiguousarray(chunk)
                     dimensions = ng.CoordinateSpace(
-                        scales=(1, *self.voxel_size[::-1]),
+                        scales=(1, *voxel_size[::-1]),
                         units=['', 'nm', 'nm', 'nm'],
                         names=['c^', 'x', 'y', 'z']
                     )

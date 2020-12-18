@@ -1316,15 +1316,10 @@ def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path
 
 
 @main.command('neuroglancer')
-@click.option('--name',
-              type=str,
-              default='neuroglancer',
+@click.option('--name', type=str, default='neuroglancer',
               help='name of this operator')
-@click.option('--voxel-size',
-              '-v',
-              nargs=3,
-              type=int,
-              default=(1, 1, 1),
+@click.option('--voxel-size', '-v',
+              nargs=3, type=int, default=None, callback=default_none,
               help='voxel size of chunk')
 @click.option('--port', '-p', type=int, default=None, help='port to use')
 @click.option('--chunk-names', '-c', type=str, default='chunk', 
@@ -1332,9 +1327,7 @@ def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path
 @operator
 def neuroglancer(tasks, name, voxel_size, port, chunk_names):
     """Visualize the chunk using neuroglancer."""
-    operator = NeuroglancerOperator(name=name,
-                                                    port=port,
-                                                    voxel_size=voxel_size)
+    operator = NeuroglancerOperator(name=name, port=port, voxel_size=voxel_size)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
