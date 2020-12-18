@@ -445,11 +445,14 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_
 @click.option('--volume-offset', '-t',
               type=int, nargs=3, default=(0,0,0),
               help = 'the offset of png images volume, could be negative.')
+@click.option('--voxel-size', '-x', type=int, nargs=3, default=None, callback=default_none,
+              help='physical size of voxels. the unit is assumed to be nm.')
 @click.option('--chunk-size', '-s',
               type=int, nargs=3, default=None, callback=default_none,
               help='cutout chunk size')
 @operator
-def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset, volume_offset, chunk_size):
+def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset,
+                volume_offset, voxel_size, chunk_size):
     """Read a serials of png files."""
     for task in tasks:
         if chunk_size is None:
@@ -460,7 +463,8 @@ def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset, volume_offse
 
         task[output_chunk_name] = read_png_images(
             path_prefix, bbox, 
-            volume_offset=volume_offset)
+            volume_offset=volume_offset,
+            voxel_size=voxel_size)
         yield task
 
 
@@ -472,6 +476,8 @@ def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset, volume_offse
               help='read chunk from file, support .h5 and .tif')
 @click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
               help='global offset of this chunk')
+@click.option('--voxel-size', '-s', type=int, nargs=3, default=None, callback=default_none,
+              help='physical size of voxels. The unit is assumed to be nm.')
 @click.option('--dtype', '-d',
               type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
               help='convert to data type')
@@ -479,14 +485,16 @@ def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset, volume_offse
               help='chunk name in the global state')
 @operator
 def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
-             dtype: str, output_chunk_name: str):
+             voxel_size: tuple, dtype: str, output_chunk_name: str):
     """Read tiff files."""
     for task in tasks:
         start = time()
         assert output_chunk_name not in task
-        task[output_chunk_name] = Chunk.from_tif(file_name,
-                                                    dtype=dtype,
-                                                    voxel_offset=voxel_offset)
+        task[output_chunk_name] = Chunk.from_tif(
+            file_name,
+            dtype=dtype,
+            voxel_offset=voxel_offset,
+            voxel_size=voxel_size)
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -501,8 +509,10 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
 @click.option('--dtype', '-e',
               type=click.Choice(['float32', 'float64', 'uint32', 'uint64', 'uint8']),
               default=None, help='transform data type.')
-@click.option('--voxel-offset', '-v', type=int, nargs=3,
+@click.option('--voxel-offset', '-v', type=int, nargs=3, default=None,
               callback=default_none, help='voxel offset of the dataset in hdf5 file.')
+@click.option('--voxel-size', '-x', type=int, nargs=3, default=None,
+              callback=default_none, help='physical size of voxels. The unit is assumed to be nm.')
 @click.option('--cutout-start', '-t', type=int, nargs=3, callback=default_none,
               help='cutout voxel offset in the array')
 @click.option('--cutout-stop', '-p', type=int, nargs=3, callback=default_none,
@@ -514,7 +524,7 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
-            dtype: str, voxel_offset: tuple, cutout_start: tuple, 
+            dtype: str, voxel_offset: tuple, voxel_size: tuple, cutout_start: tuple, 
             cutout_stop: tuple, cutout_size: tuple, output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
@@ -535,6 +545,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
             file_name,
             dataset_path=dataset_path,
             voxel_offset=voxel_offset,
+            voxel_size=voxel_size,
             bbox = bbox
         )
         chunk = chunk.astype(dtype)
@@ -550,17 +561,21 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
 @click.option('--file-name', '-f',
               type=click.Path(dir_okay=True, resolve_path=False), required=True,
               help='file name of hdf5 file.')
+@click.option('--chunk-size', '-s', type=int, nargs=3,
+              default=None, callback=default_none,
+              help='save the big volume as chunks.')
 @click.option('--compression', '-c', type=click.Choice(["gzip", "lzf", "szip"]),
               default="gzip", help="compression used in the dataset.")
 @click.option('--with-offset/--without-offset', default=True, type=bool,
               help='add voxel_offset dataset or not.')
 @operator
-def write_h5(tasks, name, input_chunk_name, file_name, compression, with_offset):
+def write_h5(tasks, name, input_chunk_name, file_name, chunk_size, compression, with_offset):
     """Write chunk to HDF5 file."""
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            task[input_chunk_name].to_h5(file_name, with_offset, compression=compression)
+            task[input_chunk_name].to_h5(file_name, with_offset, 
+                chunk_size=chunk_size, compression=compression)
         yield task
 
 
@@ -1301,15 +1316,10 @@ def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path
 
 
 @main.command('neuroglancer')
-@click.option('--name',
-              type=str,
-              default='neuroglancer',
+@click.option('--name', type=str, default='neuroglancer',
               help='name of this operator')
-@click.option('--voxel-size',
-              '-v',
-              nargs=3,
-              type=int,
-              default=(1, 1, 1),
+@click.option('--voxel-size', '-v',
+              nargs=3, type=int, default=None, callback=default_none,
               help='voxel size of chunk')
 @click.option('--port', '-p', type=int, default=None, help='port to use')
 @click.option('--chunk-names', '-c', type=str, default='chunk', 
@@ -1317,9 +1327,7 @@ def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path
 @operator
 def neuroglancer(tasks, name, voxel_size, port, chunk_names):
     """Visualize the chunk using neuroglancer."""
-    operator = NeuroglancerOperator(name=name,
-                                                    port=port,
-                                                    voxel_size=voxel_size)
+    operator = NeuroglancerOperator(name=name, port=port, voxel_size=voxel_size)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:

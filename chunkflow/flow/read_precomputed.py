@@ -44,7 +44,7 @@ class ReadPrecomputedOperator(OperatorBase):
             mip=self.mip,
             cache=False,
             green_threads=True)
-
+        
     def __call__(self, output_bbox):
         #gevent.monkey.patch_all(thread=False)
                
@@ -78,7 +78,8 @@ class ReadPrecomputedOperator(OperatorBase):
         else:
             voxel_offset = (0, ) + voxel_offset
 
-        chunk = Chunk(chunk, voxel_offset=voxel_offset)
+        chunk = Chunk(chunk, voxel_offset=voxel_offset,
+                voxel_size=tuple(self.vol.resolution[::-1]))
 
         if self.blackout_sections:
             chunk = self._blackout_sections(chunk)

@@ -13,7 +13,8 @@ ChangeLog history
 - shard meshing. It is not validated yet. The data is written, but Neuroglancer is still not showing them. There is something like manifest missing.
 - support downsample in Z
 - support disbatch in manifest operator
-
+- add voxel size of chunk
+- automatically use chunk voxel size in neuroglancer operator
 ## Bug Fixes 
 - fix manifest by updating cloud storage to CloudFiles
 
