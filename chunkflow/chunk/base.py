@@ -25,9 +25,10 @@ class Chunk(NDArrayOperatorsMixin):
 
     :param array: the data array chunk in a big dataset
     :param voxel_offset: the offset of this array chunk
+    :param voxel_size: the size of each voxel, normally with unit of nm
     :return: a new chunk with array data and global offset
     """
-    def __init__(self, array, voxel_offset: tuple = None):
+    def __init__(self, array, voxel_offset: tuple = None, voxel_size: tuple = (1, 1, 1)):
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         self.array = array
         if voxel_offset is None:
@@ -37,6 +38,9 @@ class Chunk(NDArrayOperatorsMixin):
             else:
                 voxel_offset = tuple(np.zeros(array.ndim, dtype=np.int))
         self.voxel_offset = voxel_offset
+        self.voxel_size = voxel_size
+        assert len(voxel_size) == 3
+        assert np.alltrue([vs > 0 for vs in voxel_size])
         assert array.ndim == len(voxel_offset)
         
     # One might also consider adding the built-in list type to this
@@ -44,25 +48,43 @@ class Chunk(NDArrayOperatorsMixin):
     _HANDLED_TYPES = (np.ndarray, Number)
     
     @classmethod
-    def from_bbox(cls, array: np.ndarray, bbox: Bbox):
+    def from_array(cls, array: np.ndarray, bbox: Bbox, voxel_size: tuple=(1, 1, 1)):
         """
         :param array: ndarray data
-        :param bbox: cloudvolume bounding box 
+        :param bbox: cloudvolume bounding box
+        :param voxel_size: physical size of each voxel 
         :return: construct a new Chunk
         """
         voxel_offset = (bbox.minpt.z, bbox.minpt.y, bbox.minpt.x)
-        return cls(array, voxel_offset=voxel_offset)
+        return cls(array, voxel_offset=voxel_offset, voxel_size=voxel_size)
     
     @classmethod
-    def from_bbox(cls, bbox: Bbox, dtype: type = np.uint8, all_zero: bool=False):
+    def from_bbox(cls, bbox: Bbox, dtype: type = np.uint8,
+            voxel_size: tuple=(1, 1, 1), all_zero: bool=False):
+        """
+        :param bbox: bounding box of chunk
+        :param dtype: numpy data type
+        :param all_zero: is it all zero or with a fancy function
+        :return: a new chunk
+        """
         assert isinstance(bbox, Bbox)
         size = bbox.maxpt - bbox.minpt
-        return cls.create(size=size, dtype=dtype, voxel_offset=bbox.minpt, all_zero=all_zero)
+        return cls.create(size=size, dtype=dtype, voxel_offset=bbox.minpt,
+            voxel_size=voxel_size, all_zero=all_zero)
 
     @classmethod
     def create(cls, size: tuple = (64, 64, 64),
                dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0),
+               voxel_size: tuple = (1, 1, 1),
                all_zero: bool = False):
+        """
+        :param size: size of chunk
+        :param dtype: numpy data type
+        :param voxel_offset: offset of the upper left corner
+        :param voxel_size: physical size of each voxel.
+        :param all_zero: is it all zero or create using a function
+        :return: a new chunk
+        """
         if isinstance(dtype, str):
             dtype = np.dtype(dtype)
 
@@ -85,17 +107,18 @@ class Chunk(NDArrayOperatorsMixin):
             else:
                 raise NotImplementedError()
 
-        return cls(chunk, voxel_offset=voxel_offset)
+        return cls(chunk, voxel_offset=voxel_offset, voxel_size=voxel_size)
 
     @classmethod
-    def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None):
+    def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
+            voxel_size: tuple=(1, 1, 1)):
         arr = tifffile.imread(file_name)
 
         if dtype:
             arr = arr.astype(dtype)
         return cls(arr, voxel_offset=voxel_offset)
     
-    def to_tif(self, file_name: str=None, voxel_offset: tuple=None):
+    def to_tif(self, file_name: str=None):
         if file_name is None:
             file_name = f'{self.bbox.to_filename()}.tif'
         print('write chunk to file: ', file_name)
@@ -114,6 +137,7 @@ class Chunk(NDArrayOperatorsMixin):
     def from_h5(cls, file_name: str,
                 voxel_offset: tuple=None,
                 dataset_path: str = None,
+                voxel_size: tuple=None,
                 bbox: Bbox = None):
         if bbox:
             cutout_start = bbox.minpt
@@ -144,6 +168,12 @@ class Chunk(NDArrayOperatorsMixin):
             elif len(voxel_offset)==3 and dset.ndim==4:
                 # special treatment for affinity map
                 voxel_offset = (0, *voxel_offset)
+
+            if voxel_size is None:
+                if 'voxel_size' in f:
+                    voxel_size = tuple(f['voxel_size'])
+                else:
+                    voxel_size = (1, 1, 1)
 
             if cutout_start is None:
                 cutout_start = voxel_offset
@@ -183,10 +213,19 @@ class Chunk(NDArrayOperatorsMixin):
 
         print('new chunk voxel offset: {}'.format(cutout_start))
 
-        return cls(arr, voxel_offset=cutout_start)
+        return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
+                chunk_size: tuple=None,
                 with_unique: bool= True, compression="gzip"):
+        """
+        :param file_name: output file name. If it is not end with h5, the coordinate will be appended to the file name.
+        :param with_offset: save the voxel offset or not
+        :param with_unique: if this is a segmentation chunk, save the unique object ids or not.
+        :param compression: use HDF5 compression or not. Options are gzip, lzf
+        """
+        if chunk_size:
+            assert len(chunk_size) == 3
 
         if not file_name.endswith('.h5'):
             file_name += self.bbox.to_filename() + '.h5'
@@ -198,7 +237,8 @@ class Chunk(NDArrayOperatorsMixin):
 
 
         with h5py.File(file_name, 'w') as f:
-            f.create_dataset('/main', data=self.array, compression=compression)
+            f.create_dataset('/main', data=self.array, chunks=chunk_size, compression=compression)
+            f.create_dataset('/voxel_size', data=self.voxel_size)
             if with_offset:
                 f.create_dataset('/voxel_offset', data=self.voxel_offset)
 

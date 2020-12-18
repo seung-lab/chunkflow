@@ -550,17 +550,21 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
 @click.option('--file-name', '-f',
               type=click.Path(dir_okay=True, resolve_path=False), required=True,
               help='file name of hdf5 file.')
+@click.option('--chunk-size', '-s', type=int, nargs=3,
+              default=None, callback=default_none,
+              help='save the big volume as chunks.')
 @click.option('--compression', '-c', type=click.Choice(["gzip", "lzf", "szip"]),
               default="gzip", help="compression used in the dataset.")
 @click.option('--with-offset/--without-offset', default=True, type=bool,
               help='add voxel_offset dataset or not.')
 @operator
-def write_h5(tasks, name, input_chunk_name, file_name, compression, with_offset):
+def write_h5(tasks, name, input_chunk_name, file_name, chunk_size, compression, with_offset):
     """Write chunk to HDF5 file."""
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            task[input_chunk_name].to_h5(file_name, with_offset, compression=compression)
+            task[input_chunk_name].to_h5(file_name, with_offset, 
+                chunk_size=chunk_size, compression=compression)
         yield task
 
 
