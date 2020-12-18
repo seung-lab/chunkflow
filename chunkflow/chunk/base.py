@@ -28,7 +28,7 @@ class Chunk(NDArrayOperatorsMixin):
     :param voxel_size: the size of each voxel, normally with unit of nm
     :return: a new chunk with array data and global offset
     """
-    def __init__(self, array, voxel_offset: tuple = None, voxel_size: tuple = (1, 1, 1)):
+    def __init__(self, array, voxel_offset: tuple = None, voxel_size: tuple = None):
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         self.array = array
         if voxel_offset is None:
@@ -39,8 +39,9 @@ class Chunk(NDArrayOperatorsMixin):
                 voxel_offset = tuple(np.zeros(array.ndim, dtype=np.int))
         self.voxel_offset = voxel_offset
         self.voxel_size = voxel_size
-        assert len(voxel_size) == 3
-        assert np.alltrue([vs > 0 for vs in voxel_size])
+        if voxel_size:
+            assert len(voxel_size) == 3
+            assert np.alltrue([vs > 0 for vs in voxel_size])
         assert array.ndim == len(voxel_offset)
         
     # One might also consider adding the built-in list type to this
@@ -48,7 +49,7 @@ class Chunk(NDArrayOperatorsMixin):
     _HANDLED_TYPES = (np.ndarray, Number)
     
     @classmethod
-    def from_array(cls, array: np.ndarray, bbox: Bbox, voxel_size: tuple=(1, 1, 1)):
+    def from_array(cls, array: np.ndarray, bbox: Bbox, voxel_size: tuple=None):
         """
         :param array: ndarray data
         :param bbox: cloudvolume bounding box
@@ -60,7 +61,7 @@ class Chunk(NDArrayOperatorsMixin):
     
     @classmethod
     def from_bbox(cls, bbox: Bbox, dtype: type = np.uint8,
-            voxel_size: tuple=(1, 1, 1), all_zero: bool=False):
+            voxel_size: tuple=None, all_zero: bool=False):
         """
         :param bbox: bounding box of chunk
         :param dtype: numpy data type
@@ -75,7 +76,7 @@ class Chunk(NDArrayOperatorsMixin):
     @classmethod
     def create(cls, size: tuple = (64, 64, 64),
                dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0),
-               voxel_size: tuple = (1, 1, 1),
+               voxel_size: tuple = None,
                all_zero: bool = False):
         """
         :param size: size of chunk
@@ -111,12 +112,12 @@ class Chunk(NDArrayOperatorsMixin):
 
     @classmethod
     def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
-            voxel_size: tuple=(1, 1, 1)):
+            voxel_size: tuple=None):
         arr = tifffile.imread(file_name)
 
         if dtype:
             arr = arr.astype(dtype)
-        return cls(arr, voxel_offset=voxel_offset)
+        return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
     
     def to_tif(self, file_name: str=None):
         if file_name is None:
@@ -238,8 +239,9 @@ class Chunk(NDArrayOperatorsMixin):
 
         with h5py.File(file_name, 'w') as f:
             f.create_dataset('/main', data=self.array, chunks=chunk_size, compression=compression)
-            f.create_dataset('/voxel_size', data=self.voxel_size)
-            if with_offset:
+            if self.voxel_size:
+                f.create_dataset('/voxel_size', data=self.voxel_size)
+            if with_offset and self.voxel_offset:
                 f.create_dataset('/voxel_offset', data=self.voxel_offset)
 
             if with_unique and self.is_segmentation:
