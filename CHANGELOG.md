@@ -4,11 +4,14 @@ ChangeLog history
 ## Breaking Changes
 - use python logging module instead of verbose parameter
 - changed the `plugin` operator parameter input and output names. So it can accept both chunk and other data, such as bounding box.
+- the default downsampling factor changes from (1,2,2) to (2,2,2)
 ## Deprecations 
 
 ## Features
 - work with Flatiron disBatch.
 - a new operator remap to renumber a serials of segmentation chunks.
+- shard meshing. It is not validated yet. The data is written, but Neuroglancer is still not showing them. There is something like manifest missing.
+- support downsample in Z
 - support disbatch in manifest operator
 
 ## Bug Fixes 

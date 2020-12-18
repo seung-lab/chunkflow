@@ -21,10 +21,13 @@ def hierarchical_downsample(chunk, layer_type='segmentation'):
                            max_mip=4,
                            layer_type=layer_type)
 
-    operator = DownsampleUploadOperator(volume_path,
-                                        chunk_mip=0,
-                                        start_mip=1,
-                                        stop_mip=4)
+    operator = DownsampleUploadOperator(
+        volume_path,
+        factor=(1, 2, 2),
+        chunk_mip=0,
+        start_mip=1,
+        stop_mip=4)
+
     operator(chunk)
     shutil.rmtree(tempdir)
 

@@ -781,6 +781,8 @@ def evaluate_segmenation(tasks, name, segmentation_chunk_name,
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--volume-path', '-v', type=str, help='path of output volume')
+@click.option('--factor', '-f', type=int, nargs=3, default=(2, 2, 2), 
+    help='downsampling factor in z,y,x.')
 @click.option('--chunk-mip', '-c', type=int, default=None, help='input chunk mip level')
 @click.option('--start-mip', '-s', 
     type=int, default=None, help='the start uploading mip level.')
@@ -791,13 +793,14 @@ def evaluate_segmenation(tasks, name, segmentation_chunk_name,
               default=True, help='fill missing or not when there is all zero blocks.')
 @operator
 def downsample_upload(tasks, name, input_chunk_name, volume_path, 
-                      chunk_mip, start_mip, stop_mip, fill_missing):
+                      factor, chunk_mip, start_mip, stop_mip, fill_missing):
     """Downsample chunk and upload to volume."""
     if chunk_mip is None:
         chunk_mip = state['mip']
 
     operator = DownsampleUploadOperator(
         volume_path,
+        factor=factor,
         chunk_mip=chunk_mip,
         start_mip=start_mip,
         stop_mip=stop_mip,
