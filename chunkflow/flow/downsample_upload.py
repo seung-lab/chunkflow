@@ -63,7 +63,6 @@ class DownsampleUploadOperator(OperatorBase):
         voxel_offset = chunk.voxel_offset
 
         num_mips = self.stop_mip - self.chunk_mip
-
         # tinybrain use F order and require 4D array!
         chunk2 = np.transpose(chunk)
         # chunk2 = np.reshape(chunk2, (*chunk2.shape, 1))
