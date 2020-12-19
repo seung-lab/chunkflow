@@ -5,11 +5,19 @@ from chunkflow.chunk import Chunk
 
 
 def create_chunk(size:tuple = (7, 8, 9), voxel_offset=(-2, -3, -4), 
-                 dtype=np.float32):
+                 dtype=np.float32, voxel_size=(1,1,1)):
     # make the tests consistent in multiple runs
     np.random.seed(1)
-    arr = np.random.rand(*size).astype(dtype)
-    chunk = Chunk(arr, voxel_offset)
+    if len(size)==4 and len(voxel_offset)==3:
+        voxel_offset = tuple((0, *voxel_offset))
+
+    if np.issubdtype(dtype, np.float32):
+        arr = (np.random.rand(*size)).astype(dtype)
+    else:
+        arr = (np.random.rand(*size) * (np.iinfo(dtype).max)).astype(dtype)
+
+
+    chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
     return chunk
 
 def test_channel_voting():
@@ -43,6 +51,18 @@ def test_crop_margin():
         new_chunk.voxel_offset,
         (-1, -1, -1)
     )
+
+def test_maskout():
+    mask = np.ones((8, 16, 4), dtype=np.uint32)
+    mask[:4, :8, :2] = 0
+    mask = Chunk(mask, voxel_offset=(-2, -3, -4), voxel_size=(2, 4, 8))
+    image = create_chunk(size=(16, 64, 32), voxel_size=(1, 1, 1), dtype=np.uint8)
+    mask.maskout(image)
+    np.testing.assert_array_equal(image.array[:8, :32, :16], 0)
+
+    affs = create_chunk(size=(3, 16, 64, 32), voxel_size=(1, 1, 1), dtype=np.float32)
+    mask.maskout(affs)
+    np.testing.assert_array_equal(affs.array[:, :8, :32, :16], 0)
 
 
 class Test3DChunk(unittest.TestCase):

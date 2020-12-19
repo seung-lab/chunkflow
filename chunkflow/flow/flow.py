@@ -225,12 +225,16 @@ def cloud_watch(tasks, name, log_name):
 @click.option('--block-size', '-b',
               type=int, nargs=3, required=True,
               help='chunk size of each file.')
+@click.option('--factor', '-f',
+              type=int, nargs=3, default=(2,2,2),
+              help='hierarchical downsampling factor')
 @click.option('--max-mip', '-m',
               type=int, default=0, 
               help = 'maximum mip level.')
 @operator
-def create_info(tasks,input_chunk_name, output_layer_path, channel_num, layer_type, data_type, encoding, voxel_size, 
-                voxel_offset, volume_size, block_size, max_mip):
+def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num: int, 
+                layer_type: str, data_type: str, encoding: str, voxel_size: tuple, 
+                voxel_offset: tuple, volume_size: tuple, block_size: tuple, factor: tuple, max_mip: int):
     
     for task in tasks:
         if input_chunk_name in task:
@@ -264,6 +268,7 @@ def create_info(tasks,input_chunk_name, output_layer_path, channel_num, layer_ty
             voxel_offset=voxel_offset[::-1],
             volume_size=volume_size[::-1],
             chunk_size=block_size[::-1],
+            factor=Vec(factor),
             max_mip=max_mip)
         vol = CloudVolume(output_layer_path, info=info)
         vol.commit_info()
@@ -723,12 +728,12 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
         else:
             # use bounding box of volume
             if chunk_start is None:
-                chunk_start = operator.vol.mip_bounds(mip).minpt
+                chunk_start = operator.vol.mip_bounds(mip).minpt[::-1]
             else:
                 chunk_start = Vec(*chunk_start)
 
             if chunk_size is None:
-                chunk_stop = operator.vol.mip_bounds(mip).maxpt
+                chunk_stop = operator.vol.mip_bounds(mip).maxpt[::-1]
                 chunk_size = chunk_stop - chunk_start
             else:
                 chunk_size = Vec(*chunk_size)

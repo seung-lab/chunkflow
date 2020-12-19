@@ -439,14 +439,14 @@ class Chunk(NDArrayOperatorsMixin):
         return seg
     
     def connected_component(self, threshold: float = 0.5, 
-                            connectivity: int = 26):
+                            connectivity: int = 6):
         """threshold the map chunk and get connected components."""
         if not self.is_segmentation:
             seg = self.threshold(threshold)
             seg = seg.array
         else:
             seg = self.array 
-        seg = cc3d.connected_components(seg, connectivity=connectivity)
+        seg = cc3d.connected_components(seg.array, connectivity=connectivity)
         return Chunk(seg, voxel_offset=self.voxel_offset)
 
     def where(self, mask: np.ndarray) -> tuple:
@@ -510,6 +510,23 @@ class Chunk(NDArrayOperatorsMixin):
         patch_slices = tuple(slice(s, s+h) for s, h in zip(patch_starts, shape))
 
         self.array[internal_slices] += patch.array[patch_slices]
+
+    def maskout(self, chunk):
+        """ Make part of the chunk to be black.
+        """
+        assert chunk.voxel_size
+        assert self.voxel_size
+        # the voxel size should be divisible
+        div = tuple(s%c==0 for s, c in zip(self.voxel_size, chunk.voxel_size))
+        assert np.alltrue(div)
+
+        factor = tuple(s//c for s, c in zip(self.voxel_size, chunk.voxel_size))
+        for offset in np.ndindex(factor):
+            chunk.array[
+                ...,
+                np.s_[offset[0]::factor[0]],
+                np.s_[offset[1]::factor[1]],
+                np.s_[offset[2]::factor[2]]] *= self.array
 
     def _get_overlap_slices(self, other_slices):
         return tuple(
