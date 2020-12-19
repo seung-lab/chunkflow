@@ -15,6 +15,7 @@ ChangeLog history
 - support disbatch in manifest operator
 - add voxel size of chunk
 - automatically use chunk voxel size in neuroglancer operator
+- mask out a chunk with smaller voxel size. The voxel size should be divisible though.
 ## Bug Fixes 
 - fix manifest by updating cloud storage to CloudFiles
 

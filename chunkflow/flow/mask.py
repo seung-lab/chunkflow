@@ -44,11 +44,11 @@ class MaskOperator(OperatorBase):
 
     def is_all_zero(self, bbox):
         mask_in_high_mip = self._read_mask_in_high_mip(bbox)
-        # To-Do: replace with np.array_equiv function
-        # return np.array_equiv(mask_in_high_mip, 0)
         return np.alltrue(mask_in_high_mip == 0)
 
     def maskout(self, chunk):
+        """ Make part of chunk to be black according to a mask chunk.
+        """
         logging.info('mask out chunk using {} in mip {}'.format(
                 self.volume_path, self.mask_mip))
         
@@ -101,7 +101,6 @@ class MaskOperator(OperatorBase):
         # print("download mask chunk...")
         # make sure that the slices only contains zyx without channel
         chunk_slices = chunk_bbox.to_slices()[-3:]
-        chunk_size = chunk_bbox.maxpt - chunk_bbox.minpt
 
         # assume that input mip is the same with output mip
         xyfactor = 2**(self.mask_mip - self.chunk_mip)
