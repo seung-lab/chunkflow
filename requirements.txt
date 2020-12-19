@@ -19,4 +19,4 @@ kimimaro
 Pillow
 urllib3==1.25.11
 chardet==3.0.4
-docutils==0.15
+docutils<0.16,>=0.10
