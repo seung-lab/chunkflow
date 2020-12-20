@@ -57,7 +57,7 @@ class TestReadWrite(unittest.TestCase):
     def test_read_write_aff(self):
         print('test affinitymap io...')
         arr = np.random.rand(3, 8, 16, 16).astype(np.float32)
-        chunk = Chunk(arr, voxel_offset=(0, 1, 2, 3))
+        chunk = Chunk(arr, voxel_offset=(1, 2, 3))
         read_write_h5(chunk)
 
 
