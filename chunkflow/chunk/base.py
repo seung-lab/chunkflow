@@ -190,7 +190,7 @@ class Chunk(NDArrayOperatorsMixin):
             if cutout_start is not None:
                 if cutout_stop is None:
                     if cutout_size is None:
-                        cutout_size = dset.shape
+                        cutout_size = dset.shape[-3:]
                     cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
                 assert len(cutout_start) == 3
