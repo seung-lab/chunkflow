@@ -446,7 +446,7 @@ class Chunk(NDArrayOperatorsMixin):
             seg = seg.array
         else:
             seg = self.array 
-        seg = cc3d.connected_components(seg.array, connectivity=connectivity)
+        seg = cc3d.connected_components(seg, connectivity=connectivity)
         return Chunk(seg, voxel_offset=self.voxel_offset)
 
     def where(self, mask: np.ndarray) -> tuple:
