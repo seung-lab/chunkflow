@@ -219,7 +219,6 @@ class Inferencer(object):
         self.patch_slices_list = []
         # the step is the stride, so the end of aligned patch is
         # input_size - patch_overlap
-        
         input_patch_size = self.input_patch_size
         output_patch_size = self.output_patch_size
         input_patch_overlap = self.input_patch_overlap 
@@ -307,7 +306,7 @@ class Inferencer(object):
             input_chunk.voxel_offset, self.output_offset))
         
         output_buffer = Chunk(output_buffer_array,
-                                   voxel_offset=(0,) + output_voxel_offset)
+                                   voxel_offset=output_voxel_offset)
         assert output_buffer == 0
         return output_buffer
 
@@ -384,7 +383,7 @@ class Inferencer(object):
                 # the remaining channels are dropped
                 # the slices[0] is for input patch slice
                 # the slices[1] is for output patch slice
-                offset = (0,) + tuple(s.start for s in slices[1])
+                offset = tuple(s.start for s in slices[1])
                 output_chunk = Chunk(output_patch[batch_idx, :, :, :, :],
                                      voxel_offset=offset)
 
