@@ -24,8 +24,8 @@ class Chunk(NDArrayOperatorsMixin):
     and `examples<https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
 
     :param array: the data array chunk in a big dataset
-    :param voxel_offset: the offset of this array chunk
-    :param voxel_size: the size of each voxel, normally with unit of nm
+    :param voxel_offset: the offset of this array chunk. 3 numbers: z, y, x
+    :param voxel_size: the size of each voxel, normally with unit of nm. 3 numbers: z, y, x.
     :return: a new chunk with array data and global offset
     """
     def __init__(self, array, voxel_offset: tuple = None, voxel_size: tuple = None):
@@ -36,13 +36,21 @@ class Chunk(NDArrayOperatorsMixin):
                 self.array = array.array
                 voxel_offset = array.voxel_offset
             else:
-                voxel_offset = tuple(np.zeros(array.ndim, dtype=np.int))
+                voxel_offset = (0, 0, 0)
+        
+        if voxel_offset is not None:
+            if len(voxel_offset) == 4:
+                assert voxel_offset[0] == 0
+                voxel_offset = voxel_offset[1:]
+            assert len(voxel_offset) == 3
+
         self.voxel_offset = voxel_offset
         self.voxel_size = voxel_size
-        if voxel_size:
+        if voxel_size is not None:
             assert len(voxel_size) == 3
             assert np.alltrue([vs > 0 for vs in voxel_size])
-        assert array.ndim == len(voxel_offset)
+        
+        assert array.ndim >= 3 and array.ndim <= 4 
         
     # One might also consider adding the built-in list type to this
     # list, to support operations like np.add(array_like, list)
@@ -53,7 +61,7 @@ class Chunk(NDArrayOperatorsMixin):
         """
         :param array: ndarray data
         :param bbox: cloudvolume bounding box
-        :param voxel_size: physical size of each voxel 
+        :param voxel_size: physical size of each voxel.
         :return: construct a new Chunk
         """
         voxel_offset = (bbox.minpt.z, bbox.minpt.y, bbox.minpt.x)
@@ -63,7 +71,7 @@ class Chunk(NDArrayOperatorsMixin):
     def from_bbox(cls, bbox: Bbox, dtype: type = np.uint8,
             voxel_size: tuple=None, all_zero: bool=False):
         """
-        :param bbox: bounding box of chunk
+        :param bbox: bounding box of chunk.
         :param dtype: numpy data type
         :param all_zero: is it all zero or with a fancy function
         :return: a new chunk
@@ -166,9 +174,6 @@ class Chunk(NDArrayOperatorsMixin):
                     voxel_offset = tuple(f['voxel_offset'])
                 else:
                     voxel_offset = tuple(0 for _ in range(dset.ndim))
-            elif len(voxel_offset)==3 and dset.ndim==4:
-                # special treatment for affinity map
-                voxel_offset = (0, *voxel_offset)
 
             if voxel_size is None:
                 if 'voxel_size' in f:
@@ -198,10 +203,10 @@ class Chunk(NDArrayOperatorsMixin):
                     assert len(cutout_start) == 4
                     assert len(cutout_stop) == 4
                     dset = dset[
-                        cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
-                        cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
-                        cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
-                        cutout_start[3]-voxel_offset[3]:cutout_stop[3]-voxel_offset[3],
+                        cutout_start[0]:cutout_stop[0],
+                        cutout_start[1]-voxel_offset[0]:cutout_stop[1]-voxel_offset[0],
+                        cutout_start[2]-voxel_offset[1]:cutout_stop[2]-voxel_offset[1],
+                        cutout_start[3]-voxel_offset[2]:cutout_stop[3]-voxel_offset[2],
                     ]
         
         print('read from HDF5 file: {} and start with {}, ends with {}, size is {}'.format(
@@ -316,7 +321,7 @@ class Chunk(NDArrayOperatorsMixin):
         :getter: the global slice in the big volume
         """
         return tuple(
-            slice(o, o + s) for o, s in zip(self.voxel_offset, self.shape))
+            slice(o, o + s) for o, s in zip(self.ndoffset, self.shape))
 
     @property
     def is_image(self) -> bool:
@@ -332,11 +337,21 @@ class Chunk(NDArrayOperatorsMixin):
         return self.array.ndim == 4 and self.array.dtype == np.float32
 
     @property
+    def ndoffset(self) -> tuple:
+        """ 
+        make the voxel offset have the same dimension with array
+        """
+        if self.ndim == 4:
+            return (0, *self.voxel_offset)
+        else:
+            return self.voxel_offset
+
+    @property
     def bbox(self) -> Bbox:
         """
         :getter: the cloudvolume bounding box in the big volume
         """
-        return Bbox.from_delta(self.voxel_offset, self.array.shape)
+        return Bbox.from_delta(self.ndoffset, self.array.shape)
     
     @property
     def ndim(self) -> int:
@@ -392,7 +407,7 @@ class Chunk(NDArrayOperatorsMixin):
         np.argmax(self.array, axis=0, out=out)
         # our selected channel index start from 1
         out += 1
-        return Chunk(out, voxel_offset=self.voxel_offset[1:])
+        return Chunk(out, voxel_offset=self.voxel_offset)
 
     def mask_using_last_channel(self, threshold: float = 0.3) -> np.ndarray:
         mask = (self.array[-1, :, :, :] < threshold)
@@ -500,12 +515,12 @@ class Chunk(NDArrayOperatorsMixin):
         """
         internal_slices = tuple(
             slice(max(s.start - o, 0), min(s.stop - o, h)) for s, o, h in 
-            zip(patch.slices, self.voxel_offset, self.shape)
+            zip(patch.slices, self.ndoffset, self.shape)
         )
         shape = (s.stop - s.start for s in internal_slices)
         patch_starts = (
             i.start - s.start + o for s, o, i in 
-            zip(patch.slices, self.voxel_offset, internal_slices)
+            zip(patch.slices, self.ndoffset, internal_slices)
         )
         patch_slices = tuple(slice(s, s+h) for s, h in zip(patch_starts, shape))
 
