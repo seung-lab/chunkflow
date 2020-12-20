@@ -173,7 +173,7 @@ class Chunk(NDArrayOperatorsMixin):
                 if 'voxel_offset' in f:
                     voxel_offset = tuple(f['voxel_offset'])
                 else:
-                    voxel_offset = tuple(0 for _ in range(dset.ndim))
+                    voxel_offset = (0, 0, 0)
 
             if voxel_size is None:
                 if 'voxel_size' in f:
@@ -193,21 +193,14 @@ class Chunk(NDArrayOperatorsMixin):
                         cutout_size = dset.shape
                     cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
-                if dset.ndim == 3:
-                    dset = dset[
-                        cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
-                        cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
-                        cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
-                    ]
-                elif dset.ndim == 4:
-                    assert len(cutout_start) == 4
-                    assert len(cutout_stop) == 4
-                    dset = dset[
-                        cutout_start[0]:cutout_stop[0],
-                        cutout_start[1]-voxel_offset[0]:cutout_stop[1]-voxel_offset[0],
-                        cutout_start[2]-voxel_offset[1]:cutout_stop[2]-voxel_offset[1],
-                        cutout_start[3]-voxel_offset[2]:cutout_stop[3]-voxel_offset[2],
-                    ]
+                assert len(cutout_start) == 3
+                assert len(cutout_stop) == 3
+                dset = dset[...,
+                    cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
+                    cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
+                    cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
+                ]
+                    
         
         print('read from HDF5 file: {} and start with {}, ends with {}, size is {}'.format(
             file_name, cutout_start, cutout_stop, cutout_size))
@@ -497,7 +490,7 @@ class Chunk(NDArrayOperatorsMixin):
             slices = (slice(0, self.shape[0]), ) + slices
         internalSlices = self._get_internal_slices(slices)
         arr = self.array[internalSlices]
-        voxel_offset = tuple(s.start for s in slices)
+        voxel_offset = tuple(s.start for s in slices[-3:])
         return Chunk(arr, voxel_offset=voxel_offset)
 
     def save(self, patch):
@@ -549,9 +542,10 @@ class Chunk(NDArrayOperatorsMixin):
             for s1, s2 in zip(self.slices, other_slices))
 
     def _get_internal_slices(self, slices):
+        assert self.ndim == len(slices)
         return tuple(
             slice(s.start - o, s.stop - o)
-            for s, o in zip(slices, self.voxel_offset))
+            for s, o in zip(slices, self.ndoffset))
 
 
     def validate(self):

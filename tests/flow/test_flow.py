@@ -46,8 +46,7 @@ def test_inference_pipeline():
 
     # create input mask volume
     input_mask = np.ones(input_size, dtype=np.bool)
-    input_mask_volume_path = 'file:///tmp/input-mask/' + generate_random_string(
-    )
+    input_mask_volume_path = 'file:///tmp/input-mask/' + generate_random_string()
     CloudVolume.from_numpy(np.transpose(input_mask),
                             vol_path=input_mask_volume_path,
                             max_mip=input_mask_mip)
@@ -60,8 +59,7 @@ def test_inference_pipeline():
 
     # create output layer
     out = np.random.rand(3, *output_size).astype(np.float32)
-    output_volume_path = 'file:///tmp/output/' + generate_random_string(
-    )
+    output_volume_path = 'file:///tmp/output/' + generate_random_string()
     output_vol = CloudVolume.from_numpy(
         np.transpose(out),
         vol_path=output_volume_path,
@@ -121,7 +119,6 @@ def test_inference_pipeline():
         print(inferencer.compute_device)
         chunk = inferencer(chunk)
     print('after inference: {}'.format(chunk.slices))
-
     print('crop the marging...')
     chunk = chunk.crop_margin(output_bbox=output_bbox)
     print('after crop: {}'.format(chunk.slices))
@@ -158,14 +155,15 @@ def test_inference_pipeline():
     # input mask validation
     np.testing.assert_array_equal(out[:2, :8, :8], 0)
     # output mask validation
-    np.testing.assert_array_equal(out[-2:-8:, -8:], 0)
+    np.testing.assert_array_equal(out[-2:, -8:, -8:], 0)
 
     # ignore the masked part of output
     img = img[2:-2, 8:-8, 8:-8]
     out = out[2:-2, 8:-8, 8:-8]
 
     # the value can only be close since there is mask error
-    np.testing.assert_array_almost_equal(img, out, decimal=1)
+    # abs(desired-actual) < 1.5 * 10**(-decimal)
+    np.testing.assert_array_almost_equal(img, out, decimal=0)
 
     # clean up
     shutil.rmtree('/tmp/input')
