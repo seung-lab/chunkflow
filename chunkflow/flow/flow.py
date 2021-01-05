@@ -553,7 +553,8 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
             voxel_size=voxel_size,
             bbox = bbox
         )
-        chunk = chunk.astype(dtype)
+        if dtype is not None:
+            chunk = chunk.astype(dtype)
         task[output_chunk_name] = chunk
         task['log']['timer'][name] = time() - start
         yield task

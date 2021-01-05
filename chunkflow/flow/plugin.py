@@ -26,10 +26,18 @@ class Plugin(OperatorBase):
         if not plugin_file.endswith('.py'):
             plugin_file += '.py'
 
-        if not path.isfile(plugin_file):
-            plugin_file = path.join(path.dirname(path.realpath(__file__)), '../plugins', plugin_file)
+        if not path.exists(plugin_file):
+            plugin_file = path.join(
+                path.dirname(path.realpath(__file__)), 
+                '../plugins', 
+                path.basename(plugin_file))
+            if not path.exists(plugin_file):
+                plugin_file = path.join(
+                    path.dirname(path.realpath(__file__)), 
+                    '../plugins/chunkflow-plugins', 
+                    path.basename(plugin_file))
 
-        assert path.isfile(plugin_file)
+        assert path.exists(plugin_file)
 
         program = load_source(plugin_file)
         
