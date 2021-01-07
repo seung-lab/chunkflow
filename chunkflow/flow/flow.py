@@ -74,8 +74,7 @@ def generate_tasks(layer_path, mip, roi_start, chunk_size,
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, mip=mip, grid_size=grid_size,
-        )
-
+    )
     print('total number of tasks: ', len(bboxes)) 
 
     if task_index_start:
@@ -535,7 +534,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     for task in tasks:
         
         start = time()
-        if 'bbox' in task and cutout_start is None:
+        if 'bbox' in task:
             bbox = task['bbox']
             print('bbox: ', bbox)
             cutout_start = bbox.minpt

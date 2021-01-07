@@ -2,6 +2,7 @@ import logging
 import os
 from itertools import product
 from collections import UserList
+from math import ceil
 
 import numpy as np
 import h5py 
@@ -61,8 +62,10 @@ class BoundingBoxes(UserList):
         roi_size = roi_stop - roi_start
 
         if grid_size is None:
-            grid_size = (roi_size - chunk_overlap) // stride + 1
-        
+            grid_size = (roi_size - chunk_overlap) / stride 
+            grid_size = tuple(ceil(x) for x in grid_size)
+            grid_size = Vec(*grid_size)
+
         # the stride should not be zero if there is more than one chunks
         for g, s in zip(grid_size, stride):
             if g > 1:
