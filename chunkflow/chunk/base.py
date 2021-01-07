@@ -211,7 +211,7 @@ class Chunk(NDArrayOperatorsMixin):
         return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
-                chunk_size: tuple=None,
+                chunk_size: tuple=(64,64,64),
                 with_unique: bool= True, compression="gzip"):
         """
         :param file_name: output file name. If it is not end with h5, the coordinate will be appended to the file name.

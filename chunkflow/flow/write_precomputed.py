@@ -28,7 +28,21 @@ class WritePrecomputedOperator(OperatorBase):
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
+
+        if not volume_path.startswith('precomputed://'):
+            volume_path += 'precomputed://'
         self.volume_path = volume_path
+        
+        # gevent.monkey.patch_all(thread=False)
+        self.volume = CloudVolume(
+            self.volume_path,
+            fill_missing=True,
+            bounded=False,
+            autocrop=True,
+            mip=self.mip,
+            cache=False,
+            green_threads=True,
+            progress=True)
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')
@@ -48,22 +62,12 @@ class WritePrecomputedOperator(OperatorBase):
         
         start = time.time()
         
-        # gevent.monkey.patch_all(thread=False)
-        volume = CloudVolume(
-            self.volume_path,
-            fill_missing=True,
-            bounded=False,
-            autocrop=True,
-            mip=self.mip,
-            cache=False,
-            green_threads=True,
-            progress=True)
 
-        chunk = self._auto_convert_dtype(chunk, volume)
+        chunk = self._auto_convert_dtype(chunk, self.volume)
         
         # transpose czyx to xyzc order
         arr = np.transpose(chunk.array)
-        volume[chunk.slices[::-1]] = arr
+        self.volume[chunk.slices[::-1]] = arr
         
         if self.create_thumbnail:
             self._create_thumbnail(chunk)
