@@ -146,19 +146,17 @@ class Chunk(NDArrayOperatorsMixin):
     def from_h5(cls, file_name: str,
                 voxel_offset: tuple=None,
                 dataset_path: str = None,
-                voxel_size: tuple=None,
-                bbox: Bbox = None):
-        if bbox:
-            cutout_start = bbox.minpt
-            cutout_stop = bbox.maxpt
-            cutout_size = cutout_stop - cutout_start
-        else: 
-            cutout_start = None
-            cutout_stop = None
-            cutout_size = None
+                voxel_size: tuple = None,
+                cutout_start: tuple = None,
+                cutout_stop: tuple = None,
+                cutout_size: tuple = None):
+        if cutout_start is not None and cutout_size is not None:
+            cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
         if not h5py.is_hdf5(file_name):
-            assert bbox
+            assert cutout_start is not None 
+            assert cutout_stop is not None
+            bbox = Bbox.from_list([*cutout_start, *cutout_stop])
             file_name += f'{bbox.to_filename()}.h5'
 
         with h5py.File(file_name, 'r') as f:
@@ -183,23 +181,21 @@ class Chunk(NDArrayOperatorsMixin):
 
             if cutout_start is None:
                 cutout_start = voxel_offset
+            if cutout_size is None:
+                cutout_size = dset.shape[-3:]
+            if cutout_stop is None:
+                cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
             for c, v in zip(cutout_start, voxel_offset):
                 assert c >= v, "can only cutout after the global voxel offset."
 
-            if cutout_start is not None:
-                if cutout_stop is None:
-                    if cutout_size is None:
-                        cutout_size = dset.shape[-3:]
-                    cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
-
-                assert len(cutout_start) == 3
-                assert len(cutout_stop) == 3
-                dset = dset[...,
-                    cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
-                    cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
-                    cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
-                ]
+            assert len(cutout_start) == 3
+            assert len(cutout_stop) == 3
+            dset = dset[...,
+                cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
+                cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
+                cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
+            ]
                     
         
         print('read from HDF5 file: {} and start with {}, ends with {}, size is {}'.format(

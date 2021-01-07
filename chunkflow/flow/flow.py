@@ -537,21 +537,19 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
         start = time()
         if 'bbox' in task and cutout_start is None:
             bbox = task['bbox']
-            print('bbox: ', bbox) 
-        elif cutout_start is not None:
-            if cutout_stop is None:
-                assert cutout_size is not None
-                cutout_stop = tuple(t+s for t,s in zip(cutout_start, cutout_size))
-            bbox = Bbox.from_list([*cutout_start, *cutout_stop])
-        else:
-            bbox = None
+            print('bbox: ', bbox)
+            cutout_start = bbox.minpt
+            cutout_stop = bbox.maxpt
+            cutout_size = cutout_stop - cutout_start
         
         chunk = Chunk.from_h5(
             file_name,
             dataset_path=dataset_path,
             voxel_offset=voxel_offset,
             voxel_size=voxel_size,
-            bbox = bbox
+            cutout_start=cutout_start,
+            cutout_size=cutout_size,
+            cutout_stop=cutout_stop
         )
         if dtype is not None:
             chunk = chunk.astype(dtype)
