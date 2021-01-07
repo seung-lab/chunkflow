@@ -18,7 +18,8 @@ ChangeLog history
 - mask out a chunk with smaller voxel size. The voxel size should be divisible though.
 ## Bug Fixes 
 - fix manifest by updating cloud storage to CloudFiles
-
+- fix read-h5 operator when only cutout size is provided
+- fix grid size bug of generating tasks
 ## Improved Documentation 
 
 # chunkflow 1.0.4 (2020-11-16)
