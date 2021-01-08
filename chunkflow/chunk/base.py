@@ -442,10 +442,10 @@ class Chunk(NDArrayOperatorsMixin):
         seg = seg.astype(np.uint8)
         return seg
     
-    def connected_component(self, threshold: float = 0.5, 
+    def connected_component(self, threshold: float = None, 
                             connectivity: int = 6):
         """threshold the map chunk and get connected components."""
-        if not self.is_segmentation:
+        if not self.is_segmentation and threshold is not None:
             seg = self.threshold(threshold)
             seg = seg.array
         else:

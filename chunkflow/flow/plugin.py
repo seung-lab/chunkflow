@@ -45,4 +45,18 @@ class Plugin(OperatorBase):
         self.exec = program.exec  
 
     def __call__(self, inputs):
-        return self.exec(*inputs)
+        voxel_offset = None
+        voxel_size = None
+        for input in inputs:
+            if isinstance(input, Chunk):
+                voxel_size = input.voxel_size
+                voxel_offset = input.voxel_offset
+                break
+
+        outputs = self.exec(*inputs)
+        ret = []
+        for output in outputs:
+            if isinstance(output, np.ndarray) and voxel_offset is not None:
+                output = Chunk(output, voxel_offset=voxel_offset, voxel_size=voxel_size)
+            ret.append(output)
+        return ret

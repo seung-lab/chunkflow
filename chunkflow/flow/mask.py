@@ -71,7 +71,7 @@ class MaskOperator(OperatorBase):
 
         # make it the same type with input
         mask_in_high_mip = mask_in_high_mip.astype(chunk.dtype)
-        
+         
         # upsampling factor in XY plane
         #mask = np.zeros(chunk.shape[-3:], dtype=chunk.dtype)
         xyfactor = 2**(self.mask_mip - self.chunk_mip)
