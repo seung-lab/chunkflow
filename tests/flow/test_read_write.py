@@ -13,7 +13,7 @@ def read_write_h5(chunk):
     if os.path.exists(file_name):
         os.remove(file_name)
 
-    chunk.to_h5(file_name)
+    chunk.to_h5(file_name, chunk_size=None)
 
     chunk2 = Chunk.from_h5(file_name)
     assert chunk == chunk2

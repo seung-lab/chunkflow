@@ -29,8 +29,8 @@ class WritePrecomputedOperator(OperatorBase):
         self.create_thumbnail = create_thumbnail
         self.mip = mip
 
-        if not volume_path.startswith('precomputed://'):
-            volume_path += 'precomputed://'
+        # if not volume_path.startswith('precomputed://'):
+        #     volume_path += 'precomputed://'
         self.volume_path = volume_path
         
         # gevent.monkey.patch_all(thread=False)
