@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-import logging
 import os.path as path
 
-import numpy as np
-from chunkflow.chunk import Chunk
 from .base import OperatorBase
+
+from cloudvolume.lib import Bbox
 
 from chunkflow.lib import load_source
 
@@ -44,5 +43,11 @@ class Plugin(OperatorBase):
         # assuming this is a func / static functor for now, maybe make it a class?
         self.exec = program.exec  
 
-    def __call__(self, inputs):
-        return self.exec(*inputs)
+    def __call__(self, inputs, bbox: Bbox = None, args: str = None):
+        if args is None and bbox is None:
+            return self.exec(*inputs)
+        if args is None and bbox is not None:
+            return self.exec(*inputs, bbox=bbox)
+        if args is not None and bbox is None:
+            return self.exec(*inputs, args=args) 
+        return self.exec(*inputs, bbox=bbox, args=args)
