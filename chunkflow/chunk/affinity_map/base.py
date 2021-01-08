@@ -17,5 +17,5 @@ class AffinityMap(Chunk):
         # if this is affinitymap
         image = self[-1, :, :, :]
         image = (image * 255).astype(np.uint8)
-        image = Chunk(image, voxel_offset=self.voxel_offset[1:])
+        image = Chunk(image, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
         return image
