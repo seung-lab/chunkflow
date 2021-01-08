@@ -967,8 +967,11 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
 @click.option('--file', '-f', type=str, help='''python file to call. 
                 If it is just a name rather than full path, 
                 we\'ll look for it in the plugin folder.''')
+@click.option('--args', '-a',
+              type=str, default=None,
+              help='arguments of plugin, should be interpreted inside plugin. could be string, numbers, or json string.')
 @operator
-def plugin(tasks, name, input_names, output_names, file):
+def plugin(tasks, name, input_names, output_names, file, args):
     """Insert custom program as a plugin.
     The custom python file should contain a callable named "exec" such that 
     a call of `exec(chunk, args)` can be made to operate on the chunk.
@@ -979,12 +982,16 @@ def plugin(tasks, name, input_names, output_names, file):
     input_name_list = input_names.split(',')
     output_name_list = output_names.split(',')
 
+    bbox = None 
+
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
             inputs = [task[i] for i in input_name_list]
-            outputs = operator(inputs)
+            if 'bbox' in task:
+                bbox = task['bbox']
+            outputs = operator(inputs, bbox=bbox, args=args)
             if outputs is not None:
                 assert len(outputs) == len(output_name_list)
                 for output_name, output in zip(output_name_list, outputs):
