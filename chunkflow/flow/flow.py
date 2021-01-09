@@ -969,9 +969,11 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
                 we\'ll look for it in the plugin folder.''')
 @click.option('--args', '-a',
               type=str, default=None,
-              help='arguments of plugin, should be interpreted inside plugin. could be string, numbers, or json string.')
+              help='arguments of plugin, this string should be interpreted inside plugin.')
+@click.option('--with-bbox/--without-bbox', default=True,
+              help='pass the bounding box in task to plugin or not. Default is true.')
 @operator
-def plugin(tasks, name, input_names, output_names, file, args):
+def plugin(tasks, name: str, input_names: str, output_names: str, file: str, args: str, with_bbox: bool):
     """Insert custom program as a plugin.
     The custom python file should contain a callable named "exec" such that 
     a call of `exec(chunk, args)` can be made to operate on the chunk.
@@ -989,7 +991,8 @@ def plugin(tasks, name, input_names, output_names, file, args):
         if not task['skip']:
             start = time()
             inputs = [task[i] for i in input_name_list]
-            if 'bbox' in task:
+
+            if with_bbox and 'bbox' in task:
                 bbox = task['bbox']
             outputs = operator(inputs, bbox=bbox, args=args)
             if outputs is not None:

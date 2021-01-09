@@ -340,7 +340,7 @@ class Chunk(NDArrayOperatorsMixin):
         """
         :getter: the cloudvolume bounding box in the big volume
         """
-        return Bbox.from_delta(self.ndoffset, self.array.shape)
+        return Bbox.from_delta(self.voxel_offset, self.array.shape[-3:])
     
     @property
     def ndim(self) -> int:
