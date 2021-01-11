@@ -102,7 +102,7 @@ class Chunk(NDArrayOperatorsMixin):
         else:
             ix, iy, iz = np.meshgrid(*[np.linspace(0, 1, n) for 
                                        n in size[-3:]], indexing='ij')
-            chunk = np.abs(np.sin(4 * (ix + iy)))
+            chunk = np.abs(np.sin(4 * (ix + iy + iz)))
             if len(size) == 4:
                 chunk = np.expand_dims(chunk, axis=0)
                 chunk = np.repeat(chunk, size[0], axis=0)
