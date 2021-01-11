@@ -1,6 +1,6 @@
 import numpy as np
 
-def exec(chunk: np.ndarray):
+def execute(chunk: np.ndarray):
     if np.issubdtype(chunk.dtype, np.uint8):
         chunk = chunk.astype(np.float32)
         chunk = chunk / 255.0

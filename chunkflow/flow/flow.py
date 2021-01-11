@@ -53,7 +53,7 @@ from .view import ViewOperator
               type=int, required=True, nargs=3,
               help='(z y x), size/shape of chunks')
 @click.option('--grid-size', '-g',
-              type=int, default=None, nargs=3, callback=default_none,
+              type=int, default=(1, 1, 1), nargs=3,
               help='(z y x), grid size of output blocks')
 @click.option('--file-path', '-f', default = None,
               type=click.Path(writable=True, dir_okay=False, resolve_path=True),
@@ -961,19 +961,17 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
               default='plugin-1',
               help='name of plugin. Multiple plugins should have different names.')
 @click.option('--input-names', '-i',
-              type=str, default='chunk', help='input names with delimiter of comma')
+              type=str, default=None, help='input names with delimiter of comma')
 @click.option('--output-names', '-o',
-              type=str, default='chunk', help='output names with dilimiter of comma')
+              type=str, default=None, help='output names with dilimiter of comma')
 @click.option('--file', '-f', type=str, help='''python file to call. 
                 If it is just a name rather than full path, 
                 we\'ll look for it in the plugin folder.''')
 @click.option('--args', '-a',
               type=str, default=None,
               help='arguments of plugin, this string should be interpreted inside plugin.')
-@click.option('--with-bbox/--without-bbox', default=True,
-              help='pass the bounding box in task to plugin or not. Default is true.')
 @operator
-def plugin(tasks, name: str, input_names: str, output_names: str, file: str, args: str, with_bbox: bool):
+def plugin(tasks, name: str, input_names: str, output_names: str, file: str, args: str):
     """Insert custom program as a plugin.
     The custom python file should contain a callable named "exec" such that 
     a call of `exec(chunk, args)` can be made to operate on the chunk.
@@ -981,24 +979,25 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
 
     operator = Plugin(file, name=name)
 
-    input_name_list = input_names.split(',')
-    output_name_list = output_names.split(',')
-
-    bbox = None 
-
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            inputs = [task[i] for i in input_name_list]
+            if input_names is not None:
+                input_name_list = input_names.split(',')
+                inputs = [task[i] for i in input_name_list]
+            else:
+                inputs = []
 
-            if with_bbox and 'bbox' in task:
-                bbox = task['bbox']
-            outputs = operator(inputs, bbox=bbox, args=args)
+            outputs = operator(inputs, args=args)
             if outputs is not None:
+                output_name_list = output_names.split(',')
                 assert len(outputs) == len(output_name_list)
                 for output_name, output in zip(output_name_list, outputs):
                     task[output_name] = output
+            else:
+                assert output_names is None
+
             task['log']['timer'][name] = time() - start
         yield task
 

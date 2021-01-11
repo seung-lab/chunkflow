@@ -44,9 +44,9 @@ class Plugin(OperatorBase):
         program = load_source(plugin_file)
         
         # assuming this is a func / static functor for now, maybe make it a class?
-        self.exec = program.exec  
+        self.execute = program.execute
 
-    def __call__(self, inputs, bbox: Bbox = None, args: str = None):
+    def __call__(self, inputs: list, args: str = None):
         voxel_offset = None
         voxel_size = None
         shape = None
@@ -57,14 +57,14 @@ class Plugin(OperatorBase):
                 shape = inp.shape
                 break
 
-        if args is None and bbox is None:
-            outputs = self.exec(*inputs)
-        elif args is None and bbox is not None:
-            outputs = self.exec(*inputs, bbox=bbox)
-        elif args is not None and bbox is None:
-            outputs = self.exec(*inputs, args=args) 
+        if len(inputs) == 0 and args is None:
+            outputs = self.execute()
+        elif len(inputs) == 0 and args is not None:
+            outputs = self.execute(args=args)
+        elif len(inputs) > 0 and args is None:
+            outputs = self.execute(*inputs)
         else:
-            outputs = self.exec(*inputs, bbox=bbox, args=args)
+            outputs = self.execute(*inputs, args=args) 
 
         # automatically convert the ndarrays to Chunks
         if voxel_offset is not None:
