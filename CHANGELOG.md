@@ -5,6 +5,7 @@ ChangeLog history
 - use python logging module instead of verbose parameter
 - changed the `plugin` operator parameter input and output names. So it can accept both chunk and other data, such as bounding box.
 - the default downsampling factor changes from (1,2,2) to (2,2,2)
+- default input to plugin changed from chunk to None
 ## Deprecations 
 
 ## Features

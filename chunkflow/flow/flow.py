@@ -53,7 +53,7 @@ from .view import ViewOperator
               type=int, required=True, nargs=3,
               help='(z y x), size/shape of chunks')
 @click.option('--grid-size', '-g',
-              type=int, default=None, nargs=3, callback=default_none,
+              type=int, default=(1, 1, 1), nargs=3,
               help='(z y x), grid size of output blocks')
 @click.option('--file-path', '-f', default = None,
               type=click.Path(writable=True, dir_okay=False, resolve_path=True),
@@ -420,19 +420,22 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
                   ['uint8', 'uint32', 'uint16', 'float32', 'float64']),
               default='uint8', help='the data type of chunk')
 @click.option('--all-zero/--not-all-zero', default=False, help='all zero or not.')
-@click.option('--voxel-offset',
+@click.option('--voxel-offset', '-t',
               type=int, nargs=3, default=(0, 0, 0), help='offset in voxel number.')
+@click.option('--voxel-size', '-e',
+              type=int, nargs=3, default=(1,1,1), help='voxel size in nm')
 @click.option('--output-chunk-name', '-o',
               type=str, default="chunk", help="name of created chunk")
 @operator
-def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_name):
+def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, output_chunk_name):
     """Create a fake chunk for easy test."""
     print("creating chunk: ", output_chunk_name)
     for task in tasks:
         task[output_chunk_name] = Chunk.create(
             size=size, dtype=np.dtype(dtype), 
             all_zero = all_zero,
-            voxel_offset=voxel_offset)
+            voxel_offset=voxel_offset,
+            voxel_size=voxel_size)
         yield task
 
 
@@ -961,17 +964,17 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
               default='plugin-1',
               help='name of plugin. Multiple plugins should have different names.')
 @click.option('--input-names', '-i',
-              type=str, default='chunk', help='input names with delimiter of comma')
+              type=str, default=None, help='input names with delimiter of comma')
 @click.option('--output-names', '-o',
-              type=str, default='chunk', help='output names with dilimiter of comma')
+              type=str, default=None, help='output names with dilimiter of comma')
 @click.option('--file', '-f', type=str, help='''python file to call. 
                 If it is just a name rather than full path, 
                 we\'ll look for it in the plugin folder.''')
 @click.option('--args', '-a',
               type=str, default=None,
-              help='arguments of plugin, should be interpreted inside plugin. could be string, numbers, or json string.')
+              help='arguments of plugin, this string should be interpreted inside plugin.')
 @operator
-def plugin(tasks, name, input_names, output_names, file, args):
+def plugin(tasks, name: str, input_names: str, output_names: str, file: str, args: str):
     """Insert custom program as a plugin.
     The custom python file should contain a callable named "exec" such that 
     a call of `exec(chunk, args)` can be made to operate on the chunk.
@@ -979,23 +982,25 @@ def plugin(tasks, name, input_names, output_names, file, args):
 
     operator = Plugin(file, name=name)
 
-    input_name_list = input_names.split(',')
-    output_name_list = output_names.split(',')
-
-    bbox = None 
-
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            inputs = [task[i] for i in input_name_list]
-            if 'bbox' in task:
-                bbox = task['bbox']
-            outputs = operator(inputs, bbox=bbox, args=args)
+            if input_names is not None:
+                input_name_list = input_names.split(',')
+                inputs = [task[i] for i in input_name_list]
+            else:
+                inputs = []
+
+            outputs = operator(inputs, args=args)
             if outputs is not None:
+                output_name_list = output_names.split(',')
                 assert len(outputs) == len(output_name_list)
                 for output_name, output in zip(output_name_list, outputs):
                     task[output_name] = output
+            else:
+                assert output_names is None
+
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -1009,7 +1014,7 @@ def plugin(tasks, name, input_names, output_names, file, args):
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME, 
               help='output chunk name')
-@click.option('--threshold', '-t', type=float, default=0.5,
+@click.option('--threshold', '-t', type=float, default=None,
               help='threshold to cut the map.')
 @click.option('--connectivity', '-c', 
               type=click.Choice(['6', '18', '26']),

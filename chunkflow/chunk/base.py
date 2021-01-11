@@ -102,7 +102,7 @@ class Chunk(NDArrayOperatorsMixin):
         else:
             ix, iy, iz = np.meshgrid(*[np.linspace(0, 1, n) for 
                                        n in size[-3:]], indexing='ij')
-            chunk = np.abs(np.sin(4 * (ix + iy)))
+            chunk = np.abs(np.sin(4 * (ix + iy + iz)))
             if len(size) == 4:
                 chunk = np.expand_dims(chunk, axis=0)
                 chunk = np.repeat(chunk, size[0], axis=0)
@@ -340,7 +340,7 @@ class Chunk(NDArrayOperatorsMixin):
         """
         :getter: the cloudvolume bounding box in the big volume
         """
-        return Bbox.from_delta(self.ndoffset, self.array.shape)
+        return Bbox.from_delta(self.voxel_offset, self.array.shape[-3:])
     
     @property
     def ndim(self) -> int:
@@ -386,7 +386,7 @@ class Chunk(NDArrayOperatorsMixin):
         axis = 0
         arr = np.squeeze(self, axis=0)
         voxel_offset = self.voxel_offset[:axis] + self.voxel_offset[axis+1:]
-        return Chunk(arr, voxel_offset=voxel_offset)
+        return Chunk(arr, voxel_offset=voxel_offset, voxel_size=self.voxel_size)
     
     # @profile(precision=0)
     def channel_voting(self):
@@ -396,13 +396,13 @@ class Chunk(NDArrayOperatorsMixin):
         np.argmax(self.array, axis=0, out=out)
         # our selected channel index start from 1
         out += 1
-        return Chunk(out, voxel_offset=self.voxel_offset)
+        return Chunk(out, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
     def mask_using_last_channel(self, threshold: float = 0.3) -> np.ndarray:
         mask = (self.array[-1, :, :, :] < threshold)
         ret = self.array[:-1, ...]
         ret *= mask
-        return Chunk(ret, voxel_offset=self.voxel_offset)
+        return Chunk(ret, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
     def crop_margin(self, margin_size: tuple = None, output_bbox: Bbox=None):
 
@@ -423,7 +423,7 @@ class Chunk(NDArrayOperatorsMixin):
                 raise ValueError('the array dimension can only by 3 or 4.')
             voxel_offset = tuple(
                 o + m for o, m in zip(self.voxel_offset, margin_size))
-            return Chunk(new_array, voxel_offset=voxel_offset)
+            return Chunk(new_array, voxel_offset=voxel_offset, voxel_size=self.voxel_size)
         else:
             print('automatically crop the chunk to output bounding box.')
             assert output_bbox is not None
@@ -436,16 +436,16 @@ class Chunk(NDArrayOperatorsMixin):
             assert seg.shape[0] == 1
             seg = seg.array[0, ...]
             voxel_offset = voxel_offset[1:]
-            seg = Chunk(seg, voxel_offset = voxel_offset)
+            seg = Chunk(seg, voxel_offset = voxel_offset, voxel_size=self.voxel_size)
         # neuroglancer do not support bool datatype
         # numpy store bool as uint8 datatype, so this will not increase size.
         seg = seg.astype(np.uint8)
         return seg
     
-    def connected_component(self, threshold: float = 0.5, 
+    def connected_component(self, threshold: float = None, 
                             connectivity: int = 6):
         """threshold the map chunk and get connected components."""
-        if not self.is_segmentation:
+        if not self.is_segmentation and threshold is not None:
             seg = self.threshold(threshold)
             seg = seg.array
         else:
@@ -487,7 +487,7 @@ class Chunk(NDArrayOperatorsMixin):
         internalSlices = self._get_internal_slices(slices)
         arr = self.array[internalSlices]
         voxel_offset = tuple(s.start for s in slices[-3:])
-        return Chunk(arr, voxel_offset=voxel_offset)
+        return Chunk(arr, voxel_offset=voxel_offset, voxel_size=self.voxel_size)
 
     def save(self, patch):
         """

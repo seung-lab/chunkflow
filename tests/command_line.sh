@@ -1,7 +1,7 @@
 #!/bin/bash
 chunkflow generate-tasks -c 0 0 0 -s 0 0 0 -g 1 1 1
 
-chunkflow create-chunk plugin -f median_filter
+chunkflow create-chunk plugin -f median_filter -i chunk -o chunk
 
 chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
 

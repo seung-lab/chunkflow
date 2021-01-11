@@ -54,7 +54,7 @@ class BoundingBoxes(UserList):
         assert roi_start is not None
         if isinstance(roi_start, tuple):
             roi_start = Vec(*roi_start)
-        
+
         if roi_stop is None:
             roi_stop = roi_start + stride*grid_size + chunk_overlap
         elif isinstance(roi_stop, tuple):

@@ -1,6 +1,6 @@
 import numpy as np
 
-def exec(chunk: np.ndarray):
+def execute(chunk: np.ndarray):
     if np.issubdtype(chunk.dtype, np.uint8):
         chunk = 255 - chunk
     elif np.issubdtype(chunk.dtype, np.float32) and chunk.max() <= 1 and chunk.min()>=0 :
