@@ -274,7 +274,11 @@ class Inferencer(object):
         output_voxel_offset = tuple(io + ocso for io, ocso in zip(
             input_chunk.voxel_offset, self.output_offset))
  
-        self.output_chunk_mask = Chunk(output_mask_array, voxel_offset=output_voxel_offset)
+        self.output_chunk_mask = Chunk(
+            output_mask_array, 
+            voxel_offset=output_voxel_offset, 
+            voxel_size=input_chunk.voxel_size
+        )
         
         assert len(self.patch_slices_list) > 0
         for _, output_patch_slice in self.patch_slices_list:
@@ -305,8 +309,11 @@ class Inferencer(object):
         output_voxel_offset = tuple(io + ocso for io, ocso in zip(
             input_chunk.voxel_offset, self.output_offset))
         
-        output_buffer = Chunk(output_buffer_array,
-                                   voxel_offset=output_voxel_offset)
+        output_buffer = Chunk(
+            output_buffer_array,
+            voxel_offset=output_voxel_offset,
+            voxel_size=input_chunk.voxel_size
+        )
         assert output_buffer == 0
         return output_buffer
 
