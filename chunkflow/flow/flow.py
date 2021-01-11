@@ -1014,7 +1014,7 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME, 
               help='output chunk name')
-@click.option('--threshold', '-t', type=float, default=0.5,
+@click.option('--threshold', '-t', type=float, default=None,
               help='threshold to cut the map.')
 @click.option('--connectivity', '-c', 
               type=click.Choice(['6', '18', '26']),
