@@ -49,11 +49,17 @@ from .view import ViewOperator
 @click.option('--roi-start', '-s',
               type=int, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
+@click.option('--roi-stop', '-r',
+              type=int, nargs=3, default=None, callback=default_none,
+              help='stop coordinate of region of interest')
+@click.option('--roi-size', '-z',
+              type=int, nargs=3, default=None, callback=default_none,
+              help='size of region of interest')
 @click.option('--chunk-size', '-c',
               type=int, required=True, nargs=3,
               help='(z y x), size/shape of chunks')
 @click.option('--grid-size', '-g',
-              type=int, default=(1, 1, 1), nargs=3,
+              type=int, default=None, nargs=3, callback=default_none,
               help='(z y x), grid size of output blocks')
 @click.option('--file-path', '-f', default = None,
               type=click.Path(writable=True, dir_okay=False, resolve_path=True),
@@ -67,13 +73,14 @@ from .view import ViewOperator
 @click.option('--disbatch/--no-disbatch', '-d',
               default=False, help='use disBatch environment variable or not')
 @generator
-def generate_tasks(layer_path, mip, roi_start, chunk_size, 
+def generate_tasks(layer_path, mip, roi_start, roi_stop, roi_size, chunk_size, 
                    grid_size, file_path, queue_name, 
                    task_index_start, task_index_stop, disbatch):
     """Generate tasks."""
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
-        roi_start=roi_start, mip=mip, grid_size=grid_size,
+        roi_start=roi_start, roi_stop=roi_stop, 
+        roi_size=roi_size, mip=mip, grid_size=grid_size,
     )
     print('total number of tasks: ', len(bboxes)) 
 
