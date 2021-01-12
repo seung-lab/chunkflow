@@ -18,6 +18,7 @@ ChangeLog history
 - automatically use chunk voxel size in neuroglancer operator
 - mask out a chunk with smaller voxel size. The voxel size should be divisible though.
 - plugin with bounding box and argument
+- more options for generate-tasks operator
 ## Bug Fixes 
 - fix manifest by updating cloud storage to CloudFiles
 - fix read-h5 operator when only cutout size is provided
