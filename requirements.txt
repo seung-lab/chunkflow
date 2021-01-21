@@ -1,7 +1,6 @@
-python-dateutil==2.8.0
 boto3
-numpy>=1.16
-six>=1.12.0
+numpy>=1.17.5
+six>=1.13.0
 cloud-volume>=0.47.0
 click 
 tqdm>=4.36.1
@@ -18,3 +17,7 @@ matplotlib
 waterz
 kimimaro
 neuclease
+Pillow
+urllib3==1.25.11
+chardet==3.0.4
+docutils<0.16,>=0.10

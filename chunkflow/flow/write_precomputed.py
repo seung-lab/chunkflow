@@ -1,3 +1,4 @@
+import logging
 import time
 import os
 import json
@@ -15,21 +16,33 @@ from chunkflow.lib.igneous.tasks import downsample_and_upload
 #from .downsample_upload import DownsampleUploadOperator
 
 
-class SaveOperator(OperatorBase):
+class WritePrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
-                 verbose: bool = True,
                  name: str = 'save'):
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
-        self.verbose = verbose
+
+        # if not volume_path.startswith('precomputed://'):
+        #     volume_path += 'precomputed://'
         self.volume_path = volume_path
+        
+        # gevent.monkey.patch_all(thread=False)
+        self.volume = CloudVolume(
+            self.volume_path,
+            fill_missing=True,
+            bounded=False,
+            autocrop=True,
+            mip=self.mip,
+            cache=False,
+            green_threads=True,
+            progress=True)
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')
@@ -40,32 +53,21 @@ class SaveOperator(OperatorBase):
         this is used in skip some operation based on mask."""
         shape = (num_channels, *bbox.size3())
         arr = np.zeros(shape, dtype=dtype)
-        chunk = Chunk(arr, global_offset=(0, *bbox.minpt))
+        chunk = Chunk(arr, voxel_offset=(0, *bbox.minpt))
         return chunk
 
     def __call__(self, chunk, log=None):
         assert isinstance(chunk, Chunk)
-        if self.verbose:
-            print('save chunk.')
+        logging.info('save chunk.')
         
         start = time.time()
         
-        # gevent.monkey.patch_all(thread=False)
-        volume = CloudVolume(
-            self.volume_path,
-            fill_missing=True,
-            bounded=False,
-            autocrop=True,
-            mip=self.mip,
-            cache=False,
-            green_threads=True,
-            progress=self.verbose)
 
-        chunk = self._auto_convert_dtype(chunk, volume)
+        chunk = self._auto_convert_dtype(chunk, self.volume)
         
         # transpose czyx to xyzc order
         arr = np.transpose(chunk.array)
-        volume[chunk.slices[::-1]] = arr
+        self.volume[chunk.slices[::-1]] = arr
         
         if self.create_thumbnail:
             self._create_thumbnail(chunk)
@@ -90,8 +92,7 @@ class SaveOperator(OperatorBase):
             return chunk
 
     def _create_thumbnail(self, chunk):
-        if self.verbose:
-            print('creating thumbnail...')
+        logging.info('creating thumbnail...')
 
         thumbnail_layer_path = os.path.join(self.volume_path, 'thumbnail')
         thumbnail_volume = CloudVolume(
@@ -103,7 +104,7 @@ class SaveOperator(OperatorBase):
             mip=self.mip,
             cache=False,
             green_threads=True,
-            progress=self.verbose)
+            progress=False)
 
         # only use the last channel, it is the Z affinity
         # if this is affinitymap
@@ -130,8 +131,7 @@ class SaveOperator(OperatorBase):
         assert log
         assert isinstance(output_bbox, Bbox)
 
-        if self.verbose:
-            print('uploaded log: ', log)
+        logging.info(f'uploaded log: {log}')
 
         # write to google cloud storage
         self.log_storage.put_file(file_path=output_bbox.to_filename() +

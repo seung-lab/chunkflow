@@ -199,7 +199,7 @@ def normalize_section_shang(image: np.ndarray, nominalmin: float,
     """
     assert nominalmin < nominalmax
     assert image.ndim == 3
-    global_offset = image.global_offset
+    voxel_offset = image.voxel_offset
     originaltype = image.dtype
     arr = image.astype(np.float32)
 
@@ -229,7 +229,7 @@ def normalize_section_shang(image: np.ndarray, nominalmin: float,
     #arr = np.round(arr)
     #arr = arr.astype(originaltype)
 
-    return Chunk(arr, global_offset=global_offset)
+    return Chunk(arr, voxel_offset=voxel_offset)
 
 
 def test1_grey_augment():

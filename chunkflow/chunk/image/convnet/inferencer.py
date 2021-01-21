@@ -3,6 +3,7 @@ __doc__ = """
 ConvNet Inference of an image chunk
 """
 import os
+import logging
 import time
 import numpy as np
 from tqdm import tqdm
@@ -45,12 +46,16 @@ class Inferencer(object):
                  input_size: tuple = None,
                  mask_output_chunk: bool = False,
                  mask_myelin_threshold = None,
-                 dry_run: bool = False,
-                 verbose: int = 1):
+                 dry_run: bool = False):
         assert input_size is None or patch_num is None 
         
         if output_patch_size is None:
             output_patch_size = input_patch_size 
+
+        if logging.getLogger().getEffectiveLevel() <= 30:
+            self.verbose = True
+        else:
+            self.verbose = False
         
         self.input_patch_size = input_patch_size
         self.output_patch_size = output_patch_size
@@ -59,20 +64,19 @@ class Inferencer(object):
         self.batch_size = batch_size
         self.input_size = input_size
         
-        if mask_output_chunk:
-            # the chunk mask will handle the boundaries 
-            self.output_crop_margin = (0, 0, 0)
-        else:
-            if output_crop_margin is None:
-                self.output_crop_margin = self.output_patch_overlap
+        if output_crop_margin is None:
+            if mask_output_chunk:
+                self.output_crop_margin = (0,0,0)
             else:
-                self.output_crop_margin = output_crop_margin
-                # we should always crop more than the patch overlap 
-                # since the overlap region is reweighted by patch mask
-                # To-Do: equal should also be OK
-                assert np.alltrue([v<=m for v, m in zip(
-                    self.output_patch_overlap, 
-                    self.output_crop_margin)])
+                self.output_crop_margin = self.output_patch_overlap
+        else:
+            self.output_crop_margin = output_crop_margin
+            # we should always crop more than the patch overlap 
+            # since the overlap region is reweighted by patch mask
+            # To-Do: equal should also be OK
+            assert np.alltrue([v<=m for v, m in zip(
+                self.output_patch_overlap, 
+                self.output_crop_margin)])
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))
@@ -111,7 +115,6 @@ class Inferencer(object):
             self.output_size = None
 
         self.num_output_channels = num_output_channels
-        self.verbose = verbose
         self.mask_output_chunk = mask_output_chunk
         self.output_chunk_mask = None
         self.dtype = dtype        
@@ -163,7 +166,7 @@ class Inferencer(object):
         self.output_patch_stride = tuple(s-o for s, o in zip(
             self.output_patch_size, self.output_patch_overlap))
 
-        self._construct_patch_slices_list(input_chunk.global_offset)
+        self._construct_patch_slices_list(input_chunk.voxel_offset)
         self._construct_output_chunk_mask(input_chunk)
 
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, bump):
@@ -207,8 +210,7 @@ class Inferencer(object):
         # the patches should aligned with input size in case
         # we will not mask the output chunk
         assert np.all(is_align)
-        if self.verbose:
-            print('great! patches aligns in chunk.')
+        logging.info('great! patches aligns in chunk.')
 
     def _construct_patch_slices_list(self, input_chunk_offset):
         """
@@ -217,7 +219,6 @@ class Inferencer(object):
         self.patch_slices_list = []
         # the step is the stride, so the end of aligned patch is
         # input_size - patch_overlap
-        
         input_patch_size = self.input_patch_size
         output_patch_size = self.output_patch_size
         input_patch_overlap = self.input_patch_overlap 
@@ -254,8 +255,7 @@ class Inferencer(object):
         if not self.mask_output_chunk:
             return
 
-        if self.verbose:
-            print('creating output chunk mask...')
+        logging.info('creating output chunk mask...')
         
         if self.output_chunk_mask is None or not np.array_equal(
                 input_chunk.shape, self.output_chunk_mask.shape):
@@ -271,17 +271,21 @@ class Inferencer(object):
             output_chunk_mask_array = self.output_chunk_mask.array
             output_chunk_mask_array.fill(0)
 
-        output_global_offset = tuple(io + ocso for io, ocso in zip(
-            input_chunk.global_offset, self.output_offset))
+        output_voxel_offset = tuple(io + ocso for io, ocso in zip(
+            input_chunk.voxel_offset, self.output_offset))
  
-        self.output_chunk_mask = Chunk(output_mask_array, global_offset=output_global_offset)
+        self.output_chunk_mask = Chunk(
+            output_mask_array, 
+            voxel_offset=output_voxel_offset, 
+            voxel_size=input_chunk.voxel_size
+        )
         
         assert len(self.patch_slices_list) > 0
         for _, output_patch_slice in self.patch_slices_list:
             # accumulate weights using the patch mask in RAM
-            patch_global_offset = tuple(s.start for s in output_patch_slice)
+            patch_voxel_offset = tuple(s.start for s in output_patch_slice)
             patch_mask = Chunk(self.patch_inferencer.output_patch_mask_numpy,
-                               global_offset=patch_global_offset)
+                               voxel_offset=patch_voxel_offset)
             self.output_chunk_mask.blend(patch_mask)
 
         # normalize weight, so accumulated inference result multiplies
@@ -302,11 +306,14 @@ class Inferencer(object):
         #    # and it will duplicate the array! thus, we should use normal array in this case.
         output_buffer_array = np.zeros(output_buffer_size, dtype=self.dtype)
         
-        output_global_offset = tuple(io + ocso for io, ocso in zip(
-            input_chunk.global_offset, self.output_offset))
+        output_voxel_offset = tuple(io + ocso for io, ocso in zip(
+            input_chunk.voxel_offset, self.output_offset))
         
-        output_buffer = Chunk(output_buffer_array,
-                                   global_offset=(0,) + output_global_offset)
+        output_buffer = Chunk(
+            output_buffer_array,
+            voxel_offset=output_voxel_offset,
+            voxel_size=input_chunk.voxel_size
+        )
         assert output_buffer == 0
         return output_buffer
 
@@ -334,7 +341,7 @@ class Inferencer(object):
             return Chunk.create(
                 size=size,
                 dtype = output_buffer.dtype,
-                voxel_offset=output_buffer.global_offset
+                voxel_offset=output_buffer.voxel_offset
             )
        
         if input_chunk == 0:
@@ -350,47 +357,42 @@ class Inferencer(object):
             dtype_max = np.iinfo(input_chunk.dtype).max
             input_chunk = input_chunk.astype(self.dtype) / dtype_max
 
-        if self.verbose:
-            chunk_time_start = time.time()
+        chunk_time_start = time.time()
 
         # iterate the offset list
         for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
                       disable=(self.verbose <= 0),
                       desc='ConvNet inference for patches: '):
-            if self.verbose:
-                start = time.time()
+            start = time.time()
 
             batch_slices = self.patch_slices_list[i:i + self.batch_size]
             for batch_idx, slices in enumerate(batch_slices):
                 self.input_patch_buffer[
                     batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0]).array
 
-            if self.verbose > 1:
-                end = time.time()
-                print('prepare %d input patches takes %3f sec' %
-                      (self.batch_size, end - start))
-                start = end
+            end = time.time()
+            logging.debug('prepare %d input patches takes %3f sec' %
+                    (self.batch_size, end - start))
+            start = end
 
             # the input and output patch is a 5d numpy array with
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
             output_patch = self.patch_inferencer(self.input_patch_buffer)
 
-            if self.verbose > 1:
-                assert output_patch.ndim == 5
-                end = time.time()
-                print('run inference for %d patch takes %3f sec' %
-                      (self.batch_size, end - start))
-                start = end
+            end = time.time()
+            logging.debug('run inference for %d patch takes %3f sec' %
+                    (self.batch_size, end - start))
+            start = end
 
             for batch_idx, slices in enumerate(batch_slices):
                 # only use the required number of channels
                 # the remaining channels are dropped
                 # the slices[0] is for input patch slice
                 # the slices[1] is for output patch slice
-                offset = (0,) + tuple(s.start for s in slices[1])
+                offset = tuple(s.start for s in slices[1])
                 output_chunk = Chunk(output_patch[batch_idx, :, :, :, :],
-                                     global_offset=offset)
+                                     voxel_offset=offset)
 
                 ## save some patch for debug
                 #bbox = output_chunk.bbox
@@ -403,12 +405,9 @@ class Inferencer(object):
 
                 output_buffer.blend(output_chunk)
 
-            if self.verbose > 1:
-                end = time.time()
-                print('blend patch takes %3f sec' % (end - start))
-
-        if self.verbose:
-            print("Inference of whole chunk takes %3f sec" %
+            end = time.time()
+            logging.debug('blend patch takes %3f sec' % (end - start))
+            logging.debug("Inference of whole chunk takes %3f sec" %
                   (time.time() - chunk_time_start))
         
         if self.mask_output_chunk:
@@ -425,8 +424,7 @@ class Inferencer(object):
             output_chunk = output_buffer.mask_using_last_channel(
                 threshold = self.mask_myelin_threshold)
 
-            # currently neuroglancer only support float32, not float16
-            if output_chunk.dtype == np.dtype('float16'):
+            if output_chunk.dtype == np.dtype('<f4'):
                 output_chunk = output_chunk.astype('float32')
 
             return output_chunk

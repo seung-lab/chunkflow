@@ -21,44 +21,44 @@ def hierarchical_downsample(chunk, layer_type='segmentation'):
                            max_mip=4,
                            layer_type=layer_type)
 
-    operator = DownsampleUploadOperator(volume_path,
-                                        chunk_mip=0,
-                                        start_mip=1,
-                                        stop_mip=4)
+    operator = DownsampleUploadOperator(
+        volume_path,
+        factor=(1, 2, 2),
+        chunk_mip=0,
+        start_mip=1,
+        stop_mip=4)
+
     operator(chunk)
     shutil.rmtree(tempdir)
 
 def test_segmentation():
     print('test downsample and upload...')
     # compute parameters
-    mip = 0
     size = (16, 512, 512)
 
     # create image dataset using cloud-volume
     img = np.random.randint(np.iinfo(np.uint32).max, 
                             size=size, dtype=np.uint32)
-    chunk = Chunk(img, global_offset=[2, 32, 32])
+    chunk = Chunk(img, voxel_offset=[2, 32, 32])
     hierarchical_downsample(chunk)
     
 def test_image():
     print('test downsample and upload...')
     # compute parameters
-    mip = 0
     size = (16, 512, 512)
 
     # create image dataset using cloud-volume
     img = np.random.randint(np.iinfo(np.uint8).max, 
                             size=size, dtype=np.uint8)
-    chunk = Chunk(img, global_offset=[2, 32, 32])
+    chunk = Chunk(img, voxel_offset=[2, 32, 32])
     hierarchical_downsample(chunk, layer_type='image')
     
 def test_psd_map():
     print('test downsample and upload...')
     # compute parameters
-    mip = 0
     size = (16, 512, 512)
 
     # create image dataset using cloud-volume
     img = np.random.rand(*size).astype(np.float32)
-    chunk = Chunk(img, global_offset=[2, 32, 32])
+    chunk = Chunk(img, voxel_offset=[2, 32, 32])
     hierarchical_downsample(chunk, layer_type='image')

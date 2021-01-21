@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from collections import defaultdict
@@ -16,8 +17,7 @@ class AggregateSkeletonFragmentsOperator(OperatorBase):
     def __init__(self,
                  fragments_path: str,
                  output_path: str,
-                 name: str = 'aggregate-skeleton-fragments',
-                 verbose: bool = True):
+                 name: str = 'aggregate-skeleton-fragments'):
         """
         Parameters
         ------------
@@ -26,13 +26,12 @@ class AggregateSkeletonFragmentsOperator(OperatorBase):
         output_path:
             save the merged skeleton file here.
         """
-        super().__init__(name=name, verbose=verbose)
+        super().__init__(name=name)
         self.fragments_storage = Storage(fragments_path)
         self.output_storage = Storage(output_path)
    
     def __call__(self, prefix: str):
-        if self.verbose:
-            print('aggregate skeletons with prefix of ', prefix)
+        logging.info(f'aggregate skeletons with prefix of {prefix}')
         
         id2filenames = defaultdict(list)
         for filename in self.fragments_storage.list_files(prefix=prefix):
@@ -48,9 +47,7 @@ class AggregateSkeletonFragmentsOperator(OperatorBase):
             id2filenames[skl_id].append(filename)
 
         for skl_id, filenames in id2filenames.items():
-            if self.verbose:
-                print('skeleton id: ', skl_id)
-                # print('filenames: ', filenames)
+            logging.info(f'skeleton id: {skl_id}')
             frags = self.fragments_storage.get_files(filenames)
             frags = [PrecomputedSkeleton.from_precomputed(x['content']) for x in frags]
             skel = PrecomputedSkeleton.simple_merge(frags).consolidate()

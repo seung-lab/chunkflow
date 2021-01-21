@@ -6,29 +6,38 @@ chunkflow
 [![Coverage Status](https://coveralls.io/repos/github/seung-lab/chunkflow/badge.svg?branch=master)](https://coveralls.io/github/seung-lab/chunkflow?branch=master)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/seunglab/chunkflow)
+[![HitCount](http://hits.dwyl.com/seung-lab/chunkflow.svg)](http://hits.dwyl.com/seung-lab/chunkflow)
 [![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2Fjingpeng_wu)](https://twitter.com/jingpeng_wu)
 <!---[![Docker Build Status](https://img.shields.io/docker/cloud/build/seunglab/chunkflow.svg)]#(https://hub.docker.com/r/seunglab/chunkflow)--->
 
 
 ## Features
-- **Composable** operators. The chunk operators could be freely composed in commandline for flexible usage.
+- **Composable** operators. The chunk operators could be composed in commandline for flexible usage.
 - **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
 - All operations support **3D** image volumes.
-- You can insert your own code as a plugin.
+- You can insert your own code as a **Plugin**.
 
 
 ## Image Segmentation Example
 Perform Convolutional net inference to segment 3D image volume with one single command!
 
 ```shell
-chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --input-patch-size 20 256 256 --output-patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
+#!/bin/bash
+
+chunkflow \
+    read-tif --file-name path/of/image.tif -o image \
+    inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt \
+        --input-patch-size 20 256 256 --output-patch-overlap 4 64 64 --num-output-channels 3 \
+        -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs \
+    agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg \
+    neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 ```
 you can see your 3D image and segmentation directly in [Neuroglancer](https://github.com/google/neuroglancer)!
 
 ![Image_Segmentation](https://github.com/seung-lab/chunkflow/blob/master/docs/source/_static/image/image_seg.png)
 
 ## Operators
-After installation, You can simply type `chunkflow` and it will list all the operators with help message. We list the 36 available operators here. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
+After installation, You can simply type `chunkflow` and it will list all the operators with help message. We keep adding new operators and will keep it update here. For the detailed usage, please checkout our [Documentation](https://pychunkflow.readthedocs.io/en/latest/).
 
 | Operator Name   | Function |
 | --------------- | -------- |
@@ -39,14 +48,15 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | connected-components | Threshold the boundary map to get a segmentation |
 | copy-var        | Copy a variable to a new name |
 | create-chunk    | Create a fake chunk for easy test |
+| create-info     | Create info file of Neuroglancer Precomputed volume |
 | crop-margin     | Crop the margin of a chunk |
-| cutout          | Cutout chunk from a local/cloud storage volume |
 | cutout-dvid-label| Cutout a chunk from a DVID repo |
 | delete-chunk    | Delete chunk in task to reduce RAM requirement |
 | delete-task-in-queue | Delete the task in AWS SQS queue |
 | downsample-upload | Downsample the chunk hierarchically and upload to volume |
 | evaluate-segmentation | Compare segmentation chunks |
-| fetch-task      | Fetch task from AWS SQS queue one by one |
+| fetch-task-from-file | Fetch task from a file |
+| fetch-task-from-sqs | Fetch task from AWS SQS queue one by one |
 | generate-tasks  | Generate tasks one by one |
 | inference       | Convolutional net inference |
 | log-summary     | Summary of logs |
@@ -55,21 +65,25 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | mesh            | Build 3D meshes from segmentation chunk |
 | mesh-manifest   | Collect mesh fragments for object |
 | neuroglancer    | Visualize chunks using neuroglancer |
-| normalize-intensity | Normalize image intensity to -1:1 |
 | normalize-contrast-nkem | Normalize image contrast using histograms |
+| normalize-intensity | Normalize image intensity to -1:1 |
 | normalize-section-shang | Normalization algorithm created by Shang |
 | plugin          | Import local code as a customized operator. |
 | quantize        | Quantize the affinity map |
 | read-h5         | Read HDF5 files |
+| read-pngs       | Read png files |
+| read-precomputed| Cutout chunk from a local/cloud storage volume |
 | read-tif        | Read TIFF files |
-| save            | Save chunk to local/cloud storage volume |
-| save-pngs       | Save chunk as a serials of png files |
+| remap-segmentation | Renumber a serials of segmentation chunks |
 | setup-env       | Prepare storage infor files and produce tasks |
 | skeletonize     | Create centerlines of objects in a segmentation chunk |
 | threshold       | Use a threshold to segment the probability map |
 | view            | Another chunk viewer in browser using CloudVolume |
 | write-h5        | Write chunk as HDF5 file |
+| write-pngs      | Save chunk as a serials of png files |
+| write-precomputed| Save chunk to local/cloud storage volume |
 | write-tif       | Write chunk as TIFF file |
+
 
 
 ## Reference

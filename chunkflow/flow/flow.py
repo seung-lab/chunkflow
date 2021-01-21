@@ -1,15 +1,20 @@
 #!/usr/bin/env python
-from functools import update_wrapper, wraps
+import os
 from time import time
 from typing import Generator, Tuple
 
 import numpy as np
 import click
+import json
 
+from .lib import *
+
+from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox, Vec, yellow
-# from cloudvolume.datasource.precomputed.metadata import PrecomputedMetadata
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
+from chunkflow.lib.bounding_boxes import BoundingBoxes 
+
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
@@ -20,117 +25,23 @@ from chunkflow.lib.utils import coordinates2bbox
 from .agglomerate import AgglomerateOperator
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
-from .create_bounding_boxes import create_bounding_boxes
-from .cutout import CutoutOperator
 from .cutout_dvid_label import CutoutDVIDLabel
+from .read_precomputed import ReadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
-from .mask_out_objects import MaskOutObjectsOperator
 from .mesh import MeshOperator
 from .mesh_manifest import MeshManifestOperator
 from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
 from .plugin import Plugin
-from .save import SaveOperator
-from .save_pngs import SavePNGsOperator
+from .read_pngs import read_png_images
+from .write_precomputed import WritePrecomputedOperator
+from .write_pngs import WritePNGsOperator
 from .setup_env import setup_environment
 from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
-
-
-# global dict to hold the operators and parameters
-state = {'operators': {}}
-DEFAULT_CHUNK_NAME = 'chunk'
-
-
-def get_initial_task():
-    return {'skip': False, 'log': {'timer': {}}}
-
-
-def handle_task_skip(task, name):
-    if task['skip'] and task['skip_to'] == name:
-        # have already skipped to target operator
-        task['skip'] = False
-
-
-def default_none(ctx, _, value):
-    """
-    click currently can not use None with tuple type
-    it will return an empty tuple if the default=None details:
-    https://github.com/pallets/click/issues/789
-    """
-    if not value:
-        return None
-    else:
-        return value
-
-
-# the code design is based on:
-# https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
-@click.group(chain=True)
-@click.option('--verbose', type=click.IntRange(min=0, max=10), default=1,
-              help='print informations level. default is level 1.')
-@click.option('--mip', type=int, default=0,
-              help='default mip level of chunks.')
-@click.option('--dry-run/--real-run', default=False,
-              help='dry run or real run. default is real run.')
-def main(verbose, mip, dry_run):
-    """Compose operators and create your own pipeline."""
-    state['verbose'] = verbose
-    state['mip'] = mip
-    state['dry_run'] = dry_run
-    if dry_run:
-        print(yellow('\nYou are using dry-run mode, will not do the work!'))
-    pass
-
-
-@main.resultcallback()
-def process_commands(operators, verbose, mip, dry_run):
-    """This result callback is invoked with an iterable of all 
-    the chained subcommands. As in this example each subcommand 
-    returns a function we can chain them together to feed one 
-    into the other, similar to how a pipe on unix works.
-    """
-    # It turns out that a tuple will not work correctly!
-    stream = [get_initial_task(), ]
-
-    # Pipe it through all stream operators.
-    for operator in operators:
-        stream = operator(stream)
-
-    # Evaluate the stream and throw away the items.
-    if stream:
-        for _ in stream:
-            pass
-
-
-def operator(func):
-    """
-    Help decorator to rewrite a function so that
-    it returns another function from it.
-    """
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        def operator(stream):
-            return func(stream, *args, **kwargs)
-
-        return operator
-
-    return wrapper
-
-
-def generator(func):
-    """Similar to the :func:`operator` but passes through old values unchanged 
-    and does not pass through the values as parameter.
-    """
-    @operator
-    def new_func(stream, *args, **kwargs):
-        for item in func(*args, **kwargs):
-            yield item
-
-    return update_wrapper(new_func, func)
 
 
 @main.command('generate-tasks')
@@ -142,24 +53,71 @@ def generator(func):
 @click.option('--roi-start', '-s',
               type=int, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
+@click.option('--roi-stop', '-r',
+              type=int, nargs=3, default=None, callback=default_none,
+              help='stop coordinate of region of interest')
+@click.option('--roi-size', '-z',
+              type=int, nargs=3, default=None, callback=default_none,
+              help='size of region of interest')
 @click.option('--chunk-size', '-c',
               type=int, required=True, nargs=3,
               help='(z y x), size/shape of chunks')
 @click.option('--grid-size', '-g',
               type=int, default=None, nargs=3, callback=default_none,
               help='(z y x), grid size of output blocks')
+@click.option('--file-path', '-f', default = None,
+              type=click.Path(writable=True, dir_okay=False, resolve_path=True),
+              help='output tasks as an numpy array formated as npy.')
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
+@click.option('--respect-chunk-size/--respect-stop',
+              default=True, help="""for the last bounding box, \
+make the chunk size consistent or cut off at the stopping boundary.""")
+@click.option('--task-index-start', '-i',
+              type=int, default=None, help='starting index of task list.')
+@click.option('--task-index-stop', '-p',
+              type=int, default=None, help='stop index of task list.')
+@click.option('--disbatch/--no-disbatch', '-d',
+              default=False, help='use disBatch environment variable or not')
 @generator
-def generate_tasks(layer_path, mip, roi_start, chunk_size, 
-                   grid_size, queue_name):
+def generate_tasks(layer_path, mip, roi_start, roi_stop, roi_size, chunk_size, 
+                   grid_size, file_path, queue_name, respect_chunk_size: bool,
+                   task_index_start, task_index_stop, disbatch):
     """Generate tasks."""
-    bboxes = create_bounding_boxes(
+    bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
-        roi_start=roi_start, mip=mip, grid_size=grid_size,
-        verbose=state['verbose'])
+        roi_start=roi_start, roi_stop=roi_stop, 
+        roi_size=roi_size, mip=mip, grid_size=grid_size,
+        respect_chunk_size=respect_chunk_size,
+    )
+    print('total number of tasks: ', len(bboxes)) 
+
+    if task_index_start:
+        if task_index_stop is None:
+            task_index_stop = task_index_start + 1
+        bboxes = [*bboxes[task_index_start:task_index_stop]]
+        logging.info(f'selected task indexes from {task_index_start} to {task_index_stop}')
+    elif disbatch:
+        assert 'DISBATCH_REPEAT_INDEX' in os.environ
+        disbatch_index = int(os.environ['DISBATCH_REPEAT_INDEX'])
+        bboxes = [bboxes[disbatch_index],]
+        logging.info(f'selected a task with disBatch index {disbatch_index}')
+        
+    # write out as a file
+    # this could be used for iteration in slurm cluster.
+    if file_path:
+        if not file_path.endswith('.npy'):
+            file_path += len(bboxes) + '.npy'
+        bboxes.to_file(file_path)
 
     if queue_name is not None:
+      
+ 
+
+
+
+
+
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
     else:
@@ -223,13 +181,12 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
               queue_name, visibility_timeout, thumbnail, encoding, voxel_size, 
               overwrite_info):
-
+    """Setup convolutional net inference environment."""
     bboxes = setup_environment(
         state['dry_run'], volume_start, volume_stop, volume_size, layer_path, 
         max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
         output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
-        queue_name, visibility_timeout, thumbnail, encoding, voxel_size, 
-        overwrite_info, state['verbose'])
+        thumbnail, encoding, voxel_size, overwrite_info)
  
     if queue_name is not None and not state['dry_run']:
         queue = SQSQueue(queue_name, visibility_timeout=visibility_timeout)
@@ -254,16 +211,121 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
 @operator
 def cloud_watch(tasks, name, log_name):
     """Real time speedometer in AWS CloudWatch."""
-    state['operators'][name] = CloudWatchOperator(log_name=log_name,
-                                                  name=name,
-                                                  verbose=state['verbose'])
+    operator = CloudWatchOperator(log_name=log_name, name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task['log'])
+            operator(task['log'])
         yield task
 
-@main.command('fetch-task')
+
+@main.command('create-info')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME,
+              help="create info for this chunk.")
+@click.option('--output-layer-path', '-l', type=str, default="file://.", 
+              help='path of output layer.')
+@click.option('--channel-num', '-c', type=int, default=1, help='number of channel')
+@click.option('--layer-type', '-t',
+              type=click.Choice(['image', 'segmentation']),
+              default='image', help='type of layer. either image or segmentation.')
+@click.option('--data-type', '-d',
+              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32']),
+              default = None, help='data type of array')
+@click.option('--encoding', '-e',
+              type=click.Choice(['raw', 'jpeg', 'compressed_segmentation', 
+                    'kempressed', 'npz', 'fpzip', 'npz_uint8']),
+              default='raw', help='compression algorithm.')
+@click.option('--voxel-size', '-s', required=True, type=int, nargs=3,
+              help='voxel size with unit of nm')
+@click.option('--voxel-offset', '-o', default=(0,0,0), type=int, nargs=3,
+              help='voxel offset of array')
+@click.option('--volume-size', '-v',
+              type=int, nargs=3, default=None, callback=default_none,
+              help='total size of the volume.')
+@click.option('--block-size', '-b',
+              type=int, nargs=3, required=True,
+              help='chunk size of each file.')
+@click.option('--factor', '-f',
+              type=int, nargs=3, default=(2,2,2),
+              help='hierarchical downsampling factor')
+@click.option('--max-mip', '-m',
+              type=int, default=0, 
+              help = 'maximum mip level.')
+@operator
+def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num: int, 
+                layer_type: str, data_type: str, encoding: str, voxel_size: tuple, 
+                voxel_offset: tuple, volume_size: tuple, block_size: tuple, factor: tuple, max_mip: int):
+    
+    for task in tasks:
+        if input_chunk_name in task:
+            chunk = task[input_chunk_name]
+            if chunk.ndim == 3:
+                channel_num = 1
+            elif chunk.ndim == 4:
+                channel_num = chunk.shape[0]
+            else:
+                raise ValueError('chunk dimension can only be 3 or 4')
+
+            voxel_offset = chunk.voxel_offset
+            volume_size = chunk.shape
+            data_type = chunk.dtype.name
+
+            if np.issubdtype(chunk.dtype, np.uint8) or \
+                    np.issubdtype(chunk.dtype, np.float32) or \
+                    np.issubdtype(chunk.dtype, np.float16):
+                layer_type = 'image'
+            else:
+                layer_type = 'segmentation'
+        
+        assert volume_size is not None 
+        assert data_type is not None
+
+        info = CloudVolume.create_new_info(
+            channel_num, layer_type=layer_type,
+            data_type=data_type,
+            encoding=encoding,
+            resolution=voxel_size[::-1],
+            voxel_offset=voxel_offset[::-1],
+            volume_size=volume_size[::-1],
+            chunk_size=block_size[::-1],
+            factor=Vec(factor),
+            max_mip=max_mip)
+        vol = CloudVolume(output_layer_path, info=info)
+        vol.commit_info()
+        yield task
+
+
+@main.command('fetch-task-from-file')
+@click.option('--file-path', '-f',
+              type=click.Path(file_okay=True, dir_okay=False, exists=True, 
+                              readable=True, resolve_path=True),
+              help='file contains bounding boxes or tasks.')
+@click.option('--job-index', '-i', 
+              type=int, default=None,
+              help='index of task in the tasks.')
+@click.option('--slurm-job-array/--no-slurm-job-array',
+              default=False, help='use the slurm job array '+
+              'environment variable to identify task index.')
+@click.option('--granularity', '-g',
+              type=int, default=1, help='number of tasks to do in one run.')
+@generator
+def fetch_task_from_file(file_path: str, job_index: int, slurm_job_array: bool, granularity: int):
+    if(slurm_job_array):
+        job_index = int(os.environ['SLURM_ARRAY_TASK_ID'])
+    assert job_index is not None
+
+    bbox_array = np.load(file_path)
+    task_start = job_index * granularity 
+    task_stop = min(bbox_array.shape[0], task_start + granularity)
+    for idx in range(task_start, task_stop):
+        bbox = Bbox.from_list(bbox_array[idx, :])
+        task = get_initial_task()
+        task['bbox'] = bbox
+        yield task
+
+
+@main.command('fetch-task-from-sqs')
 @click.option('--queue-name', '-q',
                 type=str, default=None, help='sqs queue name')
 @click.option('--visibility-timeout', '-v',
@@ -277,7 +339,7 @@ def cloud_watch(tasks, name, log_name):
               type=int, default=30,
               help='the times of retrying if the queue is empty.')
 @generator
-def fetch_task(queue_name, visibility_timeout, num, retry_times):
+def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
     """Fetch task from queue."""
     # This operator is actually a generator,
     # it replaces old tasks to a completely new tasks and loop over it!
@@ -323,18 +385,18 @@ def fetch_task(queue_name, visibility_timeout, num, retry_times):
 def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
                 fragments_chunk_name, scoring_function, input_chunk_name, output_chunk_name):
     """Watershed and agglomeration to segment affinity map."""
-    state['operators'][name] = AgglomerateOperator(name=name, verbose=state['verbose'],
-                                                   threshold=threshold, 
-                                                   aff_threshold_low=aff_threshold_low,
-                                                   aff_threshold_high=aff_threshold_high,
-                                                   scoring_function=scoring_function)
+    operator = AgglomerateOperator(name=name,
+                                   threshold=threshold, 
+                                   aff_threshold_low=aff_threshold_low,
+                                   aff_threshold_high=aff_threshold_high,
+                                   scoring_function=scoring_function)
     for task in tasks:
         if fragments_chunk_name and fragments_chunk_name in task:
             fragments = task[fragments_chunk_name]
         else:
             fragments = None 
         
-        task[output_chunk_name] = state['operators'][name](
+        task[output_chunk_name] = operator(
             task[input_chunk_name], fragments=fragments)
         yield task
 
@@ -356,13 +418,13 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
     if output_path is None:
         output_path = fragments_path
 
-    state['operators'][name] = AggregateSkeletonFragmentsOperator(fragments_path, output_path)
+    operator = AggregateSkeletonFragmentsOperator(fragments_path, output_path)
     if prefix:
-        state['operators'][name](prefix)
+        operator(prefix)
     else:
         for task in tasks:
             start = time()
-            state['operators'][name](task[input_name])
+            operator(task[input_name])
             task['log']['timer'][name] = time() - start
             yield task
 
@@ -380,19 +442,58 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
                   ['uint8', 'uint32', 'uint16', 'float32', 'float64']),
               default='uint8', help='the data type of chunk')
 @click.option('--all-zero/--not-all-zero', default=False, help='all zero or not.')
-@click.option('--voxel-offset',
+@click.option('--voxel-offset', '-t',
               type=int, nargs=3, default=(0, 0, 0), help='offset in voxel number.')
+@click.option('--voxel-size', '-e',
+              type=int, nargs=3, default=(1,1,1), help='voxel size in nm')
 @click.option('--output-chunk-name', '-o',
               type=str, default="chunk", help="name of created chunk")
 @operator
-def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_name):
+def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, output_chunk_name):
     """Create a fake chunk for easy test."""
     print("creating chunk: ", output_chunk_name)
     for task in tasks:
         task[output_chunk_name] = Chunk.create(
             size=size, dtype=np.dtype(dtype), 
             all_zero = all_zero,
-            voxel_offset=voxel_offset)
+            voxel_offset=voxel_offset,
+            voxel_size=voxel_size)
+        yield task
+
+
+@main.command('read-pngs')
+@click.option('--path-prefix', '-p',
+              required=True, type=str,
+              help='directory path prefix of png files.')
+@click.option('--output-chunk-name', '-o',
+              type=str, default=DEFAULT_CHUNK_NAME,
+              help='output chunk name')
+@click.option('--cutout-offset', '-c',
+              type=int, default=(0,0,0), nargs=3,
+              help='cutout chunk from an offset')
+@click.option('--volume-offset', '-t',
+              type=int, nargs=3, default=(0,0,0),
+              help = 'the offset of png images volume, could be negative.')
+@click.option('--voxel-size', '-x', type=int, nargs=3, default=None, callback=default_none,
+              help='physical size of voxels. the unit is assumed to be nm.')
+@click.option('--chunk-size', '-s',
+              type=int, nargs=3, default=None, callback=default_none,
+              help='cutout chunk size')
+@operator
+def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset,
+                volume_offset, voxel_size, chunk_size):
+    """Read a serials of png files."""
+    for task in tasks:
+        if chunk_size is None:
+            assert 'bbox' in task, "no chunk_size, we are looking for bounding box in task"
+            bbox = task['bbox']
+        else:
+            bbox = Bbox.from_delta(cutout_offset, chunk_size)
+
+        task[output_chunk_name] = read_png_images(
+            path_prefix, bbox, 
+            volume_offset=volume_offset,
+            voxel_size=voxel_size)
         yield task
 
 
@@ -402,19 +503,27 @@ def create_chunk(tasks, name, size, dtype, voxel_offset, all_zero, output_chunk_
 @click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
               help='read chunk from file, support .h5 and .tif')
-@click.option('--offset', type=int, nargs=3, callback=default_none,
+@click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
               help='global offset of this chunk')
+@click.option('--voxel-size', '-s', type=int, nargs=3, default=None, callback=default_none,
+              help='physical size of voxels. The unit is assumed to be nm.')
+@click.option('--dtype', '-d',
+              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
+              help='convert to data type')
 @click.option('--output-chunk-name', '-o', type=str, default='chunk',
               help='chunk name in the global state')
 @operator
-def read_tif(tasks, name: str, file_name: str, offset: tuple,
-             output_chunk_name: str):
+def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
+             voxel_size: tuple, dtype: str, output_chunk_name: str):
     """Read tiff files."""
     for task in tasks:
         start = time()
         assert output_chunk_name not in task
-        task[output_chunk_name] = Chunk.from_tif(file_name,
-                                                    global_offset=offset)
+        task[output_chunk_name] = Chunk.from_tif(
+            file_name,
+            dtype=dtype,
+            voxel_offset=voxel_offset,
+            voxel_size=voxel_size)
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -424,8 +533,15 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               help='read file from local disk.')
 @click.option('--file-name', '-f', type=str, required=True,
               help='read chunk from file, support .h5')
-@click.option('--dataset-path', '-d', type=str, default='/main',
+@click.option('--dataset-path', '-d', type=str, default=None,
               help='the dataset path inside HDF5 file.')
+@click.option('--dtype', '-e',
+              type=click.Choice(['float32', 'float64', 'uint32', 'uint64', 'uint8']),
+              default=None, help='transform data type.')
+@click.option('--voxel-offset', '-v', type=int, nargs=3, default=None,
+              callback=default_none, help='voxel offset of the dataset in hdf5 file.')
+@click.option('--voxel-size', '-x', type=int, nargs=3, default=None,
+              callback=default_none, help='physical size of voxels. The unit is assumed to be nm.')
 @click.option('--cutout-start', '-t', type=int, nargs=3, callback=default_none,
               help='cutout voxel offset in the array')
 @click.option('--cutout-stop', '-p', type=int, nargs=3, callback=default_none,
@@ -437,17 +553,31 @@ def read_tif(tasks, name: str, file_name: str, offset: tuple,
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
-            cutout_start: tuple, cutout_stop: tuple, cutout_size: tuple, 
-            output_chunk_name: str):
+            dtype: str, voxel_offset: tuple, voxel_size: tuple, cutout_start: tuple, 
+            cutout_stop: tuple, cutout_size: tuple, output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
+        
         start = time()
-        assert output_chunk_name not in task
-        task[output_chunk_name] = Chunk.from_h5(file_name,
-                                                dataset_path=dataset_path,
-                                                cutout_start=cutout_start,
-                                                cutout_stop=cutout_stop,
-                                                cutout_size=cutout_size)
+        if 'bbox' in task:
+            bbox = task['bbox']
+            print('bbox: ', bbox)
+            cutout_start = bbox.minpt
+            cutout_stop = bbox.maxpt
+            cutout_size = cutout_stop - cutout_start
+        
+        chunk = Chunk.from_h5(
+            file_name,
+            dataset_path=dataset_path,
+            voxel_offset=voxel_offset,
+            voxel_size=voxel_size,
+            cutout_start=cutout_start,
+            cutout_size=cutout_size,
+            cutout_stop=cutout_stop
+        )
+        if dtype is not None:
+            chunk = chunk.astype(dtype)
+        task[output_chunk_name] = chunk
         task['log']['timer'][name] = time() - start
         yield task
 
@@ -456,20 +586,24 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
 @click.option('--name', type=str, default='write-h5', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
-@click.option('--file-name',
-              '-f',
-              type=click.Path(dir_okay=False, resolve_path=True),
-              required=True,
+@click.option('--file-name', '-f',
+              type=click.Path(dir_okay=True, resolve_path=False), required=True,
               help='file name of hdf5 file.')
+@click.option('--chunk-size', '-s', type=int, nargs=3,
+              default=None, callback=default_none,
+              help='save the big volume as chunks.')
+@click.option('--compression', '-c', type=click.Choice(["gzip", "lzf", "szip"]),
+              default="gzip", help="compression used in the dataset.")
 @click.option('--with-offset/--without-offset', default=True, type=bool,
-    help='add global_offset dataset or not.')
+              help='add voxel_offset dataset or not.')
 @operator
-def write_h5(tasks, name, input_chunk_name, file_name, with_offset):
+def write_h5(tasks, name, input_chunk_name, file_name, chunk_size, compression, with_offset):
     """Write chunk to HDF5 file."""
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            task[input_chunk_name].to_h5(file_name, with_offset)
+            task[input_chunk_name].to_h5(file_name, with_offset, 
+                chunk_size=chunk_size, compression=compression)
         yield task
 
 
@@ -491,21 +625,21 @@ def write_tif(tasks, name, input_chunk_name, file_name):
         yield task
 
 
-@main.command('save-pngs')
-@click.option('--name', type=str, default='save-pngs', help='name of operator')
+@main.command('write-pngs')
+@click.option('--name', type=str, default='write-pngs', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--output-path', '-o',
               type=str, default='./saved_pngs/', help='output path of saved 2d images formated as png.')
 @operator
-def save_pngs(tasks, name, input_chunk_name, output_path):
+def write_pngs(tasks, name, input_chunk_name, output_path):
     """Save as 2D PNG images."""
-    state['operators'][name] = SavePNGsOperator(output_path=output_path,
+    operator = WritePNGsOperator(output_path=output_path,
                                                 name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task[input_chunk_name])
+            operator(task[input_chunk_name])
         yield task
 
 
@@ -522,9 +656,7 @@ def save_pngs(tasks, name, input_chunk_name, output_path):
 @operator
 def skeletonize(tasks, name, input_chunk_name, output_name, voxel_size, output_path):
     """Skeletonize the neurons/objects in a segmentation chunk"""
-    operator = SkeletonizeOperator(output_path,
-                                   name=name,
-                                   verbose=state['verbose'])
+    operator = SkeletonizeOperator(output_path, name=name)
     for task in tasks:
         seg = task[input_chunk_name]
         skels = operator(seg, voxel_size)
@@ -560,17 +692,16 @@ def delete_chunk(tasks, name, chunk_name):
     for task in tasks:
         handle_task_skip(task, name)
         if task['skip']:
-            print('skip deleting ', chunk_name)
+            logging.info(f'skip deleting {chunk_name}')
         else:
-            if state['verbose']:
-                print('delete chunk: ', chunk_name)
+            logging.info(f'delete chunk: {chunk_name}')
             del task[chunk_name]
             yield task
  
 
-@main.command('cutout')
+@main.command('read-precomputed')
 @click.option('--name',
-              type=str, default='cutout', help='name of this operator')
+              type=str, default='read-precomputed', help='name of this operator')
 @click.option('--volume-path', '-v',
               type=str, required=True, help='volume path')
 @click.option('--mip', '-m',
@@ -600,16 +731,16 @@ def delete_chunk(tasks, name, chunk_name):
     ' sometimes you may need to have a secondary volume to work on.'
 )
 @operator
-def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin_size,
+def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin_size,
            fill_missing, validate_mip, blackout_sections, output_chunk_name):
     """Cutout chunk from volume."""
     if mip is None:
         mip = state['mip']
-    state['operators'][name] = CutoutOperator(
+    
+    operator = ReadPrecomputedOperator(
         volume_path,
         mip=mip,
         expand_margin_size=expand_margin_size,
-        verbose=state['verbose'],
         fill_missing=fill_missing,
         validate_mip=validate_mip,
         blackout_sections=blackout_sections,
@@ -623,12 +754,12 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin
         else:
             # use bounding box of volume
             if chunk_start is None:
-                chunk_start = state['operators'][name].vol.mip_bounds(mip).minpt
+                chunk_start = operator.vol.mip_bounds(mip).minpt[::-1]
             else:
                 chunk_start = Vec(*chunk_start)
 
             if chunk_size is None:
-                chunk_stop = state['operators'][name].vol.mip_bounds(mip).maxpt
+                chunk_stop = operator.vol.mip_bounds(mip).maxpt[::-1]
                 chunk_size = chunk_stop - chunk_start
             else:
                 chunk_size = Vec(*chunk_size)
@@ -637,7 +768,7 @@ def cutout(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin
         if not task['skip']:
             start = time()
             assert output_chunk_name not in task
-            task[output_chunk_name] = state['operators'][name](bbox)
+            task[output_chunk_name] = operator(bbox)
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
         yield task
@@ -689,6 +820,25 @@ def cutout_dvid_label(tasks: Generator, name, output_chunk_name,
         else:
             bbox = coordinates2bbox(start, size, stop) 
         task[output_chunk_name] = operator(bbox)
+
+@main.command('remap-segmentation')
+@click.option('--input-chunk-name', '-i',
+    type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name.')
+@click.option('--output-chunk-name', '-o',
+    type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name.')
+@operator
+def remap_segmentation(tasks, input_chunk_name, output_chunk_name):
+    """Renumber a serials of chunks."""
+    # state['remap_start_id'] = 0
+    start_id = 0
+    for task in tasks:
+        seg = task[input_chunk_name]
+        assert seg.is_segmentation
+        if not isinstance(seg, Segmentation):
+            seg = Segmentation.from_chunk(seg)
+
+        seg, start_id = seg.remap(start_id)
+        task[output_chunk_name] = seg
         yield task
 
 
@@ -724,6 +874,8 @@ def evaluate_segmenation(tasks, name, segmentation_chunk_name,
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--volume-path', '-v', type=str, help='path of output volume')
+@click.option('--factor', '-f', type=int, nargs=3, default=(2, 2, 2), 
+    help='downsampling factor in z,y,x.')
 @click.option('--chunk-mip', '-c', type=int, default=None, help='input chunk mip level')
 @click.option('--start-mip', '-s', 
     type=int, default=None, help='the start uploading mip level.')
@@ -734,25 +886,25 @@ def evaluate_segmenation(tasks, name, segmentation_chunk_name,
               default=True, help='fill missing or not when there is all zero blocks.')
 @operator
 def downsample_upload(tasks, name, input_chunk_name, volume_path, 
-                      chunk_mip, start_mip, stop_mip, fill_missing):
+                      factor, chunk_mip, start_mip, stop_mip, fill_missing):
     """Downsample chunk and upload to volume."""
     if chunk_mip is None:
         chunk_mip = state['mip']
 
-    state['operators'][name] = DownsampleUploadOperator(
+    operator = DownsampleUploadOperator(
         volume_path,
+        factor=factor,
         chunk_mip=chunk_mip,
         start_mip=start_mip,
         stop_mip=stop_mip,
         fill_missing=fill_missing,
-        name=name,
-        verbose=state['verbose'])
+        name=name)
 
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            state['operators'][name](task[input_chunk_name])
+            operator(task[input_chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -820,7 +972,7 @@ def normalize_contrast_nkem(tasks, name, input_chunk_name, output_chunk_name,
                                 upper_clip_fraction, minval, maxval):
     """Normalize the section contrast using precomputed histograms."""
     
-    state['operators'][name] = NormalizeSectionContrastOperator(
+    operator = NormalizeSectionContrastOperator(
         levels_path,
         lower_clip_fraction=lower_clip_fraction,
         upper_clip_fraction=upper_clip_fraction,
@@ -830,7 +982,7 @@ def normalize_contrast_nkem(tasks, name, input_chunk_name, output_chunk_name,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+            task[output_chunk_name] = operator(task[input_chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -863,7 +1015,7 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
     The transformed chunk has floating point values.
     """
 
-    state['operators'][name] = NormalizeSectionShangOperator(
+    operator = NormalizeSectionShangOperator(
         nominalmin=nominalmin,
         nominalmax=nominalmax,
         clipvalues=clipvalues,
@@ -873,7 +1025,7 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+            task[output_chunk_name] = operator(task[input_chunk_name])
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -883,30 +1035,43 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
               type=str,
               default='plugin-1',
               help='name of plugin. Multiple plugins should have different names.')
-@click.option('--input-chunk-name', '-i',
-              type=str, default='chunk', help='input chunk name')
-@click.option('--output-chunk-name', '-o',
-              type=str, default='chunk', help='output chunk name')
+@click.option('--input-names', '-i',
+              type=str, default=None, help='input names with delimiter of comma')
+@click.option('--output-names', '-o',
+              type=str, default=None, help='output names with dilimiter of comma')
 @click.option('--file', '-f', type=str, help='''python file to call. 
                 If it is just a name rather than full path, 
                 we\'ll look for it in the plugin folder.''')
-@click.option('--args', type=str, default='', help='args to pass in')
+@click.option('--args', '-a',
+              type=str, default=None,
+              help='arguments of plugin, this string should be interpreted inside plugin.')
 @operator
-def plugin(tasks, name, input_chunk_name, output_chunk_name, file, args):
+def plugin(tasks, name: str, input_names: str, output_names: str, file: str, args: str):
     """Insert custom program as a plugin.
     The custom python file should contain a callable named "exec" such that 
     a call of `exec(chunk, args)` can be made to operate on the chunk.
     """
 
-    state['operators'][name] = Plugin(file, args=args, name=name, verbose=state['verbose'])
-    if state['verbose']:
-        print('Received args for ', name, ':', args)
+    operator = Plugin(file, name=name)
 
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            task[output_chunk_name] = state['operators'][name](task[input_chunk_name], *args)
+            if input_names is not None:
+                input_name_list = input_names.split(',')
+                inputs = [task[i] for i in input_name_list]
+            else:
+                inputs = []
+            outputs = operator(inputs, args=args)
+            if outputs is not None:
+                output_name_list = output_names.split(',')
+                assert len(outputs) == len(output_name_list)
+                for output_name, output in zip(output_name_list, outputs):
+                    task[output_name] = output
+            else:
+                assert output_names is None
+
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -920,12 +1085,12 @@ def plugin(tasks, name, input_chunk_name, output_chunk_name, file, args):
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME, 
               help='output chunk name')
-@click.option('--threshold', '-t', type=float, default=0.5,
+@click.option('--threshold', '-t', type=float, default=None,
               help='threshold to cut the map.')
 @click.option('--connectivity', '-c', 
               type=click.Choice(['6', '18', '26']),
               default='26', help='number of neighboring voxels used.')
-@operator 
+@operator
 def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
                          threshold, connectivity):
     """Threshold the probability map to get a segmentation."""
@@ -1017,11 +1182,8 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         bump=bump,
         mask_output_chunk=mask_output_chunk,
         mask_myelin_threshold=mask_myelin_threshold,
-        dry_run=state['dry_run'],
-        verbose=state['verbose']) as inferencer:
+        dry_run=state['dry_run']) as inferencer:
         
-        state['operators'][name] = inferencer 
-
         for task in tasks:
             handle_task_skip(task, name)
             if not task['skip']:
@@ -1029,12 +1191,11 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
                     task['log'] = {'timer': {}}
                 start = time()
 
-                task[output_chunk_name] = state['operators'][name](
+                task[output_chunk_name] = inferencer(
                     task[input_chunk_name])
 
                 task['log']['timer'][name] = time() - start
-                task['log']['compute_device'] = state[
-                    'operators'][name].compute_device
+                task['log']['compute_device'] = inferencer.compute_device
             yield task
 
 
@@ -1060,21 +1221,20 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
               default=False,
               help='default is doing maskout. ' +
               'check all zero will return boolean result.')
-@click.option('--skip-to', type=str, default='save', help='skip to a operator')
+@click.option('--skip-to', type=str, default='write-precomputed', help='skip to a operator')
 @operator
 def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path, 
          mip, inverse, fill_missing, check_all_zero, skip_to):
     """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
-    state['operators'][name] = MaskOperator(volume_path,
-                                            mip,
-                                            state['mip'],
-                                            inverse=inverse,
-                                            fill_missing=fill_missing,
-                                            check_all_zero=check_all_zero,
-                                            verbose=state['verbose'],
-                                            name=name)
+    operator = MaskOperator(volume_path,
+                            mip,
+                            state['mip'],
+                            inverse=inverse,
+                            fill_missing=fill_missing,
+                            check_all_zero=check_all_zero,
+                            name=name)
 
     for task in tasks:
         handle_task_skip(task, name)
@@ -1082,13 +1242,13 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
             start = time()
             if check_all_zero:
                 # skip following operators since the mask is all zero after required inverse
-                task['skip'] = state['operators'][name].is_all_zero(
+                task['skip'] = operator.is_all_zero(
                     task['bbox'])
                 if task['skip']:
                     print(yellow(f'the mask of {name} is all zero, will skip to {skip_to}'))
                 task['skip_to'] = skip_to
             else:
-                task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+                task[output_chunk_name] = operator(task[input_chunk_name])
             # Note that mask operation could be used several times,
             # this will only record the last masking operation
             task['log']['timer'][name] = time() - start
@@ -1111,16 +1271,25 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
 def mask_out_objects(tasks, name, input_chunk_name, output_chunk_name,
                      dust_size_threshold, selected_obj_ids):
     """Mask out objects in a segmentation chunk."""
-    operator = MaskOutObjectsOperator(
-        dust_size_threshold,
-        selected_obj_ids,
-        name=name,
-        verbose=state['verbose']
-    )
-    state['operators'][name] = operator
-    
+    if isinstance(selected_obj_ids, str) and selected_obj_ids.endswith('.json'):
+        # assume that ids is a json file in the storage path
+        json_storage = Storage(os.path.dirname(selected_obj_ids))
+        ids_str = json_storage.get_file(os.path.basename(selected_obj_ids))
+        selected_obj_ids = set(json.loads(ids_str))
+        assert len(selected_obj_ids) > 0
+        logging.info(f'number of selected objects: {len(selected_obj_ids)}')
+
     for task in tasks:
-        task[output_chunk_name] = state['operators'][name](task[input_chunk_name])
+        seg = task[input_chunk_name]
+        if not isinstance(seg, Segmentation):
+            assert isinstance(seg, Chunk)
+            assert seg.is_segmentation
+            seg = Segmentation.from_chunk(seg)
+
+        seg.mask_fragments(dust_size_threshold)
+        seg.mask_except(selected_obj_ids)
+
+        task[output_chunk_name] = seg
         yield task
 
 
@@ -1174,60 +1343,69 @@ def crop_margin(tasks, name, margin_size,
 @click.option('--max-simplification-error', '-e', type=int, default=40, 
               help='max simplification error.')
 @click.option('--manifest/--no-manifest', default=False, help='create manifest file or not.')
+@click.option('--shard/--no-shard', default=False, help='combine meshes as one file')
 @operator
 def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_format,
-         simplification_factor, max_simplification_error, manifest):
+         simplification_factor, max_simplification_error, manifest, shard):
     """Perform meshing for segmentation chunk."""
     if mip is None:
         mip = state['mip']
 
-    state['operators'][name] = MeshOperator(
+    operator = MeshOperator(
         output_path,
         output_format,
         mip=mip,
         voxel_size=voxel_size,
         simplification_factor=simplification_factor,
         max_simplification_error=max_simplification_error,
-        manifest=manifest)
+        manifest=manifest,
+        shard=shard,
+    )
+
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            state['operators'][name]( task[input_chunk_name] )
+            operator( task[input_chunk_name] )
             task['log']['timer'][name] = time() - start
         yield task
+
 
 @main.command('mesh-manifest')
 @click.option('--name', type=str, default='mesh-manifest', help='name of operator')
 @click.option('--input-name', '-i', type=str, default='prefix', help='input key name in task.')
-@click.option('--prefix', '-p', type=str, default=None, help='prefix of meshes.')
+@click.option('--prefix', '-p', type=int, default=None, help='prefix of meshes.')
+@click.option('--disbatch/--no-disbatch', default=False, help='use disBatch task index as prefix')
+@click.option('--digits', '-d', type=int, default=1, help='number of digits of prefix')
 @click.option('--volume-path', '-v', type=str, required=True, help='cloudvolume path of dataset layer.' + 
               ' The mesh directory will be automatically figure out using the info file.')
 @operator
-def mesh_manifest(tasks, name, input_name, prefix, volume_path):
+def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path):
     """Generate mesh manifest files."""
-    state['operators'][name] = MeshManifestOperator(volume_path)
+    operator = MeshManifestOperator(volume_path)
     if prefix:
-        state['operators'][name](prefix)
-    else:
+        operator(prefix, digits)
+    elif disbatch:
+            assert 'DISBATCH_REPEAT_INDEX' in os.environ
+            prefix = os.environ['DISBATCH_REPEAT_INDEX']
+            operator(prefix, digits)
+    elif input_name:
         for task in tasks:
             handle_task_skip(task, name)
             if not task['skip']:
                 start = time()
-                state['operators'][name](task[input_name])
+                operator(task[input_name], digits)
                 task['log']['timer'][name] = time() - start
             yield task
- 
+    else:
+        logging.error('requires one of parameters: prefix, input_name, disbatch')
+
+
 @main.command('neuroglancer')
-@click.option('--name',
-              type=str,
-              default='neuroglancer',
+@click.option('--name', type=str, default='neuroglancer',
               help='name of this operator')
-@click.option('--voxel-size',
-              '-v',
-              nargs=3,
-              type=int,
-              default=(1, 1, 1),
+@click.option('--voxel-size', '-v',
+              nargs=3, type=int, default=None, callback=default_none,
               help='voxel size of chunk')
 @click.option('--port', '-p', type=int, default=None, help='port to use')
 @click.option('--chunk-names', '-c', type=str, default='chunk', 
@@ -1235,31 +1413,31 @@ def mesh_manifest(tasks, name, input_name, prefix, volume_path):
 @operator
 def neuroglancer(tasks, name, voxel_size, port, chunk_names):
     """Visualize the chunk using neuroglancer."""
-    state['operators'][name] = NeuroglancerOperator(name=name,
-                                                    port=port,
-                                                    voxel_size=voxel_size)
+    operator = NeuroglancerOperator(name=name, port=port, voxel_size=voxel_size)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task, selected=chunk_names)
+            operator(task, selected=chunk_names)
         yield task
+
 
 @main.command('quantize')
 @click.option('--name', type=str, default='quantize', help='name of this operator')
-@click.option('--input-chunk-name', type=str, default='chunk', help = 'input chunk name')
-@click.option('--output-chunk-name', type=str, default='chunk', help= 'output chunk name')
+@click.option('--input-chunk-name', '-i', type=str, default='chunk', help = 'input chunk name')
+@click.option('--output-chunk-name', '-o', type=str, default='chunk', help= 'output chunk name')
 @operator
 def quantize(tasks, name, input_chunk_name, output_chunk_name):
     """Transorm the last channel to uint8."""
     for task in tasks:
         aff = task[input_chunk_name]
+        aff = AffinityMap(aff)
         assert isinstance(aff, AffinityMap)
         quantized_image = aff.quantize()
         task[output_chunk_name] = quantized_image
         yield task
 
-@main.command('save')
-@click.option('--name', type=str, default='save', help='name of this operator')
+@main.command('write-precomputed')
+@click.option('--name', type=str, default='write-precomputed', help='name of this operator')
 @click.option('--volume-path', '-v', type=str, required=True, help='volume path')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
@@ -1269,13 +1447,12 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
     default=False, help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
 @operator
-def save(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnail):
+def write_precomputed(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnail):
     """Save chunk to volume."""
-    state['operators'][name] = SaveOperator(volume_path,
+    operator = WritePrecomputedOperator(volume_path,
                                             state['mip'],
                                             upload_log=upload_log,
                                             create_thumbnail=create_thumbnail,
-                                            verbose=state['verbose'],
                                             name=name)
 
     for task in tasks:
@@ -1283,12 +1460,12 @@ def save(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnai
         if task['skip'] and task['skip_to'] == name:
             task['skip'] = False
             # create fake chunk to save
-            task[input_chunk_name] = state['operators'][name].create_chunk_with_zeros(
+            task[input_chunk_name] = operator.create_chunk_with_zeros(
                 task['bbox'])
 
         if not task['skip']:
             # the time elapsed was recorded internally
-            state['operators'][name](task[input_chunk_name],
+            operator(task[input_chunk_name],
                                      log=task.get('log', {'timer': {}}))
             task['output_volume_path'] = volume_path
         yield task
@@ -1313,8 +1490,7 @@ def threshold(tasks, name, input_chunk_name, output_chunk_name,
         handle_task_skip(task, name)
         if not task['skip']:
             start = time()
-            if state['verbose']:
-                print('Segment probability map using a threshold...')
+            logging.info('Segment probability map using a threshold...')
             task[output_chunk_name] = task[input_chunk_name].threshold(threshold)
             task['log']['timer'][name] = time() - start
         yield task
@@ -1347,11 +1523,11 @@ def channel_voting(tasks, name, input_chunk_name, output_chunk_name):
 @operator
 def view(tasks, name, image_chunk_name, segmentation_chunk_name):
     """Visualize the chunk using cloudvolume view in browser."""
-    state['operators'][name] = ViewOperator(name=name)
+    operator = ViewOperator(name=name)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            state['operators'][name](task[image_chunk_name],
+            operator(task[image_chunk_name],
                                      seg=segmentation_chunk_name)
         yield task
 

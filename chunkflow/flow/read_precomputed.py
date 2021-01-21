@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
@@ -9,7 +11,7 @@ from chunkflow.chunk import Chunk
 from .base import OperatorBase
 
 
-class CutoutOperator(OperatorBase):
+class ReadPrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int = 0,
@@ -18,9 +20,8 @@ class CutoutOperator(OperatorBase):
                  validate_mip: int = None,
                  blackout_sections: bool = None,
                  dry_run: bool = False,
-                 name: str = 'cutout',
-                 verbose: bool = True):
-        super().__init__(name=name, verbose=verbose)
+                 name: str = 'cutout'):
+        super().__init__(name=name)
         self.volume_path = volume_path
         self.mip = mip
         self.expand_margin_size = expand_margin_size
@@ -33,15 +34,17 @@ class CutoutOperator(OperatorBase):
             with Storage(volume_path) as stor:
                 self.blackout_section_ids = stor.get_json(
                     'blackout_section_ids.json')['section_ids']
+
+        verbose = (logging.getLogger().getEffectiveLevel() <= 30)
         self.vol = CloudVolume(
             self.volume_path,
             bounded=False,
             fill_missing=self.fill_missing,
-            progress=self.verbose,
+            progress=verbose,
             mip=self.mip,
             cache=False,
             green_threads=True)
-
+        
     def __call__(self, output_bbox):
         #gevent.monkey.patch_all(thread=False)
                
@@ -53,12 +56,12 @@ class CutoutOperator(OperatorBase):
             input_bbox = Bbox.from_slices(chunk_slices)
             return Chunk.from_bbox(input_bbox)
 
-        if self.verbose:
-            print('cutout {} from {}'.format(chunk_slices[::-1],
+        logging.info('cutout {} from {}'.format(chunk_slices[::-1],
                                              self.volume_path))
 
         # always reverse the indexes since cloudvolume use x,y,z indexing
         chunk = self.vol[chunk_slices[::-1]]
+        chunk = np.asarray(chunk)
         # the cutout is fortran ordered, so need to transpose and make it C order
         chunk = chunk.transpose()
         # we can delay this transpose later
@@ -69,13 +72,14 @@ class CutoutOperator(OperatorBase):
         # this should not be neccessary
         # TODO: remove this step and use 4D array all over this package.
         # always use 4D array will simplify some operations
-        global_offset = tuple(s.start for s in chunk_slices)
+        voxel_offset = tuple(s.start for s in chunk_slices)
         if chunk.shape[0] == 1:
             chunk = np.squeeze(chunk, axis=0)
         else:
-            global_offset = (chunk.shape[0], ) + global_offset
-        
-        chunk = Chunk(chunk, global_offset=global_offset)
+            voxel_offset = (0, ) + voxel_offset
+
+        chunk = Chunk(chunk, voxel_offset=voxel_offset,
+                voxel_size=tuple(self.vol.resolution[::-1]))
 
         if self.blackout_sections:
             chunk = self._blackout_sections(chunk)
@@ -96,7 +100,7 @@ class CutoutOperator(OperatorBase):
         # current code only works with 3d image
         assert chunk.ndim == 3, "current code assumes that the chunk is 3D image."
         for z in self.blackout_section_ids:
-            z0 = z - chunk.global_offset[0]
+            z0 = z - chunk.voxel_offset[0]
             if z0 >= 0 and z0 < chunk.shape[0]:
                 chunk[z0, :, :] = 0
         return chunk
@@ -113,21 +117,20 @@ class CutoutOperator(OperatorBase):
         validate_vol = CloudVolume(self.volume_path,
                                    bounded=False,
                                    fill_missing=self.fill_missing,
-                                   progress=self.verbose,
+                                   progress=False,
                                    mip=self.validate_mip,
                                    cache=False,
                                    green_threads=True)
 
 
         chunk_mip = self.mip
-        if self.verbose:
-            print('validate chunk in mip {}'.format(self.validate_mip))
+        logging.info('validate chunk in mip {}'.format(self.validate_mip))
         assert self.validate_mip >= chunk_mip
         # only use the region corresponds to higher mip level
         # clamp the surrounding regions in XY plane
         # this assumes that the input dataset was downsampled starting from the
         # beginning offset in the info file
-        global_offset = chunk.global_offset
+        voxel_offset = chunk.voxel_offset
 
         # factor3 follows xyz order in CloudVolume
         factor3 = np.array([
@@ -136,10 +139,10 @@ class CutoutOperator(OperatorBase):
         ],
                            dtype=np.int32)
         clamped_offset = tuple(go + f - (go - vo) % f for go, vo, f in zip(
-            global_offset[::-1], self.vol.voxel_offset, factor3))
+            voxel_offset[::-1], self.vol.voxel_offset, factor3))
         clamped_stop = tuple(
             go + s - (go + s - vo) % f
-            for go, s, vo, f in zip(global_offset[::-1], chunk.shape[::-1],
+            for go, s, vo, f in zip(voxel_offset[::-1], chunk.shape[::-1],
                                     vol.voxel_offset, factor3))
         clamped_slices = tuple(
             slice(o, s) for o, s in zip(clamped_offset, clamped_stop))

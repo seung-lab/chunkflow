@@ -8,7 +8,7 @@ import numpy as np
 from cloudvolume import CloudVolume
 
 from chunkflow.chunk import Chunk
-from chunkflow.flow.save import SaveOperator
+from chunkflow.flow.write_precomputed import WritePrecomputedOperator
 
 mip = 0
 size = (8, 64, 64)
@@ -29,11 +29,10 @@ def test_save_image():
                            layer_type='image')
 
     print('construct save operator')
-    op = SaveOperator(
+    op = WritePrecomputedOperator(
         volume_path, 0,
         upload_log = True,
         create_thumbnail = False,
-        verbose = True,
         name = 'save'
     )
     

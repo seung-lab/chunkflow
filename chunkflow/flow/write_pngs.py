@@ -7,12 +7,11 @@ import numpy as np
 from cloudvolume.lib import save_images
 
 
-class SavePNGsOperator(OperatorBase):
+class WritePNGsOperator(OperatorBase):
     def __init__(self,
                  output_path: str = './saved_images/',
-                 name: str = 'save-pngs',
-                 verbose: bool = True):
-        super().__init__(name=name, verbose=verbose)
+                 name: str = 'save-pngs'):
+        super().__init__(name=name)
 
         if not os.path.isdir(output_path):
             warn('output path do not exist, will create %s.' % output_path)

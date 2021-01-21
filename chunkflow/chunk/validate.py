@@ -1,10 +1,10 @@
+import logging
 import numpy as np
-from warnings import warn
 
 from skimage.feature import match_template
 
 
-def validate_by_template_matching(img: np.ndarray, verbose: bool = True):
+def validate_by_template_matching(img: np.ndarray):
     """ Detect 3d black boxes by template matching.
     1. binarize the image. the voxels inside the black box will be false, and the outside will be true
     2. The template is 7x7x2 with one section true and the other false. 
@@ -18,14 +18,11 @@ def validate_by_template_matching(img: np.ndarray, verbose: bool = True):
     -----------
     img:
         3D image volume.
-    verbose:
-        print out debuging info or not.
     """
-    if verbose:
-        print("validation by template matching...")
+    logging.info("validation by template matching...")
 
     if np.issubdtype(img.dtype, np.floating):
-        warn(
+        logging.warning(
             'do not support image with floating data type, will skip the validation.'
         )
         return True

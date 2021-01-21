@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y -qq --no-install-recommends \
     && hash -r pip \
     && pip install --upgrade setuptools \
     && pip install numpy setuptools cython --no-cache-dir \ 
-    && pip install -U protobuf scipy --no-cache-dir \
+    && pip install -U protobuf scipy brotlipy --no-cache-dir \
     # && pip install fpzip --no-binary :all: --no-cache-dir \
     # setup environment variables 
     # we have to setup first, otherwise click installation will fail

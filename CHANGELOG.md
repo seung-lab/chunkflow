@@ -1,6 +1,69 @@
 ChangeLog history
 =================
-# chunkflow 1.0.1 (2020-xx-xx)
+# chunkflow 1.0.5 (2020-xx-xx)
+## Breaking Changes
+- use python logging module instead of verbose parameter
+- changed the `plugin` operator parameter input and output names. So it can accept both chunk and other data, such as bounding box.
+- the default downsampling factor changes from (1,2,2) to (2,2,2)
+- default input to plugin changed from chunk to None
+## Deprecations 
+
+## Features
+- work with Flatiron disBatch.
+- a new operator remap to renumber a serials of segmentation chunks.
+- shard meshing. It is not validated yet. The data is written, but Neuroglancer is still not showing them. There is something like manifest missing.
+- support downsample in Z
+- support disbatch in manifest operator
+- add voxel size of chunk
+- automatically use chunk voxel size in neuroglancer operator
+- mask out a chunk with smaller voxel size. The voxel size should be divisible though.
+- plugin with bounding box and argument
+- more options for generate-tasks operator
+## Bug Fixes 
+- fix manifest by updating cloud storage to CloudFiles
+- fix read-h5 operator when only cutout size is provided
+- fix grid size bug of generating tasks
+## Improved Documentation 
+
+# chunkflow 1.0.4 (2020-11-16)
+## Breaking Changes
+- read-pngs parameter name change.
+- rename several operators to make them more consistent: cutout --> read-precomputed, save --> write-precomputed, save-pngs --> write-pngs
+
+## Deprecations 
+
+## Features
+- add a plugin to inverse image / affinitymap intensity
+
+## Bug Fixes 
+
+## Improved Documentation 
+
+# chunkflow 1.0.3 (2020-10-29)
+## Breaking Changes
+- replace global_offset to voxel_offset to be consistent with neuroglancer info 
+- change operator name `fetch-task` to `fetch-task-from-sqs` to be more specific.
+
+## Features
+- output tasks as a numpy array and save as npy file.
+- work with slurm cluster
+- fetch task from numpy array
+
+## Bug Fixes 
+- fetch task from numpy array
+
+## Improved Documentation 
+
+# chunkflow 1.0.2 (2020-10-01)
+## Features
+- hdf5 file with cutout range
+
+## Bug Fixes 
+- fix neuroglancer visualization for segmentation.
+
+## Improved Documentation 
+
+# chunkflow 1.0.1 (2020-09-01)
 ## Breaking Changes
 - renamed custom-operator to plugin
 ## Deprecations 
