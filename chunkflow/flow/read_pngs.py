@@ -14,10 +14,15 @@ Image.MAX_IMAGE_PIXELS = None
 
 
 def read_png_images(path_prefix: str, bbox: Bbox, 
-                        volume_offset: tuple = (0, 0, 0), 
+                        volume_offset: tuple = (0, 0, 0),
+                        voxel_size: tuple = (1, 1, 1),
                         dtype: np.dtype = np.uint8):
     
-    chunk = Chunk.from_bbox(bbox, dtype=dtype, all_zero=True)
+    chunk = Chunk.from_bbox(
+        bbox, dtype=dtype, 
+        all_zero=True, 
+        voxel_size=voxel_size
+    )
     assert len(bbox.minpt) == 3
     assert len(volume_offset) == 3
 
@@ -28,8 +33,12 @@ def read_png_images(path_prefix: str, bbox: Bbox,
             img = Image.open(file_name)
             img = np.asarray(img)
             img = np.expand_dims(img, axis=0)
-            img_chunk = Chunk(img, voxel_offset=(
-                  z+volume_offset[0], volume_offset[1], volume_offset[2]))
+            img_chunk = Chunk(
+                img,
+                voxel_offset=(
+                  z+volume_offset[0], volume_offset[1], volume_offset[2]),
+                voxel_size=voxel_size
+            )
             chunk.blend(img_chunk)
         else:
             logging.warning(f'image file do not exist: {file_name}')

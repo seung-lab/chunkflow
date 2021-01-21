@@ -50,14 +50,14 @@ class Chunk(NDArrayOperatorsMixin):
             assert len(voxel_size) == 3
             assert np.alltrue([vs > 0 for vs in voxel_size])
         
-        assert array.ndim >= 3 and array.ndim <= 4 
+        assert array.ndim >= 3 and array.ndim <= 4
         
     # One might also consider adding the built-in list type to this
     # list, to support operations like np.add(array_like, list)
     _HANDLED_TYPES = (np.ndarray, Number)
     
     @classmethod
-    def from_array(cls, array: np.ndarray, bbox: Bbox, voxel_size: tuple=None):
+    def from_array(cls, array: np.ndarray, bbox: Bbox, voxel_size: tuple = None):
         """
         :param array: ndarray data
         :param bbox: cloudvolume bounding box
@@ -198,8 +198,8 @@ class Chunk(NDArrayOperatorsMixin):
             ]
                     
         
-        print('read from HDF5 file: {} and start with {}, ends with {}, size is {}'.format(
-            file_name, cutout_start, cutout_stop, cutout_size))
+        print(f"""read from HDF5 file: {file_name} and start with {cutout_start}, \
+ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         arr = np.asarray(dset)
         if arr.dtype == np.dtype('<f4'):
             arr = arr.astype('float32')

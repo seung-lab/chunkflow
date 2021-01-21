@@ -36,7 +36,7 @@ class Plugin(OperatorBase):
             if not path.exists(plugin_file):
                 plugin_file = path.join(
                     path.dirname(path.realpath(__file__)), 
-                    '../plugins/chunkflow-plugins', 
+                    '../plugins/chunkflow-plugins/chunkflowplugins', 
                     path.basename(plugin_file))
 
         assert path.exists(plugin_file)
@@ -67,8 +67,7 @@ class Plugin(OperatorBase):
             outputs = self.execute(*inputs, args=args) 
 
         # automatically convert the ndarrays to Chunks
-        if voxel_offset is not None:
-            assert voxel_size is not None
+        if voxel_offset is not None and outputs is not None:
             assert shape is not None
             for idx, output in enumerate(outputs):
                 if isinstance(output, np.ndarray):
