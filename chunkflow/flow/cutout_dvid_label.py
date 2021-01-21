@@ -16,9 +16,8 @@ class CutoutDVIDLabel(OperatorBase):
                 server: str,
                 uuid: str = None,
                 supervoxels: bool = False,
-                name: str = 'cutout-dvid-label',
-                verbose: bool = True):
-        super().__init__(name=name, verbose=verbose)
+                name: str = 'cutout-dvid-label'):
+        super().__init__(name=name)
         
         if ':' not in server[5:]:
             # add a default port
@@ -34,4 +33,4 @@ class CutoutDVIDLabel(OperatorBase):
         box = [bbox.minpt, bbox.maxpt]
 
         subvol = dvid.fetch_labelmap_voxels(self.server, self.uuid, 'segmentation', box)
-        return Chunk(subvol, global_offset=bbox.minpt)
+        return Chunk(subvol, voxel_offset=bbox.minpt)

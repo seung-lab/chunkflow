@@ -794,7 +794,7 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
 )
 @click.option(
     '--start', '-t', type=int, nargs=3,
-    required=True, 
+    default=None, callback=default_none,
     help='start coordinate, zyx order'
 )
 @click.option(
@@ -808,18 +808,23 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
     help='cutout stop coordinate, zyx order.'
 )
 @operator
-def cutout_dvid_label(tasks: Generator, name, output_chunk_name, 
-                        server, uuid, start, size, stop):
+def cutout_dvid_label(tasks: Generator, name: str, output_chunk_name: str, 
+                        server: str, uuid: str, start: tuple, size: tuple, stop: tuple):
     """Cutout a subvolume from a DVID label repo."""
     operator = CutoutDVIDLabel(server, uuid)
     
     for task in tasks:
         handle_task_skip(task, name)
-        if 'bbox' in task:
-            bbox = task['bbox']
-        else:
+        if start is not None:
+            assert size is not None or stop is not None
             bbox = coordinates2bbox(start, size, stop) 
+        else:
+            assert 'bbox' in task
+            bbox = task['bbox']
+            
         task[output_chunk_name] = operator(bbox)
+        yield task
+
 
 @main.command('remap-segmentation')
 @click.option('--input-chunk-name', '-i',
