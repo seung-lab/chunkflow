@@ -24,6 +24,7 @@ class BoundingBoxes(UserList):
             roi_stop: Union[Vec, tuple]=None, 
             roi_size: Union[Vec, tuple]=None,
             grid_size: Union[Vec, tuple]=None,
+            respect_chunk_size: bool = True,
             layer_path: str=None,
             mip:int=0):
         
@@ -77,7 +78,7 @@ class BoundingBoxes(UserList):
 
         if roi_size is None:
             roi_size = roi_stop - roi_start
-        
+
         if grid_size is None:
             grid_size = (roi_size - chunk_overlap) / stride 
             grid_size = tuple(ceil(x) for x in grid_size)
@@ -94,12 +95,16 @@ class BoundingBoxes(UserList):
         logging.info(f'grid size: {grid_size}')
         logging.info(f'final output stop: {final_output_stop}')
 
+        print('grid size: ', grid_size)
+
         bboxes = []
-        for (z, y, x) in product(range(grid_size[0]), 
+        for (gz, gy, gx) in product(range(grid_size[0]), 
                                 range(grid_size[1]),
                                 range(grid_size[2])):
-            chunk_start = roi_start + Vec(z, y, x) * stride
+            chunk_start = roi_start + Vec(gz, gy, gx) * stride
             bbox = Bbox.from_delta(chunk_start, chunk_size)
+            if not respect_chunk_size:
+                bbox.maxpt = np.minimum(bbox.maxpt, roi_stop)
             bboxes.append( bbox )
 
         return cls(bboxes)

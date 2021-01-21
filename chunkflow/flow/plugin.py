@@ -68,7 +68,6 @@ class Plugin(OperatorBase):
 
         # automatically convert the ndarrays to Chunks
         if voxel_offset is not None and outputs is not None:
-            assert voxel_size is not None
             assert shape is not None
             for idx, output in enumerate(outputs):
                 if isinstance(output, np.ndarray):

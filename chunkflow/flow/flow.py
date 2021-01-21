@@ -4,6 +4,7 @@ from time import time
 
 import numpy as np
 import click
+import json
 
 from .lib import *
 
@@ -66,6 +67,9 @@ from .view import ViewOperator
               help='output tasks as an numpy array formated as npy.')
 @click.option('--queue-name', '-q',
               type=str, default=None, help='sqs queue name')
+@click.option('--respect-chunk-size/--respect-stop',
+              default=True, help="""for the last bounding box, \
+make the chunk size consistent or cut off at the stopping boundary.""")
 @click.option('--task-index-start', '-i',
               type=int, default=None, help='starting index of task list.')
 @click.option('--task-index-stop', '-p',
@@ -74,13 +78,14 @@ from .view import ViewOperator
               default=False, help='use disBatch environment variable or not')
 @generator
 def generate_tasks(layer_path, mip, roi_start, roi_stop, roi_size, chunk_size, 
-                   grid_size, file_path, queue_name, 
+                   grid_size, file_path, queue_name, respect_chunk_size: bool,
                    task_index_start, task_index_stop, disbatch):
     """Generate tasks."""
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, roi_stop=roi_stop, 
         roi_size=roi_size, mip=mip, grid_size=grid_size,
+        respect_chunk_size=respect_chunk_size,
     )
     print('total number of tasks: ', len(bboxes)) 
 
@@ -998,7 +1003,6 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
                 inputs = [task[i] for i in input_name_list]
             else:
                 inputs = []
-
             outputs = operator(inputs, args=args)
             if outputs is not None:
                 output_name_list = output_names.split(',')
@@ -1026,7 +1030,7 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
 @click.option('--connectivity', '-c', 
               type=click.Choice(['6', '18', '26']),
               default='26', help='number of neighboring voxels used.')
-@operator 
+@operator
 def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
                          threshold, connectivity):
     """Threshold the probability map to get a segmentation."""
@@ -1165,12 +1169,12 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
     will automatically upsample it to the same mip level with chunk.
     """
     operator = MaskOperator(volume_path,
-                                            mip,
-                                            state['mip'],
-                                            inverse=inverse,
-                                            fill_missing=fill_missing,
-                                            check_all_zero=check_all_zero,
-                                            name=name)
+                            mip,
+                            state['mip'],
+                            inverse=inverse,
+                            fill_missing=fill_missing,
+                            check_all_zero=check_all_zero,
+                            name=name)
 
     for task in tasks:
         handle_task_skip(task, name)

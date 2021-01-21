@@ -107,4 +107,3 @@ def generator(func):
             yield item
 
     return update_wrapper(new_func, func)
-
