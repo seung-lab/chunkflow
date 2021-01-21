@@ -789,9 +789,14 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
 )
 @click.option(
     '--uuid', '-u', type=str, 
-    default=None, callback=default_none,
+    default=None,
     help='uuid of the DVID repo.'
 )
+@click.option('--instance', '-i',
+    type=str, default='labels', 
+    help='instance name in the repo.')
+@click.option('--supervoxels/--labels', default=False, 
+    help='fetch original supervoxels or the final result?')
 @click.option(
     '--start', '-t', type=int, nargs=3,
     default=None, callback=default_none,
@@ -809,9 +814,10 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
 )
 @operator
 def cutout_dvid_label(tasks: Generator, name: str, output_chunk_name: str, 
-                        server: str, uuid: str, start: tuple, size: tuple, stop: tuple):
+                      server: str, uuid: str, instance: str, supervoxels: bool,
+                      start: tuple, size: tuple, stop: tuple):
     """Cutout a subvolume from a DVID label repo."""
-    operator = CutoutDVIDLabel(server, uuid)
+    operator = CutoutDVIDLabel(server, instance, uuid=uuid, supervoxels=supervoxels)
     
     for task in tasks:
         handle_task_skip(task, name)
