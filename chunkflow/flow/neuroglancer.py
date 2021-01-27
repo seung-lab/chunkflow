@@ -120,4 +120,4 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
 
         key = None
         while key!='q':
-            key = input('Press q to quit neuroglancer.')
+            key = input('Press q and enter/return to quit neuroglancer.')
