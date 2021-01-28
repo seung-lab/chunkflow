@@ -117,4 +117,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
 
         print('Open this url in browser: ')
         print(viewer)
-        input('Press Enter to exit neuroglancer.')
+
+        key = None
+        while key!='q':
+            key = input('Press q and enter/return to quit neuroglancer.')
