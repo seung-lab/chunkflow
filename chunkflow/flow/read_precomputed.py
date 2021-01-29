@@ -46,8 +46,6 @@ class ReadPrecomputedOperator(OperatorBase):
             green_threads=True)
         
     def __call__(self, output_bbox):
-        #gevent.monkey.patch_all(thread=False)
-               
         chunk_slices = tuple(
             slice(s.start - m, s.stop + m)
             for s, m in zip(output_bbox.to_slices(), self.expand_margin_size))
