@@ -1,6 +1,18 @@
 ChangeLog history
-=================
-# chunkflow 1.0.5 (2020-xx-xx)
+==================
+
+# chunkflow 1.0.6 (2021-xx-xx)
+## Breaking Changes
+
+## Deprecations 
+
+## Features
+
+## Bug Fixes 
+
+## Improved Documentation
+ 
+# chunkflow 1.0.5 (2021-01-29)
 ## Breaking Changes
 - use python logging module instead of verbose parameter
 - changed the `plugin` operator parameter input and output names. So it can accept both chunk and other data, such as bounding box.
@@ -234,7 +246,7 @@ ChangeLog history
 # Template 
 the following texts are templates for adding change log
 
-# chunkflow 1.1.0 (2020-xx-xx)
+# chunkflow 1.1.0 (2021-xx-xx)
 ## Breaking Changes
 
 ## Deprecations 

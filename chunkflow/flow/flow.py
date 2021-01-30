@@ -46,7 +46,7 @@ from .view import ViewOperator
               type=str, default=None,
               help='dataset layer path to fetch dataset information.')
 @click.option('--mip', '-m',
-              type=int, default=0, help='mip level of the dataset layer.')
+              type=int, default=None, help='mip level of the dataset layer.')
 @click.option('--roi-start', '-s',
               type=int, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
@@ -80,6 +80,10 @@ make the chunk size consistent or cut off at the stopping boundary.""")
 def generate_tasks(layer_path, mip, roi_start, roi_stop, roi_size, chunk_size, 
                    grid_size, file_path, queue_name, respect_chunk_size: bool,
                    task_index_start, task_index_stop, disbatch):
+    if mip is None:
+        mip = state['mip']
+    assert mip >=0 
+
     """Generate tasks."""
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
@@ -723,6 +727,7 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
     """Cutout chunk from volume."""
     if mip is None:
         mip = state['mip']
+    assert mip >= 0
     
     operator = ReadPrecomputedOperator(
         volume_path,
