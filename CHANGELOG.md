@@ -7,7 +7,7 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
-
+- new operators to read and write NRRD file
 ## Bug Fixes 
 
 ## Improved Documentation
