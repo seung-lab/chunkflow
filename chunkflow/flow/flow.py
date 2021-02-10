@@ -222,7 +222,7 @@ def cloud_watch(tasks, name, log_name):
 @click.option('--channel-num', '-c', type=int, default=1, help='number of channel')
 @click.option('--layer-type', '-t',
               type=click.Choice(['image', 'segmentation']),
-              default='image', help='type of layer. either image or segmentation.')
+              default=None, help='type of layer. either image or segmentation.')
 @click.option('--data-type', '-d',
               type=click.Choice(['uint8', 'uint32', 'uint64', 'float32']),
               default = None, help='data type of array')
@@ -265,12 +265,13 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
             volume_size = chunk.shape
             data_type = chunk.dtype.name
 
-            if np.issubdtype(chunk.dtype, np.uint8) or \
-                    np.issubdtype(chunk.dtype, np.float32) or \
-                    np.issubdtype(chunk.dtype, np.float16):
-                layer_type = 'image'
-            else:
-                layer_type = 'segmentation'
+            if layer_type is None:
+                if np.issubdtype(chunk.dtype, np.uint8) or \
+                        np.issubdtype(chunk.dtype, np.float32) or \
+                        np.issubdtype(chunk.dtype, np.float16):
+                    layer_type = 'image'
+                else:
+                    layer_type = 'segmentation'
         
         assert volume_size is not None 
         assert data_type is not None

@@ -162,6 +162,11 @@ class MeshOperator(OperatorBase):
                 cache_control=False,
             )
         else:
+            if 'precomputed' in self.output_format:
+                compress = 'gzip'
+            else:
+                compress = None
+
             for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
                 # print('object id: ', obj_id)
                 data, _ = self._get_mesh_data(obj_id, bbox.minpt)
@@ -169,7 +174,7 @@ class MeshOperator(OperatorBase):
                 self.storage.put(
                     file_name, data,
                     cache_control=None,
-                    compress='gzip'
+                    compress=compress
                 )
 
                 # create manifest file
