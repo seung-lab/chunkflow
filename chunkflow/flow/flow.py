@@ -543,7 +543,7 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
 @click.option('--cutout-size', '-s', type=int, nargs=3, callback=default_none,
                help='cutout size of the chunk.')
 @click.option('--output-chunk-name', '-o',
-              type=str, default='chunk',
+              type=str, default=DEFAULT_CHUNK_NAME,
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
@@ -553,7 +553,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     for task in tasks:
         
         start = time()
-        if 'bbox' in task:
+        if 'bbox' in task and cutout_start is None:
             bbox = task['bbox']
             print('bbox: ', bbox)
             cutout_start = bbox.minpt
