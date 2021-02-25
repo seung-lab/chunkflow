@@ -625,7 +625,7 @@ def write_tif(tasks, name, input_chunk_name, file_name):
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--output-path', '-o',
-              type=str, default='./saved_pngs/', help='output path of saved 2d images formated as png.')
+              type=str, default='./pngs/', help='output path of saved 2d images formated as png.')
 @operator
 def write_pngs(tasks, name, input_chunk_name, output_path):
     """Save as 2D PNG images."""

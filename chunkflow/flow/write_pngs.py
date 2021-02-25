@@ -4,12 +4,15 @@ from warnings import warn
 import os
 import numpy as np
 
-from cloudvolume.lib import save_images
+from tqdm import tqdm
+from skimage.io import imsave
+
+from chunkflow.chunk import Chunk
 
 
 class WritePNGsOperator(OperatorBase):
     def __init__(self,
-                 output_path: str = './saved_images/',
+                 output_path: str = './pngs/',
                  name: str = 'save-pngs'):
         super().__init__(name=name)
 
@@ -19,13 +22,10 @@ class WritePNGsOperator(OperatorBase):
 
         self.output_path = output_path
 
-    def __call__(self, chunk):
-        assert isinstance(chunk, np.ndarray)
-        # cloudvolume use fortran order, and the index are xyzc
-        warn('Note that the saved image will be transposed!')
-        image = np.transpose(chunk)
-
-        # currently cloudvolume save_images do not work with specific
-        # channel for 4D array
-        # https://github.com/seung-lab/cloud-volume/issues/206
-        save_images(image, directory=self.output_path)
+    def __call__(self, chunk: Chunk):
+        assert isinstance(chunk, Chunk)
+        assert chunk.ndim == 3
+        for z in tqdm(range(chunk.voxel_offset[0], chunk.bbox.maxpt[0])):
+            img = chunk.cutout((slice(z,z+1), chunk.slices[1], chunk.slices[2]))
+            img = img.array[0,:,:]
+            imsave(os.path.join(self.output_path, '{:05d}.png'.format(z)), img)
