@@ -8,7 +8,7 @@ ChangeLog history
 
 ## Features
 - write png files with Z corrdinate as file name
-
+- aligned block size option for generating tasks. This is useful to force alignment of chunks, and is used to align segmentation chunks for DVID.
 ## Bug Fixes 
 
 ## Improved Documentation

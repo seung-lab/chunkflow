@@ -70,6 +70,9 @@ from .view import ViewOperator
 @click.option('--respect-chunk-size/--respect-stop',
               default=True, help="""for the last bounding box, \
 make the chunk size consistent or cut off at the stopping boundary.""")
+@click.option('--aligned-block-size', '-a',
+    type=int, default=None, nargs=3, callback=default_none,
+    help='force alignment of block size. Note that the alignment start from (0, 0, 0).')
 @click.option('--task-index-start', '-i',
               type=int, default=None, help='starting index of task list.')
 @click.option('--task-index-stop', '-p',
@@ -77,9 +80,12 @@ make the chunk size consistent or cut off at the stopping boundary.""")
 @click.option('--disbatch/--no-disbatch', '-d',
               default=False, help='use disBatch environment variable or not')
 @generator
-def generate_tasks(layer_path, mip, roi_start, roi_stop, roi_size, chunk_size, 
-                   grid_size, file_path, queue_name, respect_chunk_size: bool,
-                   task_index_start, task_index_stop, disbatch):
+def generate_tasks(
+        layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple,roi_size, chunk_size, 
+        grid_size: tuple, file_path: str, queue_name: str, respect_chunk_size: bool,
+        aligned_block_size: tuple, task_index_start: tuple, 
+        task_index_stop: tuple, disbatch: bool ):
+
     if mip is None:
         mip = state['mip']
     assert mip >=0 
@@ -90,6 +96,7 @@ def generate_tasks(layer_path, mip, roi_start, roi_stop, roi_size, chunk_size,
         roi_start=roi_start, roi_stop=roi_stop, 
         roi_size=roi_size, mip=mip, grid_size=grid_size,
         respect_chunk_size=respect_chunk_size,
+        aligned_block_size=aligned_block_size
     )
     print('total number of tasks: ', len(bboxes)) 
 
