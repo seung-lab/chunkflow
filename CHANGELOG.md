@@ -7,6 +7,7 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
+- write png files with Z corrdinate as file name
 
 ## Bug Fixes 
 
