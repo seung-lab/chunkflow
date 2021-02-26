@@ -222,7 +222,7 @@ def cloud_watch(tasks, name, log_name):
 @click.option('--channel-num', '-c', type=int, default=1, help='number of channel')
 @click.option('--layer-type', '-t',
               type=click.Choice(['image', 'segmentation']),
-              default='image', help='type of layer. either image or segmentation.')
+              default=None, help='type of layer. either image or segmentation.')
 @click.option('--data-type', '-d',
               type=click.Choice(['uint8', 'uint32', 'uint64', 'float32']),
               default = None, help='data type of array')
@@ -265,12 +265,13 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
             volume_size = chunk.shape
             data_type = chunk.dtype.name
 
-            if np.issubdtype(chunk.dtype, np.uint8) or \
-                    np.issubdtype(chunk.dtype, np.float32) or \
-                    np.issubdtype(chunk.dtype, np.float16):
-                layer_type = 'image'
-            else:
-                layer_type = 'segmentation'
+            if layer_type is None:
+                if np.issubdtype(chunk.dtype, np.uint8) or \
+                        np.issubdtype(chunk.dtype, np.float32) or \
+                        np.issubdtype(chunk.dtype, np.float16):
+                    layer_type = 'image'
+                else:
+                    layer_type = 'segmentation'
         
         assert volume_size is not None 
         assert data_type is not None
@@ -607,7 +608,7 @@ def write_tif(tasks, name, input_chunk_name, file_name):
 @click.option('--cutout-size', '-s', type=int, nargs=3, callback=default_none,
                help='cutout size of the chunk.')
 @click.option('--output-chunk-name', '-o',
-              type=str, default='chunk',
+              type=str, default=DEFAULT_CHUNK_NAME,
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
@@ -617,7 +618,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     for task in tasks:
         
         start = time()
-        if 'bbox' in task:
+        if 'bbox' in task and cutout_start is None:
             bbox = task['bbox']
             print('bbox: ', bbox)
             cutout_start = bbox.minpt
@@ -670,7 +671,7 @@ def write_h5(tasks, name, input_chunk_name, file_name, chunk_size, compression, 
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--output-path', '-o',
-              type=str, default='./saved_pngs/', help='output path of saved 2d images formated as png.')
+              type=str, default='./pngs/', help='output path of saved 2d images formated as png.')
 @operator
 def write_pngs(tasks, name, input_chunk_name, output_path):
     """Save as 2D PNG images."""
