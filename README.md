@@ -72,6 +72,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | read-pngs       | Read png files |
 | read-precomputed| Cutout chunk from a local/cloud storage volume |
 | read-tif        | Read TIFF files |
+| read-nrrd       | Read NRRD files |
 | remap-segmentation | Renumber a serials of segmentation chunks |
 | setup-env       | Prepare storage infor files and produce tasks |
 | skeletonize     | Create centerlines of objects in a segmentation chunk |
@@ -81,6 +82,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | write-pngs      | Save chunk as a serials of png files |
 | write-precomputed| Save chunk to local/cloud storage volume |
 | write-tif       | Write chunk as TIFF file |
+| write-nrrd      | Write chunk as NRRD file |
 
 
 
