@@ -10,9 +10,17 @@ chunkflow log-summary -l tests/data/log
 chunkflow create-chunk write-pngs -o /tmp/pngs; rm -rf /tmp/pngs
 
 chunkflow create-chunk normalize-intensity
-chunkflow create-chunk write-h5 --file-name="/tmp/img.h5" connected-components --threshold 128 write-tif --file-name=/tmp/seg.h5
+chunkflow create-chunk write-h5 --file-name="/tmp/img.h5" connected-components --threshold 128 write-h5 --file-name=/tmp/seg.h5
 if test -f /tmp/img.h5 ; then echo "File found"; else exit 1; fi
 chunkflow read-h5 --file-name=/tmp/img.h5
+
+chunkflow create-chunk write-nrrd -f "/tmp/img.nrrd";
+chunkflow read-nrrd -f "/tmp/img.nrrd"; 
+rm /tmp/img.nrrd;
+
+chunkflow create-chunk write-tif -f "/tmp/img.tif";
+chunkflow read-tif -f "/tmp/img.tif"; 
+rm /tmp/img.tif;
 
 mkdir /tmp/seg
 chunkflow \

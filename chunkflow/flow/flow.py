@@ -462,6 +462,53 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
             voxel_size=voxel_size)
         yield task
 
+@main.command('read-nrrd')
+@click.option('--name', type=str, default='read-nrrd',
+              help='read nrrd file from local disk.')
+@click.option('--file-name', '-f', required=True,
+              type=click.Path(exists=True, dir_okay=False),
+              help='read chunk from NRRD file')
+@click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
+              help='global offset of this chunk')
+@click.option('--voxel-size', '-s', type=int, nargs=3, default=None, callback=default_none,
+              help='physical size of voxels. The unit is assumed to be nm.')
+@click.option('--dtype', '-d',
+              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
+              help='convert to data type')
+@click.option('--output-chunk-name', '-o', type=str, default='chunk',
+              help='chunk name in the global state')
+@operator
+def read_nrrd(tasks, name: str, file_name: str, voxel_offset: tuple,
+             voxel_size: tuple, dtype: str, output_chunk_name: str):
+    """Read NRRD file."""
+    for task in tasks:
+        start = time()
+        task[output_chunk_name] = Chunk.from_nrrd(
+            file_name,
+            dtype=dtype,
+            voxel_offset=voxel_offset,
+            voxel_size=voxel_size)
+        task['log']['timer'][name] = time() - start
+        yield task
+
+
+@main.command('write-nrrd')
+@click.option('--name', type=str, default='write-nrrd', help='name of operator')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--file-name', '-f', default=None,
+    type=click.Path(dir_okay=False, resolve_path=True), 
+    help='file name of NRRD file.')
+@operator
+def write_tif(tasks, name, input_chunk_name, file_name):
+    """Write chunk as a NRRD file."""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            task[input_chunk_name].to_nrrd(file_name)
+        # keep the pipeline going
+        yield task
+
 
 @main.command('read-pngs')
 @click.option('--path-prefix', '-p',
@@ -504,7 +551,7 @@ def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset,
               help='read tif file from local disk.')
 @click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
-              help='read chunk from file, support .h5 and .tif')
+              help='read chunk from TIFF file.')
 @click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
               help='global offset of this chunk')
 @click.option('--voxel-size', '-s', type=int, nargs=3, default=None, callback=default_none,
@@ -520,13 +567,30 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
     """Read tiff files."""
     for task in tasks:
         start = time()
-        assert output_chunk_name not in task
         task[output_chunk_name] = Chunk.from_tif(
             file_name,
             dtype=dtype,
             voxel_offset=voxel_offset,
             voxel_size=voxel_size)
         task['log']['timer'][name] = time() - start
+        yield task
+
+
+@main.command('write-tif')
+@click.option('--name', type=str, default='write-tif', help='name of operator')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--file-name', '-f', default=None,
+    type=click.Path(dir_okay=False, resolve_path=True), 
+    help='file name of tif file, the extention should be .tif or .tiff')
+@operator
+def write_tif(tasks, name, input_chunk_name, file_name):
+    """Write chunk as a TIF file."""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            task[input_chunk_name].to_tif(file_name)
+        # keep the pipeline going
         yield task
 
 
@@ -606,24 +670,6 @@ def write_h5(tasks, name, input_chunk_name, file_name, chunk_size, compression, 
         if not task['skip']:
             task[input_chunk_name].to_h5(file_name, with_offset, 
                 chunk_size=chunk_size, compression=compression)
-        yield task
-
-
-@main.command('write-tif')
-@click.option('--name', type=str, default='write-tif', help='name of operator')
-@click.option('--input-chunk-name', '-i',
-              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
-@click.option('--file-name', '-f', default=None,
-    type=click.Path(dir_okay=False, resolve_path=True), 
-    help='file name of tif file, the extention should be .tif or .tiff')
-@operator
-def write_tif(tasks, name, input_chunk_name, file_name):
-    """Write chunk as a TIF file."""
-    for task in tasks:
-        handle_task_skip(task, name)
-        if not task['skip']:
-            task[input_chunk_name].to_tif(file_name)
-        # keep the pipeline going
         yield task
 
 

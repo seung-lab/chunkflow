@@ -2,6 +2,7 @@ import os
 from numbers import Number
 import h5py
 import numpy as np
+import nrrd
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
 import tifffile
@@ -122,6 +123,7 @@ class Chunk(NDArrayOperatorsMixin):
     def from_nrrd(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
             voxel_size: tuple=None):
         arr, _ = nrrd.read(file_name)
+
         if dtype:
             arr = arr.astype(dtype)
         return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
