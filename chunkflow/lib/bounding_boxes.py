@@ -25,6 +25,7 @@ class BoundingBoxes(UserList):
             roi_size: Union[Vec, tuple]=None,
             grid_size: Union[Vec, tuple]=None,
             respect_chunk_size: bool = True,
+            aligned_block_size: Union[Vec, tuple]=None,
             layer_path: str=None,
             mip:int=0):
         
@@ -70,11 +71,22 @@ class BoundingBoxes(UserList):
             grid_size = Vec(*grid_size)
         if isinstance(roi_stop, tuple):
             roi_stop = Vec(*roi_stop)
-
+        
         stride = chunk_size - chunk_overlap
-
         if roi_stop is None:
             roi_stop = roi_start + stride*grid_size + chunk_overlap
+
+        if aligned_block_size is not None:
+            if not isinstance(aligned_block_size, Vec):
+                aligned_block_size = Vec(*aligned_block_size)
+            assert np.all(aligned_block_size <= chunk_size)
+            assert np.alltrue(chunk_size % aligned_block_size == 0)
+            roi_start -= roi_start % aligned_block_size
+            assert len(aligned_block_size) == 3
+            assert len(roi_stop) == 3
+            for idx in range(3):
+                if roi_stop[idx] % aligned_block_size[idx] > 0:
+                    roi_stop[idx] += aligned_block_size[idx] - roi_stop[idx] % aligned_block_size[idx]
 
         if roi_size is None:
             roi_size = roi_stop - roi_start
