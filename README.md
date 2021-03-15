@@ -14,7 +14,7 @@ chunkflow
 - **Composable** operators. The chunk operators could be composed in commandline for flexible usage.
 - **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
 - All operations support **3D** image volumes.
-- You can insert your own code as a **Plugin**.
+- You can **plugin** your own code as an operator.
 
 
 ## Image Segmentation Example
