@@ -19,6 +19,5 @@ kimimaro
 Pillow
 pyparsing<3,>=2.4.2
 toml>=0.10.2
-urllib3>=1.25.11
 chardet>=3.0.4
 docutils<0.16,>=0.10
