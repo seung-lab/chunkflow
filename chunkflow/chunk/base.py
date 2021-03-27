@@ -393,7 +393,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     @property 
     def dtype(self) -> np.dtype:
         return self.array.dtype 
-    
+
+    @property
+    def voxel_stop(self) -> tuple:
+        return tuple(o + s for o, s in zip(self.voxel_offset, self.shape))
+
     def astype(self, dtype: np.dtype):
         if dtype != self.array.dtype:
             new_array = self.array.astype(dtype)

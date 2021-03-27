@@ -122,9 +122,12 @@ def generate_tasks(
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
     else:
-        for bbox in bboxes:
+        bbox_num = len(bboxes)
+        for bbox_index, bbox in enumerate(bboxes):
             task = get_initial_task()
             task['bbox'] = bbox
+            task['bbox_index'] = bbox_index
+            task['bbox_num'] = bbox_num
             task['log']['bbox'] = bbox.to_filename()
             yield task
 
@@ -257,6 +260,7 @@ def cloud_watch(tasks, name, log_name):
 def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num: int, 
                 layer_type: str, data_type: str, encoding: str, voxel_size: tuple, 
                 voxel_offset: tuple, volume_size: tuple, block_size: tuple, factor: tuple, max_mip: int):
+    """Create metadata for Neuroglancer Precomputed volume."""
     
     for task in tasks:
         if input_chunk_name in task:

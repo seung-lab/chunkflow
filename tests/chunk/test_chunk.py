@@ -18,6 +18,10 @@ def create_chunk(size:tuple = (7, 8, 9), voxel_offset=(-2, -3, -4),
 
 
     chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
+
+    # test chunk properties
+    chunk.voxel_stop
+
     return chunk
 
 def test_channel_voting():
