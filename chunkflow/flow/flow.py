@@ -25,7 +25,6 @@ from chunkflow.lib.utils import coordinates2bbox
 from .agglomerate import AgglomerateOperator
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
-from .cutout_dvid_label import CutoutDVIDLabel
 from .read_precomputed import ReadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
@@ -771,64 +770,6 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
             task[output_chunk_name] = operator(bbox)
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
-        yield task
-
-
-@main.command('cutout-dvid-label')
-@click.option(
-    '--name', type=str, default='cutout-dvid-label',
-    help='cutout a subvolume from a DVID repo'
-)
-@click.option(
-    '--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
-    help='output chunk name.'
-)
-@click.option(
-    '--server', '-s', required=True, type=str, 
-    help='something like http://hemibrain-dvid.janelia.org:8000'
-)
-@click.option(
-    '--uuid', '-u', type=str, 
-    default=None,
-    help='uuid of the DVID repo.'
-)
-@click.option('--instance', '-i',
-    type=str, default='labels', 
-    help='instance name in the repo.')
-@click.option('--supervoxels/--labels', default=False, 
-    help='fetch original supervoxels or the final result?')
-@click.option(
-    '--start', '-t', type=int, nargs=3,
-    default=None, callback=default_none,
-    help='start coordinate, zyx order'
-)
-@click.option(
-    '--size', '-z', type=int, nargs=3,
-    default=None, callback=default_none,
-    help='cutout size. zyx order.'
-)
-@click.option(
-    '--stop', '-p', type=int, nargs=3,
-    default=None, callback=default_none,
-    help='cutout stop coordinate, zyx order.'
-)
-@operator
-def cutout_dvid_label(tasks: Generator, name: str, output_chunk_name: str, 
-                      server: str, uuid: str, instance: str, supervoxels: bool,
-                      start: tuple, size: tuple, stop: tuple):
-    """Cutout a subvolume from a DVID label repo."""
-    operator = CutoutDVIDLabel(server, instance, uuid=uuid, supervoxels=supervoxels)
-    
-    for task in tasks:
-        handle_task_skip(task, name)
-        if start is not None:
-            assert size is not None or stop is not None
-            bbox = coordinates2bbox(start, size, stop) 
-        else:
-            assert 'bbox' in task
-            bbox = task['bbox']
-            
-        task[output_chunk_name] = operator(bbox)
         yield task
 
 

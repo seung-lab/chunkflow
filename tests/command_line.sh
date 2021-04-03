@@ -2,7 +2,7 @@
 chunkflow generate-tasks -c 0 0 0 -s 0 0 0 -g 1 1 1
 
 # this example is from [nuclease](https://github.com/janelia-flyem/neuclease)
-chunkflow cutout-dvid-label --server "http://hemibrain-dvid.janelia.org" --instance segmentation --start 20789 21341 17019 --size 16 128 128
+chunkflow generate-tasks --roi-start 20789 21341 17019 --chunk-size 16 128 128  plugin -f cutout_dvid_label -i bbox
 
 chunkflow create-chunk plugin -f median_filter -i chunk -o chunk
 
