@@ -1,5 +1,5 @@
+numpy>=1.20.0
 boto3
-numpy>=1.17.5
 six>=1.13.0
 cloud-volume>=0.47.0
 click 
@@ -19,6 +19,5 @@ kimimaro
 Pillow
 pyparsing>=2.4.2
 urllib3>=1.25.11
-chardet>=3.0.4
 docutils>=0.10
 pynrrd

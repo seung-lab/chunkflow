@@ -259,7 +259,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             f.create_dataset('/main', data=self.array, chunks=chunk_size, compression=compression)
             if self.voxel_size:
                 f.create_dataset('/voxel_size', data=self.voxel_size)
-            if with_offset and self.voxel_offset:
+            if with_offset and self.voxel_offset is not None:
                 f.create_dataset('/voxel_offset', data=self.voxel_offset)
 
             if with_unique and self.is_segmentation:

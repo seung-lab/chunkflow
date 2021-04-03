@@ -1,6 +1,9 @@
 #!/bin/bash
 chunkflow generate-tasks -c 0 0 0 -s 0 0 0 -g 1 1 1
 
+# this example is from [nuclease](https://github.com/janelia-flyem/neuclease)
+chunkflow generate-tasks --roi-start 20789 21341 17019 --chunk-size 16 128 128  plugin -f cutout_dvid_label -i bbox -o chunk
+
 chunkflow create-chunk plugin -f median_filter -i chunk -o chunk
 
 chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
@@ -40,6 +43,10 @@ chunkflow --dry-run --log-level info\
     --output-patch-size 16 96 96 --output-patch-overlap 6 32 32 --channel-num 3 \
     --dtype float32 -m 0 --encoding raw --voxel-size 45 16 16 --max-mip 5
 
+chunkflow create-chunk --size 36 448 448 inference --input-patch-size 20 256 256 --patch-num 2 2 2 \
+    --framework "universal" --convnet-model "./examples/inference/universal_identity.py" \
+    --batch-size 3 #cloud-watch --log-name chunkflow-test
+    
 chunkflow --log-level debug\
     create-chunk --size 36 448 448 \
     inference --input-patch-size 20 256 256 --patch-num 2 2 2 \

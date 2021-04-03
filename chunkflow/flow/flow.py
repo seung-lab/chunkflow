@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 from time import time
+from typing import Generator, Tuple
 
 import numpy as np
 import click
@@ -18,6 +19,7 @@ from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
+from chunkflow.lib.utils import coordinates2bbox
 
 # import operator functions
 from .agglomerate import AgglomerateOperator
@@ -119,6 +121,13 @@ def generate_tasks(
         bboxes.to_file(file_path)
 
     if queue_name is not None:
+      
+ 
+
+
+
+
+
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
     else:
@@ -775,10 +784,13 @@ def delete_chunk(tasks, name, chunk_name):
 @click.option('--blackout-sections/--no-blackout-sections',
     default=False, help='blackout some sections. ' +
     'the section ids json file should named blackout_section_ids.json. default is False.')
-@click.option('--output-chunk-name', '-o',
-    type=str, default='chunk', help='Variable name to store the cutout to for later retrieval.'
+@click.option(
+    '--output-chunk-name', '-o',
+    type=str, default=DEFAULT_CHUNK_NAME, 
+    help='Variable name to store the cutout to for later retrieval.'
     + 'Chunkflow operators by default operates on a variable named "chunk" but' +
-    ' sometimes you may need to have a secondary volume to work on.')
+    ' sometimes you may need to have a secondary volume to work on.'
+)
 @operator
 def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin_size,
            fill_missing, validate_mip, blackout_sections, output_chunk_name):
