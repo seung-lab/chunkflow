@@ -1,7 +1,7 @@
 ChangeLog history
 ==================
 
-# chunkflow 1.0.6 (2021-xx-xx)
+# chunkflow 1.0.6 (2021-04-03)
 ## Breaking Changes
 
 ## Deprecations 
