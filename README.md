@@ -6,7 +6,6 @@ chunkflow
 [![Coverage Status](https://coveralls.io/repos/github/seung-lab/chunkflow/badge.svg?branch=master)](https://coveralls.io/github/seung-lab/chunkflow?branch=master)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/seunglab/chunkflow)
-[![HitCount](http://hits.dwyl.com/seung-lab/chunkflow.svg)](http://hits.dwyl.com/seung-lab/chunkflow)
 [![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2Fjingpeng_wu)](https://twitter.com/jingpeng_wu)
 <!---[![Docker Build Status](https://img.shields.io/docker/cloud/build/seunglab/chunkflow.svg)]#(https://hub.docker.com/r/seunglab/chunkflow)--->
 
@@ -14,8 +13,8 @@ chunkflow
 ## Features
 - **Composable** operators. The chunk operators could be composed in commandline for flexible usage.
 - **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
-- All operations support **3D** image volumes.
-- You can insert your own code as a **Plugin**.
+- Operators work with **3D** image volumes.
+- You can **plugin** your own code as an operator.
 
 
 ## Image Segmentation Example
@@ -74,6 +73,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | read-pngs       | Read png files |
 | read-precomputed| Cutout chunk from a local/cloud storage volume |
 | read-tif        | Read TIFF files |
+| read-nrrd       | Read NRRD files |
 | remap-segmentation | Renumber a serials of segmentation chunks |
 | setup-env       | Prepare storage infor files and produce tasks |
 | skeletonize     | Create centerlines of objects in a segmentation chunk |
@@ -83,16 +83,23 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | write-pngs      | Save chunk as a serials of png files |
 | write-precomputed| Save chunk to local/cloud storage volume |
 | write-tif       | Write chunk as TIFF file |
+| write-nrrd      | Write chunk as NRRD file |
 
 
 
 ## Reference
-We have a [paper](https://arxiv.org/abs/1904.10489) for this repo: 
+We have a [paper](https://www.nature.com/articles/s41592-021-01088-5) for this repo: 
 ```bibtex
-@article{wu2019chunkflow,
-  title={Chunkflow: Distributed Hybrid Cloud Processing of Large 3D Images by Convolutional Nets},
-  author={Wu, Jingpeng and Silversmith, William M and Seung, H Sebastian},
-  journal={arXiv preprint arXiv:1904.10489},
-  year={2019}
+
+@article{wu_chunkflow_2021,
+	title = {Chunkflow: hybrid cloud processing of large {3D} images by convolutional nets},
+	issn = {1548-7105},
+	shorttitle = {Chunkflow},
+	url = {https://www.nature.com/articles/s41592-021-01088-5},
+	doi = {10.1038/s41592-021-01088-5},
+	journal = {Nature Methods},
+	author = {Wu, Jingpeng and Silversmith, William M. and Lee, Kisuk and Seung, H. Sebastian},
+	year = {2021},
+	pages = {1--2}
 }
 ```

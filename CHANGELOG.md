@@ -1,6 +1,22 @@
 ChangeLog history
-=================
-# chunkflow 1.0.5 (2020-xx-xx)
+==================
+
+# chunkflow 1.0.6 (2021-xx-xx)
+## Breaking Changes
+
+## Deprecations 
+
+## Features
+- write png files with Z corrdinate as file name
+- aligned block size option for generating tasks. This is useful to force alignment of chunks, and is used to align segmentation chunks for DVID.
+- add task number and current task index in global states. Thus, we know that a task could be the last one. This is useful to compute global statistics, such as maximum segmentation id in a segmentation and label indices of segmentation in DVID.
+- new operators to read and write NRRD file
+
+## Bug Fixes 
+
+## Improved Documentation
+ 
+# chunkflow 1.0.5 (2021-01-29)
 ## Breaking Changes
 - use python logging module instead of verbose parameter
 - changed the `plugin` operator parameter input and output names. So it can accept both chunk and other data, such as bounding box.
@@ -9,6 +25,7 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
+- quit neuroglancer by enter q and return.
 - work with Flatiron disBatch.
 - a new operator remap to renumber a serials of segmentation chunks.
 - shard meshing. It is not validated yet. The data is written, but Neuroglancer is still not showing them. There is something like manifest missing.
@@ -234,7 +251,7 @@ ChangeLog history
 # Template 
 the following texts are templates for adding change log
 
-# chunkflow 1.1.0 (2020-xx-xx)
+# chunkflow 1.1.0 (2021-xx-xx)
 ## Breaking Changes
 
 ## Deprecations 

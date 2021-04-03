@@ -48,7 +48,7 @@ from .view import ViewOperator
               type=str, default=None,
               help='dataset layer path to fetch dataset information.')
 @click.option('--mip', '-m',
-              type=int, default=0, help='mip level of the dataset layer.')
+              type=int, default=None, help='mip level of the dataset layer.')
 @click.option('--roi-start', '-s',
               type=int, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
@@ -72,6 +72,9 @@ from .view import ViewOperator
 @click.option('--respect-chunk-size/--respect-stop',
               default=True, help="""for the last bounding box, \
 make the chunk size consistent or cut off at the stopping boundary.""")
+@click.option('--aligned-block-size', '-a',
+    type=int, default=None, nargs=3, callback=default_none,
+    help='force alignment of block size. Note that the alignment start from (0, 0, 0).')
 @click.option('--task-index-start', '-i',
               type=int, default=None, help='starting index of task list.')
 @click.option('--task-index-stop', '-p',
@@ -79,15 +82,23 @@ make the chunk size consistent or cut off at the stopping boundary.""")
 @click.option('--disbatch/--no-disbatch', '-d',
               default=False, help='use disBatch environment variable or not')
 @generator
-def generate_tasks(layer_path, mip, roi_start, roi_stop, roi_size, chunk_size, 
-                   grid_size, file_path, queue_name, respect_chunk_size: bool,
-                   task_index_start, task_index_stop, disbatch):
+def generate_tasks(
+        layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple,roi_size, chunk_size, 
+        grid_size: tuple, file_path: str, queue_name: str, respect_chunk_size: bool,
+        aligned_block_size: tuple, task_index_start: tuple, 
+        task_index_stop: tuple, disbatch: bool ):
+
+    if mip is None:
+        mip = state['mip']
+    assert mip >=0 
+
     """Generate tasks."""
     bboxes = BoundingBoxes.from_manual_setup(
         chunk_size, layer_path=layer_path,
         roi_start=roi_start, roi_stop=roi_stop, 
         roi_size=roi_size, mip=mip, grid_size=grid_size,
         respect_chunk_size=respect_chunk_size,
+        aligned_block_size=aligned_block_size
     )
     print('total number of tasks: ', len(bboxes)) 
 
@@ -120,9 +131,12 @@ def generate_tasks(layer_path, mip, roi_start, roi_stop, roi_size, chunk_size,
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
     else:
-        for bbox in bboxes:
+        bbox_num = len(bboxes)
+        for bbox_index, bbox in enumerate(bboxes):
             task = get_initial_task()
             task['bbox'] = bbox
+            task['bbox_index'] = bbox_index
+            task['bbox_num'] = bbox_num
             task['log']['bbox'] = bbox.to_filename()
             yield task
 
@@ -227,7 +241,7 @@ def cloud_watch(tasks, name, log_name):
 @click.option('--channel-num', '-c', type=int, default=1, help='number of channel')
 @click.option('--layer-type', '-t',
               type=click.Choice(['image', 'segmentation']),
-              default='image', help='type of layer. either image or segmentation.')
+              default=None, help='type of layer. either image or segmentation.')
 @click.option('--data-type', '-d',
               type=click.Choice(['uint8', 'uint32', 'uint64', 'float32']),
               default = None, help='data type of array')
@@ -255,6 +269,7 @@ def cloud_watch(tasks, name, log_name):
 def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num: int, 
                 layer_type: str, data_type: str, encoding: str, voxel_size: tuple, 
                 voxel_offset: tuple, volume_size: tuple, block_size: tuple, factor: tuple, max_mip: int):
+    """Create metadata for Neuroglancer Precomputed volume."""
     
     for task in tasks:
         if input_chunk_name in task:
@@ -270,12 +285,13 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
             volume_size = chunk.shape
             data_type = chunk.dtype.name
 
-            if np.issubdtype(chunk.dtype, np.uint8) or \
-                    np.issubdtype(chunk.dtype, np.float32) or \
-                    np.issubdtype(chunk.dtype, np.float16):
-                layer_type = 'image'
-            else:
-                layer_type = 'segmentation'
+            if layer_type is None:
+                if np.issubdtype(chunk.dtype, np.uint8) or \
+                        np.issubdtype(chunk.dtype, np.float32) or \
+                        np.issubdtype(chunk.dtype, np.float16):
+                    layer_type = 'image'
+                else:
+                    layer_type = 'segmentation'
         
         assert volume_size is not None 
         assert data_type is not None
@@ -459,6 +475,53 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
             voxel_size=voxel_size)
         yield task
 
+@main.command('read-nrrd')
+@click.option('--name', type=str, default='read-nrrd',
+              help='read nrrd file from local disk.')
+@click.option('--file-name', '-f', required=True,
+              type=click.Path(exists=True, dir_okay=False),
+              help='read chunk from NRRD file')
+@click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
+              help='global offset of this chunk')
+@click.option('--voxel-size', '-s', type=int, nargs=3, default=None, callback=default_none,
+              help='physical size of voxels. The unit is assumed to be nm.')
+@click.option('--dtype', '-d',
+              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
+              help='convert to data type')
+@click.option('--output-chunk-name', '-o', type=str, default='chunk',
+              help='chunk name in the global state')
+@operator
+def read_nrrd(tasks, name: str, file_name: str, voxel_offset: tuple,
+             voxel_size: tuple, dtype: str, output_chunk_name: str):
+    """Read NRRD file."""
+    for task in tasks:
+        start = time()
+        task[output_chunk_name] = Chunk.from_nrrd(
+            file_name,
+            dtype=dtype,
+            voxel_offset=voxel_offset,
+            voxel_size=voxel_size)
+        task['log']['timer'][name] = time() - start
+        yield task
+
+
+@main.command('write-nrrd')
+@click.option('--name', type=str, default='write-nrrd', help='name of operator')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--file-name', '-f', default=None,
+    type=click.Path(dir_okay=False, resolve_path=True), 
+    help='file name of NRRD file.')
+@operator
+def write_tif(tasks, name, input_chunk_name, file_name):
+    """Write chunk as a NRRD file."""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            task[input_chunk_name].to_nrrd(file_name)
+        # keep the pipeline going
+        yield task
+
 
 @main.command('read-pngs')
 @click.option('--path-prefix', '-p',
@@ -501,7 +564,7 @@ def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset,
               help='read tif file from local disk.')
 @click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
-              help='read chunk from file, support .h5 and .tif')
+              help='read chunk from TIFF file.')
 @click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
               help='global offset of this chunk')
 @click.option('--voxel-size', '-s', type=int, nargs=3, default=None, callback=default_none,
@@ -517,13 +580,30 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
     """Read tiff files."""
     for task in tasks:
         start = time()
-        assert output_chunk_name not in task
         task[output_chunk_name] = Chunk.from_tif(
             file_name,
             dtype=dtype,
             voxel_offset=voxel_offset,
             voxel_size=voxel_size)
         task['log']['timer'][name] = time() - start
+        yield task
+
+
+@main.command('write-tif')
+@click.option('--name', type=str, default='write-tif', help='name of operator')
+@click.option('--input-chunk-name', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--file-name', '-f', default=None,
+    type=click.Path(dir_okay=False, resolve_path=True), 
+    help='file name of tif file, the extention should be .tif or .tiff')
+@operator
+def write_tif(tasks, name, input_chunk_name, file_name):
+    """Write chunk as a TIF file."""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            task[input_chunk_name].to_tif(file_name)
+        # keep the pipeline going
         yield task
 
 
@@ -548,7 +628,7 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
 @click.option('--cutout-size', '-s', type=int, nargs=3, callback=default_none,
                help='cutout size of the chunk.')
 @click.option('--output-chunk-name', '-o',
-              type=str, default='chunk',
+              type=str, default=DEFAULT_CHUNK_NAME,
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
@@ -558,7 +638,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     for task in tasks:
         
         start = time()
-        if 'bbox' in task:
+        if 'bbox' in task and cutout_start is None:
             bbox = task['bbox']
             print('bbox: ', bbox)
             cutout_start = bbox.minpt
@@ -606,30 +686,12 @@ def write_h5(tasks, name, input_chunk_name, file_name, chunk_size, compression, 
         yield task
 
 
-@main.command('write-tif')
-@click.option('--name', type=str, default='write-tif', help='name of operator')
-@click.option('--input-chunk-name', '-i',
-              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
-@click.option('--file-name', '-f', default=None,
-    type=click.Path(dir_okay=False, resolve_path=True), 
-    help='file name of tif file, the extention should be .tif or .tiff')
-@operator
-def write_tif(tasks, name, input_chunk_name, file_name):
-    """Write chunk as a TIF file."""
-    for task in tasks:
-        handle_task_skip(task, name)
-        if not task['skip']:
-            task[input_chunk_name].to_tif(file_name)
-        # keep the pipeline going
-        yield task
-
-
 @main.command('write-pngs')
 @click.option('--name', type=str, default='write-pngs', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--output-path', '-o',
-              type=str, default='./saved_pngs/', help='output path of saved 2d images formated as png.')
+              type=str, default='./pngs/', help='output path of saved 2d images formated as png.')
 @operator
 def write_pngs(tasks, name, input_chunk_name, output_path):
     """Save as 2D PNG images."""
@@ -735,6 +797,7 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
     """Cutout chunk from volume."""
     if mip is None:
         mip = state['mip']
+    assert mip >= 0
     
     operator = ReadPrecomputedOperator(
         volume_path,

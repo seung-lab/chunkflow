@@ -57,7 +57,8 @@ class NeuroglancerOperator(OperatorBase):
                         units=['nm', 'nm', 'nm'],
                         names=['x', 'y', 'z']
                     )
-                    if np.issubdtype(chunk.dtype, np.uint32) or \
+                    if np.issubdtype(chunk.dtype, np.uint16) or \
+                            np.issubdtype(chunk.dtype, np.uint32) or \
                             np.issubdtype(chunk.dtype, np.uint64):
                         shader = None
                     else:
@@ -88,7 +89,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
 """
                 else:
                     raise ValueError('only support 3/4 dimension volume.')
-                    
+                
                 if shader:
                     s.layers.append(
                         name=chunk_name,
@@ -117,4 +118,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
 
         print('Open this url in browser: ')
         print(viewer)
-        input('Press Enter to exit neuroglancer.')
+
+        key = None
+        while key!='q':
+            key = input('Press q and enter/return to quit neuroglancer.')

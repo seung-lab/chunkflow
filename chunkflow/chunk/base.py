@@ -2,6 +2,7 @@ import os
 from numbers import Number
 import h5py
 import numpy as np
+import nrrd
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
 import tifffile
@@ -28,7 +29,7 @@ class Chunk(NDArrayOperatorsMixin):
     :param voxel_size: the size of each voxel, normally with unit of nm. 3 numbers: z, y, x.
     :return: a new chunk with array data and global offset
     """
-    def __init__(self, array, voxel_offset: tuple = None, voxel_size: tuple = None):
+    def __init__(self, array: np.ndarray, voxel_offset: tuple = None, voxel_size: tuple = None):
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         self.array = array
         if voxel_offset is None:
@@ -64,8 +65,7 @@ class Chunk(NDArrayOperatorsMixin):
         :param voxel_size: physical size of each voxel.
         :return: construct a new Chunk
         """
-        voxel_offset = (bbox.minpt.z, bbox.minpt.y, bbox.minpt.x)
-        return cls(array, voxel_offset=voxel_offset, voxel_size=voxel_size)
+        return cls(array, voxel_offset=bbox.minpt, voxel_size=voxel_size)
     
     @classmethod
     def from_bbox(cls, bbox: Bbox, dtype: type = np.uint8,
@@ -117,6 +117,30 @@ class Chunk(NDArrayOperatorsMixin):
                 raise NotImplementedError()
 
         return cls(chunk, voxel_offset=voxel_offset, voxel_size=voxel_size)
+
+    @classmethod
+    def from_nrrd(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
+            voxel_size: tuple=None):
+        arr, _ = nrrd.read(file_name)
+
+        if dtype:
+            arr = arr.astype(dtype)
+        return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
+    
+    def to_nrrd(self, file_name: str=None):
+        if file_name is None:
+            file_name = f'{self.bbox.to_filename()}.nrrd'
+        print('write chunk to file: ', file_name)
+
+        if self.array.dtype==np.float32:
+            # visualization in float32 is not working correctly in ImageJ
+            # this might not work correctly if you want to save the image as it is!
+            print(yellow('transforming data type from float32 to uint8'))
+            img = self.array*255 
+            img = img.astype( np.uint8 )
+        else:
+            img = self.array
+        nrrd.write(file_name, img)
 
     @classmethod
     def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
@@ -304,6 +328,22 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         else:
             raise NotImplementedError
 
+    def set_properties(self, properties: dict):
+        if 'voxel_offset' in properties:
+            self.voxel_offset = properties['voxel_offset']
+
+        if 'voxel_size' in properties:
+            self.voxel_size = properties['voxel_size']
+
+    @property
+    def properties(self) -> dict:
+        props = dict()
+        if self.voxel_offset is not None or self.voxel_offset != (0, 0, 0):
+            props['voxel_offset'] = self.voxel_offset
+        if self.voxel_size is not None or self.voxel_size != (1, 1, 1):
+            props['voxel_size'] = self.voxel_size
+        return props 
+
     @property
     def slices(self) -> tuple:
         """
@@ -353,7 +393,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     @property 
     def dtype(self) -> np.dtype:
         return self.array.dtype 
-    
+
+    @property
+    def voxel_stop(self) -> tuple:
+        return tuple(o + s for o, s in zip(self.voxel_offset, self.shape))
+
     def astype(self, dtype: np.dtype):
         if dtype != self.array.dtype:
             new_array = self.array.astype(dtype)
