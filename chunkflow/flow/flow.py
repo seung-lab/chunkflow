@@ -22,7 +22,6 @@ from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from chunkflow.lib.utils import coordinates2bbox
 
 # import operator functions
-from .agglomerate import AgglomerateOperator
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
 from .read_precomputed import ReadPrecomputedOperator
@@ -379,43 +378,6 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
         yield task
 
 
-@main.command('agglomerate')
-@click.option('--name', type=str, default='agglomerate', help='name of operator')
-@click.option('--threshold', '-t',
-              type=float, default=0.7, help='agglomeration threshold')
-@click.option('--aff-threshold-low', '-l',
-              type=float, default=0.0001, help='low threshold for watershed')
-@click.option('--aff-threshold-high', '-h',
-              type=float, default=0.9999, help='high threshold for watershed')
-@click.option('--fragments-chunk-name', '-f',
-              type=str, default=None, help='optional fragments/supervoxel chunk to use.')
-@click.option('--scoring-function', '-s',
-              type=str, default='OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>',
-              help='A C++ type string specifying the edge scoring function to use.')
-@click.option('--input-chunk-name', '-i',
-              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
-@click.option('--output-chunk-name', '-o',
-              type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
-@operator
-def agglomerate(tasks, name, threshold, aff_threshold_low, aff_threshold_high,
-                fragments_chunk_name, scoring_function, input_chunk_name, output_chunk_name):
-    """Watershed and agglomeration to segment affinity map."""
-    operator = AgglomerateOperator(name=name,
-                                   threshold=threshold, 
-                                   aff_threshold_low=aff_threshold_low,
-                                   aff_threshold_high=aff_threshold_high,
-                                   scoring_function=scoring_function)
-    for task in tasks:
-        if fragments_chunk_name and fragments_chunk_name in task:
-            fragments = task[fragments_chunk_name]
-        else:
-            fragments = None 
-        
-        task[output_chunk_name] = operator(
-            task[input_chunk_name], fragments=fragments)
-        yield task
-
-
 @main.command('aggregate-skeleton-fragments')
 @click.option('--name', type=str, default='aggregate-skeleton-fragments',
               help='name of operator')
@@ -442,7 +404,6 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
             operator(task[input_name])
             task['log']['timer'][name] = time() - start
             yield task
-
 
 
 @main.command('create-chunk')

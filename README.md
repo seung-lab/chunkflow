@@ -28,7 +28,7 @@ chunkflow \
     inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt \
         --input-patch-size 20 256 256 --output-patch-overlap 4 64 64 --num-output-channels 3 \
         -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs \
-    agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg \
+    plugin -f agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg \
     neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 ```
 you can see your 3D image and segmentation directly in [Neuroglancer](https://github.com/google/neuroglancer)!
@@ -40,7 +40,6 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 
 | Operator Name   | Function |
 | --------------- | -------- |
-| agglomerate     | Watershed and agglomeration to segment affinity map |
 | aggregate-skeleton-fragments| Merge skeleton fragments from chunks |
 | channel-voting  | Vote across channels of semantic map |
 | cloud-watch     | Realtime speedometer in AWS CloudWatch |

@@ -14,7 +14,6 @@ pandas
 zmesh
 fastremap
 matplotlib
-waterz
 kimimaro
 Pillow
 pyparsing>=2.4.2
