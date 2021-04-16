@@ -6,7 +6,8 @@ from typing import Union
 import numpy as np
 from .base import Chunk
 
-from waterz import evaluate
+from gala import evaluate
+
 import kimimaro
 import fastremap
 
@@ -27,7 +28,12 @@ class Segmentation(Chunk):
         assert isinstance(chunk, Chunk)
         return cls(chunk.array, voxel_offset=chunk.voxel_offset)
 
-    def evaluate(self, groundtruth):
+    def evaluate(self, groundtruth, size_threshold: int=1000):
+        """
+        Parameters:
+            size_threshold [int]: size threshold for Edit Distance. 
+                Ignore splits or merges smaller than this number of voxels.
+        """
         if not np.issubdtype(self.dtype, np.uint64):
             this = self.astype(np.uint64)
         else:
@@ -39,7 +45,16 @@ class Segmentation(Chunk):
         if isinstance(groundtruth, Chunk):
             groundtruth = groundtruth.array
 
-        return evaluate(this.array, groundtruth)
+        rand_index = evaluate.rand_index(this.array, groundtruth)
+        adjusted_rand_index = evaluate.adj_rand_index(this.array, groundtruth)
+        variation_of_information = evaluate.vi(this.array, groundtruth)
+        fowlkes_mallows_index = evaluate.fm_index(this.array, groundtruth)
+        edit_distance = evaluate.edit_distance(this.array, groundtruth, size_threshold=size_threshold)
+        print('rand index: ', rand_index)
+        print('adjusted rand index: ', adjusted_rand_index)
+        print('variation of information: ', variation_of_information)
+        print('edit distance: ', edit_distance)
+        print('Fowlkes Mallows Index: ', fowlkes_mallows_index)
 
     def remap(self, start_id: int):
         fastremap.renumber(self.array, preserve_zero=True, in_place=True)
