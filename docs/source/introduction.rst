@@ -3,7 +3,7 @@
 Introduction
 #############
 
-Motivation
+Problem
 ===========
 Benefited from the rapid development of microscopy technologies, we can acquire large scale 3D volumetric datasets with both high resolution and large field of view. These 3D image datasets are too big to be processed in a single computer, and distributed processing is required. In most cases, the image dataset could be choped to chunks with/without overlap and distributed to computers for processing. 
 

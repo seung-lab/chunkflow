@@ -32,7 +32,7 @@ Operators
 .. autoclass:: chunkflow.flow.cloud_watch.CloudWatchOperator
    :members:
 
-.. autoclass:: chunkflow.flow.cutout.CutoutOperator
+.. autoclass:: chunkflow.flow.read_precomputed.ReadPrecomputedOperator
    :members:
 
 .. autoclass:: chunkflow.flow.downsample_upload.DownsampleUploadOperator
@@ -53,10 +53,10 @@ Operators
 .. autoclass:: chunkflow.flow.normalize_section_shang.NormalizeSectionShangOperator
    :members:
 
-.. autoclass:: chunkflow.flow.save.SaveOperator
+.. autoclass:: chunkflow.flow.write_precomputed.WritePrecomputedOperator
    :members:
 
-.. autoclass:: chunkflow.flow.save_pngs.SavePNGsOperator
+.. autoclass:: chunkflow.flow.write_pngs.WritePNGsOperator
    :members:
 
 .. autoclass:: chunkflow.flow.view.ViewOperator

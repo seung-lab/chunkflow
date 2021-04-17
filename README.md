@@ -9,7 +9,6 @@ chunkflow
 [![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2Fjingpeng_wu)](https://twitter.com/jingpeng_wu)
 <!---[![Docker Build Status](https://img.shields.io/docker/cloud/build/seunglab/chunkflow.svg)]#(https://hub.docker.com/r/seunglab/chunkflow)--->
 
-
 ## Features
 - **Composable** operators. The chunk operators could be composed in commandline for flexible usage.
 - **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
@@ -17,6 +16,7 @@ chunkflow
 - Operators work with **3D** image volumes.
 - You can **plugin** your own code as an operator.
 
+Check out the [Documentation](https://pychunkflow.readthedocs.io/en/latest/index.html) for [installation](https://pychunkflow.readthedocs.io/en/latest/install.html) and [usage](https://pychunkflow.readthedocs.io/en/latest/tutorial.html). Try it out by following the [tutorial](https://pychunkflow.readthedocs.io/en/latest/tutorial.html). 
 
 ## Image Segmentation Example
 Perform Convolutional net inference to segment 3D image volume with one single command!

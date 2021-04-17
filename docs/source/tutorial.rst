@@ -37,18 +37,6 @@ Now let's play with some operators.
 Visualization of a Chunk
 ==========================
 
-CloudVolume Viewer
---------------------------------------
-Create a random image volume and visualize it in browser::
-
-    chunkflow create-chunk view
-
-open the link and you should see a image volume in browser:
-
-|random_image_in_cloudvolume_viewer|
-
-.. |random_image_in_cloudvolume_viewer| image:: _static/image/random_image_in_cloudvolume_viewer.png
-
 Neuroglancer
 ---------------------------------
 create a random image volume and show it in neuroglancer::
@@ -62,6 +50,19 @@ open the link and you should see it:
 .. |random_image_in_neuroglancer| image:: _static/image/random_image_in_neuroglancer.png
 
 Note that the random image center is blacked out.
+
+CloudVolume Viewer
+--------------------------------------
+Create a random image volume and visualize it in browser::
+
+    chunkflow create-chunk view
+
+open the link and you should see a image volume in browser:
+
+|random_image_in_cloudvolume_viewer|
+
+.. |random_image_in_cloudvolume_viewer| image:: _static/image/random_image_in_cloudvolume_viewer.png
+
 
 Input and Output
 =================
@@ -83,7 +84,7 @@ Cutout/Save a Chunk from Large Scale Volume in Cloud Storage
 -------------------------------------------------------------
 We use CloudVolume_ to perform cutout/saving of chunks in a large scale volumemetric dataset. To be convenient, we use local file system in this tutorial. To use cloud storage, you can just setup the authentication following the documentation of CloudVolume_ and replace the path to cloud storage. You can create a volume and ingest the image stack to the volume::
 
-   chunkflow read-h5 --file-name sample_A_20160501.hdf --dataset-path /volumes/raw save --volume-path file:///tmp/your/key/path 
+   chunkflow read-h5 --file-name sample_A_20160501.hdf --dataset-path /volumes/raw write-precomputed --volume-path file:///tmp/your/key/path 
 
 Now you can cutout the image chunk from the volume::
 
@@ -105,7 +106,7 @@ The result will print out in terminal::
    VOI split: 0.300484
    VOI merge: 0.143631
 
-Of course, you can replace the ``read-tif`` operator to other reading operators, such as ``read-h5`` and ``cutout``.
+Of course, you can replace the ``read-tif`` operator to other reading operators, such as ``read-h5`` and ``read-precomputed``.
 
 
 Convolutional Network Inference
@@ -251,7 +252,7 @@ You can fetch the task from SQS queue, and perform the computation locally. You 
 
 Here is a simple example to downsample the dataset with multiple resolutions::
 
-   chunkflow --mip 0 fetch-task -q my-queue cutout -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5 delete-task-in-queue
+   chunkflow --mip 0 fetch-task -q my-queue read-precomputed -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5 delete-task-in-queue
 
 After downsampling, you can visualize the dataset with much larger field of view. Here is an `example
 <https://neuroglancer-demo.appspot.com/#!%7B%22layers%22:%5B%7B%22source%22:%22precomputed://gs://neuroglancer-public-data/kasthuri2011/image_color_corrected%22%2C%22type%22:%22image%22%2C%22name%22:%22corrected-image%22%7D%5D%2C%22navigation%22:%7B%22pose%22:%7B%22position%22:%7B%22voxelSize%22:%5B6%2C6%2C30%5D%2C%22voxelCoordinates%22:%5B3890.492431640625%2C7464.080078125%2C1198.0423583984375%5D%7D%7D%2C%22zoomFactor%22:245.12283916194264%7D%2C%22perspectiveOrientation%22:%5B0.1614261269569397%2C-0.412894606590271%2C-0.28569135069847107%2C-0.849611759185791%5D%2C%22perspectiveZoom%22:578.24635639373%2C%22layout%22:%224panel%22%7D>`_. Due to the limit of memory capacity of typical computers, we can not perform hierarchical downsampling from mip 0 to highest mip level in one step, thus we normally do in twice. For the first time, we perform downsampling from mip 0 to mip 5, than perform downsampling from mip 5 to mip 10.
@@ -260,7 +261,7 @@ After downsampling, you can visualize the dataset with much larger field of view
 
 Here is an example to generate meshes from segmentation in mip 3::
 
-   chunkflow --mip 3 fetch-task -q my-queue -v 600 cutout -v gs://my/dataset/path --fill-missing mesh --voxel-size 45 5 5 -o gs://my/dataset/path --dust-threshold 100 delete-task-in-queue
+   chunkflow --mip 3 fetch-task -q my-queue -v 600 read-precomputed -v gs://my/dataset/path --fill-missing mesh --voxel-size 45 5 5 -o gs://my/dataset/path --dust-threshold 100 delete-task-in-queue
 
 The computation will also include a downsampling step for meshes to reduce the number of triangles. The meshing will produce chunked mesh fragments rather than the whole object mesh. Thus, we need another step, called ``mesh-manifest``, to collect the fragments::
 
@@ -273,7 +274,7 @@ Normally, we have millions of objects in case of dense reconstruction of Electro
 
 Here is a complex example to perform convolutional inference::
 
-   chunkflow --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 cutout --volume-path="s3://my/image/volume/path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save --volume-path="file://my/output/volume/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
+   chunkflow --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 read-precomputed --volume-path="s3://my/image/volume/path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 write-precomputed --volume-path="file://my/output/volume/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
 
 Here is more complex example with mask and skip operations in production run of petabyte scale image processing::
 
@@ -286,7 +287,7 @@ Here is more complex example with mask and skip operations in production run of 
    export OUTPUT_LAYER_PATH="gs://bucket/my/output/layer/path"
    export OUTPUT_MASK_LAYER_PATH="gs://bucket/my/output/mask/layer/path"
    export CUDA_VISIBLE_DEVICES="3"
-   chunkflow --mip 1 fetch-task -r 20 --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT cutout --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 10 128 128 --fill-missing mask --name='check-all-zero-and-skip-to-save' --check-all-zero --volume-path="$IMAGE_MASK_LAYER_PATH" --mip 8 --skip-to='save' --fill-missing --inverse normalize-section-contrast -p "gs://bucket/my/histogram/path/levels/1" -l 0.0023 -u 0.01 inference --convnet-model="$CONVNET_MODEL_FILE" --convnet-weight-path="${CONVNET_WEIGHT_FILE}" --input-patch-size 20 256 256 --output-patch-size 16 192 192 --output-patch-overlap 2 32 32 --output-crop-margin 8 96 96 --num-output-channels 4 --framework='pytorch' --batch-size 6 --patch-num 14 9 9 mask --name='mask-aff' --volume-path="$OUTPUT_MASK_LAYER_PATH" --mip 8 --fill-missing --inverse save --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
+   chunkflow --mip 1 fetch-task -r 20 --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT read-precomputed --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 10 128 128 --fill-missing mask --name='check-all-zero-and-skip-to-save' --check-all-zero --volume-path="$IMAGE_MASK_LAYER_PATH" --mip 8 --skip-to='write-precomputed' --fill-missing --inverse normalize-section-contrast -p "gs://bucket/my/histogram/path/levels/1" -l 0.0023 -u 0.01 inference --convnet-model="$CONVNET_MODEL_FILE" --convnet-weight-path="${CONVNET_WEIGHT_FILE}" --input-patch-size 20 256 256 --output-patch-size 16 192 192 --output-patch-overlap 2 32 32 --output-crop-margin 8 96 96 --num-output-channels 4 --framework='pytorch' --batch-size 6 --patch-num 14 9 9 mask --name='mask-aff' --volume-path="$OUTPUT_MASK_LAYER_PATH" --mip 8 --fill-missing --inverse write-precomputed --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
 
 .. note:: The chunk size should also be divisible by the corresponding high mip level mask. For example, the chunk with size `24 x 24 x 24` can only be masked out with mip level no larger than 3. Because the maximum diviser of 24 with exponential of 2 is 8 (8=2^3). As a result, mask in high mip level will limit the chunk size choice!
 
@@ -359,4 +360,42 @@ You should see the summary like this:
 
 Add a New Plugin
 ========================
-Create a new python file with a function called ``exec`` with a parameter called ``chunk`` (You can also use other names). It is that simple, you can use your plugin now. Example usage could be found in the ``tests/command_lines.sh`` file. If you put your plugin file in the ``plugins`` folder, chunkflow will find it automaticaly, otherwise, you need to specify the exact path of your plugin in the ``--file`` parameter.
+Create a new python file with a function called ``execute``. It is that simple, you can use your plugin now. Example usage could be found in the ``tests/command_lines.sh`` file. If you put your plugin file in the ``plugins`` folder, chunkflow will find it automaticaly, otherwise, you need to specify the exact path of your plugin in the ``--file`` parameter.
+
+If you pass a chunk to your plugin and return a new chunk, the plugin function should look like as follows:
+    
+.. code-block:: python
+
+    def execute(chunk: Chunk):
+        ......
+        return [chunk]
+
+And then, you can use is like this::
+
+    chunkflow ...... plugin -f my_plugin -i chunk
+
+If you pass more than one chunk to your plugin and return more than one chunk, the function should look like this:
+
+.. code-block:: python
+
+    def execute(chunk1: Chunk, chunk2: Chunk):
+        ......
+        return [chunk1, chunk2]
+
+And then, you can use it as follows::
+
+    chunkflow ...... plugin -f my_plugin -i chunk1,chunk2 -o chunk1,chunk2
+
+
+If you would like to pass some more arguments, you can encode the arguments as a string and decode it in your plugin. For example, you can encode your parameters as a JSON string and decode it using json. The plugin code would look like this:
+
+.. code-block:: python
+
+    def execute(chunk, args="some default parameters"):
+        args = json.parse(args)
+        ......
+        return [chunk]
+
+You can use it like this::
+
+    chunkflow ..... plugin -f my_plugin -i chunk --args "encoded parameter string"
