@@ -1423,7 +1423,7 @@ def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path
               nargs=3, type=int, default=None, callback=default_none,
               help='voxel size of chunk')
 @click.option('--port', '-p', type=int, default=None, help='port to use')
-@click.option('--chunk-names', '-c', type=str, default='chunk', 
+@click.option('--inputs', '-i', type=str, default='chunk', 
               help='a list of chunk names separated by comma.')
 @operator
 def neuroglancer(tasks, name, voxel_size, port, chunk_names):

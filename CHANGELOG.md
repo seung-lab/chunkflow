@@ -1,5 +1,17 @@
 ChangeLog history
 ==================
+# chunkflow 1.1.0 (2021-xx-xx)
+## Breaking Changes
+- neuroglancer operator input changed from `chunk_names` to `inputs` to be consistent with other layers.
+-
+## Deprecations 
+
+## Features
+- added synapse annotation visualization.
+- The code of neuroglancer operator is splitted to functions and becomes more modular. The code is more readable and maintainable.
+## Bug Fixes 
+
+## Improved Documentation 
 
 # chunkflow 1.0.6 (2021-04-03)
 ## Breaking Changes
