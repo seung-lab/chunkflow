@@ -1426,13 +1426,13 @@ def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path
 @click.option('--inputs', '-i', type=str, default='chunk', 
               help='a list of chunk names separated by comma.')
 @operator
-def neuroglancer(tasks, name, voxel_size, port, chunk_names):
+def neuroglancer(tasks, name, voxel_size, port, inputs):
     """Visualize the chunk using neuroglancer."""
     operator = NeuroglancerOperator(name=name, port=port, voxel_size=voxel_size)
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            operator(task, selected=chunk_names)
+            operator(task, selected=inputs)
         yield task
 
 

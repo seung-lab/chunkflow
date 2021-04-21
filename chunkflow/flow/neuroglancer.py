@@ -118,8 +118,7 @@ void main() {
                 # chunkflow use C order with zyx, 
                 # while neuroglancer use F order with xyz
                 voxel_offset=adjusted_voxel_offset,
-            ),
-            shader=None
+            )
         ) 
 
     def _append_affinity_map_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
