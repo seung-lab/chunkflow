@@ -57,6 +57,14 @@ class Segmentation(Chunk):
         print('edit distance: ', edit_distance)
         print('Fowlkes Mallows Index: ', fowlkes_mallows_index)
 
+        ret = {}
+        ret['rand_index'] = rand_index
+        ret['adjusted_rand_index'] = adjusted_rand_index
+        ret['variation_of_information'] = variation_of_information
+        ret['fowlkes_mallows_index'] = fowlkes_mallows_index
+        ret['edit_distance'] = edit_distance
+        return ret
+
     def remap(self, start_id: int):
         fastremap.renumber(self.array, preserve_zero=True, in_place=True)
         seg = self.astype(np.uint64)

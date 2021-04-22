@@ -819,10 +819,6 @@ def remap_segmentation(tasks, input_chunk_name, output_chunk_name):
 
 
 @main.command('evaluate-segmentation')
-@click.option('--name',
-              type=str,
-              default="evaluate-segmentation",
-              help="name of operator")
 @click.option("--segmentation-chunk-name",
               "-s",
               type=str,
@@ -832,15 +828,18 @@ def remap_segmentation(tasks, input_chunk_name, output_chunk_name):
               "-g",
               type=str,
               default="groundtruth")
+@click.option('--output', '-o',
+    type=str, default='seg_score',
+    help='segmentation evaluation result name.')
 @operator
-def evaluate_segmenation(tasks, name, segmentation_chunk_name,
-                         groundtruth_chunk_name):
+def evaluate_segmenation(tasks, segmentation_chunk_name,
+                         groundtruth_chunk_name, output):
     """Evaluate segmentation by split/merge error.
     """
     for task in tasks:
         seg = Segmentation(task[segmentation_chunk_name])
         groundtruth = Segmentation(task[groundtruth_chunk_name])
-        seg.evaluate(groundtruth)
+        task[output] = seg.evaluate(groundtruth)
         yield task
 
 
