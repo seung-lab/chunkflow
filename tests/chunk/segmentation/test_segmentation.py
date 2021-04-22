@@ -11,9 +11,9 @@ def test_segmentation():
 
 
     print('compare two segments.')
-    score = seg.evaluate(seg2)
-    print('evaluate score: ', score)
-    assert score['voi_split'] == 0
-    assert score['voi_merge'] == 0
-    assert score['rand_split'] == 1 
-    assert score['rand_merge'] == 1
+    scores = seg.evaluate(seg2)
+    print('evaluate scores: \n', scores)
+    assert scores['variation_of_information'] == 0
+    assert scores['rand_index'] == 1
+    assert scores['adjusted_rand_index'] == 1 
+    assert scores['fowlkes_mallows_index'] == 1

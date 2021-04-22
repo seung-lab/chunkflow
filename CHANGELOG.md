@@ -1,9 +1,12 @@
 ChangeLog history
 ==================
-# chunkflow 1.1.0 (2021-xx-xx)
+
+# chunkflow 1.0.7 (2021-xx-xx)
 ## Breaking Changes
 - neuroglancer operator input changed from `chunk_names` to `inputs` to be consistent with other layers.
--
+- move agglomerate operator to a plugin to remove dependency of waterz. Waterz is not easy to install in MAC os and is not currently supported in python 3.9. After this change, we should be able to support python 3.9 now.
+- replaced evaluate code from waterz to gala. The evaluate code is copied from gala following the license permission. This was also got agreement from the package author [Juan](https://github.com/janelia-flyem/gala/issues/99#issuecomment-823767079)
+
 ## Deprecations 
 
 ## Features
