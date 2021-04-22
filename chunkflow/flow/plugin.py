@@ -31,12 +31,12 @@ class Plugin(OperatorBase):
         if not path.exists(plugin_file):
             plugin_file = path.join(
                 path.dirname(path.realpath(__file__)), 
-                '../plugins', 
+                'plugins', 
                 path.basename(plugin_file))
             if not path.exists(plugin_file):
                 plugin_file = path.join(
                     path.dirname(path.realpath(__file__)), 
-                    '../plugins/chunkflow-plugins/chunkflowplugins', 
+                    'plugins/chunkflow-plugins/chunkflowplugins', 
                     path.basename(plugin_file))
 
         print('plugin file path: ', plugin_file)
