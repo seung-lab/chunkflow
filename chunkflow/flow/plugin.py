@@ -39,6 +39,7 @@ class Plugin(OperatorBase):
                     '../plugins/chunkflow-plugins/chunkflowplugins', 
                     path.basename(plugin_file))
 
+        print('plugin file path: ', plugin_file)
         assert path.exists(plugin_file)
 
         program = load_source(plugin_file)
