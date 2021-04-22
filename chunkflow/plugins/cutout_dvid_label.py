@@ -12,8 +12,8 @@ if ':' not in server[-5:]:
     server += ':8000'
 
 instance = "segmentation"
-uuid = dvid.find_master(server)
-# uuid =  "20631f"
+# uuid = dvid.find_master(server)
+uuid =  "20631f"
 print('server: ', server)
 print('instance: ', instance)
 print('uuid: ', uuid)
