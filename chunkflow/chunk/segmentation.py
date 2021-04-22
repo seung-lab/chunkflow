@@ -6,7 +6,8 @@ from typing import Union
 import numpy as np
 from .base import Chunk
 
-from gala import evaluate
+# from ...lib.gala import evaluate
+from chunkflow.lib.gala import evaluate
 
 import kimimaro
 import fastremap
