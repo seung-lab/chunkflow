@@ -31,30 +31,46 @@ class NeuroglancerOperator(OperatorBase):
 
     def _append_synapse_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, data: dict):
         annotations = []
-        if 'presynapses' in data:
-            presynapses = data['presynapses']
-            postsynapses = data['postsynapses']
-            for id, coordinate in presynapses.items():
-                annotation = ng.PointAnnotation(
-                    id=str(id),
-                    point=coordinate[::-1],
-                    # props=['#0f0', 5]
-                )
-                annotations.append(annotation)
-                if id in postsynapses:
-                    coordinates = postsynapses[id]
-                    for idx, coord in enumerate(coordinates):
-                        annotation = ng.PointAnnotation(
-                            id=str(idx) + '_post',
-                            point=coord[::-1],
-                            # props=['#0ff', 5]
-                        )
-                        annotations.append(annotation)
+        presynapses = data['presynapses']
+        postsynapses = data['postsynapses']
+        for id, pre_coordinate in presynapses.items():
+            if id in postsynapses:
+                coordinates = postsynapses[id]
+                for idx, post_coordinate in enumerate(coordinates):
+                    post_annotation = ng.LineAnnotation(
+                        id=str(id) + str(idx) + '_post',
+                        # note that the synapse coordinate is already in xyz order
+                        # so we do not need to reverse it!
+                        pointA=pre_coordinate,
+                        pointB=post_coordinate,
+                        props=['#0ff', 5]
+                    )
+                    annotations.append(post_annotation)
+            # we would like to show line first and then the presynapse point
+            # so, we have distinct color to show T-bar
+            pre_annotation = ng.PointAnnotation(
+                id=str(id) + '_pre',
+                point=pre_coordinate,
+                props=['#ff0', 5]
+            )
+            annotations.append(pre_annotation)
 
         viewer_state.layers.append(
             name=name,
             layer=ng.LocalAnnotationLayer(
-                dimensions=viewer_state.dimensions,
+                dimensions=ng.CoordinateSpace(names=["x", "y", "z"], units="nm", scales=[8, 8, 8]),
+                annotation_properties=[
+                    ng.AnnotationPropertySpec(
+                        id='color',
+                        type='rgb',
+                        default='red',
+                    ),
+                    ng.AnnotationPropertySpec(
+                        id='size',
+                        type='float32',
+                        default=5
+                    )
+                ],
                 annotations=annotations,
                 shader='''
 void main() {
@@ -70,6 +86,7 @@ void main() {
         voxel_offset = chunk.voxel_offset
         voxel_size = self._get_voxel_size(chunk)
         adjusted_voxel_offset = voxel_offset[::-1]
+        chunk = np.transpose(chunk)
         dimensions = ng.CoordinateSpace(
             scales=voxel_size[::-1],
             units=['nm', 'nm', 'nm'],
@@ -175,7 +192,6 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 if isinstance(chunk, dict):
                     # this could be synapses
                     self._append_synapse_annotation_layer(viewer_state, chunk_name, chunk)
-                    breakpoint()
                 elif chunk.is_image:
                     self._append_image_layer(viewer_state, chunk_name, chunk)
                 elif chunk.is_segmentation:
