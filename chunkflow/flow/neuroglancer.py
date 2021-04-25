@@ -58,7 +58,7 @@ class NeuroglancerOperator(OperatorBase):
         viewer_state.layers.append(
             name=name,
             layer=ng.LocalAnnotationLayer(
-                dimensions=ng.CoordinateSpace(names=["x", "y", "z"], units="nm", scales=[8, 8, 8]),
+                dimensions=ng.CoordinateSpace(names=data['order'], units="nm", scales=data['resolution']),
                 annotation_properties=[
                     ng.AnnotationPropertySpec(
                         id='color',
