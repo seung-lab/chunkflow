@@ -33,12 +33,12 @@ class NeuroglancerOperator(OperatorBase):
         annotations = []
         presynapses = data['presynapses']
         postsynapses = data['postsynapses']
-        for id, pre_coordinate in presynapses.items():
-            if id in postsynapses:
-                coordinates = postsynapses[id]
+        for sid, pre_coordinate in presynapses.items():
+            if sid in postsynapses:
+                coordinates = postsynapses[sid]
                 for idx, post_coordinate in enumerate(coordinates):
                     post_annotation = ng.LineAnnotation(
-                        id=str(id) + str(idx) + '_post',
+                        id=str(sid) + str(idx) + '_post',
                         # note that the synapse coordinate is already in xyz order
                         # so we do not need to reverse it!
                         pointA=pre_coordinate,
@@ -49,7 +49,7 @@ class NeuroglancerOperator(OperatorBase):
             # we would like to show line first and then the presynapse point
             # so, we have distinct color to show T-bar
             pre_annotation = ng.PointAnnotation(
-                id=str(id) + '_pre',
+                id=str(sid) + '_pre',
                 point=pre_coordinate,
                 props=['#ff0', 5]
             )
