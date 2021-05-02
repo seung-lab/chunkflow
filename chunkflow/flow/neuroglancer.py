@@ -32,26 +32,28 @@ class NeuroglancerOperator(OperatorBase):
     def _append_synapse_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, data: dict):
         annotations = []
         presynapses = data['presynapses']
-        postsynapses = data['postsynapses']
+        
         for sid, pre_coordinate in presynapses.items():
-            if sid in postsynapses:
-                coordinates = postsynapses[sid]
-                for idx, post_coordinate in enumerate(coordinates):
-                    post_annotation = ng.LineAnnotation(
-                        id=str(sid) + str(idx) + '_post',
-                        # note that the synapse coordinate is already in xyz order
-                        # so we do not need to reverse it!
-                        pointA=pre_coordinate,
-                        pointB=post_coordinate,
-                        props=['#0ff', 5]
-                    )
-                    annotations.append(post_annotation)
+            if 'postsynapses' in data:
+                postsynapses = data['postsynapses']
+                if sid in postsynapses:
+                    coordinates = postsynapses[sid]
+                    for idx, post_coordinate in enumerate(coordinates):
+                        post_annotation = ng.LineAnnotation(
+                            id=str(sid) + str(idx) + '_post',
+                            # note that the synapse coordinate is already in xyz order
+                            # so we do not need to reverse it!
+                            pointA=pre_coordinate,
+                            pointB=post_coordinate,
+                            props=['#0ff', 5]
+                        )
+                        annotations.append(post_annotation)
             # we would like to show line first and then the presynapse point
             # so, we have distinct color to show T-bar
             pre_annotation = ng.PointAnnotation(
                 id=str(sid) + '_pre',
                 point=pre_coordinate,
-                props=['#ff0', 5]
+                props=['#ff0', 8]
             )
             annotations.append(pre_annotation)
 
@@ -83,14 +85,11 @@ void main() {
 
 
     def _append_image_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
-        voxel_offset = chunk.voxel_offset
         voxel_size = self._get_voxel_size(chunk)
-        adjusted_voxel_offset = voxel_offset[::-1]
-        chunk = np.transpose(chunk)
         dimensions = ng.CoordinateSpace(
-            scales=voxel_size[::-1],
+            scales=voxel_size,
             units=['nm', 'nm', 'nm'],
-            names=['x', 'y', 'z']
+            names=['z', 'y', 'x']
         )
         shader="""#uicontrol int channel slider(min=0, max=4)
 #uicontrol vec3 color color(default="white")
@@ -109,7 +108,7 @@ void main() {
                 # offset is in nm, not voxels
                 # chunkflow use C order with zyx, 
                 # while neuroglancer use F order with xyz
-                voxel_offset=adjusted_voxel_offset,
+                voxel_offset=chunk.voxel_offset,
             ),
             shader=shader
         )
@@ -118,13 +117,11 @@ void main() {
         if np.issubdtype(chunk.dtype, np.int64):
             assert chunk.min() >= 0
             chunk = chunk.astype(np.uint64)
-        voxel_offset = chunk.voxel_offset
         voxel_size = self._get_voxel_size(chunk)
-        adjusted_voxel_offset = voxel_offset[::-1]
         dimensions = ng.CoordinateSpace(
-            scales=voxel_size[::-1],
+            scales=voxel_size,
             units=['nm', 'nm', 'nm'],
-            names=['x', 'y', 'z']
+            names=['z', 'y', 'x']
         )       
         viewer_state.layers.append(
             name=chunk_name,
@@ -134,7 +131,7 @@ void main() {
                 # offset is in nm, not voxels
                 # chunkflow use C order with zyx, 
                 # while neuroglancer use F order with xyz
-                voxel_offset=adjusted_voxel_offset,
+                voxel_offset=chunk.voxel_offset,
             )
         ) 
 
@@ -142,16 +139,13 @@ void main() {
         if chunk.dtype == np.dtype('<f4') or chunk.dtype == np.dtype('float16'):
                 chunk = chunk.astype(np.float32)
 
-        chunk = np.transpose(chunk, axes=(0, 3, 2, 1))
-        voxel_offset = chunk.voxel_offset
         voxel_size = self._get_voxel_size(chunk)
-        adjusted_voxel_offset = (voxel_offset[0], *voxel_offset[-3:][::-1])
         # chunk = np.transpose(chunk)
         # chunk = np.ascontiguousarray(chunk)
         dimensions = ng.CoordinateSpace(
-            scales=(1, *voxel_size[::-1]),
+            scales=(1, *voxel_size),
             units=['', 'nm', 'nm', 'nm'],
-            names=['c^', 'x', 'y', 'z']
+            names=['c^', 'z', 'y', 'x']
         )
         shader="""void main() {
 emitRGB(vec3(toNormalized(getDataValue(0)),
@@ -167,7 +161,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 # offset is in nm, not voxels
                 # chunkflow use C order with zyx, 
                 # while neuroglancer use F order with xyz
-                voxel_offset=adjusted_voxel_offset,
+                voxel_offset=chunk.voxel_offset,
             ),
             shader=shader
         )
