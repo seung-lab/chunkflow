@@ -12,8 +12,6 @@ from cloudvolume.lib import Bbox, yellow
 # Offset = Tuple[int, int, int]
 from .validate import validate_by_template_matching
 
-# from memory_profiler import profile
-
 
 class Chunk(NDArrayOperatorsMixin):
     r"""
@@ -296,7 +294,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         
         if type(result) is tuple:
             # multiple return values
-            return tuple(type(self)(x, voxel_offset=self.voxel_offset) for x in result)
+            return tuple(type(self)(x, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size) for x in result)
         elif method == 'at':
             # no return value
             return None
@@ -304,7 +302,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             return result
         elif isinstance(result, np.ndarray):
             # one return value
-            return type(self)(result, voxel_offset=self.voxel_offset)
+            return type(self)(result, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
         else:
             return result
 
@@ -315,7 +313,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         self.array[key] = value
 
     def __repr__(self):
-        return f'array: {self.array}\n global offset: {self.voxel_offset}'
+        return f'array: {self.array}\n voxel offset: {self.voxel_offset} \n voxel size: {self.voxel_size}'
     
     def __eq__(self, value):
         if isinstance(value, type(self)):
@@ -363,6 +361,10 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
     @property
     def is_affinity_map(self) -> bool:
+        return self.array.ndim == 4 and self.shape[0] == 3 and self.array.dtype == np.float32
+    
+    @property
+    def is_probability_map(self) -> bool:
         return self.array.ndim == 4 and self.array.dtype == np.float32
 
     @property
@@ -419,7 +421,8 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         """To-Do: support arbitrary axis transpose"""
         new_array = self.array.transpose()
         new_voxel_offset = self.voxel_offset[::-1]
-        return type(self)(new_array, voxel_offset=new_voxel_offset)
+        new_voxel_size = self.voxel_size[::-1]
+        return type(self)(new_array, voxel_offset=new_voxel_offset, voxel_size=new_voxel_size)
     
     def fill(self, x):
         self.array.fill(x)

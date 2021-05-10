@@ -100,14 +100,13 @@ void main() {
           (toNormalized(getDataValue(channel)) + brightness) *
           exp(contrast));
 }"""
+        breakpoint()
         viewer_state.layers.append(
             name=chunk_name,
             layer=ng.LocalVolume(
                 data=chunk,
                 dimensions=dimensions,
                 # offset is in nm, not voxels
-                # chunkflow use C order with zyx, 
-                # while neuroglancer use F order with xyz
                 voxel_offset=chunk.voxel_offset,
             ),
             shader=shader
@@ -135,33 +134,43 @@ void main() {
             )
         ) 
 
-    def _append_affinity_map_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
+    def _append_probability_map_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
         if chunk.dtype == np.dtype('<f4') or chunk.dtype == np.dtype('float16'):
-                chunk = chunk.astype(np.float32)
+            chunk = chunk.astype(np.float32)
 
         voxel_size = self._get_voxel_size(chunk)
-        # chunk = np.transpose(chunk)
         # chunk = np.ascontiguousarray(chunk)
-        dimensions = ng.CoordinateSpace(
-            scales=(1, *voxel_size),
-            units=['', 'nm', 'nm', 'nm'],
-            names=['c^', 'z', 'y', 'x']
-        )
-        shader="""void main() {
+        if chunk.shape[0] == 1:
+            shader = """void main() {
+emitGrayscale(toNormalized(getDataValue(0)));
+}
+""" 
+        elif chunk.shape[0] == 2:
+            shader = """void main() {
+emitRGB(vec3(toNormalized(getDataValue(0)),
+            toNormalized(getDataValue(1)),
+            0.));
+}
+"""
+        else:
+            shader = """void main() {
 emitRGB(vec3(toNormalized(getDataValue(0)),
             toNormalized(getDataValue(1)),
             toNormalized(getDataValue(2))));
 }
 """
+        dimensions = ng.CoordinateSpace(
+            scales=(1, ) + voxel_size,
+            units=['', 'nm', 'nm', 'nm'],
+            names=['c^', 'z', 'y', 'x']
+        )
         viewer_state.layers.append(
             name=chunk_name,
             layer=ng.LocalVolume(
-                data=chunk,
+                data=chunk.array,
                 dimensions=dimensions,
                 # offset is in nm, not voxels
-                # chunkflow use C order with zyx, 
-                # while neuroglancer use F order with xyz
-                voxel_offset=chunk.voxel_offset,
+                voxel_offset=(0, ) + chunk.voxel_offset,
             ),
             shader=shader
         )
@@ -183,6 +192,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
         with viewer.txn() as viewer_state:
             for chunk_name in selected:
                 chunk = chunks[chunk_name]
+                print(f'visualizing chunk {chunk_name} with voxel offset: {chunk.voxel_offset}, voxel size: {chunk.voxel_size}')
                 if isinstance(chunk, dict):
                     # this could be synapses
                     self._append_synapse_annotation_layer(viewer_state, chunk_name, chunk)
@@ -190,8 +200,8 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                     self._append_image_layer(viewer_state, chunk_name, chunk)
                 elif chunk.is_segmentation:
                     self._append_segmentation_layer(viewer_state, chunk_name, chunk)
-                elif chunk.is_affinity_map:
-                    self._append_affinity_map_layer(viewer_state, chunk_name, chunk)
+                elif chunk.is_probability_map:
+                    self._append_probability_map_layer(viewer_state, chunk_name, chunk)
                 else:
                     raise ValueError(f'do not support this type: {type(chunk)}')
 

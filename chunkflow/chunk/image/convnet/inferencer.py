@@ -314,19 +314,17 @@ class Inferencer(object):
             voxel_offset=output_voxel_offset,
             voxel_size=input_chunk.voxel_size
         )
-        assert output_buffer == 0
         return output_buffer
 
-    def __call__(self, input_chunk: np.ndarray):
+    def __call__(self, input_chunk: Chunk):
         """
         args:
-            input_chunk (Chunk): input chunk with global offset
+            input_chunk (Chunk): input chunk with voxel offset and voxel size 
         """
         assert isinstance(input_chunk, Chunk)
         
         self._update_parameters_for_input_chunk(input_chunk)
         output_buffer = self._get_output_buffer(input_chunk)
-
         if not self.mask_output_chunk:
             self._check_alignment()
          
@@ -341,7 +339,8 @@ class Inferencer(object):
             return Chunk.create(
                 size=size,
                 dtype = output_buffer.dtype,
-                voxel_offset=output_buffer.voxel_offset
+                voxel_offset=output_buffer.voxel_offset,
+                voxel_size=input_chunk.voxel_size,
             )
        
         if input_chunk == 0:
@@ -391,8 +390,10 @@ class Inferencer(object):
                 # the slices[0] is for input patch slice
                 # the slices[1] is for output patch slice
                 offset = tuple(s.start for s in slices[1])
-                output_chunk = Chunk(output_patch[batch_idx, :, :, :, :],
-                                     voxel_offset=offset)
+                output_chunk = Chunk(
+                    output_patch[batch_idx, :, :, :, :],
+                    voxel_offset=offset,
+                    voxel_size=input_chunk.voxel_size)
 
                 ## save some patch for debug
                 #bbox = output_chunk.bbox
@@ -410,6 +411,7 @@ class Inferencer(object):
             logging.debug("Inference of whole chunk takes %3f sec" %
                   (time.time() - chunk_time_start))
         
+        breakpoint()
         if self.mask_output_chunk:
             output_buffer *= self.output_chunk_mask
         
