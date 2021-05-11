@@ -195,7 +195,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 if isinstance(chunk, dict):
                     # this could be synapses
                     self._append_synapse_annotation_layer(viewer_state, chunk_name, chunk)
-                elif chunk.is_image:
+                elif chunk.is_image or (chunk.ndim==3 and np.issubdtype(chunk.dtype, np.floating)):
                     self._append_image_layer(viewer_state, chunk_name, chunk)
                 elif chunk.is_segmentation:
                     self._append_segmentation_layer(viewer_state, chunk_name, chunk)
@@ -203,7 +203,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                     self._append_probability_map_layer(viewer_state, chunk_name, chunk)
                 else:
                     breakpoint()
-                    raise ValueError(f'do not support this type: {type(chunk)}')
+                    raise ValueError(f'do not support this type: {type(chunk)} with datatype {chunk.dtype}')
 
         print('Open this url in browser: ')
         print(viewer)

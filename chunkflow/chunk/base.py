@@ -128,17 +128,11 @@ class Chunk(NDArrayOperatorsMixin):
     def to_nrrd(self, file_name: str=None):
         if file_name is None:
             file_name = f'{self.bbox.to_filename()}.nrrd'
-        print('write chunk to file: ', file_name)
+        elif not file_name.endswith('.nrrd'):
+            file_name += f'_{self.bbox.to_filename()}.nrrd'
 
-        if self.array.dtype==np.float32:
-            # visualization in float32 is not working correctly in ImageJ
-            # this might not work correctly if you want to save the image as it is!
-            print(yellow('transforming data type from float32 to uint8'))
-            img = self.array*255 
-            img = img.astype( np.uint8 )
-        else:
-            img = self.array
-        nrrd.write(file_name, img)
+        print('write chunk to file: ', file_name)
+        nrrd.write(file_name, self.array)
 
     @classmethod
     def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
@@ -403,7 +397,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def astype(self, dtype: np.dtype):
         if dtype != self.array.dtype:
             new_array = self.array.astype(dtype)
-            return type(self)(new_array, voxel_offset=self.voxel_offset)
+            return type(self)(new_array, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
         else:
             return self
 
