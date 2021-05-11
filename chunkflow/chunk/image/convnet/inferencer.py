@@ -268,8 +268,8 @@ class Inferencer(object):
             #                                   shape=self.output_size)
             output_mask_array = np.zeros(self.output_size, self.dtype)
         else:
-            output_chunk_mask_array = self.output_chunk_mask.array
-            output_chunk_mask_array.fill(0)
+            output_mask_array = self.output_chunk_mask.array
+            output_mask_array.fill(0)
 
         output_voxel_offset = tuple(io + ocso for io, ocso in zip(
             input_chunk.voxel_offset, self.output_offset))
@@ -411,7 +411,6 @@ class Inferencer(object):
             logging.debug("Inference of whole chunk takes %3f sec" %
                   (time.time() - chunk_time_start))
         
-        breakpoint()
         if self.mask_output_chunk:
             output_buffer *= self.output_chunk_mask
         

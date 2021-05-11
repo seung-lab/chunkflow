@@ -22,12 +22,14 @@ class WritePrecomputedOperator(OperatorBase):
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
-                 name: str = 'save'):
+                intensity_threshold: int = None,
+                 name: str = 'write-precomputed'):
         super().__init__(name=name)
         
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
+        self.intensity_threshold = intensity_threshold
 
         # if not volume_path.startswith('precomputed://'):
         #     volume_path += 'precomputed://'
@@ -62,6 +64,9 @@ class WritePrecomputedOperator(OperatorBase):
         
         start = time.time()
         
+        if self.intensity_threshold is not None and np.all(chunk.array < self.intensity_threshold):
+            print('the voxel intensity in this chunk are all below intensity threshold, return directly without saving anything.')
+            return 
 
         chunk = self._auto_convert_dtype(chunk, self.volume)
         

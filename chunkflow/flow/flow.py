@@ -1421,14 +1421,19 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
 @click.option('--create-thumbnail/--no-create-thumbnail',
     default=False, help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
+@click.option('--intensity-threshold', '-t',
+    default=None, help='do not save anything if all voxel intensity is below threshold.'
+)
 @operator
-def write_precomputed(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnail):
+def write_precomputed(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnail, intensity_threshold):
     """Save chunk to volume."""
-    operator = WritePrecomputedOperator(volume_path,
-                                            state['mip'],
-                                            upload_log=upload_log,
-                                            create_thumbnail=create_thumbnail,
-                                            name=name)
+    operator = WritePrecomputedOperator(
+        volume_path,
+        state['mip'],
+        upload_log=upload_log,
+        create_thumbnail=create_thumbnail,
+        name=name
+    )
 
     for task in tasks:
         # we got a special case for handling skip

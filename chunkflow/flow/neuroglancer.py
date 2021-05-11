@@ -100,7 +100,6 @@ void main() {
           (toNormalized(getDataValue(channel)) + brightness) *
           exp(contrast));
 }"""
-        breakpoint()
         viewer_state.layers.append(
             name=chunk_name,
             layer=ng.LocalVolume(
@@ -203,6 +202,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 elif chunk.is_probability_map:
                     self._append_probability_map_layer(viewer_state, chunk_name, chunk)
                 else:
+                    breakpoint()
                     raise ValueError(f'do not support this type: {type(chunk)}')
 
         print('Open this url in browser: ')
