@@ -100,7 +100,6 @@ void main() {
           (toNormalized(getDataValue(channel)) + brightness) *
           exp(contrast));
 }"""
-        breakpoint()
         viewer_state.layers.append(
             name=chunk_name,
             layer=ng.LocalVolume(
@@ -196,14 +195,15 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 if isinstance(chunk, dict):
                     # this could be synapses
                     self._append_synapse_annotation_layer(viewer_state, chunk_name, chunk)
-                elif chunk.is_image:
+                elif chunk.is_image or (chunk.ndim==3 and np.issubdtype(chunk.dtype, np.floating)):
                     self._append_image_layer(viewer_state, chunk_name, chunk)
                 elif chunk.is_segmentation:
                     self._append_segmentation_layer(viewer_state, chunk_name, chunk)
                 elif chunk.is_probability_map:
                     self._append_probability_map_layer(viewer_state, chunk_name, chunk)
                 else:
-                    raise ValueError(f'do not support this type: {type(chunk)}')
+                    breakpoint()
+                    raise ValueError(f'do not support this type: {type(chunk)} with datatype {chunk.dtype}')
 
         print('Open this url in browser: ')
         print(viewer)
