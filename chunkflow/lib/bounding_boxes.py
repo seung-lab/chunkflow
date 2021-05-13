@@ -12,8 +12,37 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
 
 
+class BoundingBox(Bbox):
+    def __init__(self, min_corner: list, max_corner: list, dtype=None, voxel_size: tuple = None):
+        super().__init__(min_corner, max_corner, dtype=dtype)
+        self.voxel_size = voxel_size
+    
+    @property
+    def voxel_size(self):
+        return self.voxel_size
+
+    def slices_in_scale(self, voxel_size: tuple) -> tuple:
+        """slices with specific voxel size volume
+
+        Args:
+            voxel_size (tuple): the target volume voxel size
+
+        Returns:
+            tuple: tuple of slices
+        """
+        minpt = tuple( p * s1 // s2 for p, s1, s2 in zip(
+            self.minpt, self.voxel_size, voxel_size
+        ))
+        maxpt = tuple( p * s1 // s2 for p, s1, s2 in zip(
+            self.maxpt, self.voxel_size, voxel_size
+        ))
+        bbox = Bbox(minpt, maxpt)
+        return bbox.to_slices()
+
+
 class BoundingBoxes(UserList):
     def __init__(self, bboxes: list) -> None:
+        super().__init__()
         self.data = bboxes
 
     @classmethod
@@ -26,8 +55,8 @@ class BoundingBoxes(UserList):
             grid_size: Union[Vec, tuple]=None,
             respect_chunk_size: bool = True,
             aligned_block_size: Union[Vec, tuple]=None,
-            layer_path: str=None,
-            mip:int=0):
+            layer_path: str = None,
+            mip: int = 0):
         
         if layer_path:
             if layer_path.endswith('.h5'):

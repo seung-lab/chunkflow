@@ -228,7 +228,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
                 chunk_size: tuple=(64,64,64),
-                with_unique: bool= True, compression="gzip"):
+                with_unique: bool= True, 
+                compression="gzip",
+                voxel_size: tuple = None):
         """
         :param file_name: output file name. If it is not end with h5, the coordinate will be appended to the file name.
         :param with_offset: save the voxel offset or not
@@ -249,8 +251,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
         with h5py.File(file_name, 'w') as f:
             f.create_dataset('/main', data=self.array, chunks=chunk_size, compression=compression)
-            if self.voxel_size:
-                f.create_dataset('/voxel_size', data=self.voxel_size)
+            if voxel_size is None and self.voxel_size is not None:
+                voxel_size = self.voxel_size
+            if voxel_size is not None:
+                f.create_dataset('/voxel_size', data=voxel_size)
+
             if with_offset and self.voxel_offset is not None:
                 f.create_dataset('/voxel_offset', data=self.voxel_offset)
 
