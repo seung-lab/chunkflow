@@ -340,7 +340,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         if self.voxel_size is not None or self.voxel_size != (1, 1, 1):
             props['voxel_size'] = self.voxel_size
         return props 
-
+    
     @property
     def slices(self) -> tuple:
         """
@@ -418,10 +418,13 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
     def transpose(self):
         """To-Do: support arbitrary axis transpose"""
-        new_array = self.array.transpose()
-        new_voxel_offset = self.voxel_offset[::-1]
-        new_voxel_size = self.voxel_size[::-1]
-        return type(self)(new_array, voxel_offset=new_voxel_offset, voxel_size=new_voxel_size)
+        self.array = self.array.transpose()
+
+        if self.voxel_offset is not None:
+            self.voxel_offset = self.voxel_offset[::-1]
+
+        if self.voxel_size is not None:
+            self.voxel_size = self.voxel_size[::-1]
     
     def fill(self, x):
         self.array.fill(x)

@@ -442,7 +442,7 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
 @click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
               help='read chunk from NRRD file')
-@click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
+@click.option('--voxel-offset', '-v', type=int, nargs=3, default=None, callback=default_none,
               help='global offset of this chunk')
 @click.option('--voxel-size', '-s', type=int, nargs=3, default=None, callback=default_none,
               help='physical size of voxels. The unit is assumed to be nm.')
@@ -1071,7 +1071,7 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
               help='threshold to cut the map.')
 @click.option('--connectivity', '-c', 
               type=click.Choice(['6', '18', '26']),
-              default='26', help='number of neighboring voxels used.')
+              default='6', help='number of neighboring voxels used. Default is 6.')
 @operator
 def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
                          threshold, connectivity):
