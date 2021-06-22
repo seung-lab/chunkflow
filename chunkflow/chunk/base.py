@@ -141,6 +141,7 @@ class Chunk(NDArrayOperatorsMixin):
 
         if dtype:
             arr = arr.astype(dtype)
+        print(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
         return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
     
     def to_tif(self, file_name: str=None):
@@ -264,6 +265,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
                 if unique[0]:
                     unique = unique[1:]
                 f.create_dataset('/unique_nonzeros', data = unique)
+        return file_name
 
     def __array__(self):
         return self.array
