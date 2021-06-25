@@ -25,7 +25,7 @@ def test_aligned_input_size():
     image = image[2:-2, 32:-32, 32:-32]
 
     output = output * 255
-    output = output.astype(np.uint8)
+    output.astype(np.uint8)
     
     assert np.alltrue(np.isclose(image, output, atol=1))
 

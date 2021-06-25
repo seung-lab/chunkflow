@@ -47,9 +47,11 @@ def test_inference_pipeline():
     # create input mask volume
     input_mask = np.ones(input_size, dtype=np.bool)
     input_mask_volume_path = 'file:///tmp/input-mask/' + generate_random_string()
+    # the max_mip in CloudVolume is actually mip_stop 
+    # it is not inclusive, so we need to +1 here
     CloudVolume.from_numpy(np.transpose(input_mask),
                             vol_path=input_mask_volume_path,
-                            max_mip=input_mask_mip)
+                            max_mip=input_mask_mip+1)
     input_mask = np.ones(input_mask_size, dtype=np.bool)
     # will mask out the [:2, :8, :8] since it is in mip 1
     input_mask[:(4 + 2), :(64 // 2 + 8 // 2), :(64 // 2 + 8 // 2)] = False
@@ -74,7 +76,7 @@ def test_inference_pipeline():
     )
     CloudVolume.from_numpy(np.transpose(output_mask),
                             vol_path=output_mask_volume_path,
-                            max_mip=output_mask_mip,
+                            max_mip=output_mask_mip + 1,
                             voxel_offset=cropping_margin_size[::-1])
     # this is the higher mip level mask, so this time we are using the real size
     output_mask = np.ones(output_mask_size, dtype=np.bool)
