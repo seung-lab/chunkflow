@@ -354,7 +354,8 @@ class Inferencer(object):
         if np.issubdtype(input_chunk.dtype, np.integer):
             # normalize to 0-1 value range
             dtype_max = np.iinfo(input_chunk.dtype).max
-            input_chunk = input_chunk.astype(self.dtype) / dtype_max
+            input_chunk = input_chunk.astype(self.dtype)
+            input_chunk /= dtype_max
 
         chunk_time_start = time.time()
 

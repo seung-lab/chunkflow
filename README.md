@@ -56,6 +56,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | fetch-task-from-file | Fetch task from a file |
 | fetch-task-from-sqs | Fetch task from AWS SQS queue one by one |
 | generate-tasks  | Generate tasks one by one |
+| gaussian-filter | 2D Gaussian blurring operated in-place |
 | inference       | Convolutional net inference |
 | log-summary     | Summary of logs |
 | mask            | Black out the chunk based on another mask chunk |

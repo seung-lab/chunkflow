@@ -1,5 +1,7 @@
 __doc__ = """Image chunk class"""
+
 import numpy as np
+
 from chunkflow.chunk import Chunk
 
 class AffinityMap(Chunk):

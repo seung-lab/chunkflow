@@ -1,9 +1,12 @@
+from typing import Union
 import os
 from numbers import Number
 import h5py
 import numpy as np
 import nrrd
 from numpy.lib.mixins import NDArrayOperatorsMixin
+
+from scipy.ndimage import gaussian_filter
 
 import tifffile
 import cc3d
@@ -397,14 +400,14 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def astype(self, dtype: np.dtype):
         if dtype != self.array.dtype:
             new_array = self.array.astype(dtype)
-            return type(self)(new_array, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
         else:
-            return self
+            new_array = self.array
+        return Chunk(new_array, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
     def ascontiguousarray(self):
-        np.ascontiguousarray(self.array)
-        return self
-    
+        new_array = np.ascontiguousarray(self.array)
+        return Chunk(new_array, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
+
     def max(self, *args, **kwargs):
         return self.array.max(*args, **kwargs)
 
@@ -414,21 +417,25 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def transpose(self):
         """To-Do: support arbitrary axis transpose"""
         new_array = self.array.transpose()
-        new_voxel_offset = self.voxel_offset[::-1]
-        new_voxel_size = self.voxel_size[::-1]
-        return type(self)(new_array, voxel_offset=new_voxel_offset, voxel_size=new_voxel_size)
-    
+        if self.voxel_offset is not None:
+            voxel_offset = self.voxel_offset[::-1]
+        else:
+            voxel_offset = self.voxel_offset
+        if self.voxel_size is not None:
+            voxel_size = self.voxel_size[::-1]
+        else:
+            voxel_size = self.voxel_size
+        return Chunk(new_array, voxel_offset=voxel_offset, voxel_size=voxel_size)
+
     def fill(self, x):
         self.array.fill(x)
 
     def squeeze_channel(self) -> np.ndarray:
         """given a 4D array, squeeze the channel axis."""
         assert self.array.ndim == 4
-        axis = 0
-        arr = np.squeeze(self, axis=0)
-        voxel_offset = self.voxel_offset[:axis] + self.voxel_offset[axis+1:]
-        return Chunk(arr, voxel_offset=voxel_offset, voxel_size=self.voxel_size)
-    
+        new_array = np.squeeze(self, axis=0)
+        return Chunk(new_array, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
+
     # @profile(precision=0)
     def channel_voting(self):
         assert self.ndim == 4
@@ -592,3 +599,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         """
         validate_by_template_matching(self.array)
 
+    def gaussian_filter_2d(self, sigma: Union[int, tuple, list] = 1):
+        """gaussion filter for smoothing or blurring
+
+        Args:
+            sigma (Union[int, tuple, list]): the standard deviation of gaussian filter
+        """
+        for z in range(self.shape[-3]):
+            self.array[..., z, :, :] = gaussian_filter(self.array[..., z, :, :], sigma)

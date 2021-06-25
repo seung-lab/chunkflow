@@ -884,6 +884,25 @@ def downsample_upload(tasks, name, input_chunk_name, volume_path,
         yield task
 
 
+@main.command('gaussian-filter')
+@click.option('--name', type=str, default='gaussian-filter', help='name of operator')
+@click.option('--input-chunk-name', '-i',
+    type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--sigma', '-s',
+    type=int, default=1, help='standard deviation of gaussian kernel')
+@operator
+def gaussian_filter(tasks, name, input_chunk_name, sigma):
+    """2D Gaussian blurring operated in-place."""
+    for task in tasks:
+        handle_task_skip(task, name)
+        if not task['skip']:
+            start = time()
+            chunk = task[input_chunk_name]
+            chunk.gaussian_filter_2d(sigma)
+            task['log']['timer'][name] = time() - start
+        yield task
+
+
 @main.command('log-summary')
 @click.option('--log-dir', '-l',
               type=click.Path(exists=True, dir_okay=True, readable=True),
