@@ -442,7 +442,7 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
 @click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
               help='read chunk from NRRD file')
-@click.option('--voxel-offset', '-v', type=int, nargs=3, callback=default_none,
+@click.option('--voxel-offset', '-v', type=int, nargs=3, default=None, callback=default_none,
               help='global offset of this chunk')
 @click.option('--voxel-size', '-s', type=int, nargs=3, default=None, callback=default_none,
               help='physical size of voxels. The unit is assumed to be nm.')
@@ -636,14 +636,21 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
               default="gzip", help="compression used in the dataset.")
 @click.option('--with-offset/--without-offset', default=True, type=bool,
               help='add voxel_offset dataset or not.')
+@click.option('--voxel-size', '-v',
+    default=None, type=int, callback=default_none, nargs=3,
+    help='voxel size of this chunk.'
+)
 @operator
-def write_h5(tasks, name, input_chunk_name, file_name, chunk_size, compression, with_offset):
+def write_h5(tasks, name, input_chunk_name, file_name, chunk_size, compression, with_offset, voxel_size):
     """Write chunk to HDF5 file."""
     for task in tasks:
         handle_task_skip(task, name)
         if not task['skip']:
-            task[input_chunk_name].to_h5(file_name, with_offset, 
-                chunk_size=chunk_size, compression=compression)
+            task[input_chunk_name].to_h5(
+                file_name, with_offset, 
+                chunk_size=chunk_size, 
+                compression=compression,
+                voxel_size=voxel_size)
         yield task
 
 
@@ -1083,7 +1090,7 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
               help='threshold to cut the map.')
 @click.option('--connectivity', '-c', 
               type=click.Choice(['6', '18', '26']),
-              default='26', help='number of neighboring voxels used.')
+              default='6', help='number of neighboring voxels used. Default is 6.')
 @operator
 def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
                          threshold, connectivity):

@@ -206,7 +206,8 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                     raise ValueError(f'do not support this type: {type(chunk)} with datatype {chunk.dtype}')
 
         print('Open this url in browser: ')
-        print(viewer)
+        viewer_url = viewer.get_viewer_url()
+        print(viewer_url)
 
         key = None
         while key!='q':
