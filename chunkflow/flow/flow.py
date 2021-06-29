@@ -1442,6 +1442,8 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
 @click.option('--volume-path', '-v', type=str, required=True, help='volume path')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--mip', '-m',
+    type=int, default=None, help="mip level to write")
 @click.option('--upload-log/--no-upload-log',
               default=True, help='the log will be put inside volume-path')
 @click.option('--create-thumbnail/--no-create-thumbnail',
@@ -1451,11 +1453,14 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
     default=None, help='do not save anything if all voxel intensity is below threshold.'
 )
 @operator
-def write_precomputed(tasks, name, volume_path, input_chunk_name, upload_log, create_thumbnail, intensity_threshold):
+def write_precomputed(tasks, name, volume_path, input_chunk_name, mip, upload_log, create_thumbnail, intensity_threshold):
     """Save chunk to volume."""
+    if mip is None:
+        mip = state['mip']
+
     operator = WritePrecomputedOperator(
         volume_path,
-        state['mip'],
+        mip,
         upload_log=upload_log,
         create_thumbnail=create_thumbnail,
         name=name
@@ -1471,9 +1476,13 @@ def write_precomputed(tasks, name, volume_path, input_chunk_name, upload_log, cr
 
         if not task['skip']:
             # the time elapsed was recorded internally
-            operator(task[input_chunk_name],
-                                     log=task.get('log', {'timer': {}}))
-            task['output_volume_path'] = volume_path
+            chunk = task[input_chunk_name]
+            if intensity_threshold is not None and np.all(chunk.array < intensity_threshold):
+                pass
+            else:
+                operator(chunk, log=task.get('log', {'timer': {}}))
+                task['output_volume_path'] = volume_path
+
         yield task
 
 

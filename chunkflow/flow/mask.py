@@ -46,7 +46,6 @@ class MaskOperator(OperatorBase):
             logging.warning("chunk is all black, return directly")
             return chunk
 
-        
         mask_in_high_mip = self._read_mask_in_high_mip(chunk.bbox, factor)
 
         if np.alltrue(mask_in_high_mip == 0):

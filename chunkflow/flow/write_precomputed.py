@@ -6,7 +6,7 @@ import numpy as np
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox, yellow
-from cloudvolume.storage import Storage
+from cloudfiles import CloudFiles
 
 from chunkflow.lib.igneous.tasks import downsample_and_upload
 from chunkflow.chunk import Chunk
@@ -48,7 +48,7 @@ class WritePrecomputedOperator(OperatorBase):
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')
-            self.log_storage = Storage(log_path)
+            self.log_storage = CloudFiles(log_path)
 
     def create_chunk_with_zeros(self, bbox, num_channels, dtype):
         """Create a fake all zero chunk. 
@@ -69,7 +69,7 @@ class WritePrecomputedOperator(OperatorBase):
             return 
 
         chunk = self._auto_convert_dtype(chunk, self.volume)
-        
+
         # transpose czyx to xyzc order
         arr = np.transpose(chunk.array)
         self.volume[chunk.slices[::-1]] = arr
@@ -86,12 +86,20 @@ class WritePrecomputedOperator(OperatorBase):
 
     def _auto_convert_dtype(self, chunk, volume):
         """convert the data type to fit volume datatype"""
+        if np.issubdtype(volume.dtype, np.floating) and np.issubdtype(chunk.dtype, np.uint8):
+            chunk = chunk.astype(volume.dtype)
+            chunk /= 255.
+            # chunk = chunk / chunk.array.max() * np.iinfo(volume.dtype).max
+        elif np.issubdtype(volume.dtype, np.uint8) and np.issubdtype(chunk.dtype, np.floating):
+            assert np.maximum(chunk) <= 1.
+            chunk *= 255
+
         if volume.dtype != chunk.dtype:
             print(yellow(f'converting chunk data type {chunk.dtype} ' + 
                          f'to volume data type: {volume.dtype}'))
             # float_chunk = chunk.astype(np.float64)
             # chunk = float_chunk / np.iinfo(chunk.dtype).max * np.iinfo(self.volume.dtype).max
-            chunk = chunk / chunk.array.max() * np.iinfo(volume.dtype).max
+            # chunk = chunk / chunk.array.max() * np.iinfo(volume.dtype).max
             return chunk.astype(volume.dtype)
         else:
             return chunk
@@ -139,7 +147,6 @@ class WritePrecomputedOperator(OperatorBase):
         logging.info(f'uploaded log: {log}')
 
         # write to google cloud storage
-        self.log_storage.put_file(file_path=output_bbox.to_filename() +
+        self.log_storage.put_json(output_bbox.to_filename() +
                                   '.json',
-                                  content=json.dumps(log),
-                                  content_type='application/json')
+                                  content=json.dumps(log))
