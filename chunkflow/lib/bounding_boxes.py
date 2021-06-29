@@ -15,11 +15,19 @@ from cloudvolume.lib import Vec, Bbox
 class BoundingBox(Bbox):
     def __init__(self, min_corner: list, max_corner: list, dtype=None, voxel_size: tuple = None):
         super().__init__(min_corner, max_corner, dtype=dtype)
-        self.voxel_size = voxel_size
+        self._voxel_size = voxel_size
+
+    @classmethod
+    def from_bbox(cls, bbox: Bbox, voxel_size: tuple = None):
+        return cls(bbox.min_corner, bbox.max_corner, voxel_size=voxel_size)
     
     @property
     def voxel_size(self):
-        return self.voxel_size
+        return self._voxel_size
+
+    @voxel_size.setter
+    def voxel_size(self, vs: tuple):
+        self._voxel_size = vs
 
     def slices_in_scale(self, voxel_size: tuple) -> tuple:
         """slices with specific voxel size volume
@@ -31,10 +39,10 @@ class BoundingBox(Bbox):
             tuple: tuple of slices
         """
         minpt = tuple( p * s1 // s2 for p, s1, s2 in zip(
-            self.minpt, self.voxel_size, voxel_size
+            self.minpt, self._voxel_size, voxel_size
         ))
         maxpt = tuple( p * s1 // s2 for p, s1, s2 in zip(
-            self.maxpt, self.voxel_size, voxel_size
+            self.maxpt, self._voxel_size, voxel_size
         ))
         bbox = Bbox(minpt, maxpt)
         return bbox.to_slices()

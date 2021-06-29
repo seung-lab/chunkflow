@@ -10,7 +10,10 @@ from scipy.ndimage import gaussian_filter
 
 import tifffile
 import cc3d
-from cloudvolume.lib import Bbox, yellow
+from cloudvolume.lib import yellow
+
+from chunkflow.lib.bounding_boxes import BoundingBox
+
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
 from .validate import validate_by_template_matching
@@ -59,7 +62,7 @@ class Chunk(NDArrayOperatorsMixin):
     _HANDLED_TYPES = (np.ndarray, Number)
     
     @classmethod
-    def from_array(cls, array: np.ndarray, bbox: Bbox, voxel_size: tuple = None):
+    def from_array(cls, array: np.ndarray, bbox: BoundingBox, voxel_size: tuple = None):
         """
         :param array: ndarray data
         :param bbox: cloudvolume bounding box
@@ -69,7 +72,7 @@ class Chunk(NDArrayOperatorsMixin):
         return cls(array, voxel_offset=bbox.minpt, voxel_size=voxel_size)
     
     @classmethod
-    def from_bbox(cls, bbox: Bbox, dtype: type = np.uint8,
+    def from_bbox(cls, bbox: BoundingBox, dtype: type = np.uint8,
             voxel_size: tuple=None, all_zero: bool=False):
         """
         :param bbox: bounding box of chunk.
@@ -77,7 +80,7 @@ class Chunk(NDArrayOperatorsMixin):
         :param all_zero: is it all zero or with a fancy function
         :return: a new chunk
         """
-        assert isinstance(bbox, Bbox)
+        assert isinstance(bbox, BoundingBox)
         size = bbox.maxpt - bbox.minpt
         return cls.create(size=size, dtype=dtype, voxel_offset=bbox.minpt,
             voxel_size=voxel_size, all_zero=all_zero)
@@ -176,7 +179,7 @@ class Chunk(NDArrayOperatorsMixin):
         if not h5py.is_hdf5(file_name):
             assert cutout_start is not None 
             assert cutout_stop is not None
-            bbox = Bbox.from_list([*cutout_start, *cutout_stop])
+            bbox = BoundingBox.from_list([*cutout_start, *cutout_stop])
             file_name += f'{bbox.to_filename()}.h5'
 
         with h5py.File(file_name, 'r') as f:
@@ -382,11 +385,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             return self.voxel_offset
 
     @property
-    def bbox(self) -> Bbox:
+    def bbox(self) -> BoundingBox:
         """
-        :getter: the cloudvolume bounding box in the big volume
+        :getter: the bounding box in the big volume
         """
-        return Bbox.from_delta(self.voxel_offset, self.array.shape[-3:])
+        return BoundingBox(self.voxel_offset, self.array.shape[-3:], voxel_size=self.voxel_size)
     
     @property
     def ndim(self) -> int:
@@ -460,7 +463,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         ret *= mask
         return Chunk(ret, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
-    def crop_margin(self, margin_size: tuple = None, output_bbox: Bbox=None):
+    def crop_margin(self, margin_size: tuple = None, output_bbox: BoundingBox=None):
 
         if margin_size:
             if len(margin_size) == 3 and self.ndim == 4:

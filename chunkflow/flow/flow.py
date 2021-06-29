@@ -10,10 +10,10 @@ import json
 from .lib import *
 
 from cloudvolume import CloudVolume
-from cloudvolume.lib import Bbox, Vec, yellow
+from cloudvolume.lib import Vec, yellow
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
-from chunkflow.lib.bounding_boxes import BoundingBoxes 
+from chunkflow.lib.bounding_boxes import BoundingBox, BoundingBoxes
 
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
@@ -333,7 +333,7 @@ def fetch_task_from_file(file_path: str, job_index: int, slurm_job_array: bool, 
     task_start = job_index * granularity 
     task_stop = min(bbox_array.shape[0], task_start + granularity)
     for idx in range(task_start, task_stop):
-        bbox = Bbox.from_list(bbox_array[idx, :])
+        bbox = BoundingBox.from_list(bbox_array[idx, :])
         task = get_initial_task()
         task['bbox'] = bbox
         yield task
@@ -367,7 +367,7 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
         num -= 1
         
         print('get task: ', bbox_str)
-        bbox = Bbox.from_filename(bbox_str)
+        bbox = BoundingBox.from_filename(bbox_str)
         
         # record the task handle to delete after the processing
         task = get_initial_task() 
@@ -511,7 +511,7 @@ def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset,
             assert 'bbox' in task, "no chunk_size, we are looking for bounding box in task"
             bbox = task['bbox']
         else:
-            bbox = Bbox.from_delta(cutout_offset, chunk_size)
+            bbox = BoundingBox.from_delta(cutout_offset, chunk_size)
 
         task[output_chunk_name] = read_png_images(
             path_prefix, bbox, 
@@ -797,7 +797,7 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
                 chunk_size = chunk_stop - chunk_start
             else:
                 chunk_size = Vec(*chunk_size)
-            bbox = Bbox.from_delta(chunk_start, chunk_size)
+            bbox = BoundingBox.from_delta(chunk_start, chunk_size)
 
         if not task['skip']:
             start = time()
