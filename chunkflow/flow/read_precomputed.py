@@ -62,6 +62,7 @@ class ReadPrecomputedOperator(OperatorBase):
         chunk = np.asarray(chunk)
         # the cutout is fortran ordered, so need to transpose and make it C order
         chunk = chunk.transpose()
+
         # we can delay this transpose later
         # actually we do not need to make it contiguous
         # chunk = np.ascontiguousarray(chunk)
