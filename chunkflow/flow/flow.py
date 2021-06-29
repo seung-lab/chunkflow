@@ -618,6 +618,10 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
         if dtype is not None:
             chunk = chunk.astype(dtype)
         task[output_chunk_name] = chunk
+        # make a bounding box for others operators to follow
+        if 'bbox' not in task:
+            task['bbox'] = chunk.bbox
+
         task['log']['timer'][name] = time() - start
         yield task
 
