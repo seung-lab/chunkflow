@@ -10,7 +10,7 @@ from scipy.ndimage import gaussian_filter
 
 import tifffile
 import cc3d
-from cloudvolume.lib import yellow
+from cloudvolume.lib import yellow, Bbox
 
 from chunkflow.lib.bounding_boxes import BoundingBox
 
@@ -389,7 +389,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         """
         :getter: the bounding box in the big volume
         """
-        return BoundingBox(self.voxel_offset, self.array.shape[-3:], voxel_size=self.voxel_size)
+        bbox = Bbox.from_delta(self.voxel_offset, self.array.shape[-3:])
+        bbox = BoundingBox.from_bbox(bbox, self.voxel_size)
+        return bbox
     
     @property
     def ndim(self) -> int:

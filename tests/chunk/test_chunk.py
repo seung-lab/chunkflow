@@ -1,3 +1,4 @@
+from chunkflow.lib.bounding_boxes import BoundingBox
 import numpy as np
 import unittest
 from cloudvolume.lib import Bbox
@@ -82,6 +83,7 @@ class Test3DChunk(unittest.TestCase):
 
     def test_create_from_bounding_box(self):
         bbox = Bbox.from_delta(self.voxel_offset, self.size)
+        bbox = BoundingBox.from_bbox(bbox)
         Chunk.from_bbox( bbox )
 
     def test_computation(self):

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import os.path as path
 
 import numpy as np
@@ -15,7 +16,7 @@ class Plugin(OperatorBase):
     r"""
     Chunk operation using a custom python file.
     """
-    def __init__(self, plugin_file: str,
+    def __init__(self, plugin_file_name: str,
                  name: str = 'plugin-1'):
         r"""
         Loads a custom python file specified in `opprogram`, which 
@@ -25,26 +26,24 @@ class Plugin(OperatorBase):
         super().__init__(name=name)
 
 
-        if not plugin_file.endswith('.py'):
-            plugin_file += '.py'
+        if not plugin_file_name.endswith('.py'):
+            plugin_file_name += '.py'
 
-        if not path.exists(plugin_file):
-            plugin_file = path.join(
-                path.dirname(path.realpath(__file__)), 
-                '../plugins', 
-                path.basename(plugin_file))
-            if not path.exists(plugin_file):
-                plugin_file = path.join(
+        plugin_dir0 = path.dirname(path.realpath(__file__))
+        plugin_dir1 =path.join(
                     path.dirname(path.realpath(__file__)), 
-                    '../plugins/chunkflow-plugins/chunkflowplugins', 
-                    path.basename(plugin_file))
+                    '../plugins/chunkflow-plugins/chunkflowplugins')
 
-        assert path.exists(plugin_file)
+        plugin_dirs = ['./', plugin_dir0, plugin_dir1]
+        if 'CHUNKFLOW_PLUGIN_DIR' in os.environ:
+            plugin_dirs.append(os.environ['CHUNKFLOW_PLUGIN_DIR'])
 
-        program = load_source(plugin_file)
-        
-        # assuming this is a func / static functor for now, maybe make it a class?
-        self.execute = program.execute
+        for plugin_dir in plugin_dirs:
+            fname = path.join(plugin_dir, plugin_file_name)
+            if path.exists(fname):
+                program = load_source(plugin_file)
+                # assuming this is a func / static functor for now, maybe make it a class?
+                self.execute = program.execute
 
     def __call__(self, inputs: list, args: str = None):
         voxel_offset = None

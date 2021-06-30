@@ -19,7 +19,7 @@ class BoundingBox(Bbox):
 
     @classmethod
     def from_bbox(cls, bbox: Bbox, voxel_size: tuple = None):
-        return cls(bbox.min_corner, bbox.max_corner, voxel_size=voxel_size)
+        return cls(bbox.minpt, bbox.maxpt, voxel_size=voxel_size)
     
     @property
     def voxel_size(self):
