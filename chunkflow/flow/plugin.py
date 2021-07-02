@@ -41,7 +41,7 @@ class Plugin(OperatorBase):
         for plugin_dir in plugin_dirs:
             fname = path.join(plugin_dir, plugin_file_name)
             if path.exists(fname):
-                program = load_source(plugin_file)
+                program = load_source(fname)
                 # assuming this is a func / static functor for now, maybe make it a class?
                 self.execute = program.execute
 
