@@ -11,13 +11,7 @@ DEFAULT_CHUNK_NAME = 'chunk'
 
 
 def get_initial_task():
-    return {'skip': False, 'log': {'timer': {}}}
-
-
-def handle_task_skip(task, name):
-    if task['skip'] and task['skip_to'] == name:
-        # have already skipped to target operator
-        task['skip'] = False
+    return {'log': {'timer': {}}}
 
 
 def default_none(ctx, _, value):
@@ -79,6 +73,7 @@ def process_commands(operators, log_level, log_file, mip, dry_run):
     # Pipe it through all stream operators.
     for operator in operators:
         stream = operator(stream)
+        # task = next(stream)
 
     # Evaluate the stream and throw away the items.
     if stream:
@@ -95,7 +90,6 @@ def operator(func):
     def wrapper(*args, **kwargs):
         def operator(stream):
             return func(stream, *args, **kwargs)
-
         return operator
 
     return wrapper

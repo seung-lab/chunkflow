@@ -4,6 +4,15 @@ chunkflow generate-tasks -c 0 0 0 -s 0 0 0 -g 1 1 1
 # this example is from [nuclease](https://github.com/janelia-flyem/neuclease)
 chunkflow generate-tasks --roi-start 20789 21341 17019 --chunk-size 16 128 128  plugin -f cutout_dvid_label -i bbox -o chunk
 
+chunkflow create-chunk --all-zero skip-all-zero write-h5 -f /tmp/
+
+# create a hdf5 file, then test the skip-task operator
+# the file already exist, so we'll skip that task
+# if the skip is not successful, there is no chunk to write, we'll get an error.
+chunkflow create-chunk write-h5 -f /tmp/
+chunkflow generate-tasks --roi-start 0 0 0 --chunk-size 64 64 64 skip-task --pre /tmp/ --post .h5 write-h5 -f /tmp/
+rm /tmp/0-64_0-64_0-64.h5
+
 chunkflow create-chunk plugin -f median_filter -i chunk -o chunk
 
 chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
