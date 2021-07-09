@@ -1,4 +1,4 @@
-chunkflow 
+![alt text](https://github.com/seung-lab/chunkflow/blob/logo/docs/logo/RGB_web/Chunkflow_logo_RBG.png?raw=true)
 ----------------------
 [![Documentation Status](https://readthedocs.org/projects/pychunkflow/badge/?version=latest)](https://pychunkflow.readthedocs.io/en/latest/?badge=latest)
 [![Build Status](https://travis-ci.org/seung-lab/chunkflow.svg?branch=master)](https://travis-ci.org/seung-lab/chunkflow)
