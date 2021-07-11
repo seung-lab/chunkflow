@@ -11,7 +11,7 @@
 
 ## Features
 - **Composable** operators. The chunk operators could be composed in commandline for flexible usage.
-- **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The computational heavy backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
+- **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The backend could be any computer with internet connection and Amazon Web Services (AWS) authentication.
 - **Petabyte** scale. We have used chunkflow to output over eighteen petabyte images and scaled up to 3600 nodes with NVIDIA GPUs across three regions in [Google Cloud](https://cloud.google.com/), and chunkflow is still reliable.
 - Operators work with **3D** image volumes.
 - You can **plugin** your own code as an operator.
