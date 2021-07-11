@@ -63,7 +63,8 @@ class Plugin(OperatorBase):
         elif len(inputs) > 0 and args is None:
             outputs = self.execute(*inputs)
         else:
-            outputs = self.execute(*inputs, args=args) 
+            outputs = self.execute(*inputs, args=args)
+        assert isinstance(outputs, list) or isinstance(outputs, tuple) 
 
         # automatically convert the ndarrays to Chunks
         if voxel_offset is not None and outputs is not None:
