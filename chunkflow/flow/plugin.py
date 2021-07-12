@@ -29,21 +29,24 @@ class Plugin(OperatorBase):
         if not plugin_file_name.endswith('.py'):
             plugin_file_name += '.py'
 
-        plugin_dir0 = path.dirname(path.realpath(__file__))
+        plugin_dir = path.join(path.dirname(path.realpath(__file__)), '../plugins')
         plugin_dir1 =path.join(
-                    path.dirname(path.realpath(__file__)), 
-                    '../plugins/chunkflow-plugins/chunkflowplugins')
+                    plugin_dir, 
+                    'chunkflow-plugins/chunkflowplugins')
 
-        plugin_dirs = ['./', plugin_dir0, plugin_dir1]
+        plugin_dirs = ['./', plugin_dir, plugin_dir1]
         if 'CHUNKFLOW_PLUGIN_DIR' in os.environ:
             plugin_dirs.append(os.environ['CHUNKFLOW_PLUGIN_DIR'])
 
         for plugin_dir in plugin_dirs:
             fname = path.join(plugin_dir, plugin_file_name)
+            print(f'looking for {fname}')
             if path.exists(fname):
+                print(f'loading plugin {fname}')
                 program = load_source(fname)
                 # assuming this is a func / static functor for now, maybe make it a class?
                 self.execute = program.execute
+        assert hasattr(self, 'execute')
 
     def __call__(self, inputs: list, args: str = None):
         voxel_offset = None
