@@ -15,14 +15,12 @@ class MaskOperator(OperatorBase):
                  chunk_mip: int,
                  inverse: bool = False,
                  fill_missing: bool = False,
-                 check_all_zero=False,
                  name: str = 'mask'):
         super().__init__(name=name)
 
         self.mask_mip = mask_mip
         self.chunk_mip = chunk_mip
         self.inverse = inverse
-        self.check_all_zero = check_all_zero
         
         self.mask_vol = CloudVolume(volume_path,
                                     bounded=False,

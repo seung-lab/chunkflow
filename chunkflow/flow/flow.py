@@ -636,13 +636,15 @@ def write_tif(tasks, name, input_chunk_name, file_name):
                help='cutout stop corrdinate.')
 @click.option('--cutout-size', '-s', type=int, nargs=3, callback=default_none,
                help='cutout size of the chunk.')
+@click.option('--zero-filling/--no-zero-filling', default=False, type=bool,
+    help='if no such file, fill with zero.')
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME,
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
             dtype: str, voxel_offset: tuple, voxel_size: tuple, cutout_start: tuple, 
-            cutout_stop: tuple, cutout_size: tuple, output_chunk_name: str):
+            cutout_stop: tuple, cutout_size: tuple, zero_filling: bool, output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
         if task is not None:
@@ -650,18 +652,20 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
             if 'bbox' in task and cutout_start is None:
                 bbox = task['bbox']
                 print('bbox: ', bbox)
-                cutout_start = bbox.minpt
-                cutout_stop = bbox.maxpt
-                cutout_size = cutout_stop - cutout_start
+                cutout_start_tmp = bbox.minpt
+                cutout_stop_tmp = bbox.maxpt
+                cutout_size_tmp = cutout_stop_tmp - cutout_start_tmp
             
             chunk = Chunk.from_h5(
                 file_name,
                 dataset_path=dataset_path,
                 voxel_offset=voxel_offset,
                 voxel_size=voxel_size,
-                cutout_start=cutout_start,
-                cutout_size=cutout_size,
-                cutout_stop=cutout_stop
+                cutout_start=cutout_start_tmp,
+                cutout_size=cutout_size_tmp,
+                cutout_stop=cutout_stop_tmp,
+                zero_filling = zero_filling,
+                dtype=dtype,
             )
             if dtype is not None:
                 chunk = chunk.astype(dtype)
@@ -1258,14 +1262,9 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
               default=False,
               help='fill missing blocks with black or not. ' +
               'default is False.')
-@click.option('--check-all-zero/--maskout',
-              default=False,
-              help='default is doing maskout. ' +
-              'check all zero will return boolean result.')
-@click.option('--skip-to', type=str, default='write-precomputed', help='skip to a operator')
 @operator
 def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path, 
-         mip, inverse, fill_missing, check_all_zero, skip_to):
+         mip, inverse, fill_missing):
     """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
@@ -1274,21 +1273,12 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
                             state['mip'],
                             inverse=inverse,
                             fill_missing=fill_missing,
-                            check_all_zero=check_all_zero,
                             name=name)
 
     for task in tasks:
         if task is not None:
             start = time()
-            if check_all_zero:
-                # skip following operators since the mask is all zero after required inverse
-                task['skip'] = operator.is_all_zero(
-                    task['bbox'])
-                if task['skip']:
-                    print(yellow(f'the mask of {name} is all zero, will skip to {skip_to}'))
-                task['skip_to'] = skip_to
-            else:
-                task[output_chunk_name] = operator(task[input_chunk_name])
+            task[output_chunk_name] = operator(task[input_chunk_name])
             # Note that mask operation could be used several times,
             # this will only record the last masking operation
             task['log']['timer'][name] = time() - start
@@ -1481,7 +1471,7 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
 @click.option('--mip', '-m',
     type=int, default=None, help="mip level to write")
 @click.option('--upload-log/--no-upload-log',
-              default=True, help='the log will be put inside volume-path')
+              default=False, help='the log will be put inside volume-path')
 @click.option('--create-thumbnail/--no-create-thumbnail',
     default=False, help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
@@ -1504,21 +1494,13 @@ def write_precomputed(tasks, name, volume_path, input_chunk_name, mip, upload_lo
 
     for task in tasks:
         if task is not None:
-            # we got a special case for handling skip
-            if task['skip'] and task['skip_to'] == name:
-                task['skip'] = False
-                # create fake chunk to save
-                task[input_chunk_name] = operator.create_chunk_with_zeros(
-                    task['bbox'])
-
-            if not task['skip']:
-                # the time elapsed was recorded internally
-                chunk = task[input_chunk_name]
-                if intensity_threshold is not None and np.all(chunk.array < intensity_threshold):
-                    pass
-                else:
-                    operator(chunk, log=task.get('log', {'timer': {}}))
-                    task['output_volume_path'] = volume_path
+            # the time elapsed was recorded internally
+            chunk = task[input_chunk_name]
+            if intensity_threshold is not None and np.all(chunk.array < intensity_threshold):
+                pass
+            else:
+                operator(chunk, log=task.get('log', {'timer': {}}))
+                task['output_volume_path'] = volume_path
 
         yield task
 

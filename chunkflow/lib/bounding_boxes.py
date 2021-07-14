@@ -20,6 +20,11 @@ class BoundingBox(Bbox):
     @classmethod
     def from_bbox(cls, bbox: Bbox, voxel_size: tuple = None):
         return cls(bbox.minpt, bbox.maxpt, voxel_size=voxel_size)
+
+    @classmethod
+    def from_list(cls, x: list):
+        bbox = Bbox.from_list(x)
+        return cls.from_bbox(bbox)
     
     @property
     def voxel_size(self):
