@@ -26,6 +26,11 @@ class BoundingBox(Bbox):
     def from_delta(cls, minpt, plus):
         bbox = super().from_delta(minpt, plus)
         return cls.from_bbox(bbox)
+
+    @classmethod
+    def from_list(cls, x: list):
+        bbox = Bbox.from_list(x)
+        return cls.from_bbox(bbox)
     
     @property
     def voxel_size(self):

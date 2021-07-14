@@ -12,6 +12,9 @@ ChangeLog history
 ## Features
 - added synapse annotation visualization.
 - The code of neuroglancer operator is splitted to functions and becomes more modular. The code is more readable and maintainable.
+- add zero-filling option for read-h5 operator. If there is no such file, we fill it with zeros.
+- add skip-task operator. if a result file already exists, we skip the task
+- add skip-all-zero operator. if a chunk is all zero, we skip that task.
 ## Bug Fixes 
 - fix chunk transpose with None voxel size and voxel offset
 
