@@ -172,15 +172,24 @@ class Chunk(NDArrayOperatorsMixin):
                 voxel_size: tuple = None,
                 cutout_start: tuple = None,
                 cutout_stop: tuple = None,
-                cutout_size: tuple = None):
+                cutout_size: tuple = None,
+                zero_filling: bool = False,
+                dtype: str = None):
         if cutout_start is not None and cutout_size is not None:
             cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
+        
+        assert cutout_start is not None 
+        assert cutout_stop is not None
+        bbox = BoundingBox.from_list([*cutout_start, *cutout_stop])
 
         if not h5py.is_hdf5(file_name):
-            assert cutout_start is not None 
-            assert cutout_stop is not None
-            bbox = BoundingBox.from_list([*cutout_start, *cutout_stop])
             file_name += f'{bbox.to_filename()}.h5'
+
+        if not os.path.exists(file_name) and zero_filling:
+            # fill with zero
+            assert dtype is not None
+            print(f'file do not exist, will fill with zero: {file_name}')
+            return cls.from_bbox(bbox, dtype=dtype, voxel_size=voxel_size, all_zero=True)
 
         with h5py.File(file_name, 'r') as f:
             if dataset_path is None:
