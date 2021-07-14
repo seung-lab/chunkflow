@@ -4,6 +4,7 @@ from itertools import product
 from collections import UserList
 from math import ceil
 from typing import Union
+from copy import deepcopy
 
 import numpy as np
 import h5py 
@@ -20,10 +21,32 @@ class BoundingBox(Bbox):
     @classmethod
     def from_bbox(cls, bbox: Bbox, voxel_size: tuple = None):
         return cls(bbox.minpt, bbox.maxpt, voxel_size=voxel_size)
+
+    @classmethod
+    def from_delta(cls, minpt, plus):
+        bbox = super().from_delta(minpt, plus)
+        return cls.from_bbox(bbox)
     
     @property
     def voxel_size(self):
         return self._voxel_size
+
+    @property
+    def left_neighbors(self):
+        sz = self.size3
+
+        minpt = deepcopy(self.minpt)
+        minpt[0] -= sz[0]
+        bbox_z = self.from_delta(minpt, sz)
+
+        minpt = deepcopy(self.minpt)
+        minpt[1] -= sz[1]
+        bbox_y = self.from_delta(minpt, sz) 
+
+        minpt = deepcopy(self.minpt)
+        minpt[2] -= sz[2]
+        bbox_x = self.from_delta(minpt, sz)
+        return bbox_z, bbox_y, bbox_x
 
     @voxel_size.setter
     def voxel_size(self, vs: tuple):

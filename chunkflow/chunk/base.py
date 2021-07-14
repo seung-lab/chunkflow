@@ -389,8 +389,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         """
         :getter: the bounding box in the big volume
         """
-        bbox = Bbox.from_delta(self.voxel_offset, self.array.shape[-3:])
-        bbox = BoundingBox.from_bbox(bbox, self.voxel_size)
+        bbox = BoundingBox.from_delta(self.voxel_offset, self.array.shape[-3:])
         return bbox
     
     @property
