@@ -9,8 +9,8 @@ import numpy as np
 from tqdm import tqdm
 from warnings import warn
 from typing import Union
+from .patch.base import PatchInferencerBase
 from tempfile import mktemp
-
 from chunkflow.chunk import Chunk
 # from chunkflow.chunk.affinity_map import AffinityMap
 
@@ -31,7 +31,7 @@ class Inferencer(object):
     large chunk size.
     """
     def __init__(self,
-                 convnet_model: str,
+                 convnet_model: Union[str, PatchInferencerBase],
                  convnet_weight_path: str,
                  input_patch_size: Union[tuple, list],
                  output_patch_size: Union[tuple, list] = None,
@@ -170,6 +170,12 @@ class Inferencer(object):
         self._construct_output_chunk_mask(input_chunk)
 
     def _prepare_patch_inferencer(self, framework, convnet_model, convnet_weight_path, bump):
+        
+        # allow to pass patch_inferencer directly, if so assign and return
+        if framework == 'prebuilt':
+            self.patch_inferencer = convnet_model
+            return
+
         # prepare for inference
         if framework == 'pznet':
             from .patch.pznet import PZNet as PatchInferencer
