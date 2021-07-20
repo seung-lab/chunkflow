@@ -40,12 +40,12 @@ class Plugin(OperatorBase):
 
         for plugin_dir in plugin_dirs:
             fname = path.join(plugin_dir, plugin_file_name)
-            # print(f'looking for {fname}')
             if path.exists(fname):
                 print(f'loading plugin {fname}')
                 program = load_source(fname)
                 # assuming this is a func / static functor for now, maybe make it a class?
                 self.execute = program.execute
+                break
         assert hasattr(self, 'execute')
 
     def __call__(self, inputs: list, args: str = None):
@@ -58,7 +58,7 @@ class Plugin(OperatorBase):
                 voxel_size = inp.voxel_size
                 shape = inp.shape
                 break
-
+        
         if len(inputs) == 0 and args is None:
             outputs = self.execute()
         elif len(inputs) == 0 and args is not None:
