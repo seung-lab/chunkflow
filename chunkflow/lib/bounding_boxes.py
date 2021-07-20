@@ -31,14 +31,19 @@ class BoundingBox(Bbox):
     def from_list(cls, x: list):
         bbox = Bbox.from_list(x)
         return cls.from_bbox(bbox)
-    
+
+    def clone(self):
+        bbox = Bbox(self.minpt, self.maxpt, dtype=self.dtype)
+        bbox = bbox.clone()
+        return BoundingBox.from_bbox(bbox, voxel_size=self.voxel_size)
+
     @property
     def voxel_size(self):
         return self._voxel_size
 
     @property
     def left_neighbors(self):
-        sz = self.size3
+        sz = self.size3()
 
         minpt = deepcopy(self.minpt)
         minpt[0] -= sz[0]

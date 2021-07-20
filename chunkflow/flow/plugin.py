@@ -40,7 +40,7 @@ class Plugin(OperatorBase):
 
         for plugin_dir in plugin_dirs:
             fname = path.join(plugin_dir, plugin_file_name)
-            print(f'looking for {fname}')
+            # print(f'looking for {fname}')
             if path.exists(fname):
                 print(f'loading plugin {fname}')
                 program = load_source(fname)
@@ -67,7 +67,8 @@ class Plugin(OperatorBase):
             outputs = self.execute(*inputs)
         else:
             outputs = self.execute(*inputs, args=args)
-        assert isinstance(outputs, list) or isinstance(outputs, tuple) 
+        assert isinstance(outputs, list) or isinstance(outputs, tuple) or outputs is None
+        
 
         # automatically convert the ndarrays to Chunks
         if voxel_offset is not None and outputs is not None:

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import os
 from time import time
-from typing import Generator, Tuple
+from typing import Generator
+from copy import deepcopy
 
 import numpy as np
 import click
@@ -19,7 +20,6 @@ from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
-from chunkflow.lib.utils import coordinates2bbox
 
 # import operator functions
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
@@ -161,10 +161,10 @@ def skip_task(tasks: Generator, pre: str, post: str, grow_size: int):
     help = 'pre-path of a file. we would like to keep a trace that this task was executed.')
 @click.option('--post', '-t', type=str, default=None,
     help='post-path of a file. normally include the extention of result file.')
-@click.option('--grow-size', '-g', type=int, default=None,
+@click.option('--adjust-size', '-g', type=int, default=None,
     help='change the bounding box of chunk if it do not match with final result file name.')
 @operator
-def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, grow_size: int):
+def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, adjust_size: int):
     """if chunk has all zero, skip this task."""
     for task in tasks:
         if task is not None:
@@ -173,11 +173,11 @@ def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, grow_size: 
                 print('all zero chunk, skip this task')
                 if pre is not None:
                     bbox = chunk.bbox.clone()
-                    if grow_size is not None:
+                    if adjust_size is not None:
                         # bbox.grow(grow_size)
                         # currently, cloud-volume do not support negative grow size
-                        bbox.minpt -= grow_size
-                        bbox.maxpt += grow_size
+                        bbox.minpt -= adjust_size
+                        bbox.maxpt += adjust_size
                     fname = os.path.join(pre, f'{bbox.to_filename()}{post}')
                     print('create an empty file as mark: ', fname)
                     with open(fname, 'a'):
@@ -1153,19 +1153,22 @@ def connected_components(tasks, name, input_chunk_name, output_chunk_name,
 
 
 @main.command('copy-var')
-@click.option('--name', type=str, default='copy-var-1', help='name of step')
-@click.option('--from-name',
+@click.option('--from-name', '-f',
               type=str,
               default='chunk',
-              help='Variable to be (shallow) copied/"renamed"')
-@click.option('--to-name', type=str, default='chunk', help='New variable name')
+              help='Variable to be copied')
+@click.option('--to-name', '-t', type=str, default='chunk', help='New variable name')
+@click.option('--deep-copy/--shallow-copy', type=bool, default=True,
+    help='really copy data or just create a new name or reference.')
 @operator
-def copy_var(tasks, name, from_name, to_name):
-    """Copy a variable to a new name.
-    """
+def copy_var(tasks, from_name: str, to_name: str, deep_copy: bool):
+    """Deep or shallow copy a variable."""
     for task in tasks:
         if task is not None:
-            task[to_name] = task[from_name]
+            if deep_copy:
+                task[to_name] = deepcopy(task[from_name])
+            else:
+                task[to_name] = task[from_name]
         yield task
 
 
