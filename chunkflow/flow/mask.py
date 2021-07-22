@@ -87,7 +87,7 @@ class MaskOperator(OperatorBase):
         # which will make np.alltrue(mask_in_high_mip == 0) to be
         # VolumeCutout(False) rather than False, so we need to transform it 
         # to numpy
-        mask = mask.astype(np.bool)
+        mask = mask.astype(bool)
         mask = np.asarray(mask)
         mask = np.transpose(mask)
         mask = np.squeeze(mask, axis=0)

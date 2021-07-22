@@ -67,9 +67,9 @@ class WritePrecomputedOperator(OperatorBase):
         if self.intensity_threshold is not None and np.all(chunk.array < self.intensity_threshold):
             print('the voxel intensity in this chunk are all below intensity threshold, return directly without saving anything.')
             return 
-
+        
         chunk = self._auto_convert_dtype(chunk, self.volume)
-
+        
         # transpose czyx to xyzc order
         arr = np.transpose(chunk.array)
         self.volume[chunk.slices[::-1]] = arr
