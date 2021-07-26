@@ -99,7 +99,8 @@ def generate_tasks(
         respect_chunk_size=respect_chunk_size,
         aligned_block_size=aligned_block_size
     )
-    print('total number of tasks: ', len(bboxes)) 
+    if state['verbose']:
+        print('total number of tasks: ', len(bboxes)) 
 
     if task_index_start:
         if task_index_stop is None:
@@ -125,6 +126,8 @@ def generate_tasks(
     else:
         bbox_num = len(bboxes)
         for bbox_index, bbox in enumerate(bboxes):
+            if state['verbose']:
+                print(f'executing task {bbox_index} in {bbox_num}...')
             task = get_initial_task()
             task['bbox'] = bbox
             task['bbox_index'] = bbox_index
@@ -655,6 +658,10 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_start_tmp = bbox.minpt
                 cutout_stop_tmp = bbox.maxpt
                 cutout_size_tmp = cutout_stop_tmp - cutout_start_tmp
+            else:
+                cutout_start_tmp = cutout_start
+                cutout_stop_tmp = cutout_stop
+                cutout_size_tmp = cutout_size
             
             chunk = Chunk.from_h5(
                 file_name,

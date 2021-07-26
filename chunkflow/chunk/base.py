@@ -175,9 +175,9 @@ class Chunk(NDArrayOperatorsMixin):
                 cutout_size: tuple = None,
                 zero_filling: bool = False,
                 dtype: str = None):
+
         if cutout_start is not None and cutout_size is not None:
             cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
-        
 
         if not h5py.is_hdf5(file_name):
             assert cutout_start is not None 
