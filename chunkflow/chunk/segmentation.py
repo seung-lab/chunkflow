@@ -80,7 +80,7 @@ class Segmentation(Chunk):
 
     def mask_except(self, selected_obj_ids: Union[str, list, set]):
         if selected_obj_ids is None:
-            logging.warning('empty selected object ids to mask, do nothing!')
+            logging.warning('we have not selected any objects to mask out.')
             return
 
         if isinstance(selected_obj_ids, str) and selected_obj_ids.endswith('.json'):

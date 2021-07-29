@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
 from time import time
-from typing import Generator
+from typing import Generator, List
 from copy import deepcopy
 
 import numpy as np
@@ -11,7 +11,7 @@ import json
 from .lib import *
 
 from cloudvolume import CloudVolume
-from cloudvolume.lib import Vec, yellow
+from cloudvolume.lib import Vec
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.lib.bounding_boxes import BoundingBox, BoundingBoxes
@@ -99,8 +99,8 @@ def generate_tasks(
         respect_chunk_size=respect_chunk_size,
         aligned_block_size=aligned_block_size
     )
-    if state['verbose']:
-        print('total number of tasks: ', len(bboxes)) 
+    # if state['verbose']:
+    print('total number of tasks: ', len(bboxes)) 
 
     if task_index_start:
         if task_index_stop is None:
@@ -1296,8 +1296,6 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
 
 
 @main.command('mask-out-objects')
-@click.option('--name', '-n', type=str, default='mask-out-objects',
-              help='remove some objects in segmentation chunk.')
 @click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME)
 @click.option('--output_chunk_name', '-o', type=str, default=DEFAULT_CHUNK_NAME)
 @click.option('--dust-size-threshold', '-d', type=int, default=None,
@@ -1308,8 +1306,8 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
                it can also be a json file contains a list of ids. The json file path should
                contain protocols, such as "gs://bucket/my/json/file/path.""")
 @operator
-def mask_out_objects(tasks, name, input_chunk_name, output_chunk_name,
-                     dust_size_threshold, selected_obj_ids):
+def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
+                     dust_size_threshold: int, selected_obj_ids: List[int]):
     """Mask out objects in a segmentation chunk."""
     if isinstance(selected_obj_ids, str) and selected_obj_ids.endswith('.json'):
         # assume that ids is a json file in the storage path
@@ -1327,8 +1325,10 @@ def mask_out_objects(tasks, name, input_chunk_name, output_chunk_name,
                 assert seg.is_segmentation
                 seg = Segmentation.from_chunk(seg)
 
-            seg.mask_fragments(dust_size_threshold)
-            seg.mask_except(selected_obj_ids)
+            if dust_size_threshold is not None:
+                seg.mask_fragments(dust_size_threshold)
+            if selected_obj_ids is not None:
+                seg.mask_except(selected_obj_ids)
 
             task[output_chunk_name] = seg
         yield task
@@ -1382,14 +1382,19 @@ def crop_margin(tasks, name, margin_size,
               help='mesh simplification factor.')
 @click.option('--max-simplification-error', '-e', type=int, default=40, 
               help='max simplification error.')
+@click.option('--skip-ids', '-s', type=str, default=None, 
+    help='do not mesh for some specific ids.')
 @click.option('--manifest/--no-manifest', default=False, help='create manifest file or not.')
 @click.option('--shard/--no-shard', default=False, help='combine meshes as one file')
 @operator
 def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_format,
-         simplification_factor, max_simplification_error, manifest, shard):
+         simplification_factor, max_simplification_error, skip_ids: str, manifest, shard):
     """Perform meshing for segmentation chunk."""
     if mip is None:
         mip = state['mip']
+
+    if skip_ids is not None:
+        skip_ids = frozenset(map(int, skip_ids.split(',')))
 
     operator = MeshOperator(
         output_path,
@@ -1399,6 +1404,7 @@ def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_for
         simplification_factor=simplification_factor,
         max_simplification_error=max_simplification_error,
         manifest=manifest,
+        skip_ids = skip_ids,
         shard=shard,
     )
 

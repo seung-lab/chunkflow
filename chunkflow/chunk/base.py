@@ -122,6 +122,10 @@ class Chunk(NDArrayOperatorsMixin):
 
         return cls(chunk, voxel_offset=voxel_offset, voxel_size=voxel_size)
 
+    def clone(self):
+        return Chunk(self.array.copy(), 
+            voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
+
     @classmethod
     def from_nrrd(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
             voxel_size: tuple=None):
