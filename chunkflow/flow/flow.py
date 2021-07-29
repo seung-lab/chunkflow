@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import os
 from time import time
+
 from typing import Generator, List
+
 from copy import deepcopy
 
 import numpy as np
