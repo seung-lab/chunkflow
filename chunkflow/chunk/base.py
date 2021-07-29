@@ -122,6 +122,10 @@ class Chunk(NDArrayOperatorsMixin):
 
         return cls(chunk, voxel_offset=voxel_offset, voxel_size=voxel_size)
 
+    def clone(self):
+        return Chunk(self.array.copy(), 
+            voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
+
     @classmethod
     def from_nrrd(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
             voxel_size: tuple=None):
@@ -175,9 +179,9 @@ class Chunk(NDArrayOperatorsMixin):
                 cutout_size: tuple = None,
                 zero_filling: bool = False,
                 dtype: str = None):
+
         if cutout_start is not None and cutout_size is not None:
             cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
-        
 
         if not h5py.is_hdf5(file_name):
             assert cutout_start is not None 

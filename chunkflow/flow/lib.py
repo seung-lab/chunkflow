@@ -2,8 +2,6 @@
 import logging
 from functools import update_wrapper, wraps
 import click
-from cloudvolume.lib import yellow
-import numpy as np
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
@@ -41,7 +39,9 @@ def default_none(ctx, _, value):
               help='default mip level of chunks.')
 @click.option('--dry-run/--real-run', default=False,
               help='dry run or real run. default is real run.')
-def main(log_level, log_file, mip, dry_run):
+@click.option('--verbose/--quiet', default=False, 
+    help='show more information or not. default is False.')
+def main(log_level, log_file, mip, dry_run, verbose):
     """Compose operators and create your own pipeline."""
     if log_file is not None:
         str2level = {
@@ -55,13 +55,14 @@ def main(log_level, log_file, mip, dry_run):
                             level=str2level[log_level])
     state['mip'] = mip
     state['dry_run'] = dry_run
+    state['verbose'] = verbose
     if dry_run:
         logging.warning('\nYou are using dry-run mode, will not do the work!')
     pass
 
 
 @main.resultcallback()
-def process_commands(operators, log_level, log_file, mip, dry_run):
+def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
     returns a function we can chain them together to feed one 

@@ -1,8 +1,9 @@
+from typing import FrozenSet
 import logging
 import os
-import json
 import pickle
 import numpy as np
+
 
 from tqdm import tqdm
 from zmesh import Mesher
@@ -25,6 +26,7 @@ class MeshOperator(OperatorBase):
                  simplification_factor: int = 100,
                  max_simplification_error: int = 8,
                  manifest: bool = False,
+                 skip_ids: FrozenSet[int] = None,
                  shard: bool = False,
                  name: str = 'mesh'):
         """
@@ -55,6 +57,7 @@ class MeshOperator(OperatorBase):
         self.output_path = output_path
         self.output_format = output_format
         self.manifest = manifest
+        self.skip_ids = skip_ids
         self.shard = shard
 
         if manifest:
@@ -168,6 +171,8 @@ class MeshOperator(OperatorBase):
                 compress = None
 
             for obj_id in tqdm(self.mesher.ids(), desc='writing out meshes'):
+                if self.skip_ids is not None and obj_id in self.skip_ids:
+                    continue
                 # print('object id: ', obj_id)
                 data, _ = self._get_mesh_data(obj_id, bbox.minpt)
                 file_name = self._get_file_name(bbox, obj_id)
