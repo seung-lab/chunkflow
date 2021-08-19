@@ -490,6 +490,23 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
                 voxel_size=voxel_size)
         yield task
 
+@main.command('read-json')
+@click.option('--name', '-n', type=str, default='read-json', help='name of operator.')
+@click.option('--file-name', '-f', type=str, default='read-json', help='JSON file name')
+@click.option('--output-name', '-o', type=str, default='dict', help='output as a data name.')
+@operator
+def read_json(tasks, name: str, file_name: str, output_name: str):
+    """Read JSON file."""
+    for task in tasks:
+        if task is not None:
+            start = time()
+            file_name = os.path.expanduser(file_name)
+            assert os.path.exists(file_name)
+            with open(file_name, 'r') as file:
+                task[output_name] = json.load(file)
+            task['log']['timer'][name] = time() - start
+        yield task
+
 @main.command('read-nrrd')
 @click.option('--name', type=str, default='read-nrrd',
               help='read nrrd file from local disk.')
