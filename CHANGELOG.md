@@ -15,6 +15,8 @@ ChangeLog history
 - add zero-filling option for read-h5 operator. If there is no such file, we fill it with zeros.
 - add skip-task operator. if a result file already exists, we skip the task
 - add skip-all-zero operator. if a chunk is all zero, we skip that task.
+- add new patch inference backend: prebuilt. [PR](https://github.com/seung-lab/chunkflow/pull/250)
+- add new operator read-json
 ## Bug Fixes 
 - fix chunk transpose with None voxel size and voxel offset
 

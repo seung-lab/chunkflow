@@ -180,6 +180,8 @@ class Chunk(NDArrayOperatorsMixin):
                 zero_filling: bool = False,
                 dtype: str = None):
 
+        assert os.path.exists(file_name)
+        
         if cutout_start is not None and cutout_size is not None:
             cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
