@@ -1,7 +1,17 @@
 ChangeLog history
 ==================
+# chunkflow 1.0.8 (2021-xx-xx)
+## Breaking Changes
 
-# chunkflow 1.0.7 (2021-xx-xx)
+## Deprecations 
+
+## Features
+
+## Bug Fixes 
+
+## Improved Documentation 
+
+# chunkflow 1.0.7 (2021-08-31)
 ## Breaking Changes
 - neuroglancer operator input changed from `chunk_names` to `inputs` to be consistent with other layers.
 - move agglomerate operator to a plugin to remove dependency of waterz. Waterz is not easy to install in MAC os and is not currently supported in python 3.9. After this change, we should be able to support python 3.9 now.
@@ -11,6 +21,7 @@ ChangeLog history
 
 ## Features
 - added synapse annotation visualization.
+- add read-json operator
 - The code of neuroglancer operator is splitted to functions and becomes more modular. The code is more readable and maintainable.
 - add zero-filling option for read-h5 operator. If there is no such file, we fill it with zeros.
 - add skip-task operator. if a result file already exists, we skip the task
