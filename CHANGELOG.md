@@ -8,6 +8,7 @@ ChangeLog history
 ## Features
 
 ## Bug Fixes 
+- fix thresholding threshold type 
 
 ## Improved Documentation 
 
