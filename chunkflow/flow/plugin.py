@@ -46,6 +46,8 @@ class Plugin(OperatorBase):
                 # assuming this is a func / static functor for now, maybe make it a class?
                 self.execute = program.execute
                 break
+
+        assert os.path.exists(fname)
         assert hasattr(self, 'execute')
 
     def __call__(self, inputs: list, args: str = None):

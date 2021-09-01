@@ -1511,10 +1511,13 @@ def quantize(tasks, name, input_chunk_name, output_chunk_name):
     default=False, help='create thumbnail or not. ' +
     'the thumbnail is a downsampled and quantized version of the chunk.')
 @click.option('--intensity-threshold', '-t',
-    default=None, help='do not save anything if all voxel intensity is below threshold.'
+    default=None, type=float,
+    help='do not save anything if all voxel intensity is below threshold.'
 )
 @operator
-def write_precomputed(tasks, name, volume_path, input_chunk_name, mip, upload_log, create_thumbnail, intensity_threshold):
+def write_precomputed(tasks, name: str, volume_path: str, 
+        input_chunk_name: str, mip: int, upload_log: bool, 
+        create_thumbnail: bool, intensity_threshold: float):
     """Save chunk to volume."""
     if mip is None:
         mip = state['mip']
