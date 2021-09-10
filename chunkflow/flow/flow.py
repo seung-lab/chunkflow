@@ -128,8 +128,7 @@ def generate_tasks(
     else:
         bbox_num = len(bboxes)
         for bbox_index, bbox in enumerate(bboxes):
-            if state['verbose']:
-                print(f'executing task {bbox_index} in {bbox_num}...')
+            print(f'executing task {bbox_index} in {bbox_num}...')
             task = get_initial_task()
             task['bbox'] = bbox
             task['bbox_index'] = bbox_index
@@ -143,15 +142,15 @@ def generate_tasks(
     help='the pre part of result file path')
 @click.option('--post', '-t', required=True, type=str,
     help='the post part of result file path. Normally include file extention.')
-@click.option('--grow-size', '-g', default=None, type=int, callback=default_none,
+@click.option('--adjust-size', '-a', default=None, type=int, callback=default_none,
     help='expand or shrink the bounding box. Currently, cloud-volume Bbox only support symetric grow.')
 @operator
-def skip_task(tasks: Generator, pre: str, post: str, grow_size: int):
+def skip_task(tasks: Generator, pre: str, post: str, adjust_size: int):
     """if a result file already exists, skip this task."""
     for task in tasks:
         bbox = task['bbox'].clone()
-        if grow_size is not None:
-            bbox.grow(grow_size)
+        if adjust_size is not None:
+            bbox.grow(adjust_size)
         file_name = pre + bbox.to_filename() + post
         if os.path.exists(file_name):
             print('the result file already exist, skip this task')
@@ -166,7 +165,7 @@ def skip_task(tasks: Generator, pre: str, post: str, grow_size: int):
     help = 'pre-path of a file. we would like to keep a trace that this task was executed.')
 @click.option('--post', '-t', type=str, default=None,
     help='post-path of a file. normally include the extention of result file.')
-@click.option('--adjust-size', '-g', type=int, default=None,
+@click.option('--adjust-size', '-a', type=int, default=None,
     help='change the bounding box of chunk if it do not match with final result file name.')
 @operator
 def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, adjust_size: int):
@@ -178,11 +177,7 @@ def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, adjust_size
                 print('all zero chunk, skip this task')
                 if pre is not None:
                     bbox = chunk.bbox.clone()
-                    if adjust_size is not None:
-                        # bbox.grow(grow_size)
-                        # currently, cloud-volume do not support negative grow size
-                        bbox.minpt -= adjust_size
-                        bbox.maxpt += adjust_size
+                    bbox.adjust(adjust_size)
                     fname = os.path.join(pre, f'{bbox.to_filename()}{post}')
                     print('create an empty file as mark: ', fname)
                     with open(fname, 'a'):
@@ -1341,7 +1336,6 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
             seg = task[input_chunk_name]
             if not isinstance(seg, Segmentation):
                 assert isinstance(seg, Chunk)
-                assert seg.is_segmentation
                 seg = Segmentation.from_chunk(seg)
 
             if dust_size_threshold is not None:

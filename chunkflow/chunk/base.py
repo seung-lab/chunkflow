@@ -4,6 +4,7 @@ from numbers import Number
 import h5py
 import numpy as np
 import nrrd
+from numpy.core.numerictypes import issubdtype
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
 from scipy.ndimage import gaussian_filter
@@ -378,8 +379,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
     @property 
     def is_segmentation(self) -> bool:
-        return self.array.ndim == 3 and np.issubdtype(
-            self.array.dtype, np.integer) and self.array.dtype != np.uint8
+        return self.array.ndim == 3 and (np.issubdtype(
+            self.array.dtype, np.integer) or np.issubdtype(
+                self.dtype, np.bool8)) and self.array.dtype != np.uint8
 
     @property
     def is_affinity_map(self) -> bool:

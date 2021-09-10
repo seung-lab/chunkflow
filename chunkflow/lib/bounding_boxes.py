@@ -37,6 +37,23 @@ class BoundingBox(Bbox):
         bbox = bbox.clone()
         return BoundingBox.from_bbox(bbox, voxel_size=self.voxel_size)
 
+    def adjust(self, size: Union[int, tuple, list, Vec]):
+        if size is None:
+            logging.warn('adjusting bounding box size is None!')
+            return self
+
+        if not isinstance(size, int):
+            assert 3 == len(size)
+        self.minpt -= size
+        self.maxpt += size
+        return self
+
+    def contains(self, point: Union[tuple, Vec, list]):
+        assert 3 == len(point)
+        return np.all(np.asarray(
+            (self.maxpt >= Vec(*point)))) and np.all(
+                np.asarray((self.minpt <= Vec(*point)))) 
+
     @property
     def voxel_size(self):
         return self._voxel_size
