@@ -485,22 +485,57 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
                 voxel_size=voxel_size)
         yield task
 
+
+@main.command('read-npy')
+@click.option('--name', '-n', type=str, default='read-npy', help='name of operator')
+@click.option('--file-path', '-f', 
+    type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
+    required=True, help='NPY file path')
+@click.option('--resolution', '-r', type=float, nargs=3, default=(1,1,1), help='resolution of points.')
+@click.option('--output-name', '-o', type=str, default='array', help='data name of the result.')
+@operator
+def read_npy(tasks, name: str, file_path: str, resolution: tuple, output_name: str):
+    for task in tasks:
+        if task is not None:
+            start = time()
+            if not file_path.endswith('.npy'):
+                bbox = task['bbox']
+                if os.path.isdir(file_path):
+                    file_path = os.path.join(file_path, f'{bbox.to_filename()}.npy')
+                else:
+                    file_path = f'{file_path}{bbox.to_filename()}.npy'
+            assert os.path.exists(file_path)
+            with open(file_path, 'rb') as file:
+                array = np.load(file)
+                array *= np.asarray(resolution, dtype=array.dtype)
+                task[output_name] = array
+            task['log']['timer'][name] = time() - start
+        yield task
+
 @main.command('read-json')
 @click.option('--name', '-n', type=str, default='read-json', help='name of operator.')
-@click.option('--file-name', '-f', type=str, default='read-json', help='JSON file name')
-@click.option('--output-name', '-o', type=str, default='dict', help='output as a data name.')
+@click.option('--file-path', '-f', 
+    type=click.Path(file_okay=True, dir_okay=True, resolve_path=True), 
+    required=True, help='JSON file name')
+@click.option('--output-name', '-o', type=str, default='dict', help='data name of the result.')
 @operator
-def read_json(tasks, name: str, file_name: str, output_name: str):
+def read_json(tasks, name: str, file_path: str, output_name: str):
     """Read JSON file."""
     for task in tasks:
         if task is not None:
             start = time()
-            file_name = os.path.expanduser(file_name)
-            assert os.path.exists(file_name)
-            with open(file_name, 'r') as file:
+            if not file_path.endswith('.json'):
+                bbox = task['bbox']
+                if os.path.isdir(file_path):
+                    file_path = os.path.join(file_path, f'{bbox.to_filename()}.json')
+                else:
+                    file_path = f'{file_path}{bbox.to_filename()}.json'
+            assert os.path.exists(file_path)
+            with open(file_path, 'r') as file:
                 task[output_name] = json.load(file)
             task['log']['timer'][name] = time() - start
         yield task
+
 
 @main.command('read-nrrd')
 @click.option('--name', type=str, default='read-nrrd',
@@ -1160,8 +1195,8 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
               type=click.Choice(['6', '18', '26']),
               default='6', help='number of neighboring voxels used. Default is 6.')
 @operator
-def connected_components(tasks, name, input_chunk_name, output_chunk_name, 
-                         threshold, connectivity):
+def connected_components(tasks, name: str, input_chunk_name: str, output_chunk_name: str, 
+                         threshold: float, connectivity: str):
     """Threshold the probability map to get a segmentation."""
     connectivity = int(connectivity)
     for task in tasks:
@@ -1169,7 +1204,7 @@ def connected_components(tasks, name, input_chunk_name, output_chunk_name,
             start = time()
             task[output_chunk_name] = task[input_chunk_name].connected_component(
                 threshold=threshold, connectivity=connectivity)
-            task['log']['timer']['name'] = time() - start
+            task['log']['timer'][name] = time() - start
         yield task
 
 

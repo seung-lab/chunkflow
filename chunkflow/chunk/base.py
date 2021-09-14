@@ -507,13 +507,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             return self.cutout(output_bbox.to_slices())
     
     def threshold(self, threshold: float):
-        seg = self > threshold
-        if seg.ndim == 4:
-            voxel_offset = self.voxel_offset
-            assert seg.shape[0] == 1
-            seg = seg.array[0, ...]
-            voxel_offset = voxel_offset[1:]
-            seg = Chunk(seg, voxel_offset = voxel_offset, voxel_size=self.voxel_size)
+        array = self.array > threshold
+        if array.ndim == 4:
+            assert array.shape[0] == 1
+            array = array[0, ...]
+        seg = Chunk(array, voxel_offset = self.voxel_offset, voxel_size=self.voxel_size)
         # neuroglancer do not support bool datatype
         # numpy store bool as uint8 datatype, so this will not increase size.
         seg = seg.astype(np.uint8)

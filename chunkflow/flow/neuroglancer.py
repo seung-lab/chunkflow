@@ -87,6 +87,44 @@ void main() {
             ),
         )
 
+    def _append_point_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, points: np.ndarray):
+        annotations = []
+        
+        for sid in range(points.shape[0]):
+            # we would like to show line first and then the presynapse point
+            # so, we have distinct color to show T-bar
+            pre_annotation = ng.PointAnnotation(
+                id=str(sid),
+                point=points[sid, :].tolist(),
+                props=['#ff0', 8]
+            )
+            annotations.append(pre_annotation)
+
+        viewer_state.layers.append(
+            name=name,
+            layer=ng.LocalAnnotationLayer(
+                dimensions=ng.CoordinateSpace(names=['z', 'y', 'x'], units="nm", scales=(1, 1, 1)),
+                annotation_properties=[
+                    ng.AnnotationPropertySpec(
+                        id='color',
+                        type='rgb',
+                        default='red',
+                    ),
+                    ng.AnnotationPropertySpec(
+                        id='size',
+                        type='float32',
+                        default=5
+                    )
+                ],
+                annotations=annotations,
+                shader='''
+void main() {
+  setColor(prop_color());
+  setPointMarkerSize(prop_size());
+}
+''',
+            ),
+        )
 
     def _append_image_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
         voxel_size = self._get_voxel_size(chunk)
@@ -178,13 +216,13 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
             shader=shader
         )
 
-    def __call__(self, chunks: dict, selected: str=None):
+    def __call__(self, datas: dict, selected: str=None):
         """
         Parameters:
         chunks: multiple chunks
         """
         if selected is None:
-            selected = chunks.keys()
+            selected = datas.keys()
         elif isinstance(selected, str):
             selected = selected.split(',')
 
@@ -193,20 +231,23 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
         ng.set_server_bind_address(bind_address='0.0.0.0', bind_port=self.port)
         viewer = ng.Viewer()
         with viewer.txn() as viewer_state:
-            for chunk_name in selected:
-                chunk = chunks[chunk_name]
-                if isinstance(chunk, dict):
+            for name in selected:
+                data = datas[name]
+                if isinstance(data, dict):
                     # this could be synapses
-                    self._append_synapse_annotation_layer(viewer_state, chunk_name, chunk)
-                elif chunk.is_image or (chunk.ndim==3 and np.issubdtype(chunk.dtype, np.floating)):
-                    self._append_image_layer(viewer_state, chunk_name, chunk)
-                elif chunk.is_segmentation:
-                    self._append_segmentation_layer(viewer_state, chunk_name, chunk)
-                elif chunk.is_probability_map:
-                    self._append_probability_map_layer(viewer_state, chunk_name, chunk)
+                    self._append_synapse_annotation_layer(viewer_state, name, data)
+                elif isinstance(data, np.ndarray) and 2 == data.ndim and 3 == data.shape[1]:
+                    # points
+                    self._append_point_annotation_layer(viewer_state, name, data)
+                elif data.is_image or (data.ndim==3 and np.issubdtype(data.dtype, np.floating)):
+                    self._append_image_layer(viewer_state, name, data)
+                elif data.is_segmentation:
+                    self._append_segmentation_layer(viewer_state, name, data)
+                elif data.is_probability_map:
+                    self._append_probability_map_layer(viewer_state, name, data)
                 else:
                     breakpoint()
-                    raise ValueError(f'do not support this type: {type(chunk)} with datatype {chunk.dtype}')
+                    raise ValueError(f'do not support this type: {type(data)}')
 
         print('Open this url in browser: ')
         viewer_url = viewer.get_viewer_url()

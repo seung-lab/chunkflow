@@ -70,6 +70,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | plugin          | Import local code as a customized operator. |
 | quantize        | Quantize the affinity map |
 | read-h5         | Read HDF5 files |
+| read-npy        | Read NPY files |
 | read-json       | Read JSON files |
 | read-pngs       | Read png files |
 | read-precomputed| Cutout chunk from a local/cloud storage volume |
