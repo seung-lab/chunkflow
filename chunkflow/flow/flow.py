@@ -17,6 +17,7 @@ from cloudvolume.lib import Vec
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.lib.bounding_boxes import BoundingBox, BoundingBoxes
+from chunkflow.lib.synapses import Synapses
 
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.affinity_map import AffinityMap
@@ -102,7 +103,8 @@ def generate_tasks(
         aligned_block_size=aligned_block_size
     )
     # if state['verbose']:
-    print('total number of tasks: ', len(bboxes)) 
+    bbox_num = len(bboxes)
+    print('total number of tasks: ', bbox_num) 
 
     if task_index_start:
         if task_index_stop is None:
@@ -126,9 +128,11 @@ def generate_tasks(
         queue = SQSQueue(queue_name)
         queue.send_message_list(bboxes)
     else:
-        bbox_num = len(bboxes)
         for bbox_index, bbox in enumerate(bboxes):
-            print(f'executing task {bbox_index} in {bbox_num}...')
+            if disbatch:
+                assert len(bboxes) == 1
+                bbox_index = disbatch_index
+            print(f'executing task {bbox_index} in {bbox_num} with bounding box: {bbox.to_filename()}')
             task = get_initial_task()
             task['bbox'] = bbox
             task['bbox_index'] = bbox_index
@@ -486,6 +490,32 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
         yield task
 
 
+@main.command('load-synapses')
+@click.option('--name', '-n', type=str, default='load-synapses', help='name of operator')
+@click.option('--file-path', '-f',
+    type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
+    required=True, help='files containing synapses. Currently support HDF5 and JSON.')
+@click.option('--path-suffix', type=str, default=None, help='file path suffix.')
+@click.option('--resolution', '-r', type=int, nargs=3, 
+    default=None, callback=default_none, help='resolution of points.')
+@click.option('--output-name', '-o', type=str, default='synapses', help='data name of the result.')
+@operator
+def load_synapses(tasks, name: str, file_path: str, path_suffix: str, resolution: tuple, output_name: str):
+    """Load synapses formated as JSON or HDF5."""
+    for task in tasks:
+        if task is not None:
+            start = time()
+            if os.path.isdir(file_path):
+                bbox = task['bbox']
+                assert path_suffix is not None
+                file_path = os.path.join(file_path, f'{bbox.to_filename()}{path_suffix}')
+            elif not os.path.exists(file_path):
+                file_path = f'{file_path}{bbox.to_filename()}{path_suffix}'
+
+            task[output_name] = Synapses.from_file(file_path)
+        yield task
+
+
 @main.command('read-npy')
 @click.option('--name', '-n', type=str, default='read-npy', help='name of operator')
 @click.option('--file-path', '-f', 
@@ -495,6 +525,7 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
 @click.option('--output-name', '-o', type=str, default='array', help='data name of the result.')
 @operator
 def read_npy(tasks, name: str, file_path: str, resolution: tuple, output_name: str):
+    """Read NPY files."""
     for task in tasks:
         if task is not None:
             start = time()
@@ -505,8 +536,11 @@ def read_npy(tasks, name: str, file_path: str, resolution: tuple, output_name: s
                 else:
                     file_path = f'{file_path}{bbox.to_filename()}.npy'
             assert os.path.exists(file_path)
-            with open(file_path, 'rb') as file:
-                array = np.load(file)
+            if 0 == os.path.getsize(file_path):
+                task[output_name] = None
+            else:
+                with open(file_path, 'rb') as file:
+                    array = np.load(file)
                 array *= np.asarray(resolution, dtype=array.dtype)
                 task[output_name] = array
             task['log']['timer'][name] = time() - start

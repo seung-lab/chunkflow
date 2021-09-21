@@ -233,7 +233,9 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
         with viewer.txn() as viewer_state:
             for name in selected:
                 data = datas[name]
-                if isinstance(data, dict):
+                if data is None:
+                    continue
+                elif isinstance(data, dict):
                     # this could be synapses
                     self._append_synapse_annotation_layer(viewer_state, name, data)
                 elif isinstance(data, np.ndarray) and 2 == data.ndim and 3 == data.shape[1]:
