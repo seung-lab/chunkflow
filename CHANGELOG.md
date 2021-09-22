@@ -9,7 +9,8 @@ ChangeLog history
 - add operator read-npy
 - add support to visualize points in neuroglancer
 - make read-json work with bbox in task
-
+- add operator load-synapses
+- add new class of Synapses. This class will handle all the synapse operations.
 ## Bug Fixes 
 - fix thresholding threshold type 
 
