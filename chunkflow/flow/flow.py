@@ -495,7 +495,7 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
 @click.option('--file-path', '-f',
     type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
     required=True, help='files containing synapses. Currently support HDF5 and JSON.')
-@click.option('--path-suffix', type=str, default=None, help='file path suffix.')
+@click.option('--path-suffix', '-s', type=str, default=None, help='file path suffix.')
 @click.option('--resolution', '-r', type=int, nargs=3, 
     default=None, callback=default_none, help='resolution of points.')
 @click.option('--output-name', '-o', type=str, default='synapses', help='data name of the result.')
@@ -511,8 +511,12 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, resolution
                 file_path = os.path.join(file_path, f'{bbox.to_filename()}{path_suffix}')
             elif not os.path.exists(file_path):
                 file_path = f'{file_path}{bbox.to_filename()}{path_suffix}'
-
-            task[output_name] = Synapses.from_file(file_path)
+            assert os.path.exists(file_path)
+            
+            if os.path.getsize(file_path) == 0:
+                task[output_name] = None
+            else:
+                task[output_name] = Synapses.from_file(file_path, resolution = resolution)
         yield task
 
 

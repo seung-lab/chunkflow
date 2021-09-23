@@ -22,9 +22,16 @@ class Synapses():
 
         if tbar_confidence is not None:
             assert tbar_confidence.ndim == 1
-            np.testing.assert_array_less(tbar_confidence, 1.0)
-            np.testing.assert_array_less(0., tbar_confidence)
-            assert len(tbar_confidence) == tbars.shape[1]
+            np.testing.assert_array_less(tbar_confidence, 1.00001)
+            np.testing.assert_array_less(-0.0001, tbar_confidence)
+            assert len(tbar_confidence) == tbars.shape[0]
+
+        if resolution is not None:
+            resolution = np.asarray(resolution, dtype=tbars.dtype)
+            np.testing.assert_array_less(0, resolution)
+            tbars *= resolution
+            if post_synapses is not None:
+                post_synapses[:, 1:] *= post_synapses[:, 1:]
 
         if post_synapses is not None:
             if post_synapse_confidence is not None:
@@ -73,43 +80,40 @@ class Synapses():
                 post_synapses[idx, 0] = tbar_indices[idx]
                 post_synapses[idx, 1:] = np.asarray(post_synapse)
 
-        if resolution is not None:
-            resolution = np.asarray(resolution, dtype=np.int32)
-            tbar_indices *= resolution
-            if post_synapses is not None:
-                post_synapses[:, 1:] *= resolution
-        
         if order == ['z', 'y', 'x']:
             pass
         elif order == ['x', 'y', 'z']:
+            resolution = resolution[::-1]
             # invert to z,y,x
             tbars = np.fliplr(tbars)
             if post_synapses is not None:
                 post_synapses[:, 1:] = np.fliplr(post_synapses[:, 1:])
 
-        return cls(tbars, post_synapses=post_synapses)
+        return cls(tbars, post_synapses=post_synapses, resolution=resolution)
     
     @classmethod
-    def from_json(cls, fname: str):
+    def from_json(cls, fname: str, resolution: tuple = None):
         with open(fname, 'r') as file:
             synapses = json.load(file)
 
+        if resolution is not None:
+            synapses['resolution'] = resolution
         return cls.from_dict(synapses)
 
     @classmethod
-    def from_h5(cls, fname: str):
+    def from_h5(cls, fname: str, resolution: tuple = None):
         with h5py.File(fname, 'r') as hf:
             tbars = np.asarray(hf['tbars'])
             confidence = np.asarray(hf['confidence'])
-        return cls(tbars, tbar_confidence=confidence)
+        return cls(tbars, tbar_confidence=confidence, resolution=resolution)
 
     @classmethod
-    def from_file(cls, fname: str):
+    def from_file(cls, fname: str, resolution: tuple = None):
         assert os.path.exists(fname)
         if fname.endswith('.json'):
-            return cls.from_json(fname)
+            return cls.from_json(fname, resolution = resolution)
         elif fname.endswith('.h5'):
-            return cls.from_h5(fname)
+            return cls.from_h5(fname, resolution=resolution)
         else:
             raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
         

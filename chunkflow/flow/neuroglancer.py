@@ -7,6 +7,7 @@ import neuroglancer as ng
 import numpy as np
 
 from chunkflow.chunk import Chunk
+from chunkflow.lib.synapses import Synapses
 
 from .base import OperatorBase
 
@@ -29,42 +30,32 @@ class NeuroglancerOperator(OperatorBase):
             voxel_size = (1, 1, 1)
         return voxel_size
 
-    def _append_synapse_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, data: dict):
+    def _append_synapse_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, synapses: Synapses):
         annotations = []
         
-        for sid, synapse in data.items():
-            if sid in ['order', 'resolution']:
-                continue
+        tbars = synapses.tbars
+        self._append_point_annotation_layer(viewer_state, name + '_tbar', tbars)
 
-            pre_coordinate = synapse['coord']
-
-            # breakpoint()
-            if 'postsynapses' in synapse:
-                postsynapses = synapse['postsynapses']
-                # print(f'found {len(postsynapses)} post-synapses.')
-                for idx, post_coordinate in enumerate(postsynapses):
-                    post_annotation = ng.LineAnnotation(
-                        id=str(sid) + str(idx) + '_post',
+        post_synapses = synapses.post_synapses
+        if post_synapses is not None:
+            for idx in range(post_synapses.shape[0]):
+                tbar_idx = post_synapses[idx, 0]
+                pre_coordinate = tbars[tbar_idx]
+                post_coordinate = post_synapses[idx, 1:]
+                post_annotation = ng.LineAnnotation(
+                        id=str(idx),
                         # note that the synapse coordinate is already in xyz order
                         # so we do not need to reverse it!
                         pointA=pre_coordinate,
                         pointB=post_coordinate,
                         props=['#0ff', 5]
                     )
-                    annotations.append(post_annotation)
-            # we would like to show line first and then the presynapse point
-            # so, we have distinct color to show T-bar
-            pre_annotation = ng.PointAnnotation(
-                id=str(sid) + '_pre',
-                point=pre_coordinate,
-                props=['#ff0', 8]
-            )
-            annotations.append(pre_annotation)
+                annotations.append(post_annotation) 
 
         viewer_state.layers.append(
             name=name,
             layer=ng.LocalAnnotationLayer(
-                dimensions=ng.CoordinateSpace(names=data['order'], units="nm", scales=data['resolution']),
+                dimensions=ng.CoordinateSpace(names=['z', 'y', 'x'], units="nm", scales=(1,1,1)),
                 annotation_properties=[
                     ng.AnnotationPropertySpec(
                         id='color',
@@ -235,7 +226,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 data = datas[name]
                 if data is None:
                     continue
-                elif isinstance(data, dict):
+                elif isinstance(data, Synapses):
                     # this could be synapses
                     self._append_synapse_annotation_layer(viewer_state, name, data)
                 elif isinstance(data, np.ndarray) and 2 == data.ndim and 3 == data.shape[1]:
