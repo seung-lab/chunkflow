@@ -508,15 +508,20 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, resolution
             if os.path.isdir(file_path):
                 bbox = task['bbox']
                 assert path_suffix is not None
-                file_path = os.path.join(file_path, f'{bbox.to_filename()}{path_suffix}')
+                fname = os.path.join(file_path, f'{bbox.to_filename()}{path_suffix}')
             elif not os.path.exists(file_path):
-                file_path = f'{file_path}{bbox.to_filename()}{path_suffix}'
-            assert os.path.exists(file_path)
-            
-            if os.path.getsize(file_path) == 0:
+                bbox = task['bbox']
+                fname = f'{file_path}{bbox.to_filename()}{path_suffix}'
+            else:
+                fname = file_path
+            assert os.path.exists(fname)
+
+            if os.path.getsize(fname) == 0:
                 task[output_name] = None
             else:
-                task[output_name] = Synapses.from_file(file_path, resolution = resolution)
+                task[output_name] = Synapses.from_file(fname, resolution = resolution)
+            
+            task['log']['timer'][name] = time() - start
         yield task
 
 
