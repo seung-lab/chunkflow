@@ -6,6 +6,7 @@ ChangeLog history
 ## Deprecations 
 
 ## Features
+- add operator skip-none
 - add operator read-npy
 - add support to visualize points in neuroglancer
 - make read-json work with bbox in task

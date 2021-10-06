@@ -105,7 +105,7 @@ def generate_tasks(
     # if state['verbose']:
     bbox_num = len(bboxes)
     print('total number of tasks: ', bbox_num) 
-
+    
     if task_index_start:
         if task_index_stop is None:
             task_index_stop = task_index_start + 1
@@ -186,6 +186,21 @@ def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, adjust_size
                     print('create an empty file as mark: ', fname)
                     with open(fname, 'a'):
                         os.utime(fname, None)
+                # label task as None and task will be skipped
+                task = None
+        yield task
+
+
+@main.command('skip-none')
+@click.option('--input-name', '-i',
+    type=str, default=DEFAULT_CHUNK_NAME, help='input name')
+@operator
+def skip_none(tasks, input_name: str):
+    """If item is None, skip this task."""
+    for task in tasks:
+        if task is not None:
+            data = task[input_name]
+            if data is None:
                 # label task as None and task will be skipped
                 task = None
         yield task

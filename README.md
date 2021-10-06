@@ -82,6 +82,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | skeletonize     | Create centerlines of objects in a segmentation chunk |
 | skip-task  	  | If a result file already exists, skip this task |
 | skip-all-zero   | If a chunk has all zero, skip this task |	
+| skip-none       | If an item in task is None, skip this task |	
 | threshold       | Use a threshold to segment the probability map |
 | view            | Another chunk viewer in browser using CloudVolume |
 | write-h5        | Write chunk as HDF5 file |
