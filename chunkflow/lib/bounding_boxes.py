@@ -113,6 +113,7 @@ class BoundingBoxes(UserList):
             grid_size: Union[Vec, tuple]=None,
             respect_chunk_size: bool = True,
             aligned_block_size: Union[Vec, tuple]=None,
+            bounded: bool = False,
             layer_path: str = None,
             mip: int = 0):
         
@@ -194,7 +195,7 @@ class BoundingBoxes(UserList):
         logging.info(f'grid size: {grid_size}')
         logging.info(f'final output stop: {final_output_stop}')
 
-        print('grid size: ', grid_size)
+        print(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
 
         bboxes = []
         for (gz, gy, gx) in product(range(grid_size[0]), 
@@ -204,8 +205,10 @@ class BoundingBoxes(UserList):
             bbox = Bbox.from_delta(chunk_start, chunk_size)
             if not respect_chunk_size:
                 bbox.maxpt = np.minimum(bbox.maxpt, roi_stop)
-            bboxes.append( bbox )
+            if not bounded or np.all(tuple(m < p for m, p in zip(bbox.maxpt, roi_stop))):
+                bboxes.append( bbox )
 
+        print(f'get {len(bboxes)} bounding boxes as tasks.')
         return cls(bboxes)
 
     @classmethod

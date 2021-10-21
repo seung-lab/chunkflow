@@ -33,17 +33,17 @@ class NeuroglancerOperator(OperatorBase):
     def _append_synapse_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, synapses: Synapses):
         annotations = []
         
-        tbars = synapses.tbars
-        self._append_point_annotation_layer(viewer_state, name + '_tbar', tbars)
+        pre_synapses = synapses.pre_with_physical_coordinate
+        self._append_point_annotation_layer(viewer_state, name + '_pre', pre_synapses)
 
-        post_synapses = synapses.post_synapses
+        post_synapses = synapses.post_with_physical_coordinate
         if post_synapses is not None:
-            for idx in range(post_synapses.shape[0]):
-                tbar_idx = post_synapses[idx, 0]
-                pre_coordinate = tbars[tbar_idx]
-                post_coordinate = post_synapses[idx, 1:]
+            for post_idx in range(post_synapses.shape[0]):
+                pre_idx = post_synapses[post_idx, 0]
+                pre_coordinate = pre_synapses[pre_idx, :]
+                post_coordinate = post_synapses[post_idx, 1:]
                 post_annotation = ng.LineAnnotation(
-                        id=str(idx),
+                        id=str(post_idx),
                         # note that the synapse coordinate is already in xyz order
                         # so we do not need to reverse it!
                         pointA=pre_coordinate,
