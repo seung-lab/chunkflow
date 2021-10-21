@@ -1,52 +1,51 @@
 import os
 import json
+from copy import deepcopy
 
 import numpy as np
 import h5py
 
 
 class Synapses():
-    def __init__(self, tbars: np.ndarray, tbar_confidence: np.ndarray = None, 
-            post_synapses: np.ndarray = None, post_synapse_confidence: np.ndarray = None, 
+    def __init__(self, pre: np.ndarray, pre_confidence: np.ndarray = None, 
+            post: np.ndarray = None, post_confidence: np.ndarray = None, 
             resolution: tuple = None) -> None:
         """Synapses containing T-bars and post-synapses
 
         Args:
-            tbars (np.ndarray): T-bar points, Nx3, z,y,x, the coordinate should be physical coordinate rather than voxels.
-            tbar_confidence (np.ndarray, optional): confidence of T-bar detection. Defaults to None.
-            post_synapses (np.ndarray, optional): [description]. Defaults to None.
+            pre (np.ndarray): T-bar points, Nx3, z,y,x, the coordinate should be physical coordinate rather than voxels.
+            pre_confidence (np.ndarray, optional): confidence of T-bar detection. Defaults to None.
+            post (np.ndarray, optional): [description]. Defaults to None.
             resolution (tuple, optional): [description]. Defaults to None.
         """
-        assert tbars.ndim == 2
-        assert tbars.shape[1] == 3
+        assert pre.ndim == 2
+        assert pre.shape[1] == 3
 
-        if tbar_confidence is not None:
-            assert tbar_confidence.ndim == 1
-            np.testing.assert_array_less(tbar_confidence, 1.00001)
-            np.testing.assert_array_less(-0.0001, tbar_confidence)
-            assert len(tbar_confidence) == tbars.shape[0]
+        if pre_confidence is not None:
+            assert pre_confidence.ndim == 1
+            np.testing.assert_array_less(pre_confidence, 1.00001)
+            np.testing.assert_array_less(-0.0001, pre_confidence)
+            assert len(pre_confidence) == pre.shape[0]
+
+        if post is not None:
+            if post_confidence is not None:
+                assert post_confidence.ndim == 1
+                assert len(post_confidence) == post.shape[1]
+
+            assert post.ndim == 2
+            # parent pre index, z, y, x
+            assert post.shape[1] == 4
+            assert np.issubdtype(post.dtype, np.integer)
 
         if resolution is not None:
-            resolution = np.asarray(resolution, dtype=tbars.dtype)
+            resolution = np.asarray(resolution, dtype=pre.dtype)
             np.testing.assert_array_less(0, resolution)
-            tbars *= resolution
-            if post_synapses is not None:
-                post_synapses[:, 1:] *= post_synapses[:, 1:]
 
-        if post_synapses is not None:
-            if post_synapse_confidence is not None:
-                assert post_synapse_confidence.ndim == 1
-                assert len(post_synapse_confidence) == post_synapses.shape[1]
-
-            post_synapses.ndim == 2
-            # parent tbar index, z, y, x
-            post_synapses.shape[1] == 4
-            assert np.issubdtype(post_synapses.dtype, np.integer)
-
-        self.tbars = tbars
-        self.tbar_confidence = tbar_confidence
-        self.post_synapses = post_synapses
-        self.post_synapse_confidence = post_synapse_confidence
+        self.resolution = resolution
+        self.pre = pre
+        self.pre_confidence = pre_confidence
+        self.post = post
+        self.post_confidence = post_confidence
         
     @classmethod
     def from_dict(cls, synapses: dict):
@@ -60,36 +59,36 @@ class Synapses():
         del synapses['order']
         del synapses['resolution']
 
-        tbar_num = len(synapses) - 2
-        tbars = np.zeros((tbar_num, 3), dtype=np.int32)
-        post_synapse_list = []
-        tbar_indices = []
-        for sid, synapse in synapses.items():
-            tbars[sid, :] = np.asarray(synapse['coord'])
+        pre_num = len(synapses)
+        pre = np.zeros((pre_num, 3), dtype=np.int32)
+        post_list = []
+        pre_indices = []
+        for sid, synapse in enumerate(synapses.values()):
+            pre[sid, :] = np.asarray(synapse['coord'])
             if 'postsynapses' in synapse:
                 for idx, post_coordinate in enumerate(synapse['postsynapses']):
-                    post_synapse_list.append(post_coordinate)
-                    tbar_indices.append(sid)
+                    post_list.append(post_coordinate)
+                    pre_indices.append(sid)
         
-        post_synapse_num = len(post_synapse_list)
-        if post_synapse_num == 0:
-            post_synapses = None
+        post_num = len(post_list)
+        if post_num == 0:
+            post = None
         else:
-            post_synapses = np.zeros((post_synapse_num, 4), dtype=np.int32)
-            for idx, post_synapse in enumerate(post_synapse_list):
-                post_synapses[idx, 0] = tbar_indices[idx]
-                post_synapses[idx, 1:] = np.asarray(post_synapse)
+            post = np.zeros((post_num, 4), dtype=np.int32)
+            for idx, post_synapse in enumerate(post_list):
+                post[idx, 0] = pre_indices[idx]
+                post[idx, 1:] = np.asarray(post_synapse)
 
         if order == ['z', 'y', 'x']:
             pass
         elif order == ['x', 'y', 'z']:
             resolution = resolution[::-1]
             # invert to z,y,x
-            tbars = np.fliplr(tbars)
-            if post_synapses is not None:
-                post_synapses[:, 1:] = np.fliplr(post_synapses[:, 1:])
+            pre = np.fliplr(pre)
+            if post is not None:
+                post[:, 1:] = np.fliplr(post[:, 1:])
 
-        return cls(tbars, post_synapses=post_synapses, resolution=resolution)
+        return cls(pre, post=post, resolution=resolution)
     
     @classmethod
     def from_json(cls, fname: str, resolution: tuple = None):
@@ -103,9 +102,9 @@ class Synapses():
     @classmethod
     def from_h5(cls, fname: str, resolution: tuple = None):
         with h5py.File(fname, 'r') as hf:
-            tbars = np.asarray(hf['tbars'])
+            pre = np.asarray(hf['pre'])
             confidence = np.asarray(hf['confidence'])
-        return cls(tbars, tbar_confidence=confidence, resolution=resolution)
+        return cls(pre, pre_confidence=confidence, resolution=resolution)
 
     @classmethod
     def from_file(cls, fname: str, resolution: tuple = None):
@@ -118,6 +117,29 @@ class Synapses():
             raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
         
     @property
-    def tbar_num(self):
-        return self.tbars.shape[0]
+    def pre_num(self):
+        return self.pre.shape[0]
+
+    @property
+    def pre_with_physical_coordinate(self):
+        if self.resolution is not None:
+            return self.pre * self.resolution
+        else:
+            return self.pre
+            
+            
+    @property
+    def post_with_physical_coordinate(self):
+        """ post synapses with physical coordinate. Note that the first column is the index of
+        presynapse or pre
+        """
+        if self.post is None:
+            return None
+        else:
+            if self.resolution is None:
+                return self.post
+            else:
+                post = deepcopy(self.post)
+                post[:, 1:] *= self.resolution
+                return post
 
