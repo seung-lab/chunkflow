@@ -1,6 +1,8 @@
 import os
 import json
 from copy import deepcopy
+from functools import cached_property
+from collections import defaultdict
 
 import numpy as np
 import h5py
@@ -102,9 +104,47 @@ class Synapses():
     @classmethod
     def from_h5(cls, fname: str, resolution: tuple = None):
         with h5py.File(fname, 'r') as hf:
-            pre = np.asarray(hf['pre'])
-            confidence = np.asarray(hf['confidence'])
-        return cls(pre, pre_confidence=confidence, resolution=resolution)
+
+            pre = np.asarray(hf['pre'], dtype=np.int32)
+
+            if resolution is None and 'resolution' in hf.keys():
+                resolution = np.asarray(hf['resolution'])
+            
+            if 'post' in hf.keys():
+                post = np.asarray(hf['post'], dtype=np.int32)
+            else:
+                post = None
+            
+            if 'pre_confidence' in hf.keys():
+                pre_confidence = np.asarray(hf['pre_confidence'])
+            else:
+                pre_confidence = None
+            
+            if 'post_confidence' in hf.keys():
+                post_confidence = np.asarray(hf['post_confidence'])
+            else:
+                post_confidence = None
+            
+        return cls(pre, post=post, pre_confidence=pre_confidence, 
+                    post_confidence=post_confidence, resolution=resolution)
+
+    def to_h5(self, fname: str) -> None:
+        assert fname.endswith(".h5") or fname.endswith(".hdf5")
+        with h5py.File(fname, "w") as hf:
+            
+            hf['pre'] = self.pre
+
+            if self.post is not None:
+                hf['post'] = self.post
+            
+            if self.resolution is not None:
+                hf['resolution'] = self.resolution
+            
+            if self.pre_confidence is not None:
+                hf['pre_confidence'] = self.pre_confidence
+
+            if self.post_confidence is not None:
+                hf['post_confidence'] = self.post_confidence
 
     @classmethod
     def from_file(cls, fname: str, resolution: tuple = None):
@@ -119,6 +159,10 @@ class Synapses():
     @property
     def pre_num(self):
         return self.pre.shape[0]
+    
+    @property
+    def post_num(self):
+        return self.post.shape[0]
 
     @property
     def pre_with_physical_coordinate(self):
@@ -143,3 +187,24 @@ class Synapses():
                 post[:, 1:] *= self.resolution
                 return post
 
+    @cached_property
+    def pre_index2post_indices(self):
+        pi2pi = defaultdict(list)
+        for idx in range(self.pre_num):
+            # find the post synapses for this presynapse
+            post_indices = np.argwhere(self.post[:, 0]==idx)
+            pi2pi[idx].append(post_indices)
+
+        return pi2pi
+
+    @cached_property
+    def distances_from_pre_to_post(self):
+        distances = np.zeros((self.post_num,), dtype=float)
+        for post_idx in range(self.post_num):
+            post = self.post[post_idx, 1:]
+            pre_idx = self.post[post_idx, 0]
+            pre = self.pre[pre_idx]
+            distances[post_idx] = np.linalg.norm(pre - post)
+        return distances
+    
+    
