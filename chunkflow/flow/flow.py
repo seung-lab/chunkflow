@@ -511,11 +511,14 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
     type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
     required=True, help='files containing synapses. Currently support HDF5 and JSON.')
 @click.option('--path-suffix', '-s', type=str, default=None, help='file path suffix.')
+@click.option('--c-order/--f-order', default=True,
+    help='C order or Fortran order in the file. XYZ is Fortran order, ZYX is C order.')
 @click.option('--resolution', '-r', type=int, nargs=3, 
     default=None, callback=default_none, help='resolution of points.')
 @click.option('--output-name', '-o', type=str, default='synapses', help='data name of the result.')
 @operator
-def load_synapses(tasks, name: str, file_path: str, path_suffix: str, resolution: tuple, output_name: str):
+def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: bool, 
+        resolution: tuple, output_name: str):
     """Load synapses formated as JSON or HDF5."""
     for task in tasks:
         if task is not None:
@@ -534,7 +537,11 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, resolution
             if os.path.getsize(fname) == 0:
                 task[output_name] = None
             else:
-                task[output_name] = Synapses.from_file(fname, resolution = resolution)
+                task[output_name] = Synapses.from_file(
+                    fname, 
+                    resolution = resolution,
+                    c_order = c_order
+                )
             
             task['log']['timer'][name] = time() - start
         yield task
