@@ -102,7 +102,7 @@ class Synapses():
         return cls.from_dict(synapses)
 
     @classmethod
-    def from_h5(cls, fname: str, resolution: tuple = None):
+    def from_h5(cls, fname: str, resolution: tuple = None, c_order: bool = True):
         with h5py.File(fname, 'r') as hf:
 
             pre = np.asarray(hf['pre'], dtype=np.int32)
@@ -124,6 +124,11 @@ class Synapses():
                 post_confidence = np.asarray(hf['post_confidence'])
             else:
                 post_confidence = None
+
+        if not c_order:
+            # transform to C order
+            pre = pre[:, ::-1]
+            post[:, 1:] = post[:, 1:][:, ::-1]
             
         return cls(pre, post=post, pre_confidence=pre_confidence, 
                     post_confidence=post_confidence, resolution=resolution)
@@ -147,12 +152,13 @@ class Synapses():
                 hf['post_confidence'] = self.post_confidence
 
     @classmethod
-    def from_file(cls, fname: str, resolution: tuple = None):
+    def from_file(cls, fname: str, resolution: tuple = None, c_order: bool = True):
         assert os.path.exists(fname)
         if fname.endswith('.json'):
+            assert c_order
             return cls.from_json(fname, resolution = resolution)
         elif fname.endswith('.h5'):
-            return cls.from_h5(fname, resolution=resolution)
+            return cls.from_h5(fname, resolution=resolution, c_order=c_order)
         else:
             raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
         
