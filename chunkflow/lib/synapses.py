@@ -7,6 +7,8 @@ from collections import defaultdict
 import numpy as np
 import h5py
 
+from .bounding_boxes import BoundingBox
+
 
 class Synapses():
     def __init__(self, pre: np.ndarray, pre_confidence: np.ndarray = None, 
@@ -176,8 +178,14 @@ class Synapses():
             return self.pre * self.resolution
         else:
             return self.pre
-            
-            
+        
+    @property
+    def bounding_box(self) -> BoundingBox:
+        bbox = BoundingBox.from_points(self.pre)
+        bbox_post = BoundingBox.from_points(self.post[:, 1:])
+        bbox.union(bbox_post)
+        return bbox
+                    
     @property
     def post_with_physical_coordinate(self):
         """ post synapses with physical coordinate. Note that the first column is the index of
