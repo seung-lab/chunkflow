@@ -48,6 +48,22 @@ class BoundingBox(Bbox):
         self.maxpt += size
         return self
 
+    def union(self, bbox2: Union[BoundingBox, Bbox]):
+        """Merge another bounding box
+
+        Args:
+            bbox2 (Union[BoundingBox, Bbox]): another bounding box
+
+        Returns:
+            BoundingBox: bounding box after merging
+        """
+        if isinstance(bbox2, BoundingBox):
+            assert self.voxel_size == bbox2.voxel_size
+
+        self.minpt = np.minimum(self.minpt, bbox2.minpt)
+        self.maxpt = np.maximum(self.maxpt, bbox2.maxpt)
+        return self
+
     def contains(self, point: Union[tuple, Vec, list]):
         assert 3 == len(point)
         return np.all(np.asarray(
