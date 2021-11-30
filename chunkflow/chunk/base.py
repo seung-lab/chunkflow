@@ -289,6 +289,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
                 f.create_dataset('/unique_nonzeros', data = unique)
         return file_name
 
+    def __len__(self):
+        return len(self.array)
+
     def __array__(self):
         return self.array
     
@@ -550,13 +553,18 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         overlap_slices = self._get_overlap_slices(other.slices)
         self.array[overlap_slices] += other.array[overlap_slices]
 
-    def cutout(self, slices: tuple):
+    def cutout(self, x: Union[tuple, BoundingBox, Bbox]):
         """
         cutout a region of interest from this chunk
 
         :param slices: the global slices of region of interest
         :return: another chunk of region of interest
         """
+        if isinstance(x, BoundingBox) or isinstance(x, Bbox):
+            slices = x.to_slices()
+        else:
+            slices = x
+            
         if len(slices) == self.ndim - 1:
             slices = (slice(0, self.shape[0]), ) + slices
         internalSlices = self._get_internal_slices(slices)

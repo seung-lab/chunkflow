@@ -1,22 +1,63 @@
+# support the class method with parameter type of itself
+from __future__ import annotations
+
 import logging
 import os
-from itertools import product
-from collections import UserList
+from collections import UserList, namedtuple
 from math import ceil
 from typing import Union
 from copy import deepcopy
 
 import numpy as np
-import h5py 
+import h5py
+from numpy.lib.arraysetops import isin 
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
+
+
+class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
+    """Cartesian coordinate or offset."""
+    __slots__ = ()
+    
+    def __sub__(self, offset: Union[Cartesian, int]):
+        """subtract to another voxel coordinate
+
+        Args:
+            offset (Cartesian, int): another voxel coordinate
+        """
+        if isinstance(offset, int):
+            offset = (offset, offset, offset)
+        return Cartesian(*[x-o for x, o in zip(self, offset)])
+           
+    def __add__(self, offset: Union[Cartesian, int]):
+        """add another coordinate
+
+        Args:
+            offset (Cartesian, int): offset
+        """
+        if isinstance(offset, int):
+            offset = (offset, offset, offset)
+        return Cartesian(*[x+o for x, o in zip(self, offset)])
+
+    @property
+    def vec(self):
+        return Vec(*self)
 
 
 class BoundingBox(Bbox):
     def __init__(self, min_corner: list, max_corner: list, dtype=None, voxel_size: tuple = None):
         super().__init__(min_corner, max_corner, dtype=dtype)
         self._voxel_size = voxel_size
+
+    @classmethod
+    def from_corners(cls, minpt: Cartesian, maxpt: Cartesian):
+        if isinstance(minpt, Cartesian):
+            minpt = minpt.vec
+        
+        if isinstance(maxpt, Cartesian):
+            maxpt = maxpt.vec
+        return cls(minpt, maxpt)
 
     @classmethod
     def from_bbox(cls, bbox: Bbox, voxel_size: tuple = None):
@@ -31,6 +72,24 @@ class BoundingBox(Bbox):
     def from_list(cls, x: list):
         bbox = Bbox.from_list(x)
         return cls.from_bbox(bbox)
+
+    @classmethod
+    def from_points(cls, x: np.ndarray):
+        bbox = Bbox.from_points(x)
+        return cls.from_bbox(bbox)
+
+    @classmethod
+    def from_center(cls, center: Cartesian, extent: int):
+        """Create bounding box from center and extent
+
+        Args:
+            center (Cartesian): center coordinate
+            extent (int): the range to extent, like radius
+        """
+        minpt = center - extent
+        maxpt = center - extent
+        return cls.from_corners(minpt, maxpt)
+
 
     def clone(self):
         bbox = Bbox(self.minpt, self.maxpt, dtype=self.dtype)
@@ -48,7 +107,7 @@ class BoundingBox(Bbox):
         self.maxpt += size
         return self
 
-    def union(self, bbox2: Union[BoundingBox, Bbox]):
+    def union(self, bbox2):
         """Merge another bounding box
 
         Args:

@@ -46,9 +46,10 @@ class Synapses():
             np.testing.assert_array_less(0, resolution)
 
         self.resolution = resolution
-        self.pre = pre
+        # unsigned integer will have minus issues
+        self.pre = pre.astype(np.int32)
         self.pre_confidence = pre_confidence
-        self.post = post
+        self.post = post.astype(np.int32)
         self.post_confidence = post_confidence
         
     @classmethod
@@ -217,8 +218,7 @@ class Synapses():
         for post_idx in range(self.post_num):
             post = self.post[post_idx, 1:]
             pre_idx = self.post[post_idx, 0]
-            pre = self.pre[pre_idx]
+            pre = self.pre[pre_idx, :]
             distances[post_idx] = np.linalg.norm(pre - post)
         return distances
-    
     
