@@ -10,7 +10,6 @@ from copy import deepcopy
 
 import numpy as np
 import h5py
-from numpy.lib.arraysetops import isin 
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
@@ -37,8 +36,12 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
             offset (Cartesian, int): offset
         """
         if isinstance(offset, int):
-            offset = (offset, offset, offset)
-        return Cartesian(*[x+o for x, o in zip(self, offset)])
+            return Cartesian(*[x+offset for x in self])
+        else:
+            return Cartesian(*[x+o for x, o in zip(self, offset)])
+
+    def __floordiv__(self, d: int):
+        return Cartesian(*[x // d for x in self])
 
     @property
     def vec(self):
@@ -87,7 +90,7 @@ class BoundingBox(Bbox):
             extent (int): the range to extent, like radius
         """
         minpt = center - extent
-        maxpt = center - extent
+        maxpt = center + extent
         return cls.from_corners(minpt, maxpt)
 
 
