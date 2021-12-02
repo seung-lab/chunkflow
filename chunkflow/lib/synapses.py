@@ -164,17 +164,26 @@ class Synapses():
             return cls.from_h5(fname, resolution=resolution, c_order=c_order)
         else:
             raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
-        
+
     @property
-    def pre_num(self):
+    def post_coordinates(self) -> np.ndarray:
+        """the coordinate array
+
+        Returns:
+            np.ndarray: the array of coordinates. for each row, z,y,x
+        """
+        return self.post[:, 1:]
+
+    @property
+    def pre_num(self) -> int:
         return self.pre.shape[0]
     
     @property
-    def post_num(self):
+    def post_num(self) -> int:
         return self.post.shape[0]
 
     @property
-    def pre_with_physical_coordinate(self):
+    def pre_with_physical_coordinate(self) -> np.ndarray:
         if self.resolution is not None:
             return self.pre * self.resolution
         else:
