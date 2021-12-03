@@ -6,6 +6,8 @@ import os
 from collections import UserList, namedtuple
 from math import ceil
 from typing import Union
+from numbers import Number
+
 from copy import deepcopy
 
 import numpy as np
@@ -40,8 +42,51 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         else:
             return Cartesian(*[x+o for x, o in zip(self, offset)])
 
+    def __mul__(self, m: Number) -> Cartesian:
+        return Cartesian(*[x*m for x in self])
+
     def __floordiv__(self, d: int):
         return Cartesian(*[x // d for x in self])
+
+    def __truediv__(self, d: Number):
+        return Cartesian(*[x/d for x in self])
+
+    def __mod__(self, d: int):
+        return Cartesian(*[x%d for x in self])
+
+    def __lt__(self, other: Cartesian) -> bool:
+        if self.x < other.x and self.y < other.y and self.z < other.z:
+            return True
+        else:
+            return False
+
+    def __le__(self, other: Cartesian) -> bool:
+        if self.x <= other.x and self.y <= other.y and self.z <= other.z:
+            return True
+        else:
+            return False
+
+    def __gt__(self, other: Cartesian) -> bool:
+        if self.x > other.x and self.y > other.y and self.z > other.z:
+            return True
+        else:
+            return False
+
+    def __ge__(self, other: Cartesian) -> bool:
+        if self.z >= other.z and self.y >= other.y and self.x >= other.x:
+            return True
+        else:
+            return False
+
+    def __ne__(self, other: Cartesian) -> bool:
+        if self.z != other.z and self.y != other.y and self.x != other.x:
+            return True
+        else:
+            return False
+
+    # def __isub__(self, other: Union[Cartesian,Number]) -> Cartesian:
+
+
 
     @property
     def vec(self):
@@ -49,18 +94,18 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
 
 
 class BoundingBox(Bbox):
-    def __init__(self, min_corner: list, max_corner: list, dtype=None, voxel_size: tuple = None):
-        super().__init__(min_corner, max_corner, dtype=dtype)
-        self._voxel_size = voxel_size
-
-    @classmethod
-    def from_corners(cls, minpt: Cartesian, maxpt: Cartesian):
+    def __init__(self, 
+            minpt: Union[list, Cartesian], 
+            maxpt: Union[list, Cartesian], 
+            dtype=None, 
+            voxel_size: Cartesian = None):
         if isinstance(minpt, Cartesian):
             minpt = minpt.vec
         
         if isinstance(maxpt, Cartesian):
             maxpt = maxpt.vec
-        return cls(minpt, maxpt)
+        super().__init__(minpt, maxpt, dtype=dtype)
+        self._voxel_size = voxel_size
 
     @classmethod
     def from_bbox(cls, bbox: Bbox, voxel_size: tuple = None):
@@ -90,24 +135,28 @@ class BoundingBox(Bbox):
             extent (int): the range to extent, like radius
         """
         minpt = center - extent
-        maxpt = center + extent
-        return cls.from_corners(minpt, maxpt)
+        # the maxpt is not inclusive, so we need +1
+        maxpt = center + extent + 1
+        return cls(minpt, maxpt)
 
+    def __repr__(self):
+        return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}, voxel_size={self.voxel_size})'
 
     def clone(self):
         bbox = Bbox(self.minpt, self.maxpt, dtype=self.dtype)
         bbox = bbox.clone()
         return BoundingBox.from_bbox(bbox, voxel_size=self.voxel_size)
 
-    def adjust(self, size: Union[int, tuple, list, Vec]):
+    def adjust(self, size: Union[Cartesian, int, tuple, list, Vec]):
         if size is None:
             logging.warn('adjusting bounding box size is None!')
             return self
 
         if not isinstance(size, int):
-            assert 3 == len(size)
-        self.minpt -= size
-        self.maxpt += size
+            assert len(size)==3 or len(size)==6
+            size = Vec(*size)
+        self.minpt -= size[:3]
+        self.maxpt += size[-3:]
         return self
 
     def union(self, bbox2):
@@ -131,6 +180,10 @@ class BoundingBox(Bbox):
         return np.all(np.asarray(
             (self.maxpt >= Vec(*point)))) and np.all(
                 np.asarray((self.minpt <= Vec(*point)))) 
+
+    @property
+    def shape(self):
+        return Cartesian(*(self.maxpt - self.minpt))
 
     @property
     def voxel_size(self):

@@ -13,7 +13,7 @@ import tifffile
 import cc3d
 from cloudvolume.lib import yellow, Bbox
 
-from chunkflow.lib.bounding_boxes import BoundingBox
+from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
 
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
@@ -30,11 +30,13 @@ class Chunk(NDArrayOperatorsMixin):
     and `examples<https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
 
     :param array: the data array chunk in a big dataset
-    :param voxel_offset: the offset of this array chunk. 3 numbers: z, y, x
-    :param voxel_size: the size of each voxel, normally with unit of nm. 3 numbers: z, y, x.
+    :param voxel_offset (Cartesian): the offset of this array chunk. 3 numbers: z, y, x
+    :param voxel_size (Cartesian): the size of each voxel, normally with unit of nm. 3 numbers: z, y, x.
     :return: a new chunk with array data and global offset
     """
-    def __init__(self, array: np.ndarray, voxel_offset: tuple = None, voxel_size: tuple = None):
+    def __init__(self, array: np.ndarray, 
+            voxel_offset: Cartesian = None, 
+            voxel_size: Cartesian = None):
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         self.array = array
         if voxel_offset is None:

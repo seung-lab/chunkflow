@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
 import json
+from typing import List
 from copy import deepcopy
 from functools import cached_property
 from collections import defaultdict
@@ -7,20 +10,20 @@ from collections import defaultdict
 import numpy as np
 import h5py
 
-from .bounding_boxes import BoundingBox
+from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
 
 
 class Synapses():
     def __init__(self, pre: np.ndarray, pre_confidence: np.ndarray = None, 
             post: np.ndarray = None, post_confidence: np.ndarray = None, 
-            resolution: tuple = None) -> None:
+            resolution: Cartesian = None) -> None:
         """Synapses containing T-bars and post-synapses
 
         Args:
             pre (np.ndarray): T-bar points, Nx3, z,y,x, the coordinate should be physical coordinate rather than voxels.
             pre_confidence (np.ndarray, optional): confidence of T-bar detection. Defaults to None.
             post (np.ndarray, optional): [description]. Defaults to None.
-            resolution (tuple, optional): [description]. Defaults to None.
+            resolution (Cartesian, optional): [description]. Defaults to None.
         """
         assert pre.ndim == 2
         assert pre.shape[1] == 3
@@ -53,16 +56,16 @@ class Synapses():
         self.post_confidence = post_confidence
         
     @classmethod
-    def from_dict(cls, synapses: dict):
+    def from_dict(cls, dc: dict):
         """Synapses as a dictionary
 
         Args:
             synapses (dict): the whole synapses in a dictionary
         """
-        order = synapses['order']
-        resolution = synapses['resolution']
-        del synapses['order']
-        del synapses['resolution']
+        order = dc['order']
+        resolution = dc['resolution']
+        del dc['order']
+        del dc['resolution']
 
         pre_num = len(synapses)
         pre = np.zeros((pre_num, 3), dtype=np.int32)
@@ -98,11 +101,11 @@ class Synapses():
     @classmethod
     def from_json(cls, fname: str, resolution: tuple = None):
         with open(fname, 'r') as file:
-            synapses = json.load(file)
+            syns = json.load(file)
 
         if resolution is not None:
-            synapses['resolution'] = resolution
-        return cls.from_dict(synapses)
+            syns['resolution'] = resolution
+        return cls.from_dict(syns)
 
     @classmethod
     def from_h5(cls, fname: str, resolution: tuple = None, c_order: bool = True):
@@ -137,6 +140,11 @@ class Synapses():
                     post_confidence=post_confidence, resolution=resolution)
 
     def to_h5(self, fname: str) -> None:
+        """save to a HDF5 file
+
+        Args:
+            fname (str): the file name to be saved
+        """
         assert fname.endswith(".h5") or fname.endswith(".hdf5")
         with h5py.File(fname, "w") as hf:
             
@@ -165,6 +173,27 @@ class Synapses():
         else:
             raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
 
+    def __eq__(self, other: Synapses) -> bool:
+        """compare two synapses.
+        Note that we do not compare the confidence here!
+
+        Args:
+            other (Synapses): the other Synapses instance
+
+        Returns:
+            bool: whether the pre and post are the same
+        """
+        if np.array_equal(self.pre, other.pre):
+            if self.post is None and other.post is None:
+                return True
+            elif self.post is not None and other.post is not None and np.array_equal(
+                    self.post, other.post):
+                return True
+            else:
+                return False
+        else:
+            return False
+
     @property
     def post_coordinates(self) -> np.ndarray:
         """the coordinate array
@@ -183,19 +212,31 @@ class Synapses():
         return self.post.shape[0]
 
     @property
+    def pre_bounding_box(self) -> BoundingBox:
+        bbox = BoundingBox.from_points(self.pre)
+        # the end point is exclusive
+        bbox.adjust((0,0,0, 1,1,1))
+        return bbox
+
+    def post_bounding_box(self) -> BoundingBox:
+        bbox = BoundingBox.from_points(self.post_coordinates)
+        # the right direction is exclusive
+        bbox.adjust((0,0,0, 1,1,1))
+        return bbox
+    
+    @property
+    def bounding_box(self) -> BoundingBox:
+        bbox = self.pre_bounding_box
+        bbox.union(self.post_bounding_box)
+        return bbox
+    
+    @property
     def pre_with_physical_coordinate(self) -> np.ndarray:
         if self.resolution is not None:
             return self.pre * self.resolution
         else:
             return self.pre
-        
-    @property
-    def bounding_box(self) -> BoundingBox:
-        bbox = BoundingBox.from_points(self.pre)
-        bbox_post = BoundingBox.from_points(self.post[:, 1:])
-        bbox.union(bbox_post)
-        return bbox
-                    
+
     @property
     def post_with_physical_coordinate(self):
         """ post synapses with physical coordinate. Note that the first column is the index of
@@ -213,11 +254,14 @@ class Synapses():
 
     @cached_property
     def pre_index2post_indices(self):
-        pi2pi = defaultdict(list)
+        # pi2pi = defaultdict(list)
+        pi2pi = []
         for idx in range(self.pre_num):
             # find the post synapses for this presynapse
-            post_indices = np.argwhere(self.post[:, 0]==idx)
-            pi2pi[idx].append(post_indices)
+            post_indices = np.nonzero(self.post[:, 0]==idx)
+            assert len(post_indices) == 1
+            post_indices = post_indices[0].tolist()
+            pi2pi.append(post_indices)
 
         return pi2pi
 
@@ -230,4 +274,60 @@ class Synapses():
             pre = self.pre[pre_idx, :]
             distances[post_idx] = np.linalg.norm(pre - post)
         return distances
-    
+
+    @property
+    def pre_indices_without_post(self) -> List[int]:
+        """presynapse indices that do not have post synapses
+
+        Returns:
+            [list]: a list of presynapse indices 
+        """
+        pi2pi = self.pre_index2post_indices
+        pre_indices = []
+        for pre_index in range(self.pre_num):
+            post_indices = pi2pi[pre_index]
+            if len(post_indices) == 0:
+                pre_indices.append(pre_index)
+        return pre_indices
+
+    def remove_pre(self, indices: List[int]):
+        """remove or delete presynapses according to a list of indices
+        
+        Note that we need to update the post synapse as well!
+
+        Args:
+            indices (List[int]): the presynapse indices
+        """# update the presynapse indices in post
+        # old presynapse index to new presynapse index
+        old2new = np.ones((self.pre_num,), dtype=np.int64)
+        old2new[indices] = 0
+        old2new = np.cumsum(old2new) - 1
+
+        self.pre = np.delete(self.pre, indices, axis=0)
+        
+        post_indices = np.isin(self.post[:, 0], indices, assume_unique=True)
+        self.post = np.delete(self.post, post_indices, axis=0)
+        for idx in range(self.post_num):
+            self.post[idx, 0] = old2new[self.post[idx, 0]]
+
+    def remove_synapses_without_post(self):
+        """remove synapse without post synapse target
+
+        Returns:
+            None: remove in place
+        """
+        selected_pre_indices = self.pre_indices_without_post
+
+        # remove the selected presynapses
+        self.remove_pre(selected_pre_indices)
+        
+
+
+if __name__ == '__main__':
+    synapses = Synapses.from_h5(
+        os.path.expanduser(
+            '~/dropbox/40_gt/21_wasp_synapses/Sp2,6848-7448_5690-6290_7038-7638.h5'
+        )
+    )
+    assert len(synapses.pre_index2post_indices[0]) > 1
+    breakpoint()
