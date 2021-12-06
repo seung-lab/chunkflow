@@ -2,12 +2,12 @@ apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: inference
-  labels: 
+  targets: 
     app: chunkflow
 spec:
   replicas: 1
   selector:
-    matchLabels:
+    matchtargets:
       app: chunkflow
   strategy:
     rollingUpdate:
@@ -16,7 +16,7 @@ spec:
     type: RollingUpdate
   template:
     metadata:
-      labels:
+      targets:
         app: chunkflow
     spec:
       hostNetwork: true

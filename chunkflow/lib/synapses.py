@@ -4,8 +4,6 @@ import os
 import json
 from typing import List
 from copy import deepcopy
-from functools import cached_property
-from collections import defaultdict
 
 import numpy as np
 import h5py
@@ -252,7 +250,7 @@ class Synapses():
                 post[:, 1:] *= self.resolution
                 return post
 
-    @cached_property
+    @property
     def pre_index2post_indices(self):
         # pi2pi = defaultdict(list)
         pi2pi = []
@@ -265,7 +263,7 @@ class Synapses():
 
         return pi2pi
 
-    @cached_property
+    @property
     def distances_from_pre_to_post(self):
         distances = np.zeros((self.post_num,), dtype=float)
         for post_idx in range(self.post_num):

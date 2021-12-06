@@ -13,8 +13,8 @@ import logging
 import h5py
 import scipy.ndimage as nd
 import scipy.sparse as sparse
-from skimage.segmentation import relabel_sequential
-from scipy.ndimage.measurements import label
+from skimage.segmentation import retarget_sequential
+from scipy.ndimage.measurements import target
 from scipy.spatial.distance import pdist, squareform
 from sklearn.metrics import precision_recall_curve
 
@@ -91,7 +91,7 @@ def wiggle_room_precision_recall(pred, boundary, margin=2, connectivity=1):
     ----------
     pred : np.ndarray of float, arbitrary shape
         The prediction values, expressed as probability of observing a boundary
-        (i.e. a voxel with label 1).
+        (i.e. a voxel with target 1).
     boundary : np.ndarray of int, same shape as pred
         The true boundary map. 1 indicates boundary, 0 indicates non-boundary.
     margin : int, optional
@@ -201,8 +201,8 @@ def raw_edit_distance(aseg, gt, size_threshold=1000):
     (false_merges, false_splits) : float
         The number of splits and merges required to convert aseg to gt.
     """
-    aseg = relabel_sequential(aseg)[0]
-    gt = relabel_sequential(gt)[0]
+    aseg = retarget_sequential(aseg)[0]
+    gt = retarget_sequential(gt)[0]
     r = contingency_table(aseg, gt, ignore_seg=[0], ignore_gt=[0], norm=False)
     r.data[r.data <= size_threshold] = 0
     # make each segment overlap count for 1, since it will be one
@@ -235,7 +235,7 @@ def contingency_table(seg, gt, *, ignore_seg=(), ignore_gt=(), norm=True):
     -------
     cont : scipy.sparse.csr_matrix
         A contingency table. `cont[i, j]` will equal the number of voxels
-        labeled `i` in `seg` and `j` in `gt`. (Or the proportion of such voxels
+        targeted `i` in `seg` and `j` in `gt`. (Or the proportion of such voxels
         if `norm=True`.)
     """
     segr = seg.ravel()
@@ -675,17 +675,17 @@ def vi(x, y=None, weights=np.ones(2), ignore_x=[0], ignore_y=[0]):
     Parameters
     ----------
     x : np.ndarray
-        Label field (int type) or contingency table (float). `x` is
+        target field (int type) or contingency table (float). `x` is
         interpreted as a contingency table (summing to 1.0) if and only if `y`
         is not provided.
     y : np.ndarray of int, same shape as x, optional
-        A label field to compare to `x`.
+        A target field to compare to `x`.
     weights : np.ndarray of float, shape (2,), optional
         The weights of the conditional entropies of `x` and `y`. Equal weights
         are the default.
     ignore_x, ignore_y : list of int, optional
-        Any points having a label in this list are ignored in the evaluation.
-        Ignore 0-labeled points by default.
+        Any points having a target in this list are ignored in the evaluation.
+        Ignore 0-targeted points by default.
 
     Returns
     -------
@@ -714,14 +714,14 @@ def split_vi(x, y=None, ignore_x=[0], ignore_y=[0]):
     Parameters
     ----------
     x : np.ndarray
-        Label field (int type) or contingency table (float). `x` is
+        target field (int type) or contingency table (float). `x` is
         interpreted as a contingency table (summing to 1.0) if and only if `y`
         is not provided.
     y : np.ndarray of int, same shape as x, optional
-        A label field to compare to `x`.
+        A target field to compare to `x`.
     ignore_x, ignore_y : list of int, optional
-        Any points having a label in this list are ignored in the evaluation.
-        Ignore 0-labeled points by default.
+        Any points having a target in this list are ignored in the evaluation.
+        Ignore 0-targeted points by default.
 
     Returns
     -------
@@ -743,7 +743,7 @@ def vi_pairwise_matrix(segs, split=False):
     If 'split' is set to True, two matrices are returned, one for each
     direction of the conditional entropy.
 
-    0-labeled pixels are ignored.
+    0-targeted pixels are ignored.
 
     Parameters
     ----------
@@ -783,19 +783,19 @@ def split_vi_threshold(tup):
         The tuple should consist of::
             - the UCM for the candidate segmentation,
             - the gold standard,
-            - list of ignored labels in the segmentation,
-            - list of ignored labels in the gold standard,
+            - list of ignored targets in the segmentation,
+            - list of ignored targets in the gold standard,
             - threshold to use for the UCM.
 
     Returns
     -------
     sv : np.ndarray of float, shape (2,)
         The undersegmentation and oversegmentation of the comparison between
-        applying a threshold and connected components labeling of the first
+        applying a threshold and connected components targeting of the first
         array, and the second array.
     """
     ucm, gt, ignore_seg, ignore_gt, t = tup
-    return split_vi(label(ucm<t)[0], gt, ignore_seg, ignore_gt)
+    return split_vi(target(ucm<t)[0], gt, ignore_seg, ignore_gt)
 
 
 def vi_by_threshold(ucm, gt, ignore_seg=[], ignore_gt=[], npoints=None,
@@ -811,9 +811,9 @@ def vi_by_threshold(ucm, gt, ignore_seg=[], ignore_gt=[], npoints=None,
     gt : np.ndarray of int, same shape as `ucm`
         The ground truth segmentation.
     ignore_seg : list of int, optional
-        The labels to ignore in the segmentation of the UCM.
+        The targets to ignore in the segmentation of the UCM.
     ignore_gt : list of int, optional
-        The labels to ignore in the ground truth.
+        The targets to ignore in the ground truth.
     npoints : int, optional
         The number of thresholds to sample. By default, all thresholds are
         sampled.
@@ -864,7 +864,7 @@ def rand_by_threshold(ucm, gt, npoints=None):
     -------
     ris : np.ndarray of float, shape (3, len(np.unique(ucm))) or (3, npoints)
         The rand indices of the segmentation induced by thresholding and
-        labeling `ucm` at different values. The 3 rows of `ris` are the values
+        targeting `ucm` at different values. The 3 rows of `ris` are the values
         used for thresholding, the corresponding Rand Index at that threshold,
         and the corresponding Adjusted Rand Index at that threshold.
     """
@@ -875,7 +875,7 @@ def rand_by_threshold(ucm, gt, npoints=None):
         ts = ts[np.arange(1, len(ts), len(ts) / npoints)]
     result = np.zeros((2, len(ts)))
     for i, t in enumerate(ts):
-        seg = label(ucm < t)[0]
+        seg = target(ucm < t)[0]
         result[0, i] = rand_index(seg, gt)
         result[1, i] = adj_rand_index(seg, gt)
     return np.concatenate((ts[np.newaxis, :], result), axis=0)
@@ -884,15 +884,15 @@ def adapted_rand_error(seg, gt, all_stats=False):
     """Compute Adapted Rand error as defined by the SNEMI3D contest [1]
 
     Formula is given as 1 - the maximal F-score of the Rand index
-    (excluding the zero component of the original labels). Adapted
+    (excluding the zero component of the original targets). Adapted
     from the SNEMI3D MATLAB script, hence the strange style.
 
     Parameters
     ----------
     seg : np.ndarray
-        the segmentation to score, where each value is the label at that point
+        the segmentation to score, where each value is the target at that point
     gt : np.ndarray, same shape as seg
-        the groundtruth to score against, where each value is a label
+        the groundtruth to score against, where each value is a target
     all_stats : boolean, optional
         whether to also return precision and recall as a 3-tuple with rand_error
 
@@ -927,9 +927,9 @@ def adapted_rand_error(seg, gt, all_stats=False):
     a_i = p_ij.sum(axis=0).A.ravel()
     b_i = p_ij.sum(axis=1).A.ravel()
 
-    # Sum of the segment labeled 'A'
+    # Sum of the segment targeted 'A'
     sum_a = a_i @ a_i
-    # Sum of the segment labeled 'B'
+    # Sum of the segment targeted 'B'
     sum_b = b_i @ b_i
 
     # This is the new code, wherein 'n' is subtacted from the numerator
@@ -962,19 +962,19 @@ def calc_entropy(split_vals, count):
 
 
 def split_vi_mem(x, y):
-    x_labels = np.unique(x)
-    y_labels = np.unique(y)
-    x_labels0 = x_labels[x_labels != 0]
-    y_labels0 = y_labels[y_labels != 0]
+    x_targets = np.unique(x)
+    y_targets = np.unique(y)
+    x_targets0 = x_targets[x_targets != 0]
+    y_targets0 = y_targets[y_targets != 0]
 
     x_map = {}
     y_map = {}
 
-    for label in x_labels0:
-        x_map[label] = {}
+    for target in x_targets0:
+        x_map[target] = {}
 
-    for label in y_labels0:
-        y_map[label] = {}
+    for target in y_targets0:
+        y_map[target] = {}
 
     x_flat = x.ravel()
     y_flat = y.ravel()
@@ -1100,19 +1100,19 @@ def vi_tables(x, y=None, ignore_x=[0], ignore_y=[0]):
     Parameters
     ----------
     x, y : np.ndarray
-        Either x and y are provided as equal-shaped np.ndarray label fields
+        Either x and y are provided as equal-shaped np.ndarray target fields
         (int type), or y is not provided and x is a contingency table
         (sparse.csc_matrix) that may or may not sum to 1.
     ignore_x, ignore_y : list of int, optional
         Rows and columns (respectively) to ignore in the contingency table.
-        These are labels that are not counted when evaluating VI.
+        These are targets that are not counted when evaluating VI.
 
     Returns
     -------
     pxy : sparse.csc_matrix of float
         The normalized contingency table.
     px, py, hxgy, hygx, lpygx, lpxgy : np.ndarray of float
-        The proportions of each label in `x` and `y` (`px`, `py`), the
+        The proportions of each target in `x` and `y` (`px`, `py`), the
         per-segment conditional entropies of `x` given `y` and vice-versa, the
         per-segment conditional probability p log p.
     """
@@ -1156,31 +1156,31 @@ def sorted_vi_components(s1, s2, ignore1=[0], ignore2=[0], compress=False):
         Segmentations to be compared. Usually, `s1` will be a candidate
         segmentation and `s2` will be the ground truth or target segmentation.
     ignore1, ignore2 : list of int, optional
-        Labels in these lists are ignored in computing the VI. 0-labels are
-        ignored by default; pass empty lists to use all labels.
+        targets in these lists are ignored in computing the VI. 0-targets are
+        ignored by default; pass empty lists to use all targets.
     compress : bool, optional
-        The 'compress' flag performs a remapping of the labels before doing
-        the VI computation, resulting in memory savings when many labels are
-        not used in the volume. (For example, if you have just two labels, 1
+        The 'compress' flag performs a remapping of the targets before doing
+        the VI computation, resulting in memory savings when many targets are
+        not used in the volume. (For example, if you have just two targets, 1
         and 1,000,000, 'compress=False' will give a vector of length
         1,000,000, whereas with 'compress=True' it will have just size 2.)
 
     Returns
     -------
     ii1 : np.ndarray of int
-        The labels in `s2` having the most entropy. If `s1` is the automatic
+        The targets in `s2` having the most entropy. If `s1` is the automatic
         segmentation, these are the worst false merges.
     h2g1 : np.ndarray of float
-        The conditional entropy corresponding to the labels in `ii1`.
+        The conditional entropy corresponding to the targets in `ii1`.
     ii2 : np.ndarray of int (seg)
-        The labels in `s1` having the most entropy. These correspond to the
+        The targets in `s1` having the most entropy. These correspond to the
         worst false splits.
     h2g1 : np.ndarray of float
-        The conditional entropy corresponding to the labels in `ii2`.
+        The conditional entropy corresponding to the targets in `ii2`.
     """
     if compress:
-        s1, forw1, back1 = relabel_sequential(s1)
-        s2, forw2, back2 = relabel_sequential(s2)
+        s1, forw1, back1 = retarget_sequential(s1)
+        s2, forw2, back2 = retarget_sequential(s2)
     _, _, _, h1g2, h2g1, _, _ = vi_tables(s1, s2, ignore1, ignore2)
     i1 = (-h1g2).argsort()
     i2 = (-h2g1).argsort()
@@ -1275,7 +1275,7 @@ def rand_index(x, y=None):
     Parameters
     ----------
     x, y : np.ndarray
-        Either x and y are provided as equal-shaped np.ndarray label fields
+        Either x and y are provided as equal-shaped np.ndarray target fields
         (int type), or y is not provided and x is a contingency table
         (sparse.csc_matrix) that is *not* normalised to sum to 1.
 
@@ -1305,7 +1305,7 @@ def adj_rand_index(x, y=None):
     Parameters
     ----------
     x, y : np.ndarray
-        Either x and y are provided as equal-shaped np.ndarray label fields
+        Either x and y are provided as equal-shaped np.ndarray target fields
         (int type), or y is not provided and x is a contingency table
         (sparse.csc_matrix) that is *not* normalised to sum to 1.
 
@@ -1327,7 +1327,7 @@ def fm_index(x, y=None):
     Parameters
     ----------
     x, y : np.ndarray
-        Either x and y are provided as equal-shaped np.ndarray label fields
+        Either x and y are provided as equal-shaped np.ndarray target fields
         (int type), or y is not provided and x is a contingency table
         (sparse.csc_matrix) that is *not* normalised to sum to 1.
 

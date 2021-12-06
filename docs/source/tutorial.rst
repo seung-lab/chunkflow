@@ -143,7 +143,7 @@ In order to provide a universal interface for broader application, the ConvNet m
       return output_patch                                      
                                                              
    in_dim = 1                                                   
-   output_spec = OrderedDict(psd_label=1)
+   output_spec = OrderedDict(psd_target=1)
    depth = 3                                                    
    InstantiatedModel = Model(in_dim, output_spec, depth)        
 
@@ -170,9 +170,9 @@ You can also apply a threshold to get a segmentation of the cleft map::
 
 You should see segmentation overlayed with image:
 
-|cleft_label|
+|cleft_target|
 
-.. |cleft_label| image:: _static/image/cleft_label.png
+.. |cleft_target| image:: _static/image/cleft_target.png
 
 Of course, you can add a writing operator, such as ``write-tif``, before the ``neuroglancer`` operator to save the segmentation.
 
