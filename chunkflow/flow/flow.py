@@ -186,7 +186,7 @@ def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, adjust_size
                     print('create an empty file as mark: ', fname)
                     with open(fname, 'a'):
                         os.utime(fname, None)
-                # label task as None and task will be skipped
+                # target task as None and task will be skipped
                 task = None
         yield task
 
@@ -201,7 +201,7 @@ def skip_none(tasks, input_name: str):
         if task is not None:
             data = task[input_name]
             if data is None:
-                # label task as None and task will be skipped
+                # target task as None and task will be skipped
                 task = None
         yield task
 
@@ -1247,7 +1247,7 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
 
 @main.command('connected-components')
 @click.option('--name', type=str, default='connected-components', 
-              help='threshold a map and get the labels.')
+              help='threshold a map and get the targets.')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, 
               help='input chunk name')
@@ -1639,7 +1639,7 @@ def write_precomputed(tasks, name: str, volume_path: str,
 
 @main.command('threshold')
 @click.option('--name', type=str, default='threshold', 
-              help='threshold a map and get the labels.')
+              help='threshold a map and get the targets.')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, 
               help='input chunk name')

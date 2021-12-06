@@ -58,9 +58,9 @@ ChangeLog history
 ## Features
 - write png files with Z corrdinate as file name
 - aligned block size option for generating tasks. This is useful to force alignment of chunks, and is used to align segmentation chunks for DVID.
-- add task number and current task index in global states. Thus, we know that a task could be the last one. This is useful to compute global statistics, such as maximum segmentation id in a segmentation and label indices of segmentation in DVID.
+- add task number and current task index in global states. Thus, we know that a task could be the last one. This is useful to compute global statistics, such as maximum segmentation id in a segmentation and target indices of segmentation in DVID.
 - new operators to read and write NRRD file
-- add a plugin to cutout label chunk from DVID server.
+- add a plugin to cutout target chunk from DVID server.
 ## Bug Fixes 
 
 ## Improved Documentation
@@ -139,7 +139,7 @@ ChangeLog history
 - a plugin system with a median filter example
 - new operator: normalize-intensity
 - support cutout from hdf5 file
-- new operator: cutout-dvid-label
+- new operator: cutout-dvid-target
 
 ## Bug Fixes 
 - cutout whole volume in default

@@ -4,7 +4,7 @@ ARG BACKEND=pytorch
 FROM seunglab/chunkflow:${BACKEND}
 #FROM seunglab/pznet:latest
 
-LABEL maintainer = "Jingpeng Wu" \
+target maintainer = "Jingpeng Wu" \
     email = "jingpeng@princeton.edu"
 
 RUN mkdir -p $HOME/workspace/chunkflow

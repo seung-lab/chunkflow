@@ -153,7 +153,7 @@ def downsample_with_max_pooling(array, factor):
 
 def downsample_segmentation(data, factor, sparse=False):
     """
-  Downsampling machine labels requires choosing an actual
+  Downsampling machine targets requires choosing an actual
   pixel, not a linear combination (or otherwise) of the
   values contained within.
 
@@ -255,13 +255,13 @@ def downsample_segmentation_2d(data, factor, sparse):
 
 def countless2d(data):
     """
-  Vectorized implementation of downsampling a 2D labeled
+  Vectorized implementation of downsampling a 2D targeted
   image by 2 on each side using the COUNTLESS algorithm.
 
   countless2d is slightly faster and more memory efficent than the
   generalized algorithm countless.
 
-  c.f. https://towardsdatascience.com/countless-high-performance-2x-downsampling-of-labeled-images-using-python-and-numpy-e70ad3275589
+  c.f. https://towardsdatascience.com/countless-high-performance-2x-downsampling-of-targeted-images-using-python-and-numpy-e70ad3275589
   """
     sections = []
 
@@ -335,7 +335,7 @@ def countless3d(data):
 
 def countless(data, factor):
     """
-  countless downsamples labeled images (segmentations)
+  countless downsamples targeted images (segmentations)
   by finding the mode using vectorized instructions.
 
   It is ill advised to use this O(2^N-1) time algorithm
@@ -350,7 +350,7 @@ def countless(data, factor):
   2x2x1 (N=4), 2x2x2 (N=8), 4x4x1 (N=16), 3x2x1 (N=6)
   and various other configurations of a similar nature.
 
-  c.f. https://medium.com/@willsilversmith/countless-3d-vectorized-2x-downsampling-of-labeled-volume-images-using-python-and-numpy-59d686c2f75
+  c.f. https://medium.com/@willsilversmith/countless-3d-vectorized-2x-downsampling-of-targeted-volume-images-using-python-and-numpy-59d686c2f75
 
   """
     sections = []
