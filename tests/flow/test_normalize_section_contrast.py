@@ -12,6 +12,7 @@ def test_normalize_section_contrast():
     DIR = os.path.join(os.path.dirname(__file__), '../data/levels/1/')
     #histogram = np.random.randint(10000, size=256, dtype=np.uint32)
     image = np.arange(256, dtype=np.uint8).reshape(1, 16, 16)
+    assert image.ndim == 3
     image = Chunk(image, voxel_offset=(26774, 234, 456))
     
     levels_path = 'precomputed://file://' + DIR

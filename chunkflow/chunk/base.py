@@ -37,7 +37,9 @@ class Chunk(NDArrayOperatorsMixin):
     def __init__(self, array: np.ndarray, 
             voxel_offset: Cartesian = None, 
             voxel_size: Cartesian = None):
+        assert array.ndim >= 3 and array.ndim <= 4
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
+        
         self.array = array
         if voxel_offset is None:
             if isinstance(array, Chunk):
@@ -57,8 +59,6 @@ class Chunk(NDArrayOperatorsMixin):
         if voxel_size is not None:
             assert len(voxel_size) == 3
             assert np.alltrue([vs > 0 for vs in voxel_size])
-        
-        assert array.ndim >= 3 and array.ndim <= 4
         
     # One might also consider adding the built-in list type to this
     # list, to support operations like np.add(array_like, list)
