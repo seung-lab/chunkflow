@@ -486,7 +486,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         ret *= mask
         return Chunk(ret, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
-    def crop_margin(self, margin_size: tuple = None, output_bbox: BoundingBox=None):
+    def crop_margin(
+            self, 
+            margin_size: tuple = None, 
+            output_bbox: BoundingBox=None
+        ):
 
         if margin_size:
             if len(margin_size) == 3 and self.ndim == 4:

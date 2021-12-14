@@ -50,7 +50,9 @@ class Synapses():
         # unsigned integer will have minus issues
         self.pre = pre.astype(np.int32)
         self.pre_confidence = pre_confidence
-        self.post = post.astype(np.int32)
+        if post is not None:
+            post = post.astype(np.int32)
+        self.post = post
         self.post_confidence = post_confidence
         
     @classmethod
@@ -108,8 +110,13 @@ class Synapses():
     @classmethod
     def from_h5(cls, fname: str, resolution: tuple = None, c_order: bool = True):
         with h5py.File(fname, 'r') as hf:
-
-            pre = np.asarray(hf['pre'], dtype=np.int32)
+            if 'pre' in hf.keys():
+                pre = hf['pre']
+            else:
+                # this only works with an old version
+                # we can delete this code once we get ride of old version
+                pre = hf['tbars']
+            pre = np.asarray(pre, dtype=np.int32)
 
             if resolution is None and 'resolution' in hf.keys():
                 resolution = np.asarray(hf['resolution'])
@@ -302,11 +309,12 @@ class Synapses():
         old2new = np.cumsum(old2new) - 1
 
         self.pre = np.delete(self.pre, indices, axis=0)
-        
-        post_indices = np.isin(self.post[:, 0], indices, assume_unique=True)
-        self.post = np.delete(self.post, post_indices, axis=0)
-        for idx in range(self.post_num):
-            self.post[idx, 0] = old2new[self.post[idx, 0]]
+
+        if self.post is not None: 
+            post_indices = np.isin(self.post[:, 0], indices, assume_unique=True)
+            self.post = np.delete(self.post, post_indices, axis=0)
+            for idx in range(self.post_num):
+                self.post[idx, 0] = old2new[self.post[idx, 0]]
 
     def remove_synapses_without_post(self):
         """remove synapse without post synapse target
@@ -319,6 +327,13 @@ class Synapses():
         # remove the selected presynapses
         self.remove_pre(selected_pre_indices)
         
+    def remove_synapses_outside_bounding_box(self, bbox: BoundingBox):
+        selected = []
+        for idx in range(self.pre_num):
+            if not bbox.contains(self.pre[idx, :]):
+                selected.append(idx)
+
+        self.remove_pre(selected)
 
 
 if __name__ == '__main__':

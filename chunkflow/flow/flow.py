@@ -10,6 +10,8 @@ import numpy as np
 import click
 import json
 
+from numpy.lib.arraysetops import isin
+
 from .lib import *
 
 from cloudvolume import CloudVolume
@@ -89,7 +91,7 @@ def generate_tasks(
         grid_size: tuple, file_path: str, queue_name: str, respect_chunk_size: bool,
         aligned_block_size: tuple, task_index_start: tuple, 
         task_index_stop: tuple, disbatch: bool ):
-
+    """Generate a batch of tasks."""
     if mip is None:
         mip = state['mip']
     assert mip >=0 
@@ -391,6 +393,7 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
               type=int, default=1, help='number of tasks to do in one run.')
 @generator
 def fetch_task_from_file(file_path: str, job_index: int, slurm_job_array: bool, granularity: int):
+    """Fetch task from a file containing bounding boxes."""
     if(slurm_job_array):
         job_index = int(os.environ['SLURM_ARRAY_TASK_ID'])
     assert job_index is not None
@@ -532,7 +535,7 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: b
                 fname = f'{file_path}{bbox.to_filename()}{path_suffix}'
             else:
                 fname = file_path
-            assert os.path.exists(fname)
+            assert os.path.exists(fname), f'can not find file: {fname}'
 
             if os.path.getsize(fname) == 0:
                 task[output_name] = None
@@ -800,11 +803,11 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
 
 
 @main.command('write-h5')
-@click.option('--input-chunk-name', '-i',
+@click.option('--input-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--file-name', '-f',
               type=click.Path(dir_okay=True, resolve_path=False), required=True,
-              help='file name of hdf5 file.')
+              help='file name or prefix of output HDF5 file.')
 @click.option('--chunk-size', '-s', type=int, nargs=3,
               default=None, callback=default_none,
               help='save the big volume as chunks.')
@@ -817,15 +820,22 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     help='voxel size of this chunk.'
 )
 @operator
-def write_h5(tasks, input_chunk_name, file_name, chunk_size, compression, with_offset, voxel_size):
+def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset, voxel_size):
     """Write chunk to HDF5 file."""
     for task in tasks:
         if task is not None:
-            task[input_chunk_name].to_h5(
-                file_name, with_offset, 
-                chunk_size=chunk_size, 
-                compression=compression,
-                voxel_size=voxel_size)
+            if not file_name.endswith('.h5'):
+                bbox = task['bbox']
+                file_name = f'{file_name}{bbox.to_filename()}.h5'
+            data = task[input_name]
+            if isinstance(data, Chunk):
+                data.to_h5(
+                    file_name, with_offset, 
+                    chunk_size=chunk_size, 
+                    compression=compression,
+                    voxel_size=voxel_size)
+            elif isinstance(data, Synapses):
+                data.to_h5(file_name)
         yield task
 
 

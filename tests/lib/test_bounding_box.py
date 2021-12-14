@@ -41,6 +41,10 @@ def test_bounding_box():
     bbox = BoundingBox(minpt, maxpt)
 
     bbox = BoundingBox.from_center(Cartesian(1,2,3), 3)
+    assert bbox == BoundingBox.from_list([-2, -1, 0, 4, 5, 6])
+    
+    bbox = BoundingBox.from_center(Cartesian(1,2,3), 3, even_size=False)
     assert bbox == BoundingBox.from_list([-2, -1, 0, 5, 6, 7])
+
 
     
