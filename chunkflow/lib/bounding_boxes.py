@@ -7,6 +7,7 @@ from collections import UserList, namedtuple
 from math import ceil
 from typing import Union
 from numbers import Number
+import itertools
 
 from copy import deepcopy
 
@@ -127,16 +128,21 @@ class BoundingBox(Bbox):
         return cls.from_bbox(bbox)
 
     @classmethod
-    def from_center(cls, center: Cartesian, extent: int):
+    def from_center(cls, center: Cartesian, extent: int,
+            even_size: bool = True):
         """Create bounding box from center and extent
 
         Args:
             center (Cartesian): center coordinate
             extent (int): the range to extent, like radius
+            even_size (bool): produce even size or odd size including the center.
         """
         minpt = center - extent
         # the maxpt is not inclusive, so we need +1
-        maxpt = center + extent + 1
+        maxpt = center + extent
+        if not even_size:
+            # this will make the size to be odd
+            maxpt += 1
         return cls(minpt, maxpt)
 
     def __repr__(self):
@@ -329,9 +335,10 @@ class BoundingBoxes(UserList):
         print(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
 
         bboxes = []
-        for (gz, gy, gx) in product(range(grid_size[0]), 
-                                range(grid_size[1]),
-                                range(grid_size[2])):
+        for (gz, gy, gx) in itertools.product(
+                    range(grid_size[0]), 
+                    range(grid_size[1]),
+                    range(grid_size[2])):
             chunk_start = roi_start + Vec(gz, gy, gx) * stride
             bbox = Bbox.from_delta(chunk_start, chunk_size)
             if not respect_chunk_size:

@@ -6,8 +6,6 @@ import numpy as np
 
 from .base import OperatorBase
 
-from cloudvolume.lib import Bbox
-
 from chunkflow.lib import load_source
 from chunkflow.chunk import Chunk
 
