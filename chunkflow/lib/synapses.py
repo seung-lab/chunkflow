@@ -271,6 +271,11 @@ class Synapses():
         return pi2pi
 
     @property
+    def post_synapse_num_list(self):
+        pi2pi = self.pre_index2post_indices
+        return [len(pi) for pi in pi2pi]
+
+    @property
     def distances_from_pre_to_post(self):
         distances = np.zeros((self.post_num,), dtype=float)
         for post_idx in range(self.post_num):
@@ -311,7 +316,7 @@ class Synapses():
         self.pre = np.delete(self.pre, indices, axis=0)
 
         if self.post is not None: 
-            post_indices = np.isin(self.post[:, 0], indices, assume_unique=True)
+            post_indices = np.isin(self.post[:, 0], indices)
             self.post = np.delete(self.post, post_indices, axis=0)
             for idx in range(self.post_num):
                 self.post[idx, 0] = old2new[self.post[idx, 0]]
