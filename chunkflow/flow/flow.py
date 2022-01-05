@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+from pathlib import Path
 from time import time
 
 from typing import Generator, List
@@ -104,13 +105,11 @@ def generate_tasks(
         respect_chunk_size=respect_chunk_size,
         aligned_block_size=aligned_block_size
     )
-    # if state['verbose']:
-    bbox_num = len(bboxes)
-    print('total number of tasks: ', bbox_num) 
     
     if task_index_start:
         if task_index_stop is None:
-            task_index_stop = task_index_start + 1
+            # task_index_stop = task_index_start + 1
+            task_index_stop = len(bboxes)
         bboxes = [*bboxes[task_index_start:task_index_stop]]
         logging.info(f'selected task indexes from {task_index_start} to {task_index_stop}')
     elif disbatch:
@@ -125,6 +124,10 @@ def generate_tasks(
         if not file_path.endswith('.npy'):
             file_path += len(bboxes) + '.npy'
         bboxes.to_file(file_path)
+
+    # if state['verbose']:
+    bbox_num = len(bboxes)
+    print('total number of tasks: ', bbox_num) 
 
     if queue_name is not None:
         queue = SQSQueue(queue_name)
@@ -526,7 +529,9 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: b
     for task in tasks:
         if task is not None:
             start = time()
-            if os.path.isdir(file_path):
+            if os.path.isfile(file_path) and (file_path.endswith('.h5') or file_path.endswith('.json')):
+                fname = file_path
+            elif os.path.isdir(file_path):
                 bbox = task['bbox']
                 assert path_suffix is not None
                 fname = os.path.join(file_path, f'{bbox.to_filename()}{path_suffix}')
@@ -535,7 +540,7 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: b
                 fname = f'{file_path}{bbox.to_filename()}{path_suffix}'
             else:
                 fname = file_path
-            assert os.path.exists(fname), f'can not find file: {fname}'
+            assert os.path.isfile(fname), f'can not find file: {fname}'
 
             if os.path.getsize(fname) == 0:
                 task[output_name] = None
@@ -819,8 +824,11 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     default=None, type=int, callback=default_none, nargs=3,
     help='voxel size of this chunk.'
 )
+@click.option('--touch/--no-touch', default=True, 
+help = 'create an empty file if the input is None.'
+)
 @operator
-def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset, voxel_size):
+def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset, voxel_size, touch):
     """Write chunk to HDF5 file."""
     for task in tasks:
         if task is not None:
@@ -836,6 +844,11 @@ def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset,
                     voxel_size=voxel_size)
             elif isinstance(data, Synapses):
                 data.to_h5(file_name)
+            elif data is None:
+                if touch:
+                    Path(file_name).touch()
+            else:
+                raise ValueError(f'unsuported type of input data: {data}')
         yield task
 
 
