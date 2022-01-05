@@ -97,7 +97,80 @@ class Synapses():
                 post[:, 1:] = np.fliplr(post[:, 1:])
 
         return cls(pre, post=post, resolution=resolution)
-    
+
+    @classmethod
+    def from_dvid_list(cls, syns: list, resolution: Cartesian=None):
+        """from a dict fetched from DVID using fivol
+
+        Args:
+            syns (list): the synapse list fetched from DVID
+
+        Returns:
+            Synapses: a Synapses instance
+
+        Example:
+            syns = fivol.get_syndata(dvid_url, uuid)
+            synapses = Synapses.from_dvid_list(syns)
+        """
+        pre_list = []
+        pre_proofread = []
+        post_list = []
+        pre_confidence = []
+        for syn in syns:
+            if 'Pre' in syn['Kind']:
+                # map from xyz to zyx
+                pos = syn['Pos'][::-1]
+                pos = Cartesian(*pos)
+                pre_list.append(pos)
+                if syn['Prop']['user'] == 'jwu':
+                    pre_proofread.append(False)
+                else:
+                    pre_proofread.append(True)
+
+                if 'conf' in syn['Prop']:
+                    conf = syn['Prop']['conf']
+                    conf = float(conf)
+                else:
+                    conf = 0.5
+                pre_confidence.append(conf)
+            elif 'Post' in syn['Kind']:
+                # map from xyz to zyx
+                pos = syn['Pos'][::-1]
+                pos = Cartesian(*pos)
+                # if 'To' not in syn['Prop']:
+                    # print(syn)
+                    # breakpoint()
+                pre_pos = syn['Rels'][0]['To'][::-1]
+                pre_pos = Cartesian(*pre_pos)
+                post_list.append((pos, pre_pos))
+            else:
+                raise ValueError('unexpected synapse type: ', syn)
+        
+        # build a map from pre position to index
+        pre_pos2idx = {}
+        for idx, pos in enumerate(pre_list):
+            pre_pos2idx[pos] = idx
+        assert len(pre_pos2idx) == len(pre_list)
+        
+        post_to_pre_indices = []
+        for _, pre_pos in post_list:
+            pre_idx = pre_pos2idx[ pre_pos ]
+            post_to_pre_indices.append(pre_idx)
+        assert len(post_to_pre_indices) == len(post_list)
+
+        pre = np.asarray(pre_list, dtype=np.int32)
+        pre_confidence = np.asarray(pre_confidence, dtype=np.float32)
+        post_to_pre_indices = np.asarray(post_to_pre_indices, dtype=np.int32)
+        post_list = [x[0] for x in post_list]
+        post_list = np.asarray(post_list, dtype=np.int32)
+        post_to_pre_indices = np.expand_dims(post_to_pre_indices, 1)
+        post = np.hstack((post_to_pre_indices, post_list))
+        return cls(
+            pre, post=post, 
+            pre_confidence=pre_confidence,
+            resolution=resolution,
+        )
+            
     @classmethod
     def from_json(cls, fname: str, resolution: tuple = None):
         with open(fname, 'r') as file:
@@ -140,7 +213,7 @@ class Synapses():
             # transform to C order
             pre = pre[:, ::-1]
             post[:, 1:] = post[:, 1:][:, ::-1]
-            
+
         return cls(pre, post=post, pre_confidence=pre_confidence, 
                     post_confidence=post_confidence, resolution=resolution)
 
@@ -177,6 +250,22 @@ class Synapses():
             return cls.from_h5(fname, resolution=resolution, c_order=c_order)
         else:
             raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
+
+    def add_pre(self, pre: np.ndarray, confidence: float = 1.):
+        """add some additional pre synapses
+
+        Args:
+            pre (np.ndarray): the coordinates of the additional pre synapses. The shape should be Nx3
+        """
+        assert pre.shape[1] == 3
+        assert pre.ndim == 2
+        self.pre = np.vstack((self.pre, pre))
+        if self.pre_confidence is not None:
+            assert confidence >= 0.
+            assert confidence <= 1.
+            confidences = np.ones((pre.shape[0],), dtype=np.float32) * confidence
+            self.pre_confidence = np.concatenate((self.pre_confidence, confidences), axis=None)
+        return self
 
     def __eq__(self, other: Synapses) -> bool:
         """compare two synapses.
@@ -254,7 +343,9 @@ class Synapses():
                 return self.post
             else:
                 post = deepcopy(self.post)
-                post[:, 1:] *= self.resolution
+                resolution = np.asarray(self.resolution, dtype=post.dtype)
+                resolution = np.expand_dims(resolution, axis=0)
+                post[:, 1:] *= resolution
                 return post
 
     @property
@@ -314,6 +405,8 @@ class Synapses():
         old2new = np.cumsum(old2new) - 1
 
         self.pre = np.delete(self.pre, indices, axis=0)
+        if self.pre_confidence is not None:
+            self.pre_confidence = np.delete(self.pre_confidence, indices)
 
         if self.post is not None: 
             post_indices = np.isin(self.post[:, 0], indices)
@@ -340,6 +433,14 @@ class Synapses():
 
         self.remove_pre(selected)
 
+    def remove_pre_duplicates(self):
+        """some presynapses might have same coordinates.
+        This is a bug in previous presynapse prediction stage.
+        the bounding box contains is inclusive in both lower and upper side.
+        """
+        pre_index2post_indices = self.pre_index2post_indices
+
+        raise NotImplementedError()
 
 if __name__ == '__main__':
     synapses = Synapses.from_h5(
