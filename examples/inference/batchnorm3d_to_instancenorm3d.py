@@ -9,11 +9,10 @@ def batchnorm3d_to_instancenorm3d(model):
     for name, module in reversed(model._modules.items()):
         if len(list(module.children())) > 0:
             # recurse
-            model._modules[name], num_converted = convert_layers(module)
+            model._modules[name], num_converted = batchnorm3d_to_instancenorm3d(module)
             conversion_count += num_converted
 
         if isinstance(module, nn.BatchNorm3d):
-            layer_old = module
             layer_new = nn.InstanceNorm3d(module.num_features, eps=module.eps, 
                                        momentum=module.momentum,
                                        affine=module.affine,
@@ -25,5 +24,7 @@ def batchnorm3d_to_instancenorm3d(model):
 
     return model, conversion_count
 
-model2 = deepcopy(model).cpu()
-new_model, count = convert_layers(model2, nn.BatchNorm3d, nn.InstanceNorm3d)
+if __name__ == '__main__':
+    model = torch.identity()
+    model2 = deepcopy(model).cpu()
+    new_model, count = batchnorm3d_to_instancenorm3d(model2, nn.BatchNorm3d, nn.InstanceNorm3d)
