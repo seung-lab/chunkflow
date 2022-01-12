@@ -81,7 +81,7 @@ make the chunk size consistent or cut off at the stopping boundary.""")
     type=int, default=None, nargs=3, callback=default_none,
     help='force alignment of block size. Note that the alignment start from (0, 0, 0).')
 @click.option('--task-index-start', '-i',
-              type=int, default=None, help='starting index of task list.')
+              type=int, default=0, help='starting index of task list.')
 @click.option('--task-index-stop', '-p',
               type=int, default=None, help='stop index of task list.')
 @click.option('--disbatch/--no-disbatch', '-d',
@@ -137,7 +137,7 @@ def generate_tasks(
             if disbatch:
                 assert len(bboxes) == 1
                 bbox_index = disbatch_index
-            print(f'executing task {bbox_index} in {bbox_num} with bounding box: {bbox.to_filename()}')
+            print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.to_filename()}')
             task = get_initial_task()
             task['bbox'] = bbox
             task['bbox_index'] = bbox_index
@@ -521,10 +521,12 @@ def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, o
     help='C order or Fortran order in the file. XYZ is Fortran order, ZYX is C order.')
 @click.option('--resolution', '-r', type=int, nargs=3, 
     default=None, callback=default_none, help='resolution of points.')
+@click.option('--remove-outside/--keep-all', default=True, 
+    help='remove synapses outside of the bounding box or not.')
 @click.option('--output-name', '-o', type=str, default='synapses', help='data name of the result.')
 @operator
 def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: bool, 
-        resolution: tuple, output_name: str):
+        resolution: tuple, remove_outside: bool, output_name: str):
     """Load synapses formated as JSON or HDF5."""
     for task in tasks:
         if task is not None:
@@ -545,12 +547,15 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: b
             if os.path.getsize(fname) == 0:
                 task[output_name] = None
             else:
-                task[output_name] = Synapses.from_file(
+                syns = Synapses.from_file(
                     fname, 
                     resolution = resolution,
                     c_order = c_order
                 )
-            
+                if remove_outside:
+                    bbox = task['bbox']
+                    syns = syns.remove_synapses_outside_bounding_box(bbox)
+                task[output_name] = syns
             task['log']['timer'][name] = time() - start
         yield task
 

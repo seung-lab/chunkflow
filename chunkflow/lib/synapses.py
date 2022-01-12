@@ -12,9 +12,16 @@ from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
 
 
 class Synapses():
-    def __init__(self, pre: np.ndarray, pre_confidence: np.ndarray = None, 
-            post: np.ndarray = None, post_confidence: np.ndarray = None, 
-            resolution: Cartesian = None) -> None:
+    def __init__(self, 
+            pre: np.ndarray,
+            pre_confidence: np.ndarray = None, 
+            post: np.ndarray = None, 
+            post_confidence: np.ndarray = None, 
+            resolution: Cartesian = None,
+            users: list = None,
+            pre_users: np.ndarray = None,
+            post_users: np.ndarray = None,
+        ) -> None:
         """Synapses containing T-bars and post-synapses
 
         Args:
@@ -22,10 +29,13 @@ class Synapses():
             pre_confidence (np.ndarray, optional): confidence of T-bar detection. Defaults to None.
             post (np.ndarray, optional): [description]. Defaults to None.
             resolution (Cartesian, optional): [description]. Defaults to None.
+            users (list[str], optional): user names of edting/ingesting the synapses.
+            pre_user (np.ndarray(int8), optional): the user ids of presynapses. -1 means not identified.
+            post_user (np.ndarray(int8), optional): the user ids of postsynapses. -1 means not identified.
         """
         assert pre.ndim == 2
         assert pre.shape[1] == 3
-
+        
         if pre_confidence is not None:
             assert pre_confidence.ndim == 1
             np.testing.assert_array_less(pre_confidence, 1.00001)
@@ -45,6 +55,13 @@ class Synapses():
         if resolution is not None:
             resolution = np.asarray(resolution, dtype=pre.dtype)
             np.testing.assert_array_less(0, resolution)
+        
+        if users is not None:
+            assert isinstance(users, list)
+        if pre_users is not None:
+            assert pre_users.ndim == 1 and len(pre_users) == pre.shape[0]
+        if post_users is not None:
+            assert post_users.ndim == 1 and len(post_users) == post.shape[0]
 
         self.resolution = resolution
         # unsigned integer will have minus issues
@@ -54,6 +71,11 @@ class Synapses():
             post = post.astype(np.int32)
         self.post = post
         self.post_confidence = post_confidence
+        
+        self.users = users
+        self.pre_users = pre_users
+        self.post_users = post_users
+
         
     @classmethod
     def from_dict(cls, dc: dict):
@@ -112,20 +134,17 @@ class Synapses():
             syns = fivol.get_syndata(dvid_url, uuid)
             synapses = Synapses.from_dvid_list(syns)
         """
+        print(f'loading {len(syns)} synapses...')
         pre_list = []
-        pre_proofread = []
         post_list = []
         pre_confidence = []
+        pre_users = []
         for syn in syns:
             if 'Pre' in syn['Kind']:
                 # map from xyz to zyx
                 pos = syn['Pos'][::-1]
                 pos = Cartesian(*pos)
                 pre_list.append(pos)
-                if syn['Prop']['user'] == 'jwu':
-                    pre_proofread.append(False)
-                else:
-                    pre_proofread.append(True)
 
                 if 'conf' in syn['Prop']:
                     conf = syn['Prop']['conf']
@@ -133,24 +152,40 @@ class Synapses():
                 else:
                     conf = 0.5
                 pre_confidence.append(conf)
-            elif 'Post' in syn['Kind']:
+
+                user = syn['Prop']['user']
+                pre_users.append(user) 
+
+        print('loading post synapses...')
+        pre_set = set(pre_list)
+        post_users = []
+        for syn in syns:
+            if 'Post' in syn['Kind']:
                 # map from xyz to zyx
                 pos = syn['Pos'][::-1]
                 pos = Cartesian(*pos)
                 # if 'To' not in syn['Prop']:
                     # print(syn)
                     # breakpoint()
-                pre_pos = syn['Rels'][0]['To'][::-1]
-                pre_pos = Cartesian(*pre_pos)
-                post_list.append((pos, pre_pos))
-            else:
-                raise ValueError('unexpected synapse type: ', syn)
-        
+                if len(syn['Rels'])>0:
+                    pre_pos = syn['Rels'][0]['To'][::-1]
+                    pre_pos = Cartesian(*pre_pos)
+                    if pre_pos in pre_set:
+                        post_list.append((pos, pre_pos))
+                        user = syn['Prop']['user']
+                        post_users.append(user)
+                    else:
+                        print('found a postsynapse with deleted presynapse: ', syn)
+                else:
+                    print('found an post synapse without presynapse: ', syn)
+                
+                
         # build a map from pre position to index
         pre_pos2idx = {}
         for idx, pos in enumerate(pre_list):
             pre_pos2idx[pos] = idx
         assert len(pre_pos2idx) == len(pre_list)
+        # breakpoint()
         
         post_to_pre_indices = []
         for _, pre_pos in post_list:
@@ -165,10 +200,26 @@ class Synapses():
         post_list = np.asarray(post_list, dtype=np.int32)
         post_to_pre_indices = np.expand_dims(post_to_pre_indices, 1)
         post = np.hstack((post_to_pre_indices, post_list))
+
+        users = set(pre_users).union(set(post_users))
+        users = list(users)
+        user2id = {}
+        for idx, user in enumerate(users):
+            user2id[user] = idx
+        for idx, user in enumerate(pre_users):
+            pre_users[idx] = user2id[user]
+        for idx, user in enumerate(post_users):
+            post_users[idx] = user2id[user]
+
+        pre_users = np.asarray(pre_users, dtype=np.int32)
+        post_users = np.asarray(post_users, dtype=np.int32)
         return cls(
             pre, post=post, 
             pre_confidence=pre_confidence,
             resolution=resolution,
+            users = users,
+            pre_users = pre_users,
+            post_users = post_users,
         )
             
     @classmethod
@@ -209,13 +260,33 @@ class Synapses():
             else:
                 post_confidence = None
 
+            if 'users' in hf.keys():
+                users = hf['users'].split(';')
+            else:
+                users = None
+            
+            if 'pre_users' in hf.keys():
+                pre_users = np.asarray(hf['pre_users'], dtype=np.int32)
+            else:
+                pre_users = None
+
+            if 'post_users' in hf.keys():
+                post_users = np.asarray(hf['post_users'], dtype=np.int32)
+            else:
+                post_users = None
+
         if not c_order:
             # transform to C order
             pre = pre[:, ::-1]
             post[:, 1:] = post[:, 1:][:, ::-1]
 
-        return cls(pre, post=post, pre_confidence=pre_confidence, 
-                    post_confidence=post_confidence, resolution=resolution)
+        return cls(
+            pre, post=post, pre_confidence=pre_confidence, 
+            post_confidence=post_confidence, resolution=resolution,
+            users = users,
+            pre_users = pre_users,
+            post_users = post_users,
+        )
 
     def to_h5(self, fname: str) -> None:
         """save to a HDF5 file
@@ -239,6 +310,14 @@ class Synapses():
 
             if self.post_confidence is not None:
                 hf['post_confidence'] = self.post_confidence
+
+            if self.users is not None:
+                hf['users'] = ';'.join(self.users)
+
+            if self.pre_users is not None:
+                hf['pre_users'] = self.pre_users
+            if self.post_users is not None:
+                hf['post_users'] = self.post_users
 
     @classmethod
     def from_file(cls, fname: str, resolution: tuple = None, c_order: bool = True):
