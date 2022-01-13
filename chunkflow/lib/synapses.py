@@ -150,7 +150,7 @@ class Synapses():
                     conf = syn['Prop']['conf']
                     conf = float(conf)
                 else:
-                    conf = 0.5
+                    conf = 1.0
                 pre_confidence.append(conf)
 
                 user = syn['Prop']['user']
@@ -447,7 +447,13 @@ class Synapses():
 
     @property
     def distances_from_pre_to_post(self):
-        distances = np.zeros((self.post_num,), dtype=float)
+        """distance from pre to post.
+        the unit is voxel rather than physical.
+
+        Returns:
+            float: the distance
+        """
+        distances = np.zeros((self.post_num,), dtype=np.float32)
         for post_idx in range(self.post_num):
             post = self.post[post_idx, 1:]
             pre_idx = self.post[post_idx, 0]
@@ -511,6 +517,64 @@ class Synapses():
                 selected.append(idx)
 
         self.remove_pre(selected)
+
+    def user_id(self, user: str) -> int:
+        for idx, item in enumerate(self.users):
+            if user == item:
+                return idx 
+        return None
+
+    def post_indices_from_user(self, user: str) -> set:
+        uid = self.user_id(user)
+        assert uid is not None
+        indices = np.nonzero(self.post_users == uid)
+        indices = set(indices.tolist())
+        return indices
+
+    def find_redundent_post(self, num_threshold: int = 15, distance_threshold: float = 50.) -> set:
+        """remove extra number of post synapses. Only keep a maximum number of post synapses.
+
+        Args:
+            num_threshold (int): the maximum number of post synapses kept.
+            distance_threshold (float): the maximum voxel distance from pre to post.
+
+        Return:
+            to_be_removed (set[int]): the post synapse indices to be removed
+        """
+        distances = self.distances_from_pre_to_post
+        assert len(distances) == self.post_num
+
+        # # only remove my own ingestion
+        # predicted_indices = self.post_indices_from_user(user)
+
+        to_be_removed = set()
+        
+        # find the distance over threshold
+        indices = np.nonzero(distances > distance_threshold)
+        indices = set(indices.tolist())
+        to_be_removed.add(indices)
+        
+        # find the extra number of post synapses
+        for _, post_indices in self.pre_index2post_indices.items():
+            if len(post_indices) > num_threshold:
+                # we need to remove some post synapses
+                dis = distances[post_indices]
+
+                if self.post_confidence is not None:
+                    # remove according to confidence
+                    metrics = self.post_confidence[post_indices] * dis
+                else:
+                    # remove according to distance
+                    metrics = dis
+                
+                order = np.argsort(metrics)[::-1]
+                post_indices_to_remove = post_indices[order[num_threshold:]]
+                to_be_removed.union(set(post_indices_to_remove.tolist()))
+
+        # exclude the manually edited post synapses
+        # to_be_removed = to_be_removed.intersection(predicted_indices)
+
+        return to_be_removed
 
     def remove_pre_duplicates(self):
         """some presynapses might have same coordinates.
