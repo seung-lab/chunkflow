@@ -1,4 +1,7 @@
 __doc__ = """Image chunk class"""
+import os
+import json
+
 import logging
 import multiprocessing
 from typing import Union

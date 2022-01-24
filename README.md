@@ -1,5 +1,6 @@
 ![alt text](https://github.com/seung-lab/chunkflow/blob/master/docs/logo/RGB_web/Chunkflow_logo_RBG.jpg?raw=true)
 ----------------------
+![GitHub workflow](https://github.com/seung-lab/chunkflow/actions/workflows/.github/workflows/python-app.yml/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/pychunkflow/badge/?version=latest)](https://pychunkflow.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/chunkflow.svg)](https://badge.fury.io/py/chunkflow)
 [![Coverage Status](https://coveralls.io/repos/github/seung-lab/chunkflow/badge.svg?branch=master)](https://coveralls.io/github/seung-lab/chunkflow?branch=master)

@@ -142,7 +142,7 @@ class ReadPrecomputedOperator(OperatorBase):
         clamped_stop = tuple(
             go + s - (go + s - vo) % f
             for go, s, vo, f in zip(voxel_offset[::-1], chunk.shape[::-1],
-                                    vol.voxel_offset, factor3))
+                                    self.vol.voxel_offset, factor3))
         clamped_slices = tuple(
             slice(o, s) for o, s in zip(clamped_offset, clamped_stop))
         clamped_bbox = Bbox.from_slices(clamped_slices)
