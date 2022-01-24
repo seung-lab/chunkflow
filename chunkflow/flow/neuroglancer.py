@@ -202,7 +202,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 data=chunk.array,
                 dimensions=dimensions,
                 # offset is in nm, not voxels
-                voxel_offset=(0, ) + chunk.voxel_offset,
+                voxel_offset=(0, *chunk.voxel_offset),
             ),
             shader=shader
         )
