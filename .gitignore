@@ -1,3 +1,5 @@
+*.code-workspace
+
 *.pyc
 *.chkpt
 *__pycache__/*
