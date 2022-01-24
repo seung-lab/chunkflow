@@ -340,7 +340,7 @@ class BoundingBoxes(UserList):
                     range(grid_size[1]),
                     range(grid_size[2])):
             chunk_start = roi_start + Vec(gz, gy, gx) * stride
-            bbox = Bbox.from_delta(chunk_start, chunk_size)
+            bbox = BoundingBox.from_delta(chunk_start, chunk_size)
             if not respect_chunk_size:
                 bbox.maxpt = np.minimum(bbox.maxpt, roi_stop)
             if not bounded or np.all(tuple(m < p for m, p in zip(bbox.maxpt, roi_stop))):
@@ -353,7 +353,7 @@ class BoundingBoxes(UserList):
     def from_array(cls, arr: np.ndarray):
         bboxes = []
         for idx in range(arr.shape(0)):
-            bbox = Bbox.from_vec(arr[idx, :])
+            bbox = BoundingBox.from_vec(arr[idx, :])
             bboxes.append(bbox)
 
         return cls(bboxes)

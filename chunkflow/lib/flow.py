@@ -3,6 +3,18 @@ import logging
 from functools import update_wrapper, wraps
 import click
 
+from .bounding_boxes import Cartesian
+
+class CartesianParamType(click.ParamType):
+    name = 'Cartesian'
+    def __init__(self) -> None:
+        super().__init__()
+    
+    def convert(self, value, param, ctx):
+        breakpoint()
+        
+        return super().convert(value, param, ctx)
+
 # global dict to hold the operators and parameters
 state = {'operators': {}}
 DEFAULT_CHUNK_NAME = 'chunk'
