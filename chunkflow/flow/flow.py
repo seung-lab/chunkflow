@@ -11,9 +11,7 @@ import numpy as np
 import click
 import json
 
-from numpy.lib.arraysetops import isin
-
-from .lib import *
+from chunkflow.lib.flow import *
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec
@@ -55,7 +53,7 @@ from .view import ViewOperator
 @click.option('--mip', '-m',
               type=int, default=None, help='mip level of the dataset layer.')
 @click.option('--roi-start', '-s',
-              type=int, default=None, nargs=3, callback=default_none, 
+              type=tuple, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
 @click.option('--roi-stop', '-r',
               type=int, nargs=3, default=None, callback=default_none,
@@ -88,7 +86,7 @@ make the chunk size consistent or cut off at the stopping boundary.""")
               default=False, help='use disBatch environment variable or not')
 @generator
 def generate_tasks(
-        layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple,roi_size, chunk_size, 
+        layer_path: str, mip: int, roi_start: Cartesian, roi_stop: tuple,roi_size, chunk_size, 
         grid_size: tuple, file_path: str, queue_name: str, respect_chunk_size: bool,
         aligned_block_size: tuple, task_index_start: tuple, 
         task_index_stop: tuple, disbatch: bool ):
@@ -199,8 +197,11 @@ def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, adjust_size
 @main.command('skip-none')
 @click.option('--input-name', '-i',
     type=str, default=DEFAULT_CHUNK_NAME, help='input name')
+@click.option('--touch/--no-touch', default=True, help='touch an empty file or not')
+@click.option('--prefix', '-p', default=None, help='prefix of output file.')
+@click.option('--suffix', '-s', default=None, help='suffix of output file.')
 @operator
-def skip_none(tasks, input_name: str):
+def skip_none(tasks: dict, input_name: str, touch: bool, prefix: str, suffix: str):
     """If item is None, skip this task."""
     for task in tasks:
         if task is not None:
@@ -208,6 +209,12 @@ def skip_none(tasks, input_name: str):
             if data is None:
                 # target task as None and task will be skipped
                 task = None
+                if touch:
+                    assert prefix is not None
+                    assert suffix is not None
+                    bbox = task['bbox']
+                    fname = f'{prefix}{bbox.to_filename()}{suffix}'
+                    Path(fname).touch()
         yield task
 
 
@@ -554,7 +561,10 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: b
                 )
                 if remove_outside:
                     bbox = task['bbox']
-                    syns = syns.remove_synapses_outside_bounding_box(bbox)
+                    syns.remove_synapses_outside_bounding_box(bbox)
+                print(f'loaded synapses with {syns.pre_num} presynapses and {syns.post_num} post synapses.')
+                if syns.pre_num == 0:
+                    syns = None
                 task[output_name] = syns
             task['log']['timer'][name] = time() - start
         yield task
@@ -677,12 +687,16 @@ def write_tif(tasks, name, input_chunk_name, file_name):
               help = 'the offset of png images volume, could be negative.')
 @click.option('--voxel-size', '-x', type=int, nargs=3, default=None, callback=default_none,
               help='physical size of voxels. the unit is assumed to be nm.')
+@click.option('--digit-num', '-d', type=int, default=5,
+    help='the total number of digits with leading zero padding. For example, digit_num=3, the file name will be like 001.png')
 @click.option('--chunk-size', '-s',
               type=int, nargs=3, default=None, callback=default_none,
               help='cutout chunk size')
 @operator
-def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset,
-                volume_offset, voxel_size, chunk_size):
+def read_pngs(tasks: dict, path_prefix: str, 
+                output_chunk_name: str, cutout_offset: tuple,
+                volume_offset: tuple, voxel_size: tuple, 
+                digit_num: int, chunk_size: tuple):
     """Read a serials of png files."""
     for task in tasks:
         if task is not None:
@@ -695,6 +709,7 @@ def read_pngs(tasks, path_prefix, output_chunk_name, cutout_offset,
             task[output_chunk_name] = read_png_images(
                 path_prefix, bbox, 
                 volume_offset=volume_offset,
+                digit_num=digit_num,
                 voxel_size=voxel_size)
         yield task
 
@@ -758,8 +773,9 @@ def write_tif(tasks, name, input_chunk_name, file_name):
               default=None, help='transform data type.')
 @click.option('--voxel-offset', '-v', type=int, nargs=3, default=None,
               callback=default_none, help='voxel offset of the dataset in hdf5 file.')
-@click.option('--voxel-size', '-x', type=int, nargs=3, default=None,
-              callback=default_none, help='physical size of voxels. The unit is assumed to be nm.')
+@click.option('--voxel-size', '-x', type=int, nargs=3, 
+    default=None, callback=default_none, 
+    help='physical size of voxels. The unit is assumed to be nm.')
 @click.option('--cutout-start', '-t', type=int, nargs=3, callback=default_none,
               help='cutout voxel offset in the array')
 @click.option('--cutout-stop', '-p', type=int, nargs=3, callback=default_none,

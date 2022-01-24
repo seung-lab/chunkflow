@@ -8,6 +8,9 @@ from copy import deepcopy
 import numpy as np
 import h5py
 
+from scipy.spatial import KDTree
+
+from chunkflow.chunk import Chunk
 from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
 
 
@@ -260,10 +263,14 @@ class Synapses():
             else:
                 post_confidence = None
 
-            if 'users' in hf.keys():
-                users = hf['users'].split(';')
-            else:
+            try:
+                users = hf.attrs['users'].split(';')
+            except:
                 users = None
+            #if 'users' in hf.keys():
+            #    users = str(hf['users']).split(';')
+            #else:
+            #    users = None
             
             if 'pre_users' in hf.keys():
                 pre_users = np.asarray(hf['pre_users'], dtype=np.int32)
@@ -312,7 +319,7 @@ class Synapses():
                 hf['post_confidence'] = self.post_confidence
 
             if self.users is not None:
-                hf['users'] = ';'.join(self.users)
+                hf.attrs['users'] = ';'.join(self.users)
 
             if self.pre_users is not None:
                 hf['pre_users'] = self.pre_users
@@ -522,12 +529,13 @@ class Synapses():
         for idx, item in enumerate(self.users):
             if user == item:
                 return idx 
+        breakpoint()
         return None
 
     def post_indices_from_user(self, user: str) -> set:
         uid = self.user_id(user)
         assert uid is not None
-        indices = np.nonzero(self.post_users == uid)
+        indices = np.nonzero(self.post_users == uid)[0]
         indices = set(indices.tolist())
         return indices
 
@@ -551,23 +559,25 @@ class Synapses():
         
         # find the distance over threshold
         indices = np.nonzero(distances > distance_threshold)
-        indices = set(indices.tolist())
-        to_be_removed.add(indices)
+        assert len(indices) == 1
+        indices = set(indices[0].tolist())
+        to_be_removed = to_be_removed.union(indices)
         
         # find the extra number of post synapses
-        for _, post_indices in self.pre_index2post_indices.items():
+        for post_indices in self.pre_index2post_indices:
             if len(post_indices) > num_threshold:
                 # we need to remove some post synapses
                 dis = distances[post_indices]
 
                 if self.post_confidence is not None:
                     # remove according to confidence
-                    metrics = self.post_confidence[post_indices] * dis
+                    costs = dis / self.post_confidence[post_indices] 
                 else:
                     # remove according to distance
-                    metrics = dis
+                    costs = dis
                 
-                order = np.argsort(metrics)[::-1]
+                order = np.argsort(costs)
+                post_indices = np.asarray(post_indices, dtype=np.int32)
                 post_indices_to_remove = post_indices[order[num_threshold:]]
                 to_be_removed.union(set(post_indices_to_remove.tolist()))
 
@@ -575,6 +585,46 @@ class Synapses():
         # to_be_removed = to_be_removed.intersection(predicted_indices)
 
         return to_be_removed
+
+    def find_duplicate_post_on_same_neuron(self, seg: Chunk, distance_threshold: float=10) -> set:
+        """find duplicate post synapses on the same neuron
+        The T-bar could be split to two or three in a long distance
+
+        Args:
+            seg (Chunk): neuron segmentation chunk
+            distance_threshold (float, optional): distance lower than this threshold is regarded as duplicate. Defaults to 10.
+        
+        Return:
+            duplicate_indices (set[int]): a set of post synapse indices that are detected as duplicates.
+        """
+        post_coord = self.post_coordinates - np.asarray(seg.bbox.minpt, dtype=self.post.dtype)
+        kdtree = KDTree(post_coord, leafsize=2)
+        pairs = kdtree.query_pairs(distance_threshold, p=2.0, eps=0, output_type='set')
+
+        distances = self.distances_from_pre_to_post
+
+        duplicated_indices = set()
+        def find_segid(seg: Chunk, coord: np.ndarray):
+            if coord[0] >= seg.shape[0] or coord[1] >= seg.shape[1] or coord[2] >= seg.shape[2]:
+                return None
+            else:
+                return seg[
+                    coord[0],
+                    coord[1],
+                    coord[2]
+                ]
+
+        for idx0, idx1 in pairs:
+            sid0 = find_segid(seg, post_coord[idx0, :])
+            sid1 = find_segid(seg, post_coord[idx1, :])
+            if sid0 is not None and sid1 is not None and sid0 == sid1 and sid0 > 0:
+                if distances[idx0] > distances[idx1]:
+                    duplicated_indices.add(idx0)
+                else:
+                    duplicated_indices.add(idx1)
+        
+        return duplicated_indices
+
 
     def remove_pre_duplicates(self):
         """some presynapses might have same coordinates.

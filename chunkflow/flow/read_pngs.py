@@ -2,8 +2,8 @@ from os import path
 import logging
 
 import numpy as np
-from cloudvolume.lib import Bbox
 
+from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
 from chunkflow.chunk import Chunk
 
 from tqdm import tqdm
@@ -13,9 +13,10 @@ from PIL import Image
 Image.MAX_IMAGE_PIXELS = None 
 
 
-def read_png_images(path_prefix: str, bbox: Bbox, 
+def read_png_images(path_prefix: str, bbox: BoundingBox, 
                         volume_offset: tuple = (0, 0, 0),
                         voxel_size: tuple = (1, 1, 1),
+                        digit_num: int = 5,
                         dtype: np.dtype = np.uint8):
     
     chunk = Chunk.from_bbox(
@@ -27,7 +28,7 @@ def read_png_images(path_prefix: str, bbox: Bbox,
     assert len(volume_offset) == 3
 
     for z in tqdm( range(bbox.minpt[0], bbox.maxpt[0]) ):
-        file_name = '{}{:0>5d}.png'.format(path_prefix, z)
+        file_name = f'{path_prefix}{z:0>{digit_num}d}.png'
         file_name = path.expanduser(file_name)
         if path.exists(file_name):
             img = Image.open(file_name)
