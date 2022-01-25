@@ -27,43 +27,43 @@ def validate_by_template_matching(img: np.ndarray):
         )
         return True
 
-    img = img.astype(dtype=np.bool)
+    img = img.astype(dtype=bool)
 
     score_threshold = 0.9
     num_threshold = 100
     evidence_point = 0
 
-    temp = np.zeros((7, 7, 2), dtype=np.bool)
+    temp = np.zeros((7, 7, 2), dtype=bool)
     temp[:, :, 0] = True
     result = match_template(img, temp)
     if np.count_nonzero(result > score_threshold) > num_threshold:
         evidence_point += 1
 
-    temp = np.zeros((7, 7, 2), dtype=np.bool)
+    temp = np.zeros((7, 7, 2), dtype=bool)
     temp[:, :, 1] = True
     result = match_template(img, temp)
     if np.count_nonzero(result > score_threshold) > num_threshold:
         evidence_point += 1
 
-    temp = np.zeros((2, 7, 7), dtype=np.bool)
+    temp = np.zeros((2, 7, 7), dtype=bool)
     temp[0, :, :] = True
     result = match_template(img, temp)
     if np.count_nonzero(result > score_threshold) > num_threshold:
         evidence_point += 1
 
-    temp = np.zeros((2, 7, 7), dtype=np.bool)
+    temp = np.zeros((2, 7, 7), dtype=bool)
     temp[1, :, :] = True
     result = match_template(img, temp)
     if np.count_nonzero(result > score_threshold) > num_threshold:
         evidence_point += 1
 
-    temp = np.zeros((7, 2, 7), dtype=np.bool)
+    temp = np.zeros((7, 2, 7), dtype=bool)
     temp[:, 0, :] = True
     result = match_template(img, temp)
     if np.count_nonzero(result > score_threshold) > num_threshold:
         evidence_point += 1
 
-    temp = np.zeros((7, 2, 7), dtype=np.bool)
+    temp = np.zeros((7, 2, 7), dtype=bool)
     temp[:, 1, :] = True
     result = match_template(img, temp)
     if np.count_nonzero(result > score_threshold) > num_threshold:

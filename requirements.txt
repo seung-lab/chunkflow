@@ -10,7 +10,7 @@ h5py
 neuroglancer
 tinybrain
 tifffile
-pandas
+pandas>=1.4.0
 zmesh
 fastremap
 matplotlib

@@ -57,7 +57,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
             slices = (slice(z, z+1), *chunk.slices[-2:])
             image = chunk.cutout(slices)
             image_voxel_offset = image.voxel_offset
-            image = lookup_table[image]
+            image = lookup_table[tuple(image)]
             image = np.expand_dims(image, 0)
             assert image.ndim == 3
             image = Chunk(image, voxel_offset=image_voxel_offset)
