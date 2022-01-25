@@ -6,14 +6,22 @@
 
 import os
 import json
-import click
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-pd.set_option('precision', 0)
+pd.set_option('display.precision', 0)
 
-def load_log(log_dir):
+
+def load_log(log_dir: str) -> pd.DataFrame:
+    """load log from executed chunkflow tasks
+
+    Args:
+        log_dir (str): the directory path of the log files
+
+    Returns:
+        dataframe: the collected items of log
+    """
     
     collected = dict()
 
@@ -46,7 +54,7 @@ def load_log(log_dir):
     return df
 
 
-def print_log_statistics(df, output_size=None):
+def print_log_statistics(df: pd.DataFrame, output_size: tuple=None):
     grouped_df = df.groupby('compute_device')
     
     print('\n\nmean time (sec):')

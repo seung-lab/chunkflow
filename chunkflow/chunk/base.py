@@ -386,7 +386,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def is_segmentation(self) -> bool:
         return self.array.ndim == 3 and (np.issubdtype(
             self.array.dtype, np.integer) or np.issubdtype(
-                self.dtype, np.bool8)) and self.array.dtype != np.uint8
+                self.dtype, bool)) and self.array.dtype != np.uint8
 
     @property
     def is_affinity_map(self) -> bool:

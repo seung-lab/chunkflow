@@ -1,5 +1,6 @@
 import numpy as np
 from chunkflow.chunk.segmentation import Segmentation
+from math import isclose
 
 
 def test_segmentation():
@@ -15,5 +16,5 @@ def test_segmentation():
     print('evaluate scores: \n', scores)
     assert scores['variation_of_information'] == 0
     assert scores['rand_index'] == 1
-    assert scores['adjusted_rand_index'] == 1 
-    assert scores['fowlkes_mallows_index'] == 1
+    assert isclose(scores['adjusted_rand_index'], 1.) 
+    assert isclose(scores['fowlkes_mallows_index'], 1.)
