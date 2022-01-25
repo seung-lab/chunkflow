@@ -10,6 +10,12 @@
 <!---[![Docker Build Status](https://img.shields.io/docker/cloud/build/seunglab/chunkflow.svg)]#(https://hub.docker.com/r/seunglab/chunkflow)--->
 <!-- [![Build Status](https://travis-ci.org/seung-lab/chunkflow.svg?branch=master)](https://travis-ci.org/seung-lab/chunkflow) -->
 
+## Problem 
+- Petabyte scale 3D image processing
+- Scalable distributed computing
+- Fully use both local cluster and public cloud computing
+- Reusable operators across tasks
+
 ## Features
 - **Composable** operators. The chunk operators could be composed in commandline for flexible usage.
 - **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The backend could be any computer with internet connection and cloud authentication.
