@@ -24,6 +24,13 @@ class WritePNGsOperator(OperatorBase):
 
     def __call__(self, chunk: Chunk):
         assert isinstance(chunk, Chunk)
+        if chunk.is_affinity_map:
+            properties = chunk.properties
+            chunk = (chunk[1,...] + chunk[2,...]) / 2. * 255.
+            chunk = chunk.astype(np.uint8)
+            chunk = Chunk(chunk)
+            chunk.set_properties(properties)
+
         assert chunk.ndim == 3
         for z in tqdm(range(chunk.voxel_offset[0], chunk.bbox.maxpt[0])):
             img = chunk.cutout((slice(z,z+1), chunk.slices[1], chunk.slices[2]))

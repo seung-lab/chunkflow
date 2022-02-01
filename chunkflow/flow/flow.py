@@ -53,7 +53,7 @@ from .view import ViewOperator
 @click.option('--mip', '-m',
               type=int, default=None, help='mip level of the dataset layer.')
 @click.option('--roi-start', '-s',
-              type=tuple, default=None, nargs=3, callback=default_none, 
+              type=int, default=None, nargs=3, callback=default_none, 
               help='(z y x), start of the chunks')
 @click.option('--roi-stop', '-r',
               type=int, nargs=3, default=None, callback=default_none,
@@ -86,7 +86,7 @@ make the chunk size consistent or cut off at the stopping boundary.""")
               default=False, help='use disBatch environment variable or not')
 @generator
 def generate_tasks(
-        layer_path: str, mip: int, roi_start: Cartesian, roi_stop: tuple,roi_size, chunk_size, 
+        layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple,roi_size, chunk_size, 
         grid_size: tuple, file_path: str, queue_name: str, respect_chunk_size: bool,
         aligned_block_size: tuple, task_index_start: tuple, 
         task_index_stop: tuple, disbatch: bool ):
@@ -789,8 +789,7 @@ def write_tif(tasks, name, input_chunk_name, file_name):
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
-            dtype: str, voxel_offset: tuple, voxel_size: tuple, cutout_start: tuple, 
-            cutout_stop: tuple, cutout_size: tuple, zero_filling: bool, output_chunk_name: str):
+            dtype: str, voxel_offset: tuple, voxel_size: tuple, cutout_start: tuple, cutout_stop: tuple, cutout_size: tuple, zero_filling: bool, output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
         if task is not None:
@@ -1512,7 +1511,8 @@ def crop_margin(tasks, name, margin_size,
         if task is not None:
             start = time()
             if margin_size:
-                task[output_chunk_name] = task[input_chunk_name].crop_margin(
+                task[output_chunk_name] = task[
+                    input_chunk_name].crop_margin(
                     margin_size=margin_size)
             else:
                 # use the output bbox for croping 

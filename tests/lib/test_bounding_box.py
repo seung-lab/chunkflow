@@ -29,6 +29,11 @@ def test_cartesian():
     ct3 = ct / 2
     assert ct3 == Cartesian(0.5, 1, 1)
 
+    ct4 = Cartesian.from_collection((1,2,3))
+    assert ct4 == Cartesian(1, 2, 3) 
+
+    assert Cartesian(0, 0, 0)*Cartesian(1,2,3) == Cartesian(0, 0, 0)
+
 def test_bounding_box():
     bbox = Bbox.from_delta((1,3,2), (64, 32, 8))
     bbox = BoundingBox.from_bbox(bbox)

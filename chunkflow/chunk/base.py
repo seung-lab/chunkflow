@@ -210,15 +210,15 @@ class Chunk(NDArrayOperatorsMixin):
             dset = f[dataset_path]
             if voxel_offset is None: 
                 if 'voxel_offset' in f:
-                    voxel_offset = tuple(f['voxel_offset'])
+                    voxel_offset = Cartesian(*f['voxel_offset'])
                 else:
-                    voxel_offset = (0, 0, 0)
+                    voxel_offset = Cartesian(0, 0, 0)
 
             if voxel_size is None:
                 if 'voxel_size' in f:
-                    voxel_size = tuple(f['voxel_size'])
+                    voxel_size = Cartesian(*f['voxel_size'])
                 else:
-                    voxel_size = (1, 1, 1)
+                    voxel_size = Cartesian(1, 1, 1)
 
             if cutout_start is None:
                 cutout_start = voxel_offset
@@ -493,20 +493,10 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         ):
 
         if margin_size:
-            if len(margin_size) == 3 and self.ndim == 4:
-                margin_size = (0,) + margin_size
-
-            if self.ndim == 3:
-                new_array = self.array[margin_size[0]: -margin_size[0],
-                                       margin_size[1]: -margin_size[1],
-                                       margin_size[2]: -margin_size[2]]
-            elif self.ndim == 4:
-                new_array = self.array[margin_size[0]: -margin_size[0],
-                                       margin_size[1]: -margin_size[1],
-                                       margin_size[2]: -margin_size[2],
-                                       margin_size[3]: -margin_size[3]]
-            else:
-                raise ValueError('the array dimension can only by 3 or 4.')
+            new_array = self.array[...,
+                margin_size[0]: -margin_size[0],
+                margin_size[1]: -margin_size[1],
+                margin_size[2]: -margin_size[2]]
             voxel_offset = tuple(
                 o + m for o, m in zip(self.voxel_offset, margin_size))
             return Chunk(new_array, voxel_offset=voxel_offset, voxel_size=self.voxel_size)
