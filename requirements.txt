@@ -1,11 +1,11 @@
 numpy>=1.20.0
 boto3
-six>=1.13.0
 cloud-volume>=0.47.0
 click 
 tqdm>=4.36.1
 connected-components-3d
 scikit-image>=0.14.2
+scikit-learn
 h5py
 neuroglancer
 tinybrain
@@ -20,5 +20,3 @@ pyparsing>=2.4.2
 urllib3>=1.25.11
 docutils>=0.10
 pynrrd
-scikit-learn
-scikit-image

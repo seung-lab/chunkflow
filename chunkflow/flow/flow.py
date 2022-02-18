@@ -325,9 +325,9 @@ def cloud_watch(tasks, name, log_name):
               type=click.Choice(['raw', 'jpeg', 'compressed_segmentation', 
                     'kempressed', 'npz', 'fpzip', 'npz_uint8']),
               default='raw', help='compression algorithm.')
-@click.option('--voxel-size', '-s', required=True, type=int, nargs=3,
+@click.option('--voxel-size', '-s', default=None, type=int, nargs=3, callback=default_none,
               help='voxel size with unit of nm')
-@click.option('--voxel-offset', '-o', default=(0,0,0), type=int, nargs=3,
+@click.option('--voxel-offset', '-o', default=None, type=int, nargs=3, callback=default_none,
               help='voxel offset of array')
 @click.option('--volume-size', '-v',
               type=int, nargs=3, default=None, callback=default_none,
@@ -349,7 +349,10 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
     
     for task in tasks:
         if task is not None:
-            if input_chunk_name in task:
+            if not input_chunk_name in task:
+                if voxel_offset is None:
+                    voxel_offset = Cartesian(0, 0, 0)
+            else:
                 chunk = task[input_chunk_name]
                 if chunk.ndim == 3:
                     channel_num = 1
@@ -358,7 +361,11 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
                 else:
                     raise ValueError('chunk dimension can only be 3 or 4')
 
-                voxel_offset = chunk.voxel_offset
+                if voxel_offset is None:
+                    voxel_offset = chunk.voxel_offset
+                if voxel_size is None:
+                    voxel_size = chunk.voxel_size
+
                 volume_size = chunk.shape
                 data_type = chunk.dtype.name
 
@@ -370,9 +377,8 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
                     else:
                         layer_type = 'segmentation'
             
-            assert volume_size is not None 
+            assert volume_size is not None
             assert data_type is not None
-
             info = CloudVolume.create_new_info(
                 channel_num, layer_type=layer_type,
                 data_type=data_type,
@@ -382,7 +388,9 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
                 volume_size=volume_size[::-1],
                 chunk_size=block_size[::-1],
                 factor=Vec(factor),
-                max_mip=max_mip)
+                max_mip=max_mip,
+                compressed_segmentation_block_size=(8, 8, 8),
+                )
             vol = CloudVolume(output_layer_path, info=info)
             vol.commit_info()
         yield task
@@ -1621,18 +1629,23 @@ def neuroglancer(tasks, name, voxel_size, port, inputs):
 
 
 @main.command('quantize')
-@click.option('--name', type=str, default='quantize', help='name of this operator')
-@click.option('--input-chunk-name', '-i', type=str, default='chunk', help = 'input chunk name')
-@click.option('--output-chunk-name', '-o', type=str, default='chunk', help= 'output chunk name')
+@click.option('--input-chunk-name', '-i', type=str, default='chunk', 
+    help = 'input chunk name')
+@click.option('--output-chunk-name', '-o', type=str, default='chunk', 
+    help= 'output chunk name')
+@click.option('--mode', type=click.Choice(['xy', 'z']), default='xy',
+    help='xy: average of xy channel; z: only the z channel')
 @operator
-def quantize(tasks, name, input_chunk_name, output_chunk_name):
+def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
     """Transorm the last channel to uint8."""
     for task in tasks:
         if task is not None:
             aff = task[input_chunk_name]
+            properties = aff.properties
             aff = AffinityMap(aff)
+            aff.set_properties(properties)
             assert isinstance(aff, AffinityMap)
-            quantized_image = aff.quantize()
+            quantized_image = aff.quantize(mode=mode)
             task[output_chunk_name] = quantized_image
         yield task
 

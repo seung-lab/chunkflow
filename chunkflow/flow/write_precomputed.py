@@ -67,7 +67,7 @@ class WritePrecomputedOperator(OperatorBase):
         if self.intensity_threshold is not None and np.all(chunk.array < self.intensity_threshold):
             print('the voxel intensity in this chunk are all below intensity threshold, return directly without saving anything.')
             return 
-        
+
         chunk = self._auto_convert_dtype(chunk, self.volume)
         
         # transpose czyx to xyzc order
@@ -91,7 +91,7 @@ class WritePrecomputedOperator(OperatorBase):
             chunk /= 255.
             # chunk = chunk / chunk.array.max() * np.iinfo(volume.dtype).max
         elif np.issubdtype(volume.dtype, np.uint8) and np.issubdtype(chunk.dtype, np.floating):
-            assert np.maximum(chunk) <= 1.
+            chunk.max() <= 1.
             chunk *= 255
 
         if volume.dtype != chunk.dtype:
