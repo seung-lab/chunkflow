@@ -812,7 +812,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_start_tmp = cutout_start
                 cutout_stop_tmp = cutout_stop
                 cutout_size_tmp = cutout_size
-            
+
             chunk = Chunk.from_h5(
                 file_name,
                 dataset_path=dataset_path,
@@ -1499,21 +1499,21 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
 
 
 @main.command('crop-margin')
-@click.option('--name',
-              type=str,
-              default='crop-margin',
-              help='name of this operator')
+@click.option('--name', type=str, default='crop-margin',
+    help='name of this operator')
 @click.option('--margin-size', '-m',
-              type=int, nargs=3, default=None, callback=default_none,
-              help='crop the chunk margin. ' +
-              'The default is None and will use the bbox as croping range.')
+    type=int, nargs=3, default=None, callback=default_none,
+    help='crop the chunk margin. ' +
+            'The default is None and will use the bbox as croping range.')
+@click.option('--crop-bbox/--no-crop-bbox', default=True,
+    help='adjust the bounding box or not.')
 @click.option('--input-chunk-name', '-i',
-              type=str, default='chunk', help='input chunk name.')
+    type=str, default='chunk', help='input chunk name.')
 @click.option('--output-chunk-name', '-o',
-              type=str, default='chunk', help='output chunk name.')
+    type=str, default='chunk', help='output chunk name.')
 @operator
-def crop_margin(tasks, name, margin_size, 
-                input_chunk_name, output_chunk_name):
+def crop_margin(tasks, name: str, margin_size: tuple, crop_bbox: bool, 
+                input_chunk_name: str, output_chunk_name: str):
     """Crop the margin of chunk."""
     for task in tasks:
         if task is not None:
@@ -1522,6 +1522,10 @@ def crop_margin(tasks, name, margin_size,
                 task[output_chunk_name] = task[
                     input_chunk_name].crop_margin(
                     margin_size=margin_size)
+                if crop_bbox and 'bbox' in task:
+                    bbox = task['bbox']
+                    assert isinstance(bbox, BoundingBox)
+                    bbox.adjust(-Cartesian.from_collection(margin_size))
             else:
                 # use the output bbox for croping 
                 task[output_chunk_name] = task[
