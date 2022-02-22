@@ -34,6 +34,8 @@ def test_cartesian():
 
     assert Cartesian(0, 0, 0)*Cartesian(1,2,3) == Cartesian(0, 0, 0)
 
+    assert Cartesian(4,6,8) / Cartesian(2,3,2) == Cartesian(2,2,4)
+
 def test_bounding_box():
     bbox = Bbox.from_delta((1,3,2), (64, 32, 8))
     bbox = BoundingBox.from_bbox(bbox)

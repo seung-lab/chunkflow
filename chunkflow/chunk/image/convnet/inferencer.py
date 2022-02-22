@@ -298,7 +298,7 @@ class Inferencer(object):
         # this mask will result in 1
         self.output_chunk_mask.array = 1.0 / self.output_chunk_mask.array
     
-    def _get_output_buffer(self, input_chunk):
+    def _get_output_buffer(self, input_chunk: Chunk):
         output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
         #if self.mask_myelin_threshold is None:
         # a random temporal file. will be removed later.
@@ -314,7 +314,7 @@ class Inferencer(object):
         
         output_voxel_offset = tuple(io + ocso for io, ocso in zip(
             input_chunk.voxel_offset, self.output_offset))
-        
+
         output_buffer = Chunk(
             output_buffer_array,
             voxel_offset=output_voxel_offset,

@@ -26,15 +26,16 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def from_collection(cls, col: Union[tuple, list, Vec]):
         return cls(*col)
     
-    def __sub__(self, offset: Union[Cartesian, int]):
+    def __sub__(self, offset: Union[Cartesian, Number]):
         """subtract to another voxel coordinate
 
         Args:
             offset (Cartesian, int): another voxel coordinate
         """
-        if isinstance(offset, int):
-            offset = (offset, offset, offset)
-        return Cartesian(*[x-o for x, o in zip(self, offset)])
+        if isinstance(offset, Number):
+            return Cartesian.from_collection([x-offset for x in self])
+        else:
+            return Cartesian.from_collection([x-o for x, o in zip(self, offset)])
            
     def __add__(self, offset: Union[Cartesian, tuple, int]):
         """add another coordinate
@@ -58,8 +59,11 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def __floordiv__(self, d: int):
         return Cartesian(*[x // d for x in self])
 
-    def __truediv__(self, d: Number):
-        return Cartesian(*[x/d for x in self])
+    def __truediv__(self, other: Union[Number, Cartesian]):
+        if isinstance(other, Number):
+            return Cartesian.from_collection([x/other for x in self])
+        else:
+            return Cartesian.from_collection([x/d for x, d in zip(self, other)])
 
     def __mod__(self, d: int):
         return Cartesian(*[x%d for x in self])
@@ -263,10 +267,10 @@ class BoundingBoxes(UserList):
             layer_path: str = None,
             mip: int = 0):
 
-        if grid_size is None and roi_size is None and roi_stop is None:
-            grid_size = Cartesian(1, 1, 1)
-
         if not layer_path:
+            if grid_size is None and roi_size is None and roi_stop is None:
+                grid_size = Cartesian(0, 1, 1)
+
             if roi_start is None:
                 roi_start = Cartesian(0, 0, 0)
             elif not isinstance(roi_start, Cartesian):
@@ -299,9 +303,9 @@ class BoundingBoxes(UserList):
                 dataset_offset = Cartesian.from_collection(dataset_offset)
 
                 if roi_size is None:
-                    roi_size = Cartesian(*dataset_size)
+                    roi_size = dataset_size
                 if roi_stop is None:
-                    roi_stop = Cartesian(*[o+s for o, s in zip(dataset_offset, dataset_size)])
+                    roi_stop = dataset_offset + dataset_size
                 if roi_start is None:
                     # note that we normally start from -overlap to keep the chunks aligned!
                     roi_start = dataset_offset - chunk_overlap
@@ -316,7 +320,7 @@ class BoundingBoxes(UserList):
             roi_start = Cartesian(*roi_start)
         if not isinstance(roi_size, Cartesian):
             roi_size = Cartesian(*roi_size)
-        if not isinstance(grid_size, Cartesian):
+        if grid_size is not None and not isinstance(grid_size, Cartesian):
             grid_size = Cartesian(*grid_size)
         if not isinstance(roi_stop, Cartesian):
             roi_stop = Cartesian(*roi_stop)
@@ -342,7 +346,7 @@ class BoundingBoxes(UserList):
 
         if grid_size is None:
             grid_size = (roi_size - chunk_overlap) / stride 
-            grid_size = Cartesian(ceil(x) for x in grid_size)
+            grid_size = Cartesian.from_collection([ceil(x) for x in grid_size])
 
         # the stride should not be zero if there is more than one chunks
         for g, s in zip(grid_size, stride):
