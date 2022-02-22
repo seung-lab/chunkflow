@@ -98,6 +98,9 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         else:
             return False
 
+    def __neg__(self) -> Cartesian:
+        return Cartesian(-self.z, -self.y, -self.x)
+
     # def __isub__(self, other: Union[Cartesian,Number]) -> Cartesian:
 
 
