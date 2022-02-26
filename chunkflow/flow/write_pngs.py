@@ -5,7 +5,7 @@ import os
 import numpy as np
 
 from tqdm import tqdm
-from skimage.io import imsave
+import pyspng
 
 from chunkflow.chunk import Chunk
 
@@ -35,4 +35,6 @@ class WritePNGsOperator(OperatorBase):
         for z in tqdm(range(chunk.voxel_offset[0], chunk.bbox.maxpt[0])):
             img = chunk.cutout((slice(z,z+1), chunk.slices[1], chunk.slices[2]))
             img = img.array[0,:,:]
-            imsave(os.path.join(self.output_path, '{:05d}.png'.format(z)), img)
+            filename = os.path.join(self.output_path, f"{z:05d}.png")
+            with open(filename, "wb") as f:
+                f.write(pyspng.encode(img))

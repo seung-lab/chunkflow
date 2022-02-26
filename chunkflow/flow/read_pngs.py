@@ -7,11 +7,7 @@ from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
 from chunkflow.chunk import Chunk
 
 from tqdm import tqdm
-from PIL import Image
-# the default setting have a limit to avoid decompression bombs
-# https://pillow.readthedocs.io/en/stable/reference/Image.html?highlight=maximum_pixels#PIL.Image.open
-Image.MAX_IMAGE_PIXELS = None 
-
+import pyspng
 
 def read_png_images(path_prefix: str, bbox: BoundingBox, 
                         volume_offset: tuple = (0, 0, 0),
@@ -31,8 +27,8 @@ def read_png_images(path_prefix: str, bbox: BoundingBox,
         file_name = f'{path_prefix}{z:0>{digit_num}d}.png'
         file_name = path.expanduser(file_name)
         if path.exists(file_name):
-            img = Image.open(file_name)
-            img = np.asarray(img)
+            with open(file_name, "rb") as f:
+                img = pyspng.load(f.read())
             img = np.expand_dims(img, axis=0)
             img_chunk = Chunk(
                 img,

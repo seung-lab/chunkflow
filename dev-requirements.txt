@@ -40,7 +40,6 @@ dependencies:
   - olefile=0.46=pyh9f0ad1d_1
   - openssl=1.1.1h=h7b6447c_0
   - packaging=20.4=pyh9f0ad1d_0
-  - pillow=8.0.1=py37h63a5d19_0
   - pip=20.3.1=pyhd8ed1ab_0
   - pluggy=0.13.1=py37he5f6b98_3
   - py=1.9.0=pyh9f0ad1d_0
