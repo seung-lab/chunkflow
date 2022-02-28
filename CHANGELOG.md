@@ -1,12 +1,12 @@
 ChangeLog history
 ==================
-# chunkflow 1.0.9 (2021-xx-xx)
+# chunkflow 1.1.1 (2022-02-28)
 ## Breaking Changes
 
 ## Deprecations 
 
 ## Features
-
+- replace pillow with [pypng](https://github.com/seung-lab/chunkflow/pull/267) for faster IO of png files. 
 ## Bug Fixes 
 
 ## Improved Documentation 
