@@ -272,7 +272,7 @@ class BoundingBoxes(UserList):
 
         if not layer_path:
             if grid_size is None and roi_size is None and roi_stop is None:
-                grid_size = Cartesian(0, 1, 1)
+                grid_size = Cartesian(1, 1, 1)
 
             if roi_start is None:
                 roi_start = Cartesian(0, 0, 0)
