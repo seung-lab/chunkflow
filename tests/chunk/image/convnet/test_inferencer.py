@@ -1,6 +1,5 @@
 import numpy as np
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
-from chunkflow.chunk.image.convnet.patch.identity import Identity
 from chunkflow.chunk import Chunk
 
 
@@ -17,6 +16,7 @@ def test_aligned_input_size():
                     num_output_channels=3,
                     output_patch_overlap=patch_overlap,
                     input_size=input_size,
+                    mask_output_chunk=False,
                     framework='identity', dtype='float32') as inferencer:
         output = inferencer(image)
     
