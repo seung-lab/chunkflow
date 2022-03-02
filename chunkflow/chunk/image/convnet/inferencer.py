@@ -5,12 +5,15 @@ ConvNet Inference of an image chunk
 import os
 import logging
 import time
-import numpy as np
-from tqdm import tqdm
 from warnings import warn
 from typing import Union
+
+import numpy as np
+from tqdm import tqdm
+
+from chunkflow.lib.bounding_boxes import Cartesian
+
 from .patch.base import PatchInferencerBase
-from tempfile import mktemp
 from chunkflow.chunk import Chunk
 # from chunkflow.chunk.affinity_map import AffinityMap
 
@@ -37,20 +40,48 @@ class Inferencer(object):
                  output_patch_size: Union[tuple, list] = None,
                  patch_num: Union[tuple, list] = None,
                  num_output_channels: int = 3,
-                 output_patch_overlap: Union[tuple, list] = (4, 64, 64),
+                 output_patch_overlap: Union[tuple, list] = None,
                  output_crop_margin: Union[tuple, list] = None,
                  dtype = 'float32',
-                 framework: str = 'identity',
+                 framework: str = 'universal',
                  batch_size: int = 1,
                  bump: str = 'wu',
                  input_size: tuple = None,
-                 mask_output_chunk: bool = False,
+                 mask_output_chunk: bool = True,
                  mask_myelin_threshold = None,
+                 test_time_augmentation: bool = False,
                  dry_run: bool = False):
+        """convnet inference patch by patch in a chunk
+
+        Args:
+            convnet_model (Union[str, PatchInferencerBase]): the path of convnet model
+            convnet_weight_path (str): the path of trained model weights
+            input_patch_size (Union[tuple, list]): input patch size, zyx
+            output_patch_size (Union[tuple, list], optional): output patch size. Defaults to the same with input patch size.
+            patch_num (Union[tuple, list], optional): number of patches. Defaults to be computed.
+            num_output_channels (int, optional): number of output channels. Defaults to 3.
+            output_patch_overlap (Union[tuple, list], optional): the overlap size of output patch size. Defaults to be half of output patch size.
+            output_crop_margin (Union[tuple, list], optional): crop some output patch margin. Defaults to None.
+            dtype (str, optional): data type named consistantly with numpy. Defaults to 'float32'.
+            framework (str, optional): ['universal', 'identity', 'pytorch']. Defaults to 'universal'.
+            batch_size (int, optional): batch size in one pass. this parameter seems do not accelarate computation. Defaults to 1.
+            bump (str, optional): bump function. Defaults to 'wu'.
+            input_size (tuple, optional): input chunk size. Defaults to None.
+            mask_output_chunk (bool, optional): normalize on the chunk level rather than patch level. Defaults to True.
+            mask_myelin_threshold (_type_, optional): threshold to segment the myelin. Defaults to None.
+            test_time_augmentation (bool, optional): augment the image patch, inference, transform back and blend. Defaults to True.
+            dry_run (bool, optional): only compute parameters and setup, do not perform any real computation. Defaults to False.
+        """
         assert input_size is None or patch_num is None 
+        
+        if isinstance(input_patch_size, tuple):
+            input_patch_size = Cartesian.from_collection(input_patch_size)
         
         if output_patch_size is None:
             output_patch_size = input_patch_size 
+        
+        if output_patch_overlap is None:
+            output_patch_overlap = output_patch_size // 2
 
         if logging.getLogger().getEffectiveLevel() <= 30:
             self.verbose = True
@@ -63,7 +94,7 @@ class Inferencer(object):
         self.patch_num = patch_num
         self.batch_size = batch_size
         self.input_size = input_size
-        
+
         if output_crop_margin is None:
             if mask_output_chunk:
                 self.output_crop_margin = (0,0,0)
@@ -132,6 +163,8 @@ class Inferencer(object):
         if isinstance(convnet_weight_path, str):
             convnet_weight_path = os.path.expanduser(convnet_weight_path)
         self._prepare_patch_inferencer(framework, convnet_model, convnet_weight_path, bump)
+
+        self.test_time_augmentation = test_time_augmentation
    
     @property
     def compute_device(self):
@@ -377,18 +410,22 @@ class Inferencer(object):
                     batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0]).array
 
             end = time.time()
-            logging.debug('prepare %d input patches takes %3f sec' %
-                    (self.batch_size, end - start))
+            logging.debug('prepare {:d} input patches takes {:.3f} sec'.format(
+                self.batch_size, end - start))
             start = end
 
             # the input and output patch is a 5d numpy array with
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
-            output_patch = self.patch_inferencer(self.input_patch_buffer)
+            if not self.test_time_augmentation:
+                output_patch = self.patch_inferencer(self.input_patch_buffer)
+            else:
+                # test time augmentation
+                pass
 
             end = time.time()
-            logging.debug('run inference for %d patch takes %3f sec' %
-                    (self.batch_size, end - start))
+            logging.debug('run inference for {:d} patch takes {:.3f} sec'.format(
+                self.batch_size, end - start))
             start = end
 
             for batch_idx, slices in enumerate(batch_slices):
@@ -414,9 +451,9 @@ class Inferencer(object):
                 output_buffer.blend(output_chunk)
 
             end = time.time()
-            logging.debug('blend patch takes %3f sec' % (end - start))
-            logging.debug("Inference of whole chunk takes %3f sec" %
-                  (time.time() - chunk_time_start))
+            logging.debug('blend patch takes {:.3f} sec'.format(end - start))
+            logging.debug("Inference of whole chunk takes {:.3f} sec".format(
+                time.time() - chunk_time_start))
         
         if self.mask_output_chunk:
             output_buffer *= self.output_chunk_mask
