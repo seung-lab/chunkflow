@@ -5,5 +5,5 @@ from chunkflow.chunk import Chunk
 
 
 def execute(chunk: Chunk):
-    chunk.transpose()
+    chunk = chunk.transpose()
     return [chunk,]
