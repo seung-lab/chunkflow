@@ -792,12 +792,17 @@ def write_tif(tasks, name, input_chunk_name, file_name):
                help='cutout size of the chunk.')
 @click.option('--zero-filling/--no-zero-filling', default=False, type=bool,
     help='if no such file, fill with zero.')
+@click.option('--set-bbox/--no-set-bbox', default=False, 
+    help='set up bounding box in the task or not')
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME,
               help='chunk name in the global state')
 @operator
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
-            dtype: str, voxel_offset: tuple, voxel_size: tuple, cutout_start: tuple, cutout_stop: tuple, cutout_size: tuple, zero_filling: bool, output_chunk_name: str):
+            dtype: str, voxel_offset: tuple, voxel_size: tuple, 
+            cutout_start: tuple, cutout_stop: tuple, 
+            cutout_size: tuple, zero_filling: bool, set_bbox: bool,
+            output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
         if task is not None:
@@ -828,7 +833,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
                 chunk = chunk.astype(dtype)
             task[output_chunk_name] = chunk
             # make a bounding box for others operators to follow
-            if 'bbox' not in task:
+            if set_bbox:
                 task['bbox'] = chunk.bbox
 
             task['log']['timer'][name] = time() - start

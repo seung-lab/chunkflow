@@ -330,7 +330,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             return result
         elif isinstance(result, np.ndarray):
             # one return value
-            return type(self)(result, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
+            return Chunk(result, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
         else:
             return result
 

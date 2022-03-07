@@ -11,6 +11,7 @@ from .base import Chunk
 
 # from ...lib.gala import evaluate
 from chunkflow.lib.gala import evaluate
+from chunkflow.lib.bounding_boxes import Cartesian
 
 import kimimaro
 import fastremap
@@ -22,15 +23,20 @@ class Segmentation(Chunk):
     """
     a chunk of segmentation volume.
     """
-    def __init__(self, array, voxel_offset=None):
-        super().__init__(array, voxel_offset=voxel_offset)
+    def __init__(self, array: np.ndarray, 
+            voxel_offset: Cartesian=None, 
+            voxel_size:Cartesian=None):
+        super().__init__(array, voxel_offset=voxel_offset, 
+            voxel_size=voxel_size)
         assert array.ndim == 3
         assert np.issubdtype(array.dtype, np.integer)
 
     @classmethod
     def from_chunk(cls, chunk):
         assert isinstance(chunk, Chunk)
-        return cls(chunk.array, voxel_offset=chunk.voxel_offset)
+        return cls(
+            chunk.array, voxel_offset=chunk.voxel_offset, 
+            voxel_size = chunk.voxel_size)
 
     def evaluate(self, groundtruth, size_threshold: int=1000):
         """
