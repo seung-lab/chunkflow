@@ -41,7 +41,7 @@ class Inferencer(object):
                  patch_num: Union[tuple, list] = None,
                  num_output_channels: int = 3,
                  output_patch_overlap: Union[tuple, list] = None,
-                 crop_output_patch_margin: Union[tuple, list] = None,
+                 output_crop_margin: Union[tuple, list] = None,
                  dtype = 'float32',
                  framework: str = 'universal',
                  batch_size: int = 1,
@@ -61,7 +61,7 @@ class Inferencer(object):
             patch_num (Union[tuple, list], optional): number of patches. Defaults to be computed.
             num_output_channels (int, optional): number of output channels. Defaults to 3.
             output_patch_overlap (Union[tuple, list], optional): the overlap size of output patch size. Defaults to be half of output patch size.
-            crop_output_patch_margin (Union[tuple, list], optional): crop some output patch margin. Defaults to None.
+            output_crop_margin (Union[tuple, list], optional): crop some output patch margin. Defaults to None.
             dtype (str, optional): data type named consistantly with numpy. Defaults to 'float32'.
             framework (str, optional): ['universal', 'identity', 'pytorch']. Defaults to 'universal'.
             batch_size (int, optional): batch size in one pass. this parameter seems do not accelarate computation. Defaults to 1.
@@ -95,25 +95,24 @@ class Inferencer(object):
         self.batch_size = batch_size
         self.input_size = input_size
 
-        if crop_output_patch_margin is None:
+        if output_crop_margin is None:
             if mask_output_chunk:
-                self.crop_output_patch_margin = (0,0,0)
+                self.output_crop_margin = (0,0,0)
             else:
-                self.crop_output_patch_margin = self.output_patch_overlap
+                self.output_crop_margin = self.output_patch_overlap
         else:
-            self.crop_output_patch_margin = crop_output_patch_margin
+            self.output_crop_margin = output_crop_margin
             # we should always crop more than the patch overlap 
             # since the overlap region is reweighted by patch mask
-            # To-Do: equal should also be OK
-            assert np.alltrue([v<=m for v, m in zip(
-                self.output_patch_overlap, 
-                self.crop_output_patch_margin)])
+            #assert np.alltrue([v<=m for v, m in zip(
+            #    self.output_patch_overlap, 
+            #    self.output_crop_margin)])
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))
         
         self.output_offset = tuple(opcm+ocm for opcm, ocm in zip(
-            self.output_patch_crop_margin, self.crop_output_patch_margin))
+            self.output_patch_crop_margin, self.output_crop_margin))
     
         self.output_patch_stride = tuple(s - o for s, o in zip(
             output_patch_size, output_patch_overlap))
@@ -139,7 +138,7 @@ class Inferencer(object):
              
             self.output_size = tuple(pst*pn + po - 2*ocm for pst, pn, po, ocm in zip(
                 self.output_patch_stride, self.patch_num, 
-                self.output_patch_overlap, self.crop_output_patch_margin))
+                self.output_patch_overlap, self.output_crop_margin))
         else:
             # we can handle arbitrary input and output size
             self.input_size = None 
@@ -432,7 +431,7 @@ class Inferencer(object):
                 # the slices[0] is for input patch slice
                 # the slices[1] is for output patch slice
                 offset = tuple(s.start for s in slices[1])
-                output_chunk = Chunk(
+                output_patch_chunk = Chunk(
                     output_patch[batch_idx, :, :, :, :],
                     voxel_offset=offset,
                     voxel_size=input_chunk.voxel_size)
@@ -446,7 +445,7 @@ class Inferencer(object):
                 #    output_chunk.to_tif()
                 #    #input_chunk.cutout(slices[0]).to_tif()
 
-                output_buffer.blend(output_chunk)
+                output_buffer.blend(output_patch_chunk)
 
             end = time.time()
             logging.debug('blend patch takes {:.3f} sec'.format(end - start))

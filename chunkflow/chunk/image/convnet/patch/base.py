@@ -1,4 +1,7 @@
 import numpy as np
+from typing import Union
+from torch import Tensor
+
 from .patch_mask import PatchMask
 
 
@@ -23,12 +26,16 @@ class PatchInferencerBase(object):
         assert len(input_patch_size) == 3
         assert len(output_patch_size) == 3
 
-        self.output_offset = tuple((osz-isz)//2 for osz, isz in 
-                                                   zip(input_patch_size, output_patch_size))
+        if input_patch_size != output_patch_size:
+            self.crop_margin = tuple(
+                (osz-isz)//2 for osz, isz in 
+                    zip(input_patch_size, output_patch_size))
+        else:
+            self.crop_margin = None
         
         self.input_patch_overlap = tuple((opo + 2 * ocms) for opo, ocms in 
                                          zip(output_patch_overlap, 
-                                             self.output_offset))
+                                             self.crop_margin))
 
         self.input_patch_stride = tuple(p - o for p, o in
                                         zip(input_patch_size, self.input_patch_overlap))
@@ -65,9 +72,9 @@ class PatchInferencerBase(object):
             input_patch = input_patch.reshape((1, ) + input_patch.shape)
         return input_patch
 
-    def _crop_output_patch(self, output_patch):
+    def _crop_output_patch(self, output_patch: Union[np.ndarray, Tensor]):
         return output_patch[:, :self.num_output_channels,
-                            self.output_offset[0]:output_patch.shape[-3]-self.output_offset[0],
-                            self.output_offset[1]:output_patch.shape[-2]-self.output_offset[1],
-                            self.output_offset[2]:output_patch.shape[-1]-self.output_offset[2]]
+                            self.crop_margin[0]:output_patch.shape[-3]-self.crop_margin[0],
+                            self.crop_margin[1]:output_patch.shape[-2]-self.crop_margin[1],
+                            self.crop_margin[2]:output_patch.shape[-1]-self.crop_margin[2]]
 
