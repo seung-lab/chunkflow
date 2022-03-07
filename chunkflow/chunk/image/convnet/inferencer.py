@@ -41,7 +41,7 @@ class Inferencer(object):
                  patch_num: Union[tuple, list] = None,
                  num_output_channels: int = 3,
                  output_patch_overlap: Union[tuple, list] = None,
-                 output_crop_margin: Union[tuple, list] = None,
+                 crop_output_patch_margin: Union[tuple, list] = None,
                  dtype = 'float32',
                  framework: str = 'universal',
                  batch_size: int = 1,
@@ -61,7 +61,7 @@ class Inferencer(object):
             patch_num (Union[tuple, list], optional): number of patches. Defaults to be computed.
             num_output_channels (int, optional): number of output channels. Defaults to 3.
             output_patch_overlap (Union[tuple, list], optional): the overlap size of output patch size. Defaults to be half of output patch size.
-            output_crop_margin (Union[tuple, list], optional): crop some output patch margin. Defaults to None.
+            crop_output_patch_margin (Union[tuple, list], optional): crop some output patch margin. Defaults to None.
             dtype (str, optional): data type named consistantly with numpy. Defaults to 'float32'.
             framework (str, optional): ['universal', 'identity', 'pytorch']. Defaults to 'universal'.
             batch_size (int, optional): batch size in one pass. this parameter seems do not accelarate computation. Defaults to 1.
@@ -95,25 +95,25 @@ class Inferencer(object):
         self.batch_size = batch_size
         self.input_size = input_size
 
-        if output_crop_margin is None:
+        if crop_output_patch_margin is None:
             if mask_output_chunk:
-                self.output_crop_margin = (0,0,0)
+                self.crop_output_patch_margin = (0,0,0)
             else:
-                self.output_crop_margin = self.output_patch_overlap
+                self.crop_output_patch_margin = self.output_patch_overlap
         else:
-            self.output_crop_margin = output_crop_margin
+            self.crop_output_patch_margin = crop_output_patch_margin
             # we should always crop more than the patch overlap 
             # since the overlap region is reweighted by patch mask
             # To-Do: equal should also be OK
             assert np.alltrue([v<=m for v, m in zip(
                 self.output_patch_overlap, 
-                self.output_crop_margin)])
+                self.crop_output_patch_margin)])
 
         self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
             input_patch_size, output_patch_size))
         
         self.output_offset = tuple(opcm+ocm for opcm, ocm in zip(
-            self.output_patch_crop_margin, self.output_crop_margin))
+            self.output_patch_crop_margin, self.crop_output_patch_margin))
     
         self.output_patch_stride = tuple(s - o for s, o in zip(
             output_patch_size, output_patch_overlap))
@@ -139,7 +139,7 @@ class Inferencer(object):
              
             self.output_size = tuple(pst*pn + po - 2*ocm for pst, pn, po, ocm in zip(
                 self.output_patch_stride, self.patch_num, 
-                self.output_patch_overlap, self.output_crop_margin))
+                self.output_patch_overlap, self.crop_output_patch_margin))
         else:
             # we can handle arbitrary input and output size
             self.input_size = None 
@@ -410,8 +410,7 @@ class Inferencer(object):
                     batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0]).array
 
             end = time.time()
-            logging.debug('prepare {:d} input patches takes {:.3f} sec'.format(
-                self.batch_size, end - start))
+            logging.debug(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
             start = end
 
             # the input and output patch is a 5d numpy array with
@@ -424,8 +423,7 @@ class Inferencer(object):
                 pass
 
             end = time.time()
-            logging.debug('run inference for {:d} patch takes {:.3f} sec'.format(
-                self.batch_size, end - start))
+            logging.debug(f'run inference for {self.batch_size:d} patch takes {end-start:.3f} sec')
             start = end
 
             for batch_idx, slices in enumerate(batch_slices):
