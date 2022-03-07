@@ -44,7 +44,7 @@ class Universal(PatchInferencerBase):
 
         assert hasattr(net_source, "PatchInferencer")
         self.patch_inferencer = net_source.PatchInferencer(
-            convnet_weight_path, self.output_patch_mask)
+            convnet_weight_path, self.output_patch_mask, crop_output_patch_margin=self.crop_margin)
     
     @property
     def compute_device(self):
@@ -58,5 +58,8 @@ class Universal(PatchInferencerBase):
         # make sure that the patch is 5d ndarray
         input_patch = self._reshape_patch_to_5d(input_patch)
         output_patch = self.patch_inferencer( input_patch )
+        #output_patch = self._crop_output_patch(output_patch)
+        #output_patch = output_patch * self.output_patch_mask
+        #output_patch = output_patch.cpu().numpy()
         assert isinstance(output_patch, np.ndarray)
         return output_patch

@@ -3,7 +3,6 @@ import logging
 from functools import update_wrapper, wraps
 import click
 
-from .bounding_boxes import Cartesian
 
 class CartesianParamType(click.ParamType):
     name = 'Cartesian'
