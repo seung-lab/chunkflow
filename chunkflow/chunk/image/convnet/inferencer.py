@@ -11,7 +11,7 @@ from typing import Union
 import numpy as np
 from tqdm import tqdm
 
-from chunkflow.lib.bounding_boxes import Cartesian
+from chunkflow.lib.bounding_boxes import Cartesian, to_cartesian
 
 from .patch.base import PatchInferencerBase
 from chunkflow.chunk import Chunk
@@ -36,17 +36,17 @@ class Inferencer(object):
     def __init__(self,
                  convnet_model: Union[str, PatchInferencerBase],
                  convnet_weight_path: str,
-                 input_patch_size: Union[tuple, list],
-                 output_patch_size: Union[tuple, list] = None,
-                 patch_num: Union[tuple, list] = None,
+                 input_patch_size: Union[tuple, list, Cartesian],
+                 output_patch_size: Union[tuple, list, Cartesian] = None,
+                 patch_num: Union[tuple, list, Cartesian] = None,
                  num_output_channels: int = 3,
-                 output_patch_overlap: Union[tuple, list] = None,
-                 output_crop_margin: Union[tuple, list] = None,
+                 output_patch_overlap: Union[tuple, list, Cartesian] = None,
+                 output_crop_margin: Union[tuple, list, Cartesian] = None,
                  dtype = 'float32',
                  framework: str = 'universal',
                  batch_size: int = 1,
                  bump: str = 'wu',
-                 input_size: tuple = None,
+                 input_size: Union[tuple, list, Cartesian] = None,
                  mask_output_chunk: bool = True,
                  mask_myelin_threshold = None,
                  test_time_augmentation: bool = False,
@@ -56,37 +56,41 @@ class Inferencer(object):
         Args:
             convnet_model (Union[str, PatchInferencerBase]): the path of convnet model
             convnet_weight_path (str): the path of trained model weights
-            input_patch_size (Union[tuple, list]): input patch size, zyx
-            output_patch_size (Union[tuple, list], optional): output patch size. Defaults to the same with input patch size.
-            patch_num (Union[tuple, list], optional): number of patches. Defaults to be computed.
+            input_patch_size (Union[tuple, list, Cartesian]): input patch size, zyx
+            output_patch_size (Union[tuple, list, Cartesian], optional): output patch size. Defaults to the same with input patch size.
+            patch_num (Union[tuple, list, Cartesian], optional): number of patches. Defaults to be computed.
             num_output_channels (int, optional): number of output channels. Defaults to 3.
-            output_patch_overlap (Union[tuple, list], optional): the overlap size of output patch size. Defaults to be half of output patch size.
-            output_crop_margin (Union[tuple, list], optional): crop some output patch margin. Defaults to None.
+            output_patch_overlap (Union[tuple, list, Cartesian], optional): the overlap size of output patch size. Defaults to be half of output patch size.
+            output_crop_margin (Union[tuple, list, Cartesian], optional): crop some output patch margin. Defaults to None.
             dtype (str, optional): data type named consistantly with numpy. Defaults to 'float32'.
             framework (str, optional): ['universal', 'identity', 'pytorch']. Defaults to 'universal'.
             batch_size (int, optional): batch size in one pass. this parameter seems do not accelarate computation. Defaults to 1.
             bump (str, optional): bump function. Defaults to 'wu'.
-            input_size (tuple, optional): input chunk size. Defaults to None.
+            input_size (Union[tuple, list, Cartesian], optional): input chunk size. Defaults to None.
             mask_output_chunk (bool, optional): normalize on the chunk level rather than patch level. Defaults to True.
             mask_myelin_threshold (_type_, optional): threshold to segment the myelin. Defaults to None.
             test_time_augmentation (bool, optional): augment the image patch, inference, transform back and blend. Defaults to True.
             dry_run (bool, optional): only compute parameters and setup, do not perform any real computation. Defaults to False.
         """
         assert input_size is None or patch_num is None 
-        
-        if isinstance(input_patch_size, tuple):
-            input_patch_size = Cartesian.from_collection(input_patch_size)
-        
-        if output_patch_size is None:
-            output_patch_size = input_patch_size 
-        
-        if output_patch_overlap is None:
-            output_patch_overlap = output_patch_size // 2
-
+         
         if logging.getLogger().getEffectiveLevel() <= 30:
             self.verbose = True
         else:
             self.verbose = False
+
+        input_patch_size = to_cartesian(input_patch_size)
+        patch_num = to_cartesian(patch_num)
+        input_size = to_cartesian(input_size)
+        output_patch_size = to_cartesian(output_patch_size)
+        output_patch_overlap = to_cartesian(output_patch_overlap)
+        output_crop_margin = to_cartesian(output_crop_margin)
+
+        if output_patch_size is None:
+            output_patch_size = input_patch_size 
+
+        if output_patch_overlap is None:
+            output_patch_overlap = output_patch_size // 2
         
         self.input_patch_size = input_patch_size
         self.output_patch_size = output_patch_size
@@ -97,22 +101,24 @@ class Inferencer(object):
 
         if output_crop_margin is None:
             if mask_output_chunk:
-                self.output_crop_margin = (0,0,0)
+                self.output_crop_margin = Cartesian(0,0,0)
             else:
                 self.output_crop_margin = self.output_patch_overlap
         else:
             self.output_crop_margin = output_crop_margin
             # we should always crop more than the patch overlap 
             # since the overlap region is reweighted by patch mask
-            #assert np.alltrue([v<=m for v, m in zip(
-            #    self.output_patch_overlap, 
-            #    self.output_crop_margin)])
+            assert self.output_crop_margin >= self.output_patch_overlap
 
-        self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
-            input_patch_size, output_patch_size))
+        # if self.input_patch_size != self.output_patch_size:
+        #     breakpoint()
+        # self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
+            # input_patch_size, output_patch_size))
+        self.output_patch_crop_margin = (input_patch_size - output_patch_size) // 2
         
-        self.output_offset = tuple(opcm+ocm for opcm, ocm in zip(
-            self.output_patch_crop_margin, self.output_crop_margin))
+        #self.output_offset = tuple(opcm+ocm for opcm, ocm in zip(
+        #    self.output_patch_crop_margin, self.output_crop_margin))
+        self.output_offset = self.output_crop_margin
     
         self.output_patch_stride = tuple(s - o for s, o in zip(
             output_patch_size, output_patch_overlap))

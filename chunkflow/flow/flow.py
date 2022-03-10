@@ -17,7 +17,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
-from chunkflow.lib.bounding_boxes import BoundingBox, BoundingBoxes
+from chunkflow.lib.bounding_boxes import Cartesian, BoundingBox, BoundingBoxes
 from chunkflow.lib.synapses import Synapses
 
 from chunkflow.chunk import Chunk
@@ -379,6 +379,11 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
             
             assert volume_size is not None
             assert data_type is not None
+            if data_type == 'segmentation':
+                mesh = "mesh"
+            else:
+                mesh = None
+
             info = CloudVolume.create_new_info(
                 channel_num, layer_type=layer_type,
                 data_type=data_type,
@@ -390,6 +395,7 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
                 factor=Vec(factor),
                 max_mip=max_mip,
                 compressed_segmentation_block_size=(8, 8, 8),
+                mesh = mesh,
                 )
             vol = CloudVolume(output_layer_path, info=info)
             vol.commit_info()

@@ -17,6 +17,12 @@ import h5py
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
 
+def to_cartesian(x: Union[tuple, list]):
+    if x is None:
+        return None
+    else:
+        assert len(x) == 3
+        return Cartesian.from_collection(x)
 
 class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     """Cartesian coordinate or offset."""
@@ -56,8 +62,11 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         else:
             raise TypeError('only support number and Cartesian type.')
 
-    def __floordiv__(self, d: int):
-        return Cartesian(*[x // d for x in self])
+    def __floordiv__(self, d: Union[int, Cartesian]):
+        if isinstance(d, Number):
+            return Cartesian(*[x // d for x in self])
+        else:
+            return Cartesian.from_collection([x//d for x, d in zip(self, d)])
 
     def __truediv__(self, other: Union[Number, Cartesian]):
         if isinstance(other, Number):
@@ -100,10 +109,6 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
 
     def __neg__(self) -> Cartesian:
         return Cartesian(-self.z, -self.y, -self.x)
-
-    # def __isub__(self, other: Union[Cartesian,Number]) -> Cartesian:
-
-
 
     @property
     def vec(self):
