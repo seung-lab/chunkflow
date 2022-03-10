@@ -2,10 +2,14 @@ import numpy as np
 
 from cloudvolume.lib import Bbox, Vec
 
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
+from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian, to_cartesian
 
 
 def test_cartesian():
+    assert to_cartesian(None) == None
+    ct = (1,2,3)
+    assert to_cartesian(ct) == Cartesian(1,2,3)
+
     ct = Cartesian(1,2,3)
     ct += 2
     assert ct == Cartesian(3,4,5)
