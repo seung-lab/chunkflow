@@ -12,7 +12,7 @@
 
 ## Problem 
 - Petabyte scale 3D image processing is hard;
-- Scalable distributed computing;
+- Computation have to be distributed with horizonal scalability;
 - Local cluster and public cloud computing are not fully used at the same time;
 - Duplicated code across tasks.
 
