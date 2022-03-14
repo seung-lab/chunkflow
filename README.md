@@ -14,7 +14,7 @@
 - Petabyte scale 3D image processing is hard;
 - Computation have to be distributed with horizonal scalability;
 - Local cluster and public cloud computing are not fully used at the same time;
-- Duplicated code across tasks.
+- Duplicated code across a variaty of routine tasks.
 
 ## Features
 - **Composable** operators. The chunk operators could be composed in commandline for flexible usage.
