@@ -11,10 +11,10 @@
 <!-- [![Build Status](https://travis-ci.org/seung-lab/chunkflow.svg?branch=master)](https://travis-ci.org/seung-lab/chunkflow) -->
 
 ## Problem 
-- Petabyte scale 3D image processing
-- Scalable distributed computing
-- Fully use both local cluster and public cloud computing
-- Reusable operators across tasks
+- Petabyte scale 3D image processing is hard;
+- Scalable distributed computing;
+- Local cluster and public cloud computing are not fully used at the same time;
+- Duplicated code across tasks.
 
 ## Features
 - **Composable** operators. The chunk operators could be composed in commandline for flexible usage.
