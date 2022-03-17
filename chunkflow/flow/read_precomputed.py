@@ -5,6 +5,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import Bbox
 from cloudvolume.storage import Storage
 
+from chunkflow.lib.bounding_boxes import Cartesian
 from chunkflow.chunk.validate import validate_by_template_matching
 from tinybrain import downsample_with_averaging
 from chunkflow.chunk import Chunk
@@ -15,7 +16,7 @@ class ReadPrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int = 0,
-                 expand_margin_size=(0, 0, 0),
+                 expand_margin_size: Cartesian=Cartesian(0, 0, 0),
                  fill_missing: bool = False,
                  validate_mip: int = None,
                  blackout_sections: bool = None,
