@@ -2,7 +2,6 @@ import logging
 import numpy as np
 
 from cloudvolume import CloudVolume
-from cloudvolume.lib import Bbox
 
 from chunkflow.chunk import Chunk
 from .base import OperatorBase

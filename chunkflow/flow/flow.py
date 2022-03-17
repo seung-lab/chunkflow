@@ -155,9 +155,10 @@ def generate_tasks(
 def skip_task(tasks: Generator, pre: str, post: str, adjust_size: int):
     """if a result file already exists, skip this task."""
     for task in tasks:
-        bbox = task['bbox'].clone()
+        bbox = task['bbox']
         if adjust_size is not None:
-            bbox.grow(adjust_size)
+            bbox = bbox.clone()
+            bbox.adjust(adjust_size)
         file_name = pre + bbox.to_filename() + post
         if os.path.exists(file_name):
             print('the result file already exist, skip this task')
@@ -182,13 +183,13 @@ def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, adjust_size
             chunk = task[input_chunk_name]
             if not np.any(chunk):
                 print('all zero chunk, skip this task')
-                if pre is not None:
+                if pre is not None or post is not None:
                     bbox = chunk.bbox.clone()
                     bbox.adjust(adjust_size)
-                    fname = os.path.join(pre, f'{bbox.to_filename()}{post}')
-                    print('create an empty file as mark: ', fname)
-                    with open(fname, 'a'):
-                        os.utime(fname, None)
+                    fname = f'{pre}{bbox.to_filename()}{post}'
+                    if not os.path.exists(fname):
+                        print('create an empty file as mark: ', fname)
+                        Path(fname).touch()
                 # target task as None and task will be skipped
                 task = None
         yield task
@@ -871,11 +872,11 @@ def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset,
     """Write chunk to HDF5 file."""
     for task in tasks:
         if task is not None:
-            if not file_name.endswith('.h5'):
-                bbox = task['bbox']
-                file_name = f'{file_name}{bbox.to_filename()}.h5'
             data = task[input_name]
             if isinstance(data, Chunk):
+                if not file_name.endswith('.h5'):
+                    file_name = f'{file_name}{data.bbox.to_filename()}.h5'
+
                 data.to_h5(
                     file_name, with_offset, 
                     chunk_size=chunk_size, 
@@ -885,6 +886,9 @@ def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset,
                 data.to_h5(file_name)
             elif data is None:
                 if touch:
+                    if not file_name.endswith('.h5'):
+                        bbox = task['bbox']
+                        file_name = f'{file_name}{bbox.to_filename()}.h5'
                     Path(file_name).touch()
             else:
                 raise ValueError(f'unsuported type of input data: {data}')
@@ -949,17 +953,16 @@ def delete_task_in_queue(tasks, name):
         yield task
 
 
-@main.command('delete-chunk')
-@click.option('--name', type=str, default='delete-var', help='delete variable/chunk in task')
-@click.option('--chunk-name', '-c',
+@main.command('delete-var')
+@click.option('--var-name', '-v',
               type=str, required=True, help='the chunk name need to be deleted')
 @operator
-def delete_chunk(tasks, name, chunk_name):
+def delete_var(tasks, var_name: str):
     """Delete a Chunk in task to release RAM"""
     for task in tasks:
         if task is not None:
-            logging.info(f'delete chunk: {chunk_name}')
-            del task[chunk_name]
+            logging.info(f'delete chunk: {var_name}')
+            del task[var_name]
         yield task
  
 
@@ -1704,7 +1707,7 @@ def write_precomputed(tasks, name: str, volume_path: str,
                 pass
             else:
                 operator(chunk, log=task.get('log', {'timer': {}}))
-                task['output_volume_path'] = volume_path
+                # task['output_volume_path'] = volume_path
 
         yield task
 

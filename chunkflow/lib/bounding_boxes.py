@@ -31,6 +31,14 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     @classmethod
     def from_collection(cls, col: Union[tuple, list, Vec]):
         return cls(*col)
+
+    def __eq__(self, other: Union[int, Cartesian]) -> bool:
+        if isinstance(other, int):
+            return np.all([x==other for x in self])
+        elif isinstance(other, Cartesian):
+            return np.all([x==y for x, y in zip(self, other)])
+        else:
+            raise TypeError('only support int or Cartesian for now.')
     
     def __sub__(self, offset: Union[Cartesian, Number]):
         """subtract to another voxel coordinate
@@ -42,7 +50,10 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
             return Cartesian.from_collection([x-offset for x in self])
         else:
             return Cartesian.from_collection([x-o for x, o in zip(self, offset)])
-           
+    
+    def __isub__(self, other:Union[int, Cartesian]):
+        return self - other
+
     def __add__(self, offset: Union[Cartesian, tuple, int]):
         """add another coordinate
 
@@ -53,6 +64,9 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
             return Cartesian(*[x+offset for x in self])
         else:
             return Cartesian(*[x+o for x, o in zip(self, offset)])
+    
+    def __iadd__(self, other: Union[Cartesian, int]):
+        return self + other
 
     def __mul__(self, m: Union[Number, Cartesian]) -> Cartesian:
         if isinstance(m, Cartesian):
@@ -62,11 +76,17 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         else:
             raise TypeError('only support number and Cartesian type.')
 
+    def __imul__(self, other: Union[Cartesian, int]):
+        return self * other
+
     def __floordiv__(self, d: Union[int, Cartesian]):
         if isinstance(d, Number):
             return Cartesian(*[x // d for x in self])
         else:
             return Cartesian.from_collection([x//d for x, d in zip(self, d)])
+
+    def __ifloordiv__(self, other: Union[Cartesian, int]):
+        return self // other
 
     def __truediv__(self, other: Union[Number, Cartesian]):
         if isinstance(other, Number):
@@ -74,8 +94,19 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         else:
             return Cartesian.from_collection([x/d for x, d in zip(self, other)])
 
-    def __mod__(self, d: int):
-        return Cartesian(*[x%d for x in self])
+    def __itruediv__(self, other: Union[Cartesian, int]):
+        return self / other
+
+    def __mod__(self, d: Union[int, Cartesian]) -> Cartesian:
+        if isinstance(d, int):
+            return Cartesian(*[x%d for x in self])
+        elif isinstance(d, Cartesian):
+            return Cartesian.from_collection([x%y for x, y in zip(self, d)])
+        else:
+            raise TypeError('only support int or Cartesian for now.')
+    
+    def __imod__(self, other: Union[Cartesian, int]):
+        return self % other
 
     def __lt__(self, other: Cartesian) -> bool:
         if self.x < other.x and self.y < other.y and self.z < other.z:
@@ -109,6 +140,16 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
 
     def __neg__(self) -> Cartesian:
         return Cartesian(-self.z, -self.y, -self.x)
+
+    #def __setitem__(self, key: int, value: int):
+    #    if key == 0:
+    #        self.z = value
+    #    elif key == 1:
+    #        self.y = value
+    #    elif key == 2:
+    #        self.z = value
+    #    else:
+    #        raise KeyError('invalide key. only support 0,1,2.')
 
     @property
     def vec(self):
@@ -182,6 +223,8 @@ class BoundingBox(Bbox):
         if not isinstance(size, int):
             assert len(size)==3 or len(size)==6
             size = Vec(*size)
+        else:
+            size = Cartesian(size, size, size)
         self.minpt -= size[:3]
         self.maxpt += size[-3:]
         return self
@@ -341,13 +384,15 @@ class BoundingBoxes(UserList):
             if not isinstance(aligned_block_size, Vec):
                 aligned_block_size = Cartesian(*aligned_block_size)
             assert np.all(aligned_block_size <= chunk_size)
-            assert np.alltrue(chunk_size % aligned_block_size == 0)
+            assert chunk_size % aligned_block_size == 0
             roi_start -= roi_start % aligned_block_size
             assert len(aligned_block_size) == 3
             assert len(roi_stop) == 3
+            roi_stop_temp = [x for x in roi_stop]
             for idx in range(3):
                 if roi_stop[idx] % aligned_block_size[idx] > 0:
-                    roi_stop[idx] += aligned_block_size[idx] - roi_stop[idx] % aligned_block_size[idx]
+                    roi_stop_temp[idx] += aligned_block_size[idx] - roi_stop[idx] % aligned_block_size[idx]
+            roi_stop = Cartesian.from_collection(roi_stop_temp)
 
         if roi_size is None:
             roi_size = roi_stop - roi_start
