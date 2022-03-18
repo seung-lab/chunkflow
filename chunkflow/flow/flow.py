@@ -10,6 +10,7 @@ from copy import deepcopy
 import numpy as np
 import click
 import json
+from tqdm import tqdm 
 
 from chunkflow.lib.flow import *
 
@@ -1608,7 +1609,8 @@ def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_for
 @click.option('--volume-path', '-v', type=str, required=True, help='cloudvolume path of dataset layer.' + 
               ' The mesh directory will be automatically figure out using the info file.')
 @operator
-def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path):
+def mesh_manifest(tasks, name: str, input_name: str, prefix: str, 
+        disbatch: bool, digits: int, volume_path: str):
     """Generate mesh manifest files."""
     operator = MeshManifestOperator(volume_path)
     if prefix:
@@ -1626,6 +1628,35 @@ def mesh_manifest(tasks, name, input_name, prefix, disbatch, digits, volume_path
     else:
         logging.error('requires one of parameters: prefix, input_name, disbatch')
 
+@main.command('download-mesh')
+@click.option('--volume-path', '-v', type=str, required=True,
+    help="volume path of segmentation layer formated as Neuroglancer Precomputed.")
+@click.option('--ids', '-i', type=str, required=True,
+    help='object IDs with comma to separate them. example: 34,25,38. If this is a text file path, we can read the file.')
+@click.option('--out-pre', '-o', type=str, default='./',
+    help='prefix of output file')
+@click.option('--out-format', '-f', 
+    type=click.Choice(['ply', 'obj'], case_sensitive=True), default='ply',
+    help='output format, only support ply and obj for now.')
+@operator
+def download_mesh(tasks, volume_path: str, ids: str, out_pre: str, out_format: str):
+    vol = CloudVolume(volume_path, green_threads=True)
+    if os.path.isfile(ids):
+        with open(ids, 'r') as file:
+            ids = file.read()
+    ids = ids.replace(' ', '')
+    ids = [int(x) for x in ids.split(',')]
+    meshes = vol.mesh.get(ids, fuse=False)
+    for obj_id, mesh in tqdm(meshes.items(), desc='downloading meshes...'):
+        fname = f'{out_pre}{obj_id}.{out_format}'
+        if out_format == 'ply':
+            mesh = mesh.to_ply()
+        elif out_format == 'obj':
+            mesh = mesh.to_obj()
+        else:
+            raise ValueError('only support ply and obj for now.')
+        with open(fname, 'wb') as f:
+            f.write(mesh)
 
 @main.command('neuroglancer')
 @click.option('--name', type=str, default='neuroglancer',

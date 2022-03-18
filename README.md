@@ -59,6 +59,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | delete-chunk    | Delete chunk in task to reduce RAM requirement |
 | delete-task-in-queue | Delete the task in AWS SQS queue |
 | downsample-upload | Downsample the chunk hierarchically and upload to volume |
+| download-mesh   | Download meshes from Neuroglancer Precomputed volume |
 | evaluate-segmentation | Compare segmentation chunks |
 | fetch-task-from-file | Fetch task from a file |
 | fetch-task-from-sqs | Fetch task from AWS SQS queue one by one |
