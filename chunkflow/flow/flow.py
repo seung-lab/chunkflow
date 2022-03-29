@@ -1631,32 +1631,53 @@ def mesh_manifest(tasks, name: str, input_name: str, prefix: str,
 @main.command('download-mesh')
 @click.option('--volume-path', '-v', type=str, required=True,
     help="volume path of segmentation layer formated as Neuroglancer Precomputed.")
-@click.option('--ids', '-i', type=str, required=True,
-    help='object IDs with comma to separate them. example: 34,25,38. If this is a text file path, we can read the file.')
+@click.option('--input', '-i', type=str, required=True,
+    help='object IDs with comma to separate them. example: 34,25,38. If this is a text file path, we can read the file. It can also be a segmentation chunk name, we can used to get the largest objects ranked by the following parameters: start-rank and stop-rank.')
+@click.option('--start-rank', '-s', type=int, default=0, 
+    help='starting rank of the object size measured by voxel counts')
+@click.option('--stop-rank', '-p', type=int, default=None,
+    help='stopping rank of the object size measured by voxel count')
 @click.option('--out-pre', '-o', type=str, default='./',
     help='prefix of output file')
 @click.option('--out-format', '-f', 
     type=click.Choice(['ply', 'obj'], case_sensitive=True), default='ply',
     help='output format, only support ply and obj for now.')
 @operator
-def download_mesh(tasks, volume_path: str, ids: str, out_pre: str, out_format: str):
+def download_mesh(tasks, volume_path: str, input: str, start_rank: int,
+        stop_rank: int, out_pre: str, out_format: str):
     vol = CloudVolume(volume_path, green_threads=True)
-    if os.path.isfile(ids):
-        with open(ids, 'r') as file:
-            ids = file.read()
-    ids = ids.replace(' ', '')
-    ids = [int(x) for x in ids.split(',')]
-    meshes = vol.mesh.get(ids, fuse=False)
-    for obj_id, mesh in tqdm(meshes.items(), desc='downloading meshes...'):
-        fname = f'{out_pre}{obj_id}.{out_format}'
-        if out_format == 'ply':
-            mesh = mesh.to_ply()
-        elif out_format == 'obj':
-            mesh = mesh.to_obj()
+
+    for task in tasks:
+        if input in task and stop_rank is not None:
+            seg = task[input]
+            import fastremap
+            unique, count = fastremap.unique(seg, return_counts=True)
+            # descending order
+            unique = unique[1:]
+            count = count[1:]
+
+            assert len(count) == len(unique)
+            orders = np.argsort(count)[::-1]
+            sorted_unique = unique[orders]
+            ids = sorted_unique[start_rank:stop_rank]
         else:
-            raise ValueError('only support ply and obj for now.')
-        with open(fname, 'wb') as f:
-            f.write(mesh)
+            if os.path.isfile(input):
+                with open(input, 'r') as file:
+                    input = file.read()
+            ids = input.replace(' ', '')
+            ids = [int(x) for x in ids.split(',')]
+        print('downloading meshes...')
+        meshes = vol.mesh.get(ids, fuse=False)
+        for obj_id, mesh in tqdm(meshes.items(), desc='writing meshes...'):
+            fname = f'{out_pre}{obj_id}.{out_format}'
+            if out_format == 'ply':
+                mesh = mesh.to_ply()
+            elif out_format == 'obj':
+                mesh = mesh.to_obj()
+            else:
+                raise ValueError('only support ply and obj for now.')
+            with open(fname, 'wb') as f:
+                f.write(mesh)
 
 @main.command('neuroglancer')
 @click.option('--name', type=str, default='neuroglancer',

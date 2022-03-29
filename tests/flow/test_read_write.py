@@ -4,6 +4,8 @@ import os
 import shutil
 
 from chunkflow.chunk import Chunk
+from chunkflow.lib.bounding_boxes import Cartesian
+
 from chunkflow.flow.write_pngs import WritePNGsOperator
 
 
@@ -50,14 +52,14 @@ class TestReadWrite(unittest.TestCase):
     def test_read_write_image(self):
         print('test image io...')
         arr = np.random.randint(0, 256, size=(8, 16, 16), dtype=np.uint8)
-        chunk = Chunk(arr, voxel_offset=(1, 2, 3))
+        chunk = Chunk(arr, voxel_offset=Cartesian(1, 2, 3))
         read_write_h5(chunk)
         read_write_tif(chunk)
 
     def test_read_write_aff(self):
         print('test affinitymap io...')
         arr = np.random.rand(3, 8, 16, 16).astype(np.float32)
-        chunk = Chunk(arr, voxel_offset=(1, 2, 3))
+        chunk = Chunk(arr, voxel_offset=Cartesian(1, 2, 3))
         read_write_h5(chunk)
 
 
