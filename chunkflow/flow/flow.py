@@ -503,32 +503,29 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
 
 
 @main.command('create-chunk')
-@click.option('--name',
-              type=str,
-              default='create-chunk',
-              help='name of operator')
-@click.option('--size', '-s',
-              type=int, nargs=3, default=(64, 64, 64), help='the size of created chunk')
-@click.option('--dtype',
-              type=click.Choice(
-                  ['uint8', 'uint32', 'uint16', 'float32', 'float64']),
-              default='uint8', help='the data type of chunk')
-@click.option('--all-zero/--not-all-zero', default=False, help='all zero or not.')
+@click.option('--size', '-s', type=int, nargs=3, 
+    default=(64, 64, 64), help='the size of created chunk')
+@click.option('--dtype', '-d',
+    type=click.Choice(
+        ['uint8', 'uint32', 'uint16', 'uint64', 'float32', 'float64']),
+    default='uint8', help='the data type of chunk')
+@click.option('pattern', '-p', type=click.Choice(['sin', 'zero', 'random']), 
+    default='sin', help='ways to generate array.')
 @click.option('--voxel-offset', '-t',
-              type=int, nargs=3, default=(0, 0, 0), help='offset in voxel number.')
+    type=int, nargs=3, default=(0, 0, 0), help='offset in voxel number.')
 @click.option('--voxel-size', '-e',
-              type=int, nargs=3, default=(1,1,1), help='voxel size in nm')
+    type=int, nargs=3, default=(1,1,1), help='voxel size in nm')
 @click.option('--output-chunk-name', '-o',
-              type=str, default="chunk", help="name of created chunk")
+    type=str, default="chunk", help="name of created chunk")
 @operator
-def create_chunk(tasks, name, size, dtype, all_zero, voxel_offset, voxel_size, output_chunk_name):
+def create_chunk(tasks, size, dtype, pattern, voxel_offset, voxel_size, output_chunk_name):
     """Create a fake chunk for easy test."""
     print("creating chunk: ", output_chunk_name)
     for task in tasks:
         if task is not None:
             task[output_chunk_name] = Chunk.create(
-                size=size, dtype=np.dtype(dtype), 
-                all_zero = all_zero,
+                size=size, dtype=np.dtype(dtype),
+                pattern=pattern, 
                 voxel_offset=voxel_offset,
                 voxel_size=voxel_size)
         yield task
@@ -837,11 +834,11 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
                 zero_filling = zero_filling,
                 dtype=dtype,
             )
-            if dtype is not None:
+            if chunk is not None and dtype is not None:
                 chunk = chunk.astype(dtype)
             task[output_chunk_name] = chunk
             # make a bounding box for others operators to follow
-            if set_bbox:
+            if set_bbox and chunk is not None:
                 task['bbox'] = chunk.bbox
 
             task['log']['timer'][name] = time() - start

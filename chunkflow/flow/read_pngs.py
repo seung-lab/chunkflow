@@ -17,7 +17,7 @@ def read_png_images(path_prefix: str, bbox: BoundingBox,
     
     chunk = Chunk.from_bbox(
         bbox, dtype=dtype, 
-        all_zero=True, 
+        pattern='zero', 
         voxel_size=voxel_size
     )
     assert len(bbox.minpt) == 3

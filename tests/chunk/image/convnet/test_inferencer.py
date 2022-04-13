@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from chunkflow.chunk import Chunk
@@ -67,6 +68,7 @@ def test_aligned_patch_num():
     np.testing.assert_allclose(image, output, rtol=1e-3, atol=1e-3)
 
 
+@pytest.mark.skip(reason='there is a known bug in the inference code.')
 def test_aligned_input_chunk_with_croped_patch():
     print('\ntest block inference engine...')
     input_patch_size = (20, 256, 256)

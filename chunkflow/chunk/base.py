@@ -76,54 +76,93 @@ class Chunk(NDArrayOperatorsMixin):
     
     @classmethod
     def from_bbox(cls, bbox: BoundingBox, dtype: type = np.uint8,
-            voxel_size: tuple=None, all_zero: bool=False):
-        """
-        :param bbox: bounding box of chunk.
-        :param dtype: numpy data type
-        :param all_zero: is it all zero or with a fancy function
-        :return: a new chunk
+            pattern: str='zero',
+            voxel_size: tuple=None):
+        """create a chunk from bounding box
+
+        Args:
+            bbox (BoundingBox): 3D bounding box
+            dtype (type, optional): data type. Defaults to np.uint8.
+            pattern (str, optional): method to create empty array. [zero, random, sin]. Defaults to 'zero'.
+            voxel_size (tuple, optional): physical size of a voxel. Defaults to None.
+
+        Returns:
+            _type_: _description_
         """
         assert isinstance(bbox, BoundingBox)
         size = bbox.maxpt - bbox.minpt
         return cls.create(size=size, dtype=dtype, voxel_offset=bbox.minpt,
-            voxel_size=voxel_size, all_zero=all_zero)
+            voxel_size=voxel_size, pattern=pattern)
+    
+    def connected_component(self, threshold: float = None, 
+                            connectivity: int = 6):
+        """threshold the map chunk and get connected components."""
+        if not self.is_segmentation and threshold is not None:
+            seg = self.threshold(threshold)
+            seg = seg.array
+        else:
+            seg = self.array 
+        seg = cc3d.connected_components(seg, connectivity=connectivity)
+        return Chunk(seg, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
     @classmethod
     def create(cls, size: tuple = (64, 64, 64),
-               dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0),
+               dtype: type = np.uint8, 
+               voxel_offset: Cartesian = Cartesian(0, 0, 0),
                voxel_size: tuple = None,
-               all_zero: bool = False):
-        """
-        :param size: size of chunk
-        :param dtype: numpy data type
-        :param voxel_offset: offset of the upper left corner
-        :param voxel_size: physical size of each voxel.
-        :param all_zero: is it all zero or create using a function
-        :return: a new chunk
+               pattern: str = 'sin',
+               high: int = 255):
+        """create a fake chunk for tests.
+
+        Args:
+            size (tuple, optional): chunk size or shape. Defaults to (64, 64, 64).
+            dtype (type, optional): data type like numpy. Defaults to np.uint8.
+            voxel_offset (Cartesian, optional): coordinate of starting voxel. Defaults to Cartesian(0, 0, 0).
+            voxel_size (Cartesian, optional): physical size of each voxel. Defaults to None.
+            pattern (str, optional): ways to create an array. ['sin', 'random', 'zero']. Defaults to 'sin'.
+            high (int, optional): the high value of random integer array. Defaults to 255.
+
+        Raises:
+            NotImplementedError: not support pattern or data type was used.
+
+        Returns:
+            Chunk: the random chunk created.
         """
         if isinstance(dtype, str):
             dtype = np.dtype(dtype)
 
-        if all_zero:
-            chunk = np.zeros(size, dtype=dtype)
-        else:
+        if pattern == 'zero':
+            arr = np.zeros(size, dtype=dtype)
+        elif pattern == 'sin':
             ix, iy, iz = np.meshgrid(*[np.linspace(0, 1, n) for 
                                        n in size[-3:]], indexing='ij')
-            chunk = np.abs(np.sin(4 * (ix + iy + iz)))
+            arr = np.abs(np.sin(4 * (ix + iy + iz)))
             if len(size) == 4:
-                chunk = np.expand_dims(chunk, axis=0)
-                chunk = np.repeat(chunk, size[0], axis=0)
+                arr = np.expand_dims(arr, axis=0)
+                arr = np.repeat(arr, size[0], axis=0)
 
-            if np.dtype(dtype) == np.uint8:
-                chunk = (chunk * 255).astype( dtype )
-            elif np.dtype(dtype) == np.uint32:
-                chunk = (chunk>0.5).astype(dtype) 
+            if dtype == np.uint8:
+                arr = (arr * 255).astype( dtype )
+            elif dtype == np.uint32 or dtype == np.uint64:
+                arr = (arr>0.5).astype(dtype)
+                arr = cc3d.connected_components(arr, connectivity=6)
             elif np.issubdtype(dtype, np.floating):
-                chunk = chunk.astype(dtype)
+                arr = arr.astype(dtype)
             else:
-                raise NotImplementedError()
+                raise NotImplementedError(f'do not support this data type: {dtype}')
+        elif pattern == 'random':
+            if np.issubdtype(dtype, np.floating):
+                arr = np.random.rand(*size)
+                arr = arr.astype(dtype)
+            elif np.issubdtype(dtype, np.integer):
+                arr = np.random.randint(high, size=size, dtype=dtype)
+                arr = cc3d.connected_components(arr, connectivity=6)
+            else:
+                raise NotImplementedError(f'do not support this data type: {dtype}')
+        else:
+            raise NotImplementedError(f'do not support the pattern: {pattern}')
 
-        return cls(chunk, voxel_offset=voxel_offset, voxel_size=voxel_size)
+        return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
 
     def clone(self):
         return Chunk(self.array.copy(), 
@@ -193,12 +232,14 @@ class Chunk(NDArrayOperatorsMixin):
             assert cutout_stop is not None
             bbox = BoundingBox.from_list([*cutout_start, *cutout_stop])
             file_name += f'{bbox.to_filename()}.h5'
+            # print(f'file name: {file_name}')
 
-            if not os.path.exists(file_name) and zero_filling:
+            if zero_filling and (not os.path.exists(file_name) or os.path.getsize(file_name)==0) :
                 # fill with zero
                 assert dtype is not None
-                print(f'file do not exist, will fill with zero: {file_name}')
-                return cls.from_bbox(bbox, dtype=dtype, voxel_size=voxel_size, all_zero=True)
+                print(f'{file_name} do not exist, will return None.')
+                # return cls.from_bbox(bbox, dtype=dtype, voxel_size=voxel_size, all_zero=True)
+                return None
 
         with h5py.File(file_name, 'r') as f:
             if dataset_path is None:
@@ -516,17 +557,6 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         seg = seg.astype(np.uint8)
         return seg
     
-    def connected_component(self, threshold: float = None, 
-                            connectivity: int = 6):
-        """threshold the map chunk and get connected components."""
-        if not self.is_segmentation and threshold is not None:
-            seg = self.threshold(threshold)
-            seg = seg.array
-        else:
-            seg = self.array 
-        seg = cc3d.connected_components(seg, connectivity=connectivity)
-        return Chunk(seg, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
-
     def where(self, mask: np.ndarray) -> tuple:
         """
         find the indexes of masked value as an alternative of np.where function
