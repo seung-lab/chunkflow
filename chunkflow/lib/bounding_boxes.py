@@ -32,13 +32,13 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def from_collection(cls, col: Union[tuple, list, Vec]):
         return cls(*col)
 
-    def __eq__(self, other: Union[int, Cartesian]) -> bool:
+    def __eq__(self, other: Union[int, tuple, Cartesian]) -> bool:
         if isinstance(other, int):
             return np.all([x==other for x in self])
-        elif isinstance(other, Cartesian):
+        elif isinstance(other, Cartesian) or isinstance(other, tuple):
             return np.all([x==y for x, y in zip(self, other)])
         else:
-            raise TypeError('only support int or Cartesian for now.')
+            raise TypeError(f'only support int, tuple or Cartesian for now, but get {type(other)}')
     
     def __sub__(self, offset: Union[Cartesian, Number]):
         """subtract to another voxel coordinate
@@ -411,6 +411,10 @@ class BoundingBoxes(UserList):
         logging.info(f'stride: {stride}')
         logging.info(f'grid size: {grid_size}')
         logging.info(f'final output stop: {final_output_stop}')
+        center_index = grid_size.z // 2 * (grid_size.y*grid_size.x) + \
+            grid_size.y // 2 * grid_size.x + \
+                grid_size.x // 2
+        logging.info(f'center chunk index: {center_index}')
 
         print(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
 

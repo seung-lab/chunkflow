@@ -54,16 +54,15 @@ def default_none(ctx, _, value):
     help='show more information or not. default is False.')
 def main(log_level, log_file, mip, dry_run, verbose):
     """Compose operators and create your own pipeline."""
-    if log_file is not None:
-        str2level = {
-            'debug'     : logging.DEBUG,
-            'info'      : logging.INFO,
-            'warning'   : logging.WARNING,
-            'error'     : logging.ERROR,
-            'critical'  : logging.CRITICAL
-        }
-        logging.basicConfig(filename=log_file, 
-                            level=str2level[log_level])
+    str2level = {
+        'debug'     : logging.DEBUG,
+        'info'      : logging.INFO,
+        'warning'   : logging.WARNING,
+        'error'     : logging.ERROR,
+        'critical'  : logging.CRITICAL
+    }
+    logging.basicConfig(filename=log_file, 
+                        level=str2level[log_level])
     state['mip'] = mip
     state['dry_run'] = dry_run
     state['verbose'] = verbose

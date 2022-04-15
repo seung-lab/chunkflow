@@ -46,7 +46,7 @@ class Chunk(NDArrayOperatorsMixin):
                 self.array = array.array
                 voxel_offset = array.voxel_offset
             else:
-                voxel_offset = (0, 0, 0)
+                voxel_offset = Cartesian(0, 0, 0)
         
         if voxel_offset is not None:
             if len(voxel_offset) == 4:
@@ -54,7 +54,12 @@ class Chunk(NDArrayOperatorsMixin):
                 voxel_offset = voxel_offset[1:]
             assert len(voxel_offset) == 3
 
+        if not isinstance(voxel_offset, Cartesian):
+            voxel_offset = Cartesian.from_collection(voxel_offset)
         self.voxel_offset = voxel_offset
+
+        if voxel_size is not None and not isinstance(voxel_size, Cartesian):
+            voxel_size = Cartesian.from_collection(voxel_size)
         self.voxel_size = voxel_size
         if voxel_size is not None:
             assert len(voxel_size) == 3
@@ -106,10 +111,10 @@ class Chunk(NDArrayOperatorsMixin):
         return Chunk(seg, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
     @classmethod
-    def create(cls, size: tuple = (64, 64, 64),
+    def create(cls, size: Cartesian = Cartesian(64, 64, 64),
                dtype: type = np.uint8, 
                voxel_offset: Cartesian = Cartesian(0, 0, 0),
-               voxel_size: tuple = None,
+               voxel_size: Cartesian = None,
                pattern: str = 'sin',
                high: int = 255):
         """create a fake chunk for tests.
@@ -293,7 +298,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
-                chunk_size: tuple=(64,64,64),
+                chunk_size: Cartesian = Cartesian(64,64,64),
                 with_unique: bool= True, 
                 compression="gzip",
                 voxel_size: tuple = None):
@@ -405,9 +410,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     @property
     def properties(self) -> dict:
         props = dict()
-        if self.voxel_offset is not None or self.voxel_offset != (0, 0, 0):
+        if self.voxel_offset is not None or self.voxel_offset != Cartesian(0, 0, 0):
             props['voxel_offset'] = self.voxel_offset
-        if self.voxel_size is not None or self.voxel_size != (1, 1, 1):
+        if self.voxel_size is not None or self.voxel_size != Cartesian(1, 1, 1):
             props['voxel_size'] = self.voxel_size
         return props 
     

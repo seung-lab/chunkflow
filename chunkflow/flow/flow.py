@@ -146,21 +146,21 @@ def generate_tasks(
 
 
 @main.command('skip-task')
-@click.option('--pre', '-e', required=True, type=str,
+@click.option('--prefix', '-p', required=True, type=str,
     help='the pre part of result file path')
-@click.option('--post', '-t', required=True, type=str,
+@click.option('--suffix', '-s', required=True, type=str,
     help='the post part of result file path. Normally include file extention.')
 @click.option('--adjust-size', '-a', default=None, type=int, callback=default_none,
     help='expand or shrink the bounding box. Currently, cloud-volume Bbox only support symetric grow.')
 @operator
-def skip_task(tasks: Generator, pre: str, post: str, adjust_size: int):
+def skip_task(tasks: Generator, prefix: str, suffix: str, adjust_size: int):
     """if a result file already exists, skip this task."""
     for task in tasks:
         bbox = task['bbox']
         if adjust_size is not None:
             bbox = bbox.clone()
             bbox.adjust(adjust_size)
-        file_name = pre + bbox.to_filename() + post
+        file_name = prefix + bbox.to_filename() + suffix
         if os.path.exists(file_name):
             print('the result file already exist, skip this task')
             task = None
@@ -170,24 +170,29 @@ def skip_task(tasks: Generator, pre: str, post: str, adjust_size: int):
 @main.command('skip-all-zero')
 @click.option('--input-chunk-name', '-i',
     type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
-@click.option('--pre', '-e', type=str, default=None, 
+@click.option('--prefix', '-p', type=str, default=None, 
     help = 'pre-path of a file. we would like to keep a trace that this task was executed.')
-@click.option('--post', '-t', type=str, default=None,
+@click.option('--suffix', '-s', type=str, default=None,
     help='post-path of a file. normally include the extention of result file.')
 @click.option('--adjust-size', '-a', type=int, default=None,
     help='change the bounding box of chunk if it do not match with final result file name.')
+@click.option('--chunk-bbox/--task-bbox', default=True,
+    help='use the bbox in task or generate from chunk. Default is using chunk bounding box.')
 @operator
-def skip_all_zero(tasks, input_chunk_name: str, pre: str, post: str, adjust_size: int):
+def skip_all_zero(tasks, input_chunk_name: str, prefix: str, suffix: str, adjust_size: int, chunk_bbox: bool):
     """if chunk has all zero, skip this task."""
     for task in tasks:
         if task is not None:
             chunk = task[input_chunk_name]
             if not np.any(chunk):
                 print('all zero chunk, skip this task')
-                if pre is not None or post is not None:
-                    bbox = chunk.bbox.clone()
+                if prefix is not None or suffix is not None:
+                    if chunk_bbox:
+                        bbox = chunk.bbox.clone()
+                    else:
+                        bbox = task['bbox']
                     bbox.adjust(adjust_size)
-                    fname = f'{pre}{bbox.to_filename()}{post}'
+                    fname = f'{prefix}{bbox.to_filename()}{suffix}'
                     if not os.path.exists(fname):
                         print('create an empty file as mark: ', fname)
                         Path(fname).touch()
@@ -974,6 +979,10 @@ def delete_var(tasks, var_name: str):
 @click.option('--expand-margin-size', '-e',
               type=int, nargs=3, default=(0, 0, 0),
               help='include surrounding regions of output bounding box.')
+@click.option('--expand-direction', '-d',
+    type=click.Choice(['-1', '1'],), default=None,
+    help="""if it is -1, only expand at -z,-y,-x direction. 
+    if it is None[default], expand at both directions.""")
 @click.option('--chunk-start', '-s',
               type=int, nargs=3, default=None, callback=default_none,
               help='chunk offset in volume.')
@@ -996,17 +1005,25 @@ def delete_var(tasks, var_name: str):
     ' sometimes you may need to have a secondary volume to work on.'
 )
 @operator
-def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, expand_margin_size,
-           fill_missing, validate_mip, blackout_sections, output_chunk_name):
+def read_precomputed(tasks, name: str, volume_path: str, mip: int,
+        chunk_start: tuple, chunk_size: tuple,
+        expand_margin_size: tuple, expand_direction: str,
+        fill_missing: bool, validate_mip: int, blackout_sections: bool,
+        output_chunk_name: str):
     """Cutout chunk from volume."""
     if mip is None:
         mip = state['mip']
     assert mip >= 0
+
+    if expand_direction is not None:
+        # only -1 or 1
+        expand_direction = int(expand_direction)
     
     operator = ReadPrecomputedOperator(
         volume_path,
         mip=mip,
         expand_margin_size=expand_margin_size,
+        expand_direction=expand_direction,
         fill_missing=fill_missing,
         validate_mip=validate_mip,
         blackout_sections=blackout_sections,
@@ -1032,7 +1049,7 @@ def read_precomputed(tasks, name, volume_path, mip, chunk_start, chunk_size, exp
                 bbox = BoundingBox.from_delta(chunk_start, chunk_size)
 
             start = time()
-            assert output_chunk_name not in task
+            # assert output_chunk_name not in task
             task[output_chunk_name] = operator(bbox)
             task['log']['timer'][name] = time() - start
             task['cutout_volume_path'] = volume_path
