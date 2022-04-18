@@ -107,7 +107,7 @@ class Plugin(OperatorBase):
             else:
                 raise ValueError(f'unsupported argument: {args}')
                 
-        assert isinstance(outputs, list) or isinstance(outputs, tuple) or outputs is None
+        # assert isinstance(outputs, list) or isinstance(outputs, tuple) or outputs is None
         
         # automatically convert the ndarrays to Chunks
         if voxel_offset is not None and outputs is not None:
@@ -117,6 +117,9 @@ class Plugin(OperatorBase):
                     outputs[idx] = array_to_chunk(output, voxel_offset, voxel_size, shape)
             elif isinstance(outputs, np.ndarray):
                     outputs = array_to_chunk(outputs, voxel_offset, voxel_size, shape)
+            elif isinstance(outputs, Chunk):
+                # this is good
+                pass
             else:
                 # will return outputs as is
                 pass

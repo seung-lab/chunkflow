@@ -1313,13 +1313,16 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
             else:
                 inputs = []
             outputs = operator(inputs, args=args)
-            if outputs is not None:
+            if isinstance(outputs, list) or isinstance(outputs, tuple): 
                 output_name_list = output_names.split(',')
                 assert len(outputs) == len(output_name_list)
                 for output_name, output in zip(output_name_list, outputs):
                     task[output_name] = output
+            elif output_names is not None:
+                assert ',' not in output_names
+                task[output_names] = outputs
             else:
-                assert output_names is None
+                assert outputs is None
 
             task['log']['timer'][name] = time() - start
         yield task
