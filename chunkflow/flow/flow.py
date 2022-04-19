@@ -150,10 +150,13 @@ def generate_tasks(
     help='the pre part of result file path')
 @click.option('--suffix', '-s', required=True, type=str,
     help='the post part of result file path. Normally include file extention.')
+@click.option('--only-empty/--missing', default=False, type=bool,
+    help='skip task only if the file is empty or if it exists.')
 @click.option('--adjust-size', '-a', default=None, type=int, callback=default_none,
     help='expand or shrink the bounding box. Currently, cloud-volume Bbox only support symetric grow.')
 @operator
-def skip_task(tasks: Generator, prefix: str, suffix: str, adjust_size: int):
+def skip_task(tasks: Generator, prefix: str, suffix: str, 
+        only_empty: bool, adjust_size: int):
     """if a result file already exists, skip this task."""
     for task in tasks:
         bbox = task['bbox']
@@ -161,9 +164,16 @@ def skip_task(tasks: Generator, prefix: str, suffix: str, adjust_size: int):
             bbox = bbox.clone()
             bbox.adjust(adjust_size)
         file_name = prefix + bbox.to_filename() + suffix
+
         if os.path.exists(file_name):
-            print('the result file already exist, skip this task')
-            task = None
+            if only_empty:
+                if os.path.getsize(file_name)==0:
+                    logging.info(f'file {file_name} is empty, skip this task.')
+                    task = None
+            else:
+                logging.info('the result file already exist, skip this task')
+                task = None
+        
         yield task
 
 
@@ -514,7 +524,7 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
     type=click.Choice(
         ['uint8', 'uint32', 'uint16', 'uint64', 'float32', 'float64']),
     default='uint8', help='the data type of chunk')
-@click.option('pattern', '-p', type=click.Choice(['sin', 'zero', 'random']), 
+@click.option('--pattern', '-p', type=click.Choice(['sin', 'zero', 'random']), 
     default='sin', help='ways to generate array.')
 @click.option('--voxel-offset', '-t',
     type=int, nargs=3, default=(0, 0, 0), help='offset in voxel number.')

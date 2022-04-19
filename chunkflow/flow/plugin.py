@@ -65,7 +65,7 @@ class Plugin(OperatorBase):
                 self.execute = program.execute
                 break
 
-        assert os.path.exists(fname)
+        assert os.path.exists(fname), f'did not find plugin: {fname}'
         assert hasattr(self, 'execute')
 
     def __call__(self, inputs: list, args: str = None):
@@ -80,11 +80,11 @@ class Plugin(OperatorBase):
                 break
         
         if args is not None:
-            if ':' in args:
+            if '=' in args:
                 keywords = {}
-                for item in args.split(','):
-                    assert ':' in item
-                    item = item.split(':')
+                for item in args.split(';'):
+                    assert '=' in item
+                    item = item.split('=')
                     keywords[item[0]] = simplest_type(item[1])
                 args = keywords
 
