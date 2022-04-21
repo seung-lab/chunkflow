@@ -1,6 +1,9 @@
+from __future__ import annotations
+import logging
 from typing import Union
 import os
 from numbers import Number
+
 import h5py
 import numpy as np
 import nrrd
@@ -188,7 +191,7 @@ class Chunk(NDArrayOperatorsMixin):
         elif not file_name.endswith('.nrrd'):
             file_name += f'_{self.bbox.to_filename()}.nrrd'
 
-        print('write chunk to file: ', file_name)
+        logging.info('write chunk to file: ', file_name)
         nrrd.write(file_name, self.array)
 
     @classmethod
@@ -198,13 +201,13 @@ class Chunk(NDArrayOperatorsMixin):
 
         if dtype:
             arr = arr.astype(dtype)
-        print(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
+        logging.info(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
         return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
     
     def to_tif(self, file_name: str=None):
         if file_name is None:
             file_name = f'{self.bbox.to_filename()}.tif'
-        print('write chunk to file: ', file_name)
+        logging.info('write chunk to file: ', file_name)
 
         if self.array.dtype==np.float32:
             # visualization in float32 is not working correctly in ImageJ
@@ -237,12 +240,11 @@ class Chunk(NDArrayOperatorsMixin):
             assert cutout_stop is not None
             bbox = BoundingBox.from_list([*cutout_start, *cutout_stop])
             file_name += f'{bbox.to_filename()}.h5'
-            # print(f'file name: {file_name}')
 
             if zero_filling and (not os.path.exists(file_name) or os.path.getsize(file_name)==0) :
                 # fill with zero
                 assert dtype is not None
-                print(f'{file_name} do not exist, will return None.')
+                logging.info(f'{file_name} do not exist, will return None.')
                 # return cls.from_bbox(bbox, dtype=dtype, voxel_size=voxel_size, all_zero=True)
                 return None
 
@@ -285,7 +287,7 @@ class Chunk(NDArrayOperatorsMixin):
             ]
                     
         
-        print(f"""read from HDF5 file: {file_name} and start with {cutout_start}, \
+        logging.info(f"""read from HDF5 file: {file_name} and start with {cutout_start}, \
 ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         arr = np.asarray(dset)
         if arr.dtype == np.dtype('<f4'):
@@ -293,7 +295,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         elif arr.dtype == np.dtype('<f8'):
             arr = arr.astype('float64') 
 
-        print('new chunk voxel offset: {}'.format(cutout_start))
+        logging.info('new chunk voxel offset: {}'.format(cutout_start))
 
         return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size)
 
@@ -314,7 +316,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         if not file_name.endswith('.h5'):
             file_name += self.bbox.to_filename() + '.h5'
 
-        print('write chunk to file: ', file_name)
+        logging.info('write chunk to file: ', file_name)
         if os.path.exists(file_name):
             print(yellow(f'deleting existing file: {file_name}'))
             os.remove(file_name)
@@ -547,7 +549,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
                 o + m for o, m in zip(self.voxel_offset, margin_size))
             return Chunk(new_array, voxel_offset=voxel_offset, voxel_size=self.voxel_size)
         else:
-            print('automatically crop the chunk to output bounding box.')
+            logging.info('automatically crop the chunk to output bounding box.')
             assert output_bbox is not None
             return self.cutout(output_bbox.to_slices())
     
@@ -629,16 +631,17 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
         self.array[internal_slices] += patch.array[patch_slices]
 
-    def maskout(self, chunk):
+    def maskout(self, chunk: Chunk):
         """ Make part of the chunk to be black.
         """
-        assert chunk.voxel_size
-        assert self.voxel_size
-        # the voxel size should be divisible
-        div = tuple(s%c==0 for s, c in zip(self.voxel_size, chunk.voxel_size))
-        assert np.alltrue(div)
+        assert chunk.voxel_size is not None
+        assert self.voxel_size is not None
+        assert self.voxel_size >= chunk.voxel_size
 
-        factor = tuple(s//c for s, c in zip(self.voxel_size, chunk.voxel_size))
+        # the voxel size should be divisible
+        assert Cartesian(0, 0, 0) == self.voxel_size % chunk.voxel_size
+
+        factor = self.voxel_size // chunk.voxel_size
         for offset in np.ndindex(factor):
             chunk.array[
                 ...,

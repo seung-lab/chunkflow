@@ -1,7 +1,8 @@
 from chunkflow.lib.bounding_boxes import BoundingBox
 import numpy as np
 import unittest
-from cloudvolume.lib import Bbox
+
+from chunkflow.lib.bounding_boxes import BoundingBox
 from chunkflow.chunk import Chunk
 
 
@@ -82,7 +83,7 @@ class Test3DChunk(unittest.TestCase):
     #    self.assertEqual(np.min(self.chunk), np.min(self.chunk.array))
 
     def test_create_from_bounding_box(self):
-        bbox = Bbox.from_delta(self.voxel_offset, self.size)
+        bbox = BoundingBox.from_delta(self.voxel_offset, self.size)
         bbox = BoundingBox.from_bbox(bbox)
         Chunk.from_bbox( bbox )
 
@@ -91,8 +92,9 @@ class Test3DChunk(unittest.TestCase):
         self.chunk -= 1
 
     def test_bbox(self):
-        self.assertEqual(self.chunk.bbox,
-                         Bbox.from_delta(self.voxel_offset, self.size))
+        self.assertEqual(
+            self.chunk.bbox,
+            BoundingBox.from_delta(self.voxel_offset, self.size))
 
     def test_slices(self):
         self.assertEqual(self.chunk.slices,

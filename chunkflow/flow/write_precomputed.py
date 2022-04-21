@@ -5,9 +5,10 @@ import json
 import numpy as np
 
 from cloudvolume import CloudVolume
-from cloudvolume.lib import Vec, Bbox, yellow
+from cloudvolume.lib import Vec, yellow
 from cloudfiles import CloudFiles
 
+from chunkflow.lib.bounding_boxes import BoundingBox
 from chunkflow.lib.igneous.tasks import downsample_and_upload
 from chunkflow.chunk import Chunk
 
@@ -128,7 +129,7 @@ class WritePrecomputedOperator(OperatorBase):
         #self.thumbnail_operator(image)
         # transpose to xyzc
         image = np.transpose(image)
-        image_bbox = Bbox.from_slices(chunk.slices[::-1][:3])
+        image_bbox = BoundingBox.from_slices(chunk.slices[::-1][:3])
 
         downsample_and_upload(image,
                               image_bbox,
@@ -142,7 +143,7 @@ class WritePrecomputedOperator(OperatorBase):
 
     def _upload_log(self, log, output_bbox):
         assert log
-        assert isinstance(output_bbox, Bbox)
+        assert isinstance(output_bbox, BoundingBox)
 
         logging.info(f'uploaded log: {log}')
 

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import os
 import os.path as path
 from ast import literal_eval
@@ -59,7 +60,7 @@ class Plugin(OperatorBase):
         for plugin_dir in plugin_dirs:
             fname = path.join(plugin_dir, plugin_file_name)
             if path.exists(fname):
-                print(f'loading plugin {fname}')
+                logging.info(f'loading plugin {fname}')
                 program = load_source(fname)
                 # assuming this is a func / static functor for now, maybe make it a class?
                 self.execute = program.execute
@@ -78,7 +79,6 @@ class Plugin(OperatorBase):
                 voxel_size = inp.voxel_size
                 shape = inp.shape
                 break
-        
         if args is not None:
             if '=' in args:
                 keywords = {}

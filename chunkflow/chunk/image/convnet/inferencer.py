@@ -187,7 +187,7 @@ class Inferencer(object):
         patch offset list and output chunk mask. Otherwise, recompute them.
         """
         if np.array_equal(self.input_size, input_chunk.shape):
-            print('reusing output chunk mask.')
+            logging.info('reusing output chunk mask.')
             assert self.patch_slices_list is not None
         else:
             if self.input_size is not None:
@@ -268,7 +268,7 @@ class Inferencer(object):
         input_patch_overlap = self.input_patch_overlap 
         input_patch_stride = self.input_patch_stride 
 
-        print('Construct patch slices list...')
+        logging.info('Construct patch slices list...')
         for iz in range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]):
             if iz + input_patch_size[0] > self.input_size[0]:
                 iz = self.input_size[0] - input_patch_size[0]
@@ -373,7 +373,7 @@ class Inferencer(object):
             self._check_alignment()
          
         if self.dry_run:
-            print('dry run, return a special artifical chunk.')
+            logging.info('dry run, return a special artifical chunk.')
             size=output_buffer.shape
             
             if self.mask_myelin_threshold:
@@ -388,7 +388,7 @@ class Inferencer(object):
             )
        
         if input_chunk == 0:
-            print('input is all zero, return zero buffer directly')
+            logging.info('input is all zero, return zero buffer directly')
             if self.mask_myelin_threshold:
                 assert output_buffer.shape[0] == 4
                 return output_buffer[:-1, ...]

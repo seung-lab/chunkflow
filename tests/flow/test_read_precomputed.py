@@ -4,7 +4,9 @@ import numpy as np
 
 from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
-from cloudvolume.lib import generate_random_string, Bbox
+from cloudvolume.lib import generate_random_string
+
+from chunkflow.lib.bounding_boxes import BoundingBox
 
 from chunkflow.flow.read_precomputed import ReadPrecomputedOperator
 
@@ -37,7 +39,7 @@ class TestReadPrecomputed(unittest.TestCase):
 
         offset = (4, 64, 64)
         shape = (28, 320, 320)
-        output_bbox = Bbox.from_delta(offset, shape)
+        output_bbox = BoundingBox.from_delta(offset, shape)
         chunk = operator(output_bbox)
 
         self.assertEqual(offset, chunk.voxel_offset)
@@ -53,7 +55,7 @@ class TestReadPrecomputed(unittest.TestCase):
 
         offset = (4, 64, 64)
         shape = (28, 320, 320)
-        output_bbox = Bbox.from_delta(offset, shape)
+        output_bbox = BoundingBox.from_delta(offset, shape)
         chunk = operator(output_bbox)
 
         img = np.copy(self.img)

@@ -3,8 +3,9 @@ import boto3
 import hashlib
 from time import sleep
 from cloudvolume.secrets import aws_credentials
-from cloudvolume.lib import Bbox
 from tqdm import tqdm
+
+from chunkflow.lib.bounding_boxes import BoundingBox
 
 class SQSQueue(object):
     """upload/fetch messages using AWS Simple Queue Services."""
@@ -167,7 +168,7 @@ class SQSQueue(object):
         task_entries = []
         for mid, message in tqdm(enumerate(message_list), 
                                  desc='sending messages to sqs queue: '):
-            if isinstance(message, Bbox):
+            if isinstance(message, BoundingBox):
                 message = message.to_filename()
 
             entry = {'Id': str(mid), 'MessageBody': message}

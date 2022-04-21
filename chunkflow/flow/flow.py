@@ -126,7 +126,7 @@ def generate_tasks(
 
     # if state['verbose']:
     bbox_num = len(bboxes)
-    print('total number of tasks: ', bbox_num) 
+    logging.info(f'total number of tasks: {bbox_num}') 
 
     if queue_name is not None:
         queue = SQSQueue(queue_name)
@@ -136,7 +136,7 @@ def generate_tasks(
             if disbatch:
                 assert len(bboxes) == 1
                 bbox_index = disbatch_index
-            print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.to_filename()}')
+            logging.info(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.to_filename()}')
             task = get_initial_task()
             task['bbox'] = bbox
             task['bbox_index'] = bbox_index
@@ -159,21 +159,22 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
         only_empty: bool, adjust_size: int):
     """if a result file already exists, skip this task."""
     for task in tasks:
-        bbox = task['bbox']
-        if adjust_size is not None:
-            bbox = bbox.clone()
-            bbox.adjust(adjust_size)
-        file_name = prefix + bbox.to_filename() + suffix
+        if task is not None:
+            bbox = task['bbox']
+            if adjust_size is not None:
+                bbox = bbox.clone()
+                bbox.adjust(adjust_size)
+            file_name = prefix + bbox.to_filename() + suffix
 
-        if os.path.exists(file_name):
-            if only_empty:
-                if os.path.getsize(file_name)==0:
-                    logging.info(f'file {file_name} is empty, skip this task.')
+            if os.path.exists(file_name):
+                if only_empty:
+                    if os.path.getsize(file_name)==0:
+                        logging.info(f'file {file_name} is empty, skip this task.')
+                        task = None
+                else:
+                    logging.info('the result file already exist, skip this task')
                     task = None
-            else:
-                logging.info('the result file already exist, skip this task')
-                task = None
-        
+            
         yield task
 
 
@@ -195,7 +196,7 @@ def skip_all_zero(tasks, input_chunk_name: str, prefix: str, suffix: str, adjust
         if task is not None:
             chunk = task[input_chunk_name]
             if not np.any(chunk):
-                print('all zero chunk, skip this task')
+                logging.info('all zero chunk, skip this task')
                 if prefix is not None or suffix is not None:
                     if chunk_bbox:
                         bbox = chunk.bbox.clone()
@@ -204,7 +205,7 @@ def skip_all_zero(tasks, input_chunk_name: str, prefix: str, suffix: str, adjust
                     bbox.adjust(adjust_size)
                     fname = f'{prefix}{bbox.to_filename()}{suffix}'
                     if not os.path.exists(fname):
-                        print('create an empty file as mark: ', fname)
+                        logging.info(f'create an empty file as mark: {fname}')
                         Path(fname).touch()
                 # target task as None and task will be skipped
                 task = None
@@ -476,7 +477,7 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
             return
         num -= 1
         
-        print('get task: ', bbox_str)
+        logging.info('get task: ', bbox_str)
         bbox = BoundingBox.from_filename(bbox_str)
         
         # record the task handle to delete after the processing
@@ -535,7 +536,7 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
 @operator
 def create_chunk(tasks, size, dtype, pattern, voxel_offset, voxel_size, output_chunk_name):
     """Create a fake chunk for easy test."""
-    print("creating chunk: ", output_chunk_name)
+    logging.info("creating chunk: ", output_chunk_name)
     for task in tasks:
         if task is not None:
             task[output_chunk_name] = Chunk.create(
@@ -590,7 +591,7 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: b
                 if remove_outside:
                     bbox = task['bbox']
                     syns.remove_synapses_outside_bounding_box(bbox)
-                print(f'loaded synapses with {syns.pre_num} presynapses and {syns.post_num} post synapses.')
+                logging.info(f'loaded synapses with {syns.pre_num} presynapses and {syns.post_num} post synapses.')
                 if syns.pre_num == 0:
                     syns = None
                 task[output_name] = syns
@@ -829,7 +830,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
             start = time()
             if 'bbox' in task and cutout_start is None:
                 bbox = task['bbox']
-                print('bbox: ', bbox)
+                logging.info('bbox: ', bbox)
                 cutout_start_tmp = bbox.minpt
                 cutout_stop_tmp = bbox.maxpt
                 cutout_size_tmp = cutout_stop_tmp - cutout_start_tmp
@@ -956,12 +957,12 @@ def delete_task_in_queue(tasks, name):
     for task in tasks:
         if task is not None:
             if state['dry_run']:
-                print('skip deleting task in queue!')
+                logging.info('skip deleting task in queue!')
             else:
                 queue = task['queue']
                 task_handle = task['task_handle']
                 queue.delete(task_handle)
-                print('deleted task {} in queue: {}'.format(
+                logging.info('deleted task {} in queue: {}'.format(
                     task_handle, queue.queue_name))
         yield task
 
@@ -1304,14 +1305,13 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
                 we\'ll look for it in the plugin folder.''')
 @click.option('--args', '-a',
               type=str, default=None,
-              help='arguments of plugin, this string should be interpreted inside plugin.')
+              help='arguments of plugin. keywords should be like: var1=3;var2=(1,2);var3=0.4')
 @operator
 def plugin(tasks, name: str, input_names: str, output_names: str, file: str, args: str):
     """Insert custom program as a plugin.
     The custom python file should contain a callable named "exec" such that 
     a call of `exec(chunk, args)` can be made to operate on the chunk.
     """
-
     operator = Plugin(file, name=name)
 
     for task in tasks:
@@ -1693,7 +1693,7 @@ def download_mesh(tasks, volume_path: str, input: str, start_rank: int,
                     input = file.read()
             ids = input.replace(' ', '')
             ids = [int(x) for x in ids.split(',')]
-        print('downloading meshes...')
+        logging.info('downloading meshes...')
         meshes = vol.mesh.get(ids, fuse=False)
         for obj_id, mesh in tqdm(meshes.items(), desc='writing meshes...'):
             fname = f'{out_pre}{obj_id}.{out_format}'

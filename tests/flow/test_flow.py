@@ -1,10 +1,12 @@
+import os, shutil
+
 import numpy as np
 
 from cloudvolume import CloudVolume
 #from cloudvolume.volumecutout import VolumeCutout
-from cloudvolume.lib import generate_random_string, Bbox
-import os, shutil
+from cloudvolume.lib import generate_random_string
 
+from chunkflow.lib.bounding_boxes import BoundingBox
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from chunkflow.flow.flow import *
 
@@ -31,7 +33,7 @@ def test_inference_pipeline():
         output_size[1] // (2**output_mask_mip),
         output_size[2] // (2**output_mask_mip),
     )
-    output_bbox = Bbox.from_slices(
+    output_bbox = BoundingBox.from_slices(
         tuple(slice(c, i - c)
             for i, c in zip(input_size, cropping_margin_size)))
 

@@ -190,6 +190,11 @@ class BoundingBox(Bbox):
         return cls.from_bbox(bbox)
 
     @classmethod
+    def from_slices(cls, x: tuple):
+        bbox = Bbox.from_slices(x)
+        return cls.from_bbox(bbox)
+
+    @classmethod
     def from_center(cls, center: Cartesian, extent: int,
             even_size: bool = True):
         """Create bounding box from center and extent
@@ -207,6 +212,14 @@ class BoundingBox(Bbox):
             maxpt += 1
         return cls(minpt, maxpt)
 
+    @property
+    def start(self):
+        return Cartesian.from_collection(self.minpt)
+    
+    @property
+    def stop(self):
+        return Cartesian.from_collection(self.maxpt)
+        
     def __repr__(self):
         return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}, voxel_size={self.voxel_size})'
 
@@ -416,7 +429,7 @@ class BoundingBoxes(UserList):
                 grid_size.x // 2
         logging.info(f'center chunk index: {center_index}')
 
-        print(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
+        logging.info(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
 
         bboxes = []
         for (gz, gy, gx) in itertools.product(
@@ -430,7 +443,7 @@ class BoundingBoxes(UserList):
             if not bounded or np.all(tuple(m < p for m, p in zip(bbox.maxpt, roi_stop))):
                 bboxes.append( bbox )
 
-        print(f'get {len(bboxes)} bounding boxes as tasks.')
+        logging.info(f'get {len(bboxes)} bounding boxes as tasks.')
         return cls(bboxes)
 
     @classmethod

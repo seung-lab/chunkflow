@@ -45,6 +45,8 @@ def test_cartesian():
 def test_bounding_box():
     bbox = Bbox.from_delta((1,3,2), (64, 32, 8))
     bbox = BoundingBox.from_bbox(bbox)
+    assert bbox.start == Cartesian(1,3,2)
+    assert bbox.stop == Cartesian(65, 35, 10)
 
     bbox = bbox.clone()
     assert isinstance(bbox, BoundingBox)

@@ -4,6 +4,7 @@ import numpy as np
 from cloudvolume import CloudVolume
 
 from chunkflow.chunk import Chunk
+from chunkflow.lib.bounding_boxes import Cartesian
 from .base import OperatorBase
 
 
@@ -34,8 +35,12 @@ class MaskOperator(OperatorBase):
         """ Make part of chunk to be black according to a mask chunk.
         """
         assert isinstance(chunk, Chunk)
-        factor = tuple(m//c for m, c in zip(self.mask_vol.resolution[::-1], chunk.voxel_size))
-        for m, c in zip(self.mask_vol.resolution[::-1], chunk.voxel_size): 
+        mask_voxel_size = Cartesian.from_collection(
+            self.mask_vol.resolution[::-1]
+        )
+        factor = mask_voxel_size // chunk.voxel_size
+        # factor = tuple(m//c for m, c in zip(self.mask_vol.resolution[::-1], chunk.voxel_size))
+        for m, c in zip(mask_voxel_size, chunk.voxel_size): 
             assert m >= c
             assert m % c == 0
 
