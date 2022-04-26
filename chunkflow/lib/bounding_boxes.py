@@ -290,7 +290,10 @@ class BoundingBox(Bbox):
         return bbox_z, bbox_y, bbox_x
 
     @voxel_size.setter
-    def voxel_size(self, vs: tuple):
+    def voxel_size(self, vs: Cartesian):
+        if not isinstance(vs, Cartesian):
+            vs = Cartesian.from_collection(vs)
+            
         self._voxel_size = vs
 
     def slices_in_scale(self, voxel_size: tuple) -> tuple:
