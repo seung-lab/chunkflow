@@ -158,22 +158,20 @@ class Coordinate(namedtuple('Coordinate', ['z', 'y', 'x'])):
 
 class BoundingBox(Bbox):
     def __init__(self, 
-            minpt: Union[list, Coordinate], 
-            maxpt: Union[list, Coordinate], 
-            dtype=None, 
-            voxel_size: Coordinate = None):
+            minpt: Union[list, Coordinate],
+            maxpt: Union[list, Coordinate],
+            dtype: np.dtype =None):
         if isinstance(minpt, Coordinate):
             minpt = minpt.vec
         
         if isinstance(maxpt, Coordinate):
             maxpt = maxpt.vec
         super().__init__(minpt, maxpt, dtype=dtype)
-        self._voxel_size = voxel_size
 
     @classmethod
-    def from_bbox(cls, bbox: Bbox, voxel_size: tuple = None):
-        return cls(bbox.minpt, bbox.maxpt, voxel_size=voxel_size)
-
+    def from_bbox(cls, bbox: Bbox):
+        return cls(bbox.minpt, bbox.maxpt)
+ 
     @classmethod
     def from_delta(cls, minpt, plus):
         bbox = super().from_delta(minpt, plus)
@@ -221,12 +219,12 @@ class BoundingBox(Bbox):
         return Coordinate.from_collection(self.maxpt)
         
     def __repr__(self):
-        return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}, voxel_size={self.voxel_size})'
+        return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}'
 
     def clone(self):
         bbox = Bbox(self.minpt, self.maxpt, dtype=self.dtype)
         bbox = bbox.clone()
-        return BoundingBox.from_bbox(bbox, voxel_size=self.voxel_size)
+        return BoundingBox.from_bbox(bbox)
 
     def adjust(self, size: Union[Coordinate, int, tuple, list, Vec]):
         if size is None:
@@ -251,8 +249,6 @@ class BoundingBox(Bbox):
         Returns:
             BoundingBox: bounding box after merging
         """
-        if isinstance(bbox2, BoundingBox):
-            assert self.voxel_size == bbox2.voxel_size
 
         self.minpt = np.minimum(self.minpt, bbox2.minpt)
         self.maxpt = np.maximum(self.maxpt, bbox2.maxpt)
@@ -267,10 +263,6 @@ class BoundingBox(Bbox):
     @property
     def shape(self):
         return Coordinate(*(self.maxpt - self.minpt))
-
-    @property
-    def voxel_size(self):
-        return self._voxel_size
 
     @property
     def left_neighbors(self):
@@ -289,32 +281,7 @@ class BoundingBox(Bbox):
         bbox_x = self.from_delta(minpt, sz)
         return bbox_z, bbox_y, bbox_x
 
-    @voxel_size.setter
-    def voxel_size(self, vs: Coordinate):
-        if not isinstance(vs, Coordinate):
-            vs = Coordinate.from_collection(vs)
-            
-        self._voxel_size = vs
-
-    def slices_in_scale(self, voxel_size: tuple) -> tuple:
-        """slices with specific voxel size volume
-
-        Args:
-            voxel_size (tuple): the target volume voxel size
-
-        Returns:
-            tuple: tuple of slices
-        """
-        minpt = tuple( p * s1 // s2 for p, s1, s2 in zip(
-            self.minpt, self._voxel_size, voxel_size
-        ))
-        maxpt = tuple( p * s1 // s2 for p, s1, s2 in zip(
-            self.maxpt, self._voxel_size, voxel_size
-        ))
-        bbox = Bbox(minpt, maxpt)
-        return bbox.to_slices()
-
-
+    
 class BoundingBoxes(UserList):
     def __init__(self, bboxes: list) -> None:
         super().__init__()
