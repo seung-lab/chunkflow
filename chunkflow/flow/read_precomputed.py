@@ -4,7 +4,7 @@ import numpy as np
 from cloudvolume import CloudVolume
 from cloudvolume.storage import Storage
 
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
+from chunkflow.lib.bounding_boxes import BoundingBox, Coordinate
 from chunkflow.chunk.validate import validate_by_template_matching
 from tinybrain import downsample_with_averaging
 from chunkflow.chunk import Chunk
@@ -15,7 +15,7 @@ class ReadPrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int = 0,
-                 expand_margin_size: Cartesian=Cartesian(0, 0, 0),
+                 expand_margin_size: Coordinate=Coordinate(0, 0, 0),
                  expand_direction: int = None,
                  fill_missing: bool = False,
                  validate_mip: int = None,
@@ -31,7 +31,7 @@ class ReadPrecomputedOperator(OperatorBase):
         self.dry_run = dry_run
 
         if isinstance(expand_margin_size, tuple):
-            expand_margin_size = Cartesian.from_collection(expand_margin_size)
+            expand_margin_size = Coordinate.from_collection(expand_margin_size)
 
         if expand_direction == 1:
             expand_margin_size = (0, 0, 0, *expand_margin_size)
@@ -72,7 +72,7 @@ class ReadPrecomputedOperator(OperatorBase):
                 output_bbox,
                 pattern='random',
                 dtype=self.vol.dtype,
-                voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]),
+                voxel_size=Coordinate.from_collection(self.vol.resolution[::-1]),
             )
 
         logging.info('cutout {} from {}'.format(chunk_slices[::-1],
@@ -92,13 +92,13 @@ class ReadPrecomputedOperator(OperatorBase):
         # this should not be neccessary
         # TODO: remove this step and use 4D array all over this package.
         # always use 4D array will simplify some operations
-        # voxel_offset = Cartesian(s.start for s in chunk_slices)
+        # voxel_offset = Coordinate(s.start for s in chunk_slices)
         if chunk.shape[0] == 1:
             chunk = np.squeeze(chunk, axis=0)
 
         chunk = Chunk(
             chunk, voxel_offset=output_bbox.start,
-            voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]))
+            voxel_size=Coordinate.from_collection(self.vol.resolution[::-1]))
 
         if self.blackout_sections:
             chunk = self._blackout_sections(chunk)

@@ -7,15 +7,15 @@ from typing import Union
 
 import numpy as np
 
-from chunkflow.lib.bounding_boxes import Cartesian
+from chunkflow.lib.bounding_boxes import Coordinate
 
 from .base import OperatorBase
 
 from chunkflow.lib import load_source
 from chunkflow.chunk import Chunk
 
-def array_to_chunk(arr: Union[np.ndarray, Chunk], voxel_offset: Cartesian, 
-        voxel_size: Cartesian, shape: tuple):
+def array_to_chunk(arr: Union[np.ndarray, Chunk], voxel_offset: Coordinate, 
+        voxel_size: Coordinate, shape: tuple):
     if isinstance(arr, np.ndarray):
         # in case the plugin did some symmetric cropping
         offset = tuple(vo + (ins - outs)//2 for vo, ins, outs in zip(voxel_offset, shape[-3:], arr.shape[-3:]) )

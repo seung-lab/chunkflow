@@ -11,7 +11,7 @@ import h5py
 from scipy.spatial import KDTree
 
 from chunkflow.chunk import Chunk
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
+from chunkflow.lib.bounding_boxes import BoundingBox, Coordinate
 
 
 class Synapses():
@@ -20,7 +20,7 @@ class Synapses():
             pre_confidence: np.ndarray = None, 
             post: np.ndarray = None, 
             post_confidence: np.ndarray = None, 
-            resolution: Cartesian = None,
+            resolution: Coordinate = None,
             users: list = None,
             pre_users: np.ndarray = None,
             post_users: np.ndarray = None,
@@ -31,7 +31,7 @@ class Synapses():
             pre (np.ndarray): T-bar points, Nx3, z,y,x, the coordinate should be physical coordinate rather than voxels.
             pre_confidence (np.ndarray, optional): confidence of T-bar detection. Defaults to None.
             post (np.ndarray, optional): [description]. Defaults to None.
-            resolution (Cartesian, optional): [description]. Defaults to None.
+            resolution (Coordinate, optional): [description]. Defaults to None.
             users (list[str], optional): user names of edting/ingesting the synapses.
             pre_user (np.ndarray(int8), optional): the user ids of presynapses. -1 means not identified.
             post_user (np.ndarray(int8), optional): the user ids of postsynapses. -1 means not identified.
@@ -124,7 +124,7 @@ class Synapses():
         return cls(pre, post=post, resolution=resolution)
 
     @classmethod
-    def from_dvid_list(cls, syns: list, resolution: Cartesian=None):
+    def from_dvid_list(cls, syns: list, resolution: Coordinate=None):
         """from a dict fetched from DVID using fivol
 
         Args:
@@ -146,7 +146,7 @@ class Synapses():
             if 'Pre' in syn['Kind']:
                 # map from xyz to zyx
                 pos = syn['Pos'][::-1]
-                pos = Cartesian(*pos)
+                pos = Coordinate(*pos)
                 pre_list.append(pos)
 
                 if 'conf' in syn['Prop']:
@@ -166,13 +166,13 @@ class Synapses():
             if 'Post' in syn['Kind']:
                 # map from xyz to zyx
                 pos = syn['Pos'][::-1]
-                pos = Cartesian(*pos)
+                pos = Coordinate(*pos)
                 # if 'To' not in syn['Prop']:
                     # print(syn)
                     # breakpoint()
                 if len(syn['Rels'])>0:
                     pre_pos = syn['Rels'][0]['To'][::-1]
-                    pre_pos = Cartesian(*pre_pos)
+                    pre_pos = Coordinate(*pre_pos)
                     if pre_pos in pre_set:
                         post_list.append((pos, pre_pos))
                         user = syn['Prop']['user']

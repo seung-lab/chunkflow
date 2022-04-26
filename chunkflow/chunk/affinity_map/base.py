@@ -2,7 +2,7 @@ __doc__ = """Image chunk class"""
 
 import numpy as np
 
-from chunkflow.lib.bounding_boxes import Cartesian
+from chunkflow.lib.bounding_boxes import Coordinate
 from chunkflow.chunk import Chunk
 
 class AffinityMap(Chunk):
@@ -10,8 +10,8 @@ class AffinityMap(Chunk):
     a chunk of affinity map. It has x,y,z three channels with single precision.
     """
     def __init__(self, array, 
-            voxel_offset: Cartesian=None, 
-            voxel_size: Cartesian=None ):
+            voxel_offset: Coordinate=None, 
+            voxel_size: Coordinate=None ):
         assert array.ndim == 4
         assert np.issubdtype(array.dtype, np.float32)
         assert array.shape[0] == 3

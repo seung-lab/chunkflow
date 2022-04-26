@@ -11,7 +11,7 @@ from .base import Chunk
 
 # from ...lib.gala import evaluate
 from chunkflow.lib.gala import evaluate
-from chunkflow.lib.bounding_boxes import Cartesian
+from chunkflow.lib.bounding_boxes import Coordinate
 
 import kimimaro
 import fastremap
@@ -24,8 +24,8 @@ class Segmentation(Chunk):
     a chunk of segmentation volume.
     """
     def __init__(self, array: np.ndarray, 
-            voxel_offset: Cartesian=None, 
-            voxel_size:Cartesian=None):
+            voxel_offset: Coordinate=None, 
+            voxel_size:Coordinate=None):
         super().__init__(array, voxel_offset=voxel_offset, 
             voxel_size=voxel_size)
         assert array.ndim == 3

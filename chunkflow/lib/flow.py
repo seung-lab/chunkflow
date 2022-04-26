@@ -4,8 +4,8 @@ from functools import update_wrapper, wraps
 import click
 
 
-class CartesianParamType(click.ParamType):
-    name = 'Cartesian'
+class CoordinateParamType(click.ParamType):
+    name = 'Coordinate'
     def __init__(self) -> None:
         super().__init__()
     

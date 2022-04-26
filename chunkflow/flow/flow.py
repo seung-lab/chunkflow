@@ -18,7 +18,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
-from chunkflow.lib.bounding_boxes import Cartesian, BoundingBox, BoundingBoxes
+from chunkflow.lib.bounding_boxes import Coordinate, BoundingBox, BoundingBoxes
 from chunkflow.lib.synapses import Synapses
 
 from chunkflow.chunk import Chunk
@@ -369,7 +369,7 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
         if task is not None:
             if not input_chunk_name in task:
                 if voxel_offset is None:
-                    voxel_offset = Cartesian(0, 0, 0)
+                    voxel_offset = Coordinate(0, 0, 0)
             else:
                 chunk = task[input_chunk_name]
                 if chunk.ndim == 3:
@@ -477,7 +477,7 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
             return
         num -= 1
         
-        logging.info('get task: ', bbox_str)
+        logging.info(f'get task: {bbox_str}')
         bbox = BoundingBox.from_filename(bbox_str)
         
         # record the task handle to delete after the processing
@@ -536,7 +536,7 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
 @operator
 def create_chunk(tasks, size, dtype, pattern, voxel_offset, voxel_size, output_chunk_name):
     """Create a fake chunk for easy test."""
-    logging.info("creating chunk: ", output_chunk_name)
+    logging.info(f'creating chunk: {output_chunk_name}')
     for task in tasks:
         if task is not None:
             task[output_chunk_name] = Chunk.create(
@@ -830,7 +830,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
             start = time()
             if 'bbox' in task and cutout_start is None:
                 bbox = task['bbox']
-                logging.info('bbox: ', bbox)
+                logging.info(f'bbox: {bbox}')
                 cutout_start_tmp = bbox.minpt
                 cutout_stop_tmp = bbox.maxpt
                 cutout_size_tmp = cutout_stop_tmp - cutout_start_tmp
@@ -962,8 +962,7 @@ def delete_task_in_queue(tasks, name):
                 queue = task['queue']
                 task_handle = task['task_handle']
                 queue.delete(task_handle)
-                logging.info('deleted task {} in queue: {}'.format(
-                    task_handle, queue.queue_name))
+                logging.info(f'deleted task {task_handle} in queue: {queue.queue_name}')
         yield task
 
 
@@ -1567,7 +1566,7 @@ def crop_margin(tasks, name: str, margin_size: tuple, crop_bbox: bool,
                 if crop_bbox and 'bbox' in task:
                     bbox = task['bbox']
                     assert isinstance(bbox, BoundingBox)
-                    bbox.adjust(-Cartesian.from_collection(margin_size))
+                    bbox.adjust(-Coordinate.from_collection(margin_size))
             else:
                 # use the output bbox for croping 
                 task[output_chunk_name] = task[

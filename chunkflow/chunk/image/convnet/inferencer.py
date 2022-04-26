@@ -11,7 +11,7 @@ from typing import Union
 import numpy as np
 from tqdm import tqdm
 
-from chunkflow.lib.bounding_boxes import Cartesian, to_cartesian
+from chunkflow.lib.bounding_boxes import Coordinate, to_cartesian
 
 from .patch.base import PatchInferencerBase
 from chunkflow.chunk import Chunk
@@ -36,17 +36,17 @@ class Inferencer(object):
     def __init__(self,
                  convnet_model: Union[str, PatchInferencerBase],
                  convnet_weight_path: str,
-                 input_patch_size: Union[tuple, list, Cartesian],
-                 output_patch_size: Union[tuple, list, Cartesian] = None,
-                 patch_num: Union[tuple, list, Cartesian] = None,
+                 input_patch_size: Union[tuple, list, Coordinate],
+                 output_patch_size: Union[tuple, list, Coordinate] = None,
+                 patch_num: Union[tuple, list, Coordinate] = None,
                  num_output_channels: int = 3,
-                 output_patch_overlap: Union[tuple, list, Cartesian] = None,
-                 output_crop_margin: Union[tuple, list, Cartesian] = None,
+                 output_patch_overlap: Union[tuple, list, Coordinate] = None,
+                 output_crop_margin: Union[tuple, list, Coordinate] = None,
                  dtype = 'float32',
                  framework: str = 'universal',
                  batch_size: int = 1,
                  bump: str = 'wu',
-                 input_size: Union[tuple, list, Cartesian] = None,
+                 input_size: Union[tuple, list, Coordinate] = None,
                  mask_output_chunk: bool = True,
                  mask_myelin_threshold = None,
                  test_time_augmentation: bool = False,
@@ -56,17 +56,17 @@ class Inferencer(object):
         Args:
             convnet_model (Union[str, PatchInferencerBase]): the path of convnet model
             convnet_weight_path (str): the path of trained model weights
-            input_patch_size (Union[tuple, list, Cartesian]): input patch size, zyx
-            output_patch_size (Union[tuple, list, Cartesian], optional): output patch size. Defaults to the same with input patch size.
-            patch_num (Union[tuple, list, Cartesian], optional): number of patches. Defaults to be computed.
+            input_patch_size (Union[tuple, list, Coordinate]): input patch size, zyx
+            output_patch_size (Union[tuple, list, Coordinate], optional): output patch size. Defaults to the same with input patch size.
+            patch_num (Union[tuple, list, Coordinate], optional): number of patches. Defaults to be computed.
             num_output_channels (int, optional): number of output channels. Defaults to 3.
-            output_patch_overlap (Union[tuple, list, Cartesian], optional): the overlap size of output patch size. Defaults to be half of output patch size.
-            output_crop_margin (Union[tuple, list, Cartesian], optional): crop some output patch margin. Defaults to None.
+            output_patch_overlap (Union[tuple, list, Coordinate], optional): the overlap size of output patch size. Defaults to be half of output patch size.
+            output_crop_margin (Union[tuple, list, Coordinate], optional): crop some output patch margin. Defaults to None.
             dtype (str, optional): data type named consistantly with numpy. Defaults to 'float32'.
             framework (str, optional): ['universal', 'identity', 'pytorch']. Defaults to 'universal'.
             batch_size (int, optional): batch size in one pass. this parameter seems do not accelarate computation. Defaults to 1.
             bump (str, optional): bump function. Defaults to 'wu'.
-            input_size (Union[tuple, list, Cartesian], optional): input chunk size. Defaults to None.
+            input_size (Union[tuple, list, Coordinate], optional): input chunk size. Defaults to None.
             mask_output_chunk (bool, optional): normalize on the chunk level rather than patch level. Defaults to True.
             mask_myelin_threshold (_type_, optional): threshold to segment the myelin. Defaults to None.
             test_time_augmentation (bool, optional): augment the image patch, inference, transform back and blend. Defaults to True.
@@ -101,7 +101,7 @@ class Inferencer(object):
 
         if output_crop_margin is None:
             if mask_output_chunk:
-                self.output_crop_margin = Cartesian(0,0,0)
+                self.output_crop_margin = Coordinate(0,0,0)
             else:
                 self.output_crop_margin = self.output_patch_overlap
         else:
