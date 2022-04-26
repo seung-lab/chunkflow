@@ -55,7 +55,7 @@ class NeuroglancerOperator(OperatorBase):
         viewer_state.layers.append(
             name=name,
             layer=ng.LocalAnnotationLayer(
-                dimensions=ng.CoordinateSpace(names=['z', 'y', 'x'], units="nm", scales=(1,1,1)),
+                dimensions=ng.CartesianSpace(names=['z', 'y', 'x'], units="nm", scales=(1,1,1)),
                 annotation_properties=[
                     ng.AnnotationPropertySpec(
                         id='color',
@@ -94,7 +94,7 @@ void main() {
         viewer_state.layers.append(
             name=name,
             layer=ng.LocalAnnotationLayer(
-                dimensions=ng.CoordinateSpace(names=['z', 'y', 'x'], units="nm", scales=(1, 1, 1)),
+                dimensions=ng.CartesianSpace(names=['z', 'y', 'x'], units="nm", scales=(1, 1, 1)),
                 annotation_properties=[
                     ng.AnnotationPropertySpec(
                         id='color',
@@ -119,7 +119,7 @@ void main() {
 
     def _append_image_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
         voxel_size = self._get_voxel_size(chunk)
-        dimensions = ng.CoordinateSpace(
+        dimensions = ng.CartesianSpace(
             scales=voxel_size,
             units=['nm', 'nm', 'nm'],
             names=['z', 'y', 'x']
@@ -149,7 +149,7 @@ void main() {
             assert chunk.min() >= 0
             chunk = chunk.astype(np.uint64)
         voxel_size = self._get_voxel_size(chunk)
-        dimensions = ng.CoordinateSpace(
+        dimensions = ng.CartesianSpace(
             scales=voxel_size,
             units=['nm', 'nm', 'nm'],
             names=['z', 'y', 'x']
@@ -191,7 +191,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
             toNormalized(getDataValue(2))));
 }
 """
-        dimensions = ng.CoordinateSpace(
+        dimensions = ng.CartesianSpace(
             scales=(1, ) + voxel_size,
             units=['', 'nm', 'nm', 'nm'],
             names=['c^', 'z', 'y', 'x']

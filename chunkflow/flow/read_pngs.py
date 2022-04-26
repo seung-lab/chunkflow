@@ -3,7 +3,7 @@ import logging
 
 import numpy as np
 
-from chunkflow.lib.bounding_boxes import BoundingBox, Coordinate
+from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
 from chunkflow.chunk import Chunk
 
 from tqdm import tqdm

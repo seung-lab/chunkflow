@@ -54,11 +54,11 @@ def get_optimized_block_size(
                 cost = current_cost
                 patch_num = (pnz, pnxy, pnxy)
     
-    logging.info('\n--input-patch-size ', tuple2string(input_patch_size))
-    logging.info('--output-patch-size ', tuple2string(output_patch_size))
-    logging.info('--output-patch-overlap ', tuple2string(output_patch_overlap))
-    logging.info('--output-patch-stride ', tuple2string(patch_stride))
-    logging.info('--patch-num ', patch_num)
+    logging.info(f'\n--input-patch-size {tuple2string(input_patch_size)}')
+    logging.info(f'--output-patch-size {tuple2string(output_patch_size)}')
+    logging.info(f'--output-patch-overlap {tuple2string(output_patch_overlap)}')
+    logging.info(f'--output-patch-stride {tuple2string(patch_stride)}')
+    logging.info(f'--patch-num {patch_num}')
 
     assert mip>=0
     block_mip = (mip + thumbnail_mip) // 2
@@ -88,10 +88,8 @@ def get_optimized_block_size(
 
     logging.info('output volume start: ' + tuple2string(volume_start))
     logging.info('block size ' + tuple2string(block_size))
-    logging.info('size of each block (uncompressed, uint8, 1 channel): ', 
-            np.prod(block_size)/1e6, ' MB')
-    logging.info('RAM size of each block: ',
-            np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')
+    logging.info(f'size of each block (uncompressed, uint8, 1 channel): {np.prod(block_size)/1e6} MB')
+    logging.info(f'RAM size of each block: {np.prod(output_chunk_size)/1024/1024/1024*4*channel_num} GB')
     voxel_utilization = np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size)
     logging.info('voxel utilization: {:.2f}'.format(voxel_utilization))
 
@@ -157,7 +155,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
             assert thumbnail_storage.exists('info')
 
         if overwrite_info:
-            logging.info('create and upload info file to ', layer_path)
+            logging.info(f'create and upload info file to {layer_path}')
             # Note that cloudvolume use fortran order rather than C order
             info = CloudVolume.create_new_info(channel_num, layer_type='image',
                                             data_type=dtype,

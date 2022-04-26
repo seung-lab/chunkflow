@@ -19,7 +19,7 @@ chunkflow generate-tasks --roi-start 0 0 0 --chunk-size 64 64 64 skip-task --pre
 rm /tmp/0-64_0-64_0-64.h5
 
 echo "test plugin with arguments..."
-chunkflow create-chunk plugin -f median_filter -i chunk -o chunk --args size=(3,1,1);mode=reflect
+chunkflow create-chunk plugin -f median_filter -i chunk -o chunk --args "size=(3,1,1);mode=reflect"
 
 echo "evaluate segmentation quality..."
 chunkflow create-chunk -o seg create-chunk -o gt evaluate-segmentation -s seg -g gt
@@ -51,13 +51,13 @@ rm /tmp/img.tif;
 echo "create the info file of Neuroglancer Precomputed format."
 mkdir /tmp/seg
 chunkflow \
-    create-chunk --size 128 128 128 --dtype uint32 --not-all-zero \
+    create-chunk --size 128 128 128 --dtype uint32 --pattern sin \
     create-info --voxel-size 8 8 8 --block-size 64 64 64 --output-layer-path file:///tmp/seg/ 
 
 echo "write image to precomputed volume."
 # somehow, we have to separate creation of info and writing out precomputed operation!
 chunkflow \
-    create-chunk --size 128 128 128 --dtype uint32 --not-all-zero \
+    create-chunk --size 128 128 128 --dtype uint32 --pattern sin \
     write-precomputed --volume-path file:///tmp/seg \
     mesh --voxel-size 8 8 8 --output-format precomputed --output-path file:///tmp/seg 
 rm -rf /tmp/seg
@@ -82,7 +82,7 @@ chunkflow \
     inference --input-patch-size 20 256 256 \
         --patch-num 2 2 2 --framework identity --batch-size 3 
 
-chunkflow create-chunk --all-zero --size 36 448 448 \
+chunkflow create-chunk --pattern zero --size 36 448 448 \
     inference --input-patch-size 20 256 256 --patch-num 2 2 2 \
         --framework identity --batch-size 3 
 

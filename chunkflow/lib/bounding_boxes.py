@@ -22,124 +22,124 @@ def to_cartesian(x: Union[tuple, list]):
         return None
     else:
         assert len(x) == 3
-        return Coordinate.from_collection(x)
+        return Cartesian.from_collection(x)
 
-class Coordinate(namedtuple('Coordinate', ['z', 'y', 'x'])):
-    """Coordinate coordinate or offset."""
+class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
+    """Cartesian coordinate or offset."""
     __slots__ = ()
 
     @classmethod
     def from_collection(cls, col: Union[tuple, list, Vec]):
         return cls(*col)
 
-    def __eq__(self, other: Union[int, tuple, Coordinate]) -> bool:
+    def __eq__(self, other: Union[int, tuple, Cartesian]) -> bool:
         if isinstance(other, int):
             return np.all([x==other for x in self])
-        elif isinstance(other, Coordinate) or isinstance(other, tuple):
+        elif isinstance(other, Cartesian) or isinstance(other, tuple):
             return np.all([x==y for x, y in zip(self, other)])
         else:
-            raise TypeError(f'only support int, tuple or Coordinate for now, but get {type(other)}')
+            raise TypeError(f'only support int, tuple or Cartesian for now, but get {type(other)}')
     
-    def __sub__(self, offset: Union[Coordinate, Number]):
+    def __sub__(self, offset: Union[Cartesian, Number]):
         """subtract to another voxel coordinate
 
         Args:
-            offset (Coordinate, int): another voxel coordinate
+            offset (Cartesian, int): another voxel coordinate
         """
         if isinstance(offset, Number):
-            return Coordinate.from_collection([x-offset for x in self])
+            return Cartesian.from_collection([x-offset for x in self])
         else:
-            return Coordinate.from_collection([x-o for x, o in zip(self, offset)])
+            return Cartesian.from_collection([x-o for x, o in zip(self, offset)])
     
-    def __isub__(self, other:Union[int, Coordinate]):
+    def __isub__(self, other:Union[int, Cartesian]):
         return self - other
 
-    def __add__(self, offset: Union[Coordinate, tuple, int]):
+    def __add__(self, offset: Union[Cartesian, tuple, int]):
         """add another coordinate
 
         Args:
-            offset (Coordinate, int): offset
+            offset (Cartesian, int): offset
         """
         if isinstance(offset, int):
-            return Coordinate(*[x+offset for x in self])
+            return Cartesian(*[x+offset for x in self])
         else:
-            return Coordinate(*[x+o for x, o in zip(self, offset)])
+            return Cartesian(*[x+o for x, o in zip(self, offset)])
     
-    def __iadd__(self, other: Union[Coordinate, int]):
+    def __iadd__(self, other: Union[Cartesian, int]):
         return self + other
 
-    def __mul__(self, m: Union[Number, Coordinate]) -> Coordinate:
-        if isinstance(m, Coordinate):
-            return Coordinate.from_collection([x*y for x, y in zip(self, m)])
+    def __mul__(self, m: Union[Number, Cartesian]) -> Cartesian:
+        if isinstance(m, Cartesian):
+            return Cartesian.from_collection([x*y for x, y in zip(self, m)])
         elif isinstance(m, Number):
-            return Coordinate(*[x*m for x in self])
+            return Cartesian(*[x*m for x in self])
         else:
-            raise TypeError('only support number and Coordinate type.')
+            raise TypeError('only support number and Cartesian type.')
 
-    def __imul__(self, other: Union[Coordinate, int]):
+    def __imul__(self, other: Union[Cartesian, int]):
         return self * other
 
-    def __floordiv__(self, d: Union[int, Coordinate]):
+    def __floordiv__(self, d: Union[int, Cartesian]):
         if isinstance(d, Number):
-            return Coordinate(*[x // d for x in self])
+            return Cartesian(*[x // d for x in self])
         else:
-            return Coordinate.from_collection([x//d for x, d in zip(self, d)])
+            return Cartesian.from_collection([x//d for x, d in zip(self, d)])
 
-    def __ifloordiv__(self, other: Union[Coordinate, int]):
+    def __ifloordiv__(self, other: Union[Cartesian, int]):
         return self // other
 
-    def __truediv__(self, other: Union[Number, Coordinate]):
+    def __truediv__(self, other: Union[Number, Cartesian]):
         if isinstance(other, Number):
-            return Coordinate.from_collection([x/other for x in self])
+            return Cartesian.from_collection([x/other for x in self])
         else:
-            return Coordinate.from_collection([x/d for x, d in zip(self, other)])
+            return Cartesian.from_collection([x/d for x, d in zip(self, other)])
 
-    def __itruediv__(self, other: Union[Coordinate, int]):
+    def __itruediv__(self, other: Union[Cartesian, int]):
         return self / other
 
-    def __mod__(self, d: Union[int, Coordinate]) -> Coordinate:
+    def __mod__(self, d: Union[int, Cartesian]) -> Cartesian:
         if isinstance(d, int):
-            return Coordinate(*[x%d for x in self])
-        elif isinstance(d, Coordinate):
-            return Coordinate.from_collection([x%y for x, y in zip(self, d)])
+            return Cartesian(*[x%d for x in self])
+        elif isinstance(d, Cartesian):
+            return Cartesian.from_collection([x%y for x, y in zip(self, d)])
         else:
-            raise TypeError('only support int or Coordinate for now.')
+            raise TypeError('only support int or Cartesian for now.')
     
-    def __imod__(self, other: Union[Coordinate, int]):
+    def __imod__(self, other: Union[Cartesian, int]):
         return self % other
 
-    def __lt__(self, other: Coordinate) -> bool:
+    def __lt__(self, other: Cartesian) -> bool:
         if self.x < other.x and self.y < other.y and self.z < other.z:
             return True
         else:
             return False
 
-    def __le__(self, other: Coordinate) -> bool:
+    def __le__(self, other: Cartesian) -> bool:
         if self.x <= other.x and self.y <= other.y and self.z <= other.z:
             return True
         else:
             return False
 
-    def __gt__(self, other: Coordinate) -> bool:
+    def __gt__(self, other: Cartesian) -> bool:
         if self.x > other.x and self.y > other.y and self.z > other.z:
             return True
         else:
             return False
 
-    def __ge__(self, other: Coordinate) -> bool:
+    def __ge__(self, other: Cartesian) -> bool:
         if self.z >= other.z and self.y >= other.y and self.x >= other.x:
             return True
         else:
             return False
 
-    def __ne__(self, other: Coordinate) -> bool:
+    def __ne__(self, other: Cartesian) -> bool:
         if self.z != other.z and self.y != other.y and self.x != other.x:
             return True
         else:
             return False
 
-    def __neg__(self) -> Coordinate:
-        return Coordinate(-self.z, -self.y, -self.x)
+    def __neg__(self) -> Cartesian:
+        return Cartesian(-self.z, -self.y, -self.x)
 
     #def __setitem__(self, key: int, value: int):
     #    if key == 0:
@@ -158,13 +158,13 @@ class Coordinate(namedtuple('Coordinate', ['z', 'y', 'x'])):
 
 class BoundingBox(Bbox):
     def __init__(self, 
-            minpt: Union[list, Coordinate],
-            maxpt: Union[list, Coordinate],
+            minpt: Union[list, Cartesian],
+            maxpt: Union[list, Cartesian],
             dtype: np.dtype =None):
-        if isinstance(minpt, Coordinate):
+        if isinstance(minpt, Cartesian):
             minpt = minpt.vec
         
-        if isinstance(maxpt, Coordinate):
+        if isinstance(maxpt, Cartesian):
             maxpt = maxpt.vec
         super().__init__(minpt, maxpt, dtype=dtype)
 
@@ -193,12 +193,12 @@ class BoundingBox(Bbox):
         return cls.from_bbox(bbox)
 
     @classmethod
-    def from_center(cls, center: Coordinate, extent: int,
+    def from_center(cls, center: Cartesian, extent: int,
             even_size: bool = True):
         """Create bounding box from center and extent
 
         Args:
-            center (Coordinate): center coordinate
+            center (Cartesian): center coordinate
             extent (int): the range to extent, like radius
             even_size (bool): produce even size or odd size including the center.
         """
@@ -212,11 +212,11 @@ class BoundingBox(Bbox):
 
     @property
     def start(self):
-        return Coordinate.from_collection(self.minpt)
+        return Cartesian.from_collection(self.minpt)
     
     @property
     def stop(self):
-        return Coordinate.from_collection(self.maxpt)
+        return Cartesian.from_collection(self.maxpt)
         
     def __repr__(self):
         return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}'
@@ -226,7 +226,7 @@ class BoundingBox(Bbox):
         bbox = bbox.clone()
         return BoundingBox.from_bbox(bbox)
 
-    def adjust(self, size: Union[Coordinate, int, tuple, list, Vec]):
+    def adjust(self, size: Union[Cartesian, int, tuple, list, Vec]):
         if size is None:
             logging.warn('adjusting bounding box size is None!')
             return self
@@ -235,7 +235,7 @@ class BoundingBox(Bbox):
             assert len(size)==3 or len(size)==6
             size = Vec(*size)
         else:
-            size = Coordinate(size, size, size)
+            size = Cartesian(size, size, size)
         self.minpt -= size[:3]
         self.maxpt += size[-3:]
         return self
@@ -262,7 +262,7 @@ class BoundingBox(Bbox):
 
     @property
     def shape(self):
-        return Coordinate(*(self.maxpt - self.minpt))
+        return Cartesian(*(self.maxpt - self.minpt))
 
     @property
     def left_neighbors(self):
@@ -290,27 +290,27 @@ class BoundingBoxes(UserList):
     @classmethod
     def from_manual_setup(cls,
             chunk_size:Union[Vec, tuple], 
-            chunk_overlap: Union[Vec, tuple, Coordinate]=Coordinate(0,0,0),
-            roi_start: Union[Vec, tuple, Coordinate]=None, 
-            roi_stop: Union[Vec, tuple, Coordinate]=None, 
-            roi_size: Union[Vec, tuple, Coordinate]=None,
-            grid_size: Union[Vec, tuple, Coordinate]=None,
+            chunk_overlap: Union[Vec, tuple, Cartesian]=Cartesian(0,0,0),
+            roi_start: Union[Vec, tuple, Cartesian]=None, 
+            roi_stop: Union[Vec, tuple, Cartesian]=None, 
+            roi_size: Union[Vec, tuple, Cartesian]=None,
+            grid_size: Union[Vec, tuple, Cartesian]=None,
             respect_chunk_size: bool = True,
-            aligned_block_size: Union[Vec, tuple, Coordinate]=None,
+            aligned_block_size: Union[Vec, tuple, Cartesian]=None,
             bounded: bool = False,
             layer_path: str = None,
             mip: int = 0):
 
         if not layer_path:
             if grid_size is None and roi_size is None and roi_stop is None:
-                grid_size = Coordinate(1, 1, 1)
+                grid_size = Cartesian(1, 1, 1)
 
             if roi_start is None:
-                roi_start = Coordinate(0, 0, 0)
-            elif not isinstance(roi_start, Coordinate):
-                roi_start = Coordinate.from_collection(roi_start)
+                roi_start = Cartesian(0, 0, 0)
+            elif not isinstance(roi_start, Cartesian):
+                roi_start = Cartesian.from_collection(roi_start)
             if roi_size is None and chunk_size is not None:
-                roi_size = Coordinate.from_collection(chunk_size)
+                roi_size = Cartesian.from_collection(chunk_size)
             roi_stop = roi_start + roi_size
         else:
             if layer_path.endswith('.h5'):
@@ -318,14 +318,14 @@ class BoundingBoxes(UserList):
                 with h5py.File(layer_path, mode='r') as file:
                     for key in file.keys():
                         if 'offset' in key:
-                            roi_start = Coordinate(*(file[key]))
+                            roi_start = Cartesian(*(file[key]))
                         elif 'voxel_size' not in key:
                             if roi_size is None:
-                                roi_size = Coordinate(*file[key].shape[-3:])
+                                roi_size = Cartesian(*file[key].shape[-3:])
                 if roi_start is None:
-                    roi_start = Coordinate(0, 0, 0)
+                    roi_start = Cartesian(0, 0, 0)
                 if roi_size is None and chunk_size is not None:
-                    roi_size = Coordinate.from_collection(chunk_size)
+                    roi_size = Cartesian.from_collection(chunk_size)
 
                 roi_stop = roi_start + roi_size
             else:
@@ -333,8 +333,8 @@ class BoundingBoxes(UserList):
                 # dataset shape as z,y,x
                 dataset_size = vol.mip_shape(mip)[:3][::-1]
                 dataset_offset = vol.mip_voxel_offset(mip)[::-1]
-                dataset_size = Coordinate.from_collection(dataset_size)
-                dataset_offset = Coordinate.from_collection(dataset_offset)
+                dataset_size = Cartesian.from_collection(dataset_size)
+                dataset_offset = Cartesian.from_collection(dataset_offset)
 
                 if roi_size is None:
                     roi_size = dataset_size
@@ -345,19 +345,19 @@ class BoundingBoxes(UserList):
                     roi_start = dataset_offset - chunk_overlap
         assert roi_start is not None
 
-        if not isinstance(chunk_size, Coordinate):
-            chunk_size = Coordinate(*chunk_size)
-        if not isinstance(chunk_overlap, Coordinate):
-            chunk_overlap = Coordinate(*chunk_overlap)
-        if not isinstance(roi_start, Coordinate):
+        if not isinstance(chunk_size, Cartesian):
+            chunk_size = Cartesian(*chunk_size)
+        if not isinstance(chunk_overlap, Cartesian):
+            chunk_overlap = Cartesian(*chunk_overlap)
+        if not isinstance(roi_start, Cartesian):
             assert len(roi_start) == 3
-            roi_start = Coordinate(*roi_start)
-        if not isinstance(roi_size, Coordinate):
-            roi_size = Coordinate(*roi_size)
-        if grid_size is not None and not isinstance(grid_size, Coordinate):
-            grid_size = Coordinate(*grid_size)
-        if not isinstance(roi_stop, Coordinate):
-            roi_stop = Coordinate(*roi_stop)
+            roi_start = Cartesian(*roi_start)
+        if not isinstance(roi_size, Cartesian):
+            roi_size = Cartesian(*roi_size)
+        if grid_size is not None and not isinstance(grid_size, Cartesian):
+            grid_size = Cartesian(*grid_size)
+        if not isinstance(roi_stop, Cartesian):
+            roi_stop = Cartesian(*roi_stop)
 
         stride = chunk_size - chunk_overlap
         if roi_stop is None:
@@ -365,7 +365,7 @@ class BoundingBoxes(UserList):
 
         if aligned_block_size is not None:
             if not isinstance(aligned_block_size, Vec):
-                aligned_block_size = Coordinate(*aligned_block_size)
+                aligned_block_size = Cartesian(*aligned_block_size)
             assert np.all(aligned_block_size <= chunk_size)
             assert chunk_size % aligned_block_size == 0
             roi_start -= roi_start % aligned_block_size
@@ -375,14 +375,14 @@ class BoundingBoxes(UserList):
             for idx in range(3):
                 if roi_stop[idx] % aligned_block_size[idx] > 0:
                     roi_stop_temp[idx] += aligned_block_size[idx] - roi_stop[idx] % aligned_block_size[idx]
-            roi_stop = Coordinate.from_collection(roi_stop_temp)
+            roi_stop = Cartesian.from_collection(roi_stop_temp)
 
         if roi_size is None:
             roi_size = roi_stop - roi_start
 
         if grid_size is None:
             grid_size = (roi_size - chunk_overlap) / stride 
-            grid_size = Coordinate.from_collection([ceil(x) for x in grid_size])
+            grid_size = Cartesian.from_collection([ceil(x) for x in grid_size])
 
         # the stride should not be zero if there is more than one chunks
         for g, s in zip(grid_size, stride):
@@ -406,7 +406,7 @@ class BoundingBoxes(UserList):
                     range(grid_size[0]), 
                     range(grid_size[1]),
                     range(grid_size[2])):
-            chunk_start = roi_start + Coordinate(gz, gy, gx) * stride
+            chunk_start = roi_start + Cartesian(gz, gy, gx) * stride
             bbox = BoundingBox.from_delta(chunk_start, chunk_size)
             if not respect_chunk_size:
                 bbox.maxpt = np.minimum(bbox.maxpt, Vec(*roi_stop))

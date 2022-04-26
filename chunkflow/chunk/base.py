@@ -16,7 +16,7 @@ import tifffile
 import cc3d
 from cloudvolume.lib import yellow, Bbox
 
-from chunkflow.lib.bounding_boxes import BoundingBox, Coordinate
+from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
 
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
@@ -33,13 +33,13 @@ class Chunk(NDArrayOperatorsMixin):
     and `examples<https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
 
     :param array: the data array chunk in a big dataset
-    :param voxel_offset (Coordinate): the offset of this array chunk. 3 numbers: z, y, x
-    :param voxel_size (Coordinate): the size of each voxel, normally with unit of nm. 3 numbers: z, y, x.
+    :param voxel_offset (Cartesian): the offset of this array chunk. 3 numbers: z, y, x
+    :param voxel_size (Cartesian): the size of each voxel, normally with unit of nm. 3 numbers: z, y, x.
     :return: a new chunk with array data and global offset
     """
     def __init__(self, array: np.ndarray, 
-            voxel_offset: Coordinate = None, 
-            voxel_size: Coordinate = None):
+            voxel_offset: Cartesian = None, 
+            voxel_size: Cartesian = None):
         assert array.ndim >= 3 and array.ndim <= 4
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         
@@ -49,7 +49,7 @@ class Chunk(NDArrayOperatorsMixin):
                 self.array = array.array
                 voxel_offset = array.voxel_offset
             else:
-                voxel_offset = Coordinate(0, 0, 0)
+                voxel_offset = Cartesian(0, 0, 0)
         
         if voxel_offset is not None:
             if len(voxel_offset) == 4:
@@ -57,12 +57,12 @@ class Chunk(NDArrayOperatorsMixin):
                 voxel_offset = voxel_offset[1:]
             assert len(voxel_offset) == 3
 
-        if not isinstance(voxel_offset, Coordinate):
-            voxel_offset = Coordinate.from_collection(voxel_offset)
+        if not isinstance(voxel_offset, Cartesian):
+            voxel_offset = Cartesian.from_collection(voxel_offset)
         self.voxel_offset = voxel_offset
 
-        if voxel_size is not None and not isinstance(voxel_size, Coordinate):
-            voxel_size = Coordinate.from_collection(voxel_size)
+        if voxel_size is not None and not isinstance(voxel_size, Cartesian):
+            voxel_size = Cartesian.from_collection(voxel_size)
         self.voxel_size = voxel_size
         if voxel_size is not None:
             assert len(voxel_size) == 3
@@ -114,10 +114,10 @@ class Chunk(NDArrayOperatorsMixin):
         return Chunk(seg, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
     @classmethod
-    def create(cls, size: Coordinate = Coordinate(64, 64, 64),
+    def create(cls, size: Cartesian = Cartesian(64, 64, 64),
                dtype: type = np.uint8, 
-               voxel_offset: Coordinate = Coordinate(0, 0, 0),
-               voxel_size: Coordinate = None,
+               voxel_offset: Cartesian = Cartesian(0, 0, 0),
+               voxel_size: Cartesian = None,
                pattern: str = 'sin',
                high: int = 255):
         """create a fake chunk for tests.
@@ -125,8 +125,8 @@ class Chunk(NDArrayOperatorsMixin):
         Args:
             size (tuple, optional): chunk size or shape. Defaults to (64, 64, 64).
             dtype (type, optional): data type like numpy. Defaults to np.uint8.
-            voxel_offset (Coordinate, optional): coordinate of starting voxel. Defaults to Coordinate(0, 0, 0).
-            voxel_size (Coordinate, optional): physical size of each voxel. Defaults to None.
+            voxel_offset (Cartesian, optional): coordinate of starting voxel. Defaults to Cartesian(0, 0, 0).
+            voxel_size (Cartesian, optional): physical size of each voxel. Defaults to None.
             pattern (str, optional): ways to create an array. ['sin', 'random', 'zero']. Defaults to 'sin'.
             high (int, optional): the high value of random integer array. Defaults to 255.
 
@@ -258,15 +258,15 @@ class Chunk(NDArrayOperatorsMixin):
             dset = f[dataset_path]
             if voxel_offset is None: 
                 if 'voxel_offset' in f:
-                    voxel_offset = Coordinate(*f['voxel_offset'])
+                    voxel_offset = Cartesian(*f['voxel_offset'])
                 else:
-                    voxel_offset = Coordinate(0, 0, 0)
+                    voxel_offset = Cartesian(0, 0, 0)
 
             if voxel_size is None:
                 if 'voxel_size' in f:
-                    voxel_size = Coordinate(*f['voxel_size'])
+                    voxel_size = Cartesian(*f['voxel_size'])
                 else:
-                    voxel_size = Coordinate(1, 1, 1)
+                    voxel_size = Cartesian(1, 1, 1)
 
             if cutout_start is None:
                 cutout_start = voxel_offset
@@ -300,7 +300,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
-                chunk_size: Coordinate = Coordinate(64,64,64),
+                chunk_size: Cartesian = Cartesian(64,64,64),
                 with_unique: bool= True, 
                 compression="gzip",
                 voxel_size: tuple = None):
@@ -412,9 +412,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     @property
     def properties(self) -> dict:
         props = dict()
-        if self.voxel_offset is not None or self.voxel_offset != Coordinate(0, 0, 0):
+        if self.voxel_offset is not None or self.voxel_offset != Cartesian(0, 0, 0):
             props['voxel_offset'] = self.voxel_offset
-        if self.voxel_size is not None or self.voxel_size != Coordinate(1, 1, 1):
+        if self.voxel_size is not None or self.voxel_size != Cartesian(1, 1, 1):
             props['voxel_size'] = self.voxel_size
         return props 
     
@@ -639,7 +639,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         assert self.voxel_size >= chunk.voxel_size
 
         # the voxel size should be divisible
-        assert Coordinate(0, 0, 0) == self.voxel_size % chunk.voxel_size
+        assert Cartesian(0, 0, 0) == self.voxel_size % chunk.voxel_size
 
         factor = self.voxel_size // chunk.voxel_size
         for offset in np.ndindex(factor):

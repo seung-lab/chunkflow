@@ -17,7 +17,7 @@ class WritePNGsOperator(OperatorBase):
         super().__init__(name=name)
 
         if not os.path.isdir(output_path):
-            warn('output path do not exist, will create %s.' % output_path)
+            warn(f'output path do not exist, will create %s {output_path}')
             os.makedirs(output_path)
 
         self.output_path = output_path

@@ -44,7 +44,11 @@ class Universal(PatchInferencerBase):
 
         assert hasattr(net_source, "PatchInferencer")
         self.patch_inferencer = net_source.PatchInferencer(
-            convnet_weight_path, self.output_patch_mask, crop_output_patch_margin=self.crop_margin)
+            convnet_weight_path, 
+            self.output_patch_mask,)
+            
+            # this feature is not working correctly for now.
+            #crop_output_patch_margin=self.crop_margin)
     
     @property
     def compute_device(self):
