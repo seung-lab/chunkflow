@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import os
 from collections import UserList, namedtuple
-from math import ceil
+from math import ceil, floor
 from typing import Union
 from numbers import Number
 import itertools
@@ -31,6 +31,14 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     @classmethod
     def from_collection(cls, col: Union[tuple, list, Vec]):
         return cls(*col)
+
+    @property
+    def ceil(self):
+        return Cartesian(ceil(self.z), ceil(self.y), ceil(self.x))
+    
+    @property
+    def floor(self):
+        return Cartesian(floor(self.z), floor(self.y), floor(self.x))
 
     def __eq__(self, other: Union[int, tuple, Cartesian]) -> bool:
         if isinstance(other, int):
@@ -217,6 +225,10 @@ class BoundingBox(Bbox):
     @property
     def stop(self):
         return Cartesian.from_collection(self.maxpt)
+
+    @property
+    def shape(self):
+        return self.stop - self.start
         
     def __repr__(self):
         return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}'
@@ -382,7 +394,8 @@ class BoundingBoxes(UserList):
 
         if grid_size is None:
             grid_size = (roi_size - chunk_overlap) / stride 
-            grid_size = Cartesian.from_collection([ceil(x) for x in grid_size])
+            grid_size = grid_size.ceil
+            # grid_size = Cartesian.from_collection([ceil(x) for x in grid_size])
 
         # the stride should not be zero if there is more than one chunks
         for g, s in zip(grid_size, stride):

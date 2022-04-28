@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Union
 
+import numpy as np
+
 from .bounding_boxes import Cartesian, BoundingBox
 
 
@@ -39,7 +41,11 @@ class RegionOfInterest(BoundingBox):
     @property
     def bounding_box(self):
         return BoundingBox(self.minpt, self.maxpt, dtype=self.dtype)
-    
+
+    @property
+    def physical_size(self):
+        return self.voxel_size * self.shape 
+
     def clone(self):
         bbox = self.bounding_box.clone()
         # the Cartesian is immutable, so we do not need to clone it.
@@ -64,26 +70,54 @@ class RegionOfInterest(BoundingBox):
         return bbox.to_slices()
 
 
-class ROIKDTree:
-    def __init__(self, roi: RegionOfInterest, dim: int, 
-            left: ROIKDTree, right: ROIKDTree):
-        """Split the volume hierarchically using K-D tree
+class ROITree:
+    def __init__(self, roi: RegionOfInterest, axis: int,
+            left: ROITree, right: ROITree):
+        """Split the volume hierarchically using a modified aligned K-D tree
 
         Args:
             roi (RegionOfInterest): physical region covered
-            dim (int): the splitting dimension of left and right roi
+            axis (int): the splitting dimension of left and right roi
             left (ROIKDTree): left roi with lower coordinate values in axis dim
             right (ROIKDTree): right roi with higher coordinate values in axis dim
         """
-        assert dim >= 0 and dim < 3 
+        assert axis >= 0 and axis < 3 
         self.roi = roi
-        self.dim = dim
+        self.axis = axis
         self.left = left
         self.right = right
 
     @classmethod
-    def from_roi(cls, roi: RegionOfInterest, factor: Cartesian):
-        pass
-        
+    def from_roi(cls, roi: RegionOfInterest, factor: Cartesian,
+            atomic_block_size: Cartesian, atomic_voxel_size: Cartesian):
+        """Generate the ROITree from a single roi.
+        This roi is not required to be aligned with the atomic block size.
+        If it is not aligned, a roi will partially cover the volume.
 
-    
+        Args:
+            roi (RegionOfInterest): the total roi covered by this tree.
+            factor (Cartesian): downsampling factor in each level.
+            atomic_block_size (Cartesian): the size of the leaf node/block
+            atomic_voxel_size (Cartesian): the voxel size of leaf block
+        """
+        assert roi.voxel_size % atomic_voxel_size == Cartesian(0, 0, 0)
+        assert roi.voxel_size // atomic_voxel_size % factor == Cartesian(0, 0, 0)
+        
+        if roi.voxel_size == atomic_voxel_size:
+            # this is the leaf roi/block
+            return cls(roi, None, None, None)
+
+        # find the longest axis to split
+        block_nums = roi.physical_size / (atomic_block_size * atomic_voxel_size)
+        block_nums = np.ceil(block_nums)
+        axis = np.argmax(block_nums)
+
+        # split along axis
+        children_voxel_size = roi.voxel_size // factor
+        left_start = roi.start * factor
+        left_stop = left_start 
+        left_roi = RegionOfInterest()
+
+    @property
+    def is_leaf(self):
+        return self.axis is None        
