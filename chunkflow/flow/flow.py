@@ -16,6 +16,7 @@ from chunkflow.lib.flow import *
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec
+from cloudfiles import CloudFiles
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.lib.bounding_boxes import Cartesian, BoundingBox, BoundingBoxes
@@ -1517,7 +1518,7 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
     """Mask out objects in a segmentation chunk."""
     if isinstance(selected_obj_ids, str) and selected_obj_ids.endswith('.json'):
         # assume that ids is a json file in the storage path
-        json_storage = Storage(os.path.dirname(selected_obj_ids))
+        json_storage = CloudFiles(os.path.dirname(selected_obj_ids))
         ids_str = json_storage.get_file(os.path.basename(selected_obj_ids))
         selected_obj_ids = set(json.loads(ids_str))
         assert len(selected_obj_ids) > 0

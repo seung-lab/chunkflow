@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 from cloudvolume import CloudVolume
-from cloudvolume.storage import Storage
+from cloudfiles import CloudFiles
 
 from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
 from chunkflow.chunk.validate import validate_by_template_matching
@@ -42,9 +42,9 @@ class ReadPrecomputedOperator(OperatorBase):
         self.expand_margin_size = expand_margin_size
         
         if blackout_sections:
-            with Storage(volume_path) as stor:
-                self.blackout_section_ids = stor.get_json(
-                    'blackout_section_ids.json')['section_ids']
+            stor = CloudFiles(volume_path)
+            self.blackout_section_ids = stor.get_json(
+                'blackout_section_ids.json')['section_ids']
 
         verbose = (logging.getLogger().getEffectiveLevel() <= 30)
         self.vol = CloudVolume(

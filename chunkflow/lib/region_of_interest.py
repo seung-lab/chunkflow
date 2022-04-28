@@ -107,16 +107,20 @@ class ROITree:
             # this is the leaf roi/block
             return cls(roi, None, None, None)
 
-        # find the longest axis to split
-        block_nums = roi.physical_size / (atomic_block_size * atomic_voxel_size)
+        # find the relatively longest axis to split
+        children_voxel_size = roi.voxel_size // factor
+        block_nums = roi.physical_size / (children_voxel_size *  )
         block_nums = np.ceil(block_nums)
         axis = np.argmax(block_nums)
 
         # split along axis
-        children_voxel_size = roi.voxel_size // factor
         left_start = roi.start * factor
-        left_stop = left_start 
+        left_block_nums = 
+        left_stop = left_start + 
         left_roi = RegionOfInterest()
+        left = cls.from_roi(left_roi, factor, atomic_block_size, atomic_voxel_size)
+
+
 
     @property
     def is_leaf(self):

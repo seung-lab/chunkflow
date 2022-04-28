@@ -7,8 +7,8 @@ import os
 import numpy as np
 
 from cloudvolume.lib import Vec, yellow
-from cloudvolume.storage import SimpleStorage
 from cloudvolume import CloudVolume
+from cloudfiles import CloudFiles
 
 from chunkflow.lib.bounding_boxes import BoundingBoxes
 
@@ -145,9 +145,9 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     )
 
     if not dry_run:
-        storage = SimpleStorage(layer_path)
+        storage = CloudFiles(layer_path)
         thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
-        thumbnail_storage = SimpleStorage(thumbnail_layer_path)
+        thumbnail_storage = CloudFiles(thumbnail_layer_path)
 
         if not overwrite_info:
             logging.info('\ncheck that we are not overwriting existing info file.')

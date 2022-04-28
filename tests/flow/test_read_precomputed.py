@@ -3,8 +3,8 @@ import shutil
 import numpy as np
 
 from cloudvolume import CloudVolume
-from cloudvolume.storage import Storage
 from cloudvolume.lib import generate_random_string
+from cloudfiles import CloudFiles
 
 from chunkflow.lib.bounding_boxes import BoundingBox
 
@@ -30,8 +30,8 @@ class TestReadPrecomputed(unittest.TestCase):
         # prepare blackout section ids
         self.blackout_section_ids = [17, 20]
         ids = {'section_ids': self.blackout_section_ids}
-        with Storage(self.volume_path) as stor:
-            stor.put_json('blackout_section_ids.json', ids)
+        stor = CloudFiles(self.volume_path)
+        stor.put_json('blackout_section_ids.json', ids)
 
     def test_cutout(self):
         print('test volume cutout...')
