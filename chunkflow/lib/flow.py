@@ -71,7 +71,7 @@ def main(log_level, log_file, mip, dry_run, verbose):
     pass
 
 
-@main.resultcallback()
+@main.result_callback()
 def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
