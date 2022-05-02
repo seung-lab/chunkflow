@@ -10,9 +10,13 @@ def test_cartesian():
     ct = (1,2,3)
     assert to_cartesian(ct) == Cartesian(1,2,3)
 
+
     ct = Cartesian(1,2,3)
+    ct.replace_item(0, 4) == Cartesian(4, 2, 3)
+    
     ct += 2
     assert ct == Cartesian(3,4,5)
+    
 
     ct -= 2
     assert ct == Cartesian(1,2,3)

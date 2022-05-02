@@ -4,3 +4,7 @@
 # system, and so shouldn't trigger E1101 when accessed. Python regular
 # expressions are accepted.
 generated-members=numpy.*,torch.*
+
+[MASTER]
+# disable missing-module-docstring and missing-function-docstring
+disable = C0116, C0114

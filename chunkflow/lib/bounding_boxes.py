@@ -40,6 +40,16 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def floor(self):
         return Cartesian(floor(self.z), floor(self.y), floor(self.x))
 
+    def replace_item(self, idx: int, value: int):
+        if idx == 0:
+            return Cartesian(value, self.y, self.x)
+        elif idx == 1:
+            return Cartesian(self.z, value, self.x)
+        elif idx == 2:
+            return Cartesian(self.z, self.y, value)
+        else:
+            raise ValueError(f'trying to replace item {idx} with {value}')
+
     def __eq__(self, other: Union[int, tuple, Cartesian]) -> bool:
         if isinstance(other, int):
             return np.all([x==other for x in self])
