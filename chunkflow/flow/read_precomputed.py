@@ -55,6 +55,7 @@ class ReadPrecomputedOperator(OperatorBase):
             mip=self.mip,
             cache=False,
             green_threads=True)
+            #parallel=True,
         
     def __call__(self, output_bbox: BoundingBox):
         # if we do not clone this bounding box, 

@@ -419,6 +419,10 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return props 
     
     @property
+    def size(self):
+        return self.array.size
+
+    @property
     def slices(self) -> tuple:
         """
         :getter: the global slice in the big volume

@@ -46,6 +46,7 @@ class WritePrecomputedOperator(OperatorBase):
             cache=False,
             green_threads=True,
             progress=True)
+            #parallel=True,
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')
