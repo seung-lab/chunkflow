@@ -151,13 +151,13 @@ def generate_tasks(
     help='the pre part of result file path')
 @click.option('--suffix', '-s', required=True, type=str,
     help='the post part of result file path. Normally include file extention.')
-@click.option('--only-empty/--missing', default=False, type=bool,
-    help='skip task only if the file is empty or if it exists.')
+@click.option('--mode', '-m', type=click.Choice(['missing', 'empty', 'exists']),
+    help='skip this task if the corresponding file is missing/empty/exists')
 @click.option('--adjust-size', '-a', default=None, type=int, callback=default_none,
     help='expand or shrink the bounding box. Currently, cloud-volume Bbox only support symetric grow.')
 @operator
 def skip_task(tasks: Generator, prefix: str, suffix: str, 
-        only_empty: bool, adjust_size: int):
+        mode: str, adjust_size: int):
     """if a result file already exists, skip this task."""
     for task in tasks:
         if task is not None:
@@ -168,13 +168,18 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
             file_name = prefix + bbox.to_filename() + suffix
 
             if os.path.exists(file_name):
-                if only_empty:
+                if 'empty' in mode:
                     if os.path.getsize(file_name)==0:
                         logging.info(f'file {file_name} is empty, skip this task.')
                         task = None
-                else:
-                    logging.info('the result file already exist, skip this task')
-                    task = None
+                elif 'missing' in mode:
+                    if not os.path.exists(file_name):
+                        logging.info(f'the file {file_name} is missing, skip this task')
+                        task = None
+                elif 'exist' in mode:
+                    if os.path.exists(file_name):
+                        logging.info(f'the file {file_name} already exist, skip this task')
+                        task = None
             
         yield task
 
@@ -325,6 +330,20 @@ def cloud_watch(tasks, name, log_name):
         if task is not None:
             operator(task['log'])
         yield task
+
+
+@main.command('cleanup')
+@click.option('--dir', '-d', 
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, writable=True, resolve_path=True),
+    help='the files in a directory')
+@generator
+def cleanup(dir: str):
+    for fname in tqdm(os.listdir(dir), desc='removing empty files: '):
+        fname = os.path.join(dir, fname)
+        if os.path.getsize(fname) == 0:
+            os.remove(fname)
+
+    return None
 
 
 @main.command('create-info')
@@ -776,18 +795,21 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
 
 
 @main.command('write-tif')
-@click.option('--name', type=str, default='write-tif', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--file-name', '-f', default=None,
     type=click.Path(dir_okay=False, resolve_path=True), 
     help='file name of tif file, the extention should be .tif or .tiff')
+@click.option('--compression', '-c', 
+    type=click.Choice(['', 'zlib', 'lzw', 'lzma', 'delta', 'packints', 'jpeg']),
+    default = 'zlib', help = 'encoders that supported by tifffile' 
+)
 @operator
-def write_tif(tasks, name, input_chunk_name, file_name):
+def write_tif(tasks, input_chunk_name, file_name, compression):
     """Write chunk as a TIF file."""
     for task in tasks:
         if task is not None:
-            task[input_chunk_name].to_tif(file_name)
+            task[input_chunk_name].to_tif(file_name, compression=compression)
         yield task
 
 
@@ -1001,7 +1023,7 @@ def delete_var(tasks, var_name: str):
               type=int, nargs=3, default=None, callback=default_none,
               help='cutout chunk size.')
 @click.option('--fill-missing/--no-fill-missing',
-              default=False, help='fill the missing chunks in input volume with zeros ' +
+              default=True, help='fill the missing chunks in input volume with zeros ' +
               'or not, default is false')
 @click.option('--validate-mip', 
               type=int, default=None, help='validate chunk using higher mip level')

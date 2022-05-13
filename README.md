@@ -50,6 +50,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | --------------- | -------- |
 | aggregate-skeleton-fragments| Merge skeleton fragments from chunks |
 | channel-voting  | Vote across channels of semantic map |
+| cleanup         | remove empty files to clean up storage |
 | cloud-watch     | Realtime speedometer in AWS CloudWatch |
 | connected-components | Threshold the boundary map to get a segmentation |
 | copy-var        | Copy a variable to a new name |

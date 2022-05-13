@@ -204,7 +204,7 @@ class Chunk(NDArrayOperatorsMixin):
         logging.info(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
         return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
     
-    def to_tif(self, file_name: str=None):
+    def to_tif(self, file_name: str=None, compression: str = 'zlib'):
         if file_name is None:
             file_name = f'{self.bbox.to_filename()}.tif'
         logging.info(f'write chunk to file: {file_name}')
@@ -217,7 +217,19 @@ class Chunk(NDArrayOperatorsMixin):
             img = img.astype( np.uint8 )
         else:
             img = self.array
-        tifffile.imwrite(file_name, data=img)
+        
+        if self.ndim == 3:
+            axes = 'ZYX'
+        elif self.ndim == 4:
+            axes = 'CZYX'
+        metadata = {'spacing': 1, 'unit': 'nm', 'axes': axes}
+        tifffile.imwrite(
+            file_name, data=img, 
+            imagej=True, 
+            resolution=self.voxel_size, 
+            metadata = metadata,
+            compression = compression,
+        )
 
     @classmethod
     def from_h5(cls, file_name: str,
@@ -396,9 +408,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             return np.array_equal(self.array, value.array) and np.array_equal(
                 self.voxel_offset, value.voxel_offset)
         elif isinstance(value, Number):
-            return np.all(self.array==value)
+            # return np.all(self.array==value)
+            return self.array == value
         elif isinstance(value, np.ndarray):
-            return np.all(self.array == value)
+            # return np.all(self.array == value)
+            return self.array == value
         else:
             raise NotImplementedError
 
@@ -417,7 +431,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         if self.voxel_size is not None or self.voxel_size != Cartesian(1, 1, 1):
             props['voxel_size'] = self.voxel_size
         return props 
-    
+
+    @property
+    def flags(self):
+        return self.array.flags
+
     @property
     def size(self):
         return self.array.size
@@ -499,14 +517,15 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def min(self, *args, **kwargs):
         return self.array.min(*args, **kwargs)
 
-    def transpose(self):
+    def transpose(self, only_array: bool=False):
         """To-Do: support arbitrary axis transpose"""
         new_array = self.array.transpose()
-        if self.voxel_offset is not None:
+        if not only_array and self.voxel_offset is not None:
             voxel_offset = self.voxel_offset[::-1]
         else:
             voxel_offset = self.voxel_offset
-        if self.voxel_size is not None:
+        
+        if not only_array and self.voxel_size is not None:
             voxel_size = self.voxel_size[::-1]
         else:
             voxel_size = self.voxel_size
