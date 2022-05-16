@@ -167,19 +167,18 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
                 bbox.adjust(adjust_size)
             file_name = prefix + bbox.to_filename() + suffix
 
-            if os.path.exists(file_name):
-                if 'empty' in mode:
-                    if os.path.getsize(file_name)==0:
-                        logging.info(f'file {file_name} is empty, skip this task.')
-                        task = None
-                elif 'missing' in mode:
-                    if not os.path.exists(file_name):
-                        logging.info(f'the file {file_name} is missing, skip this task')
-                        task = None
-                elif 'exist' in mode:
-                    if os.path.exists(file_name):
-                        logging.info(f'the file {file_name} already exist, skip this task')
-                        task = None
+            if 'empty' in mode:
+                if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
+                    logging.info(f'file {file_name} is empty, skip this task.')
+                    task = None
+            elif 'missing' in mode:
+                if not os.path.exists(file_name):
+                    logging.info(f'the file {file_name} is missing, skip this task')
+                    task = None
+            elif 'exist' in mode:
+                if os.path.exists(file_name):
+                    logging.info(f'the file {file_name} already exist, skip this task')
+                    task = None
             
         yield task
 
