@@ -342,7 +342,7 @@ def cleanup(dir: str):
         if os.path.getsize(fname) == 0:
             os.remove(fname)
 
-    return None
+    yield None
 
 
 @main.command('create-info')
