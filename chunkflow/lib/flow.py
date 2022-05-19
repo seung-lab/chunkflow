@@ -70,7 +70,6 @@ def main(log_level, log_file, mip, dry_run, verbose):
     state['verbose'] = verbose
     if dry_run:
         logging.warning('\nYou are using dry-run mode, will not do the work!')
-    pass
 
 
 @main.result_callback()
@@ -89,9 +88,8 @@ def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
         # task = next(stream)
 
     # Evaluate the stream and throw away the items.
-    if stream:
-        for _ in stream:
-            pass
+    for _ in stream:
+        pass
 
 
 def operator(func):
