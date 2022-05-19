@@ -34,5 +34,5 @@ class SkeletonizeOperator(OperatorBase):
         bbox_str = seg.bbox.to_filename()
         for neuron_id, skel in skels.items():
             file_name = f'{neuron_id}:{bbox_str}'
-            self.storage.put_file(file_name, skel.to_precomputed())
+            self.storage.put(file_name, skel.to_precomputed())
         return skels 

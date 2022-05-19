@@ -56,7 +56,7 @@ class AggregateSkeletonFragmentsOperator(OperatorBase):
                 dust_threshold=1000,
                 tick_threshold=3500
             )
-            self.output_storage.put_file(
+            self.output_storage.put(
                 file_path=str(skl_id),
                 content=skel.to_precomputed(),
             )

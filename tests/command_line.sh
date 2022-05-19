@@ -15,7 +15,7 @@ echo "create a hdf5 file, then test the skip-task operator."
 chunkflow create-chunk write-h5 -f /tmp/
 
 echo "test skip tasks..."
-chunkflow generate-tasks --roi-start 0 0 0 --chunk-size 64 64 64 skip-task --prefix /tmp/ --suffix .h5 write-h5 -f /tmp/
+chunkflow generate-tasks --roi-start 0 0 0 --chunk-size 64 64 64 skip-task --prefix /tmp/ --suffix .h5 
 rm /tmp/0-64_0-64_0-64.h5
 
 echo "test plugin with arguments..."
@@ -52,7 +52,7 @@ echo "create the info file of Neuroglancer Precomputed format."
 mkdir /tmp/seg
 chunkflow \
     create-chunk --size 128 128 128 --dtype uint32 --pattern sin \
-    create-info --voxel-size 8 8 8 --block-size 64 64 64 --output-layer-path file:///tmp/seg/ 
+    create-info --voxel-size 8 8 8 --block-size 64 64 64 --output-layer-path file:///tmp/seg/
 
 echo "write image to precomputed volume."
 # somehow, we have to separate creation of info and writing out precomputed operation!

@@ -35,10 +35,10 @@ def nzcol(mat, row_idx):
     --------
     >>> mat = sparse.csr_matrix(np.array([[0, 1, 0, 0], [0, 5, 8, 0]]))
     >>> nzcol(mat, 1)
-    array([1, 2], dtype=int32)
+    array([1, 2], dtype=click.INT32)
     >>> mat[1, 2] = 0
     >>> nzcol(mat, 1)
-    array([1], dtype=int32)
+    array([1], dtype=click.INT32)
     """
     return mat[row_idx].nonzero()[1]
 

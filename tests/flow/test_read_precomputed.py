@@ -43,7 +43,7 @@ class TestReadPrecomputed(unittest.TestCase):
         chunk = operator(output_bbox)
 
         self.assertEqual(offset, chunk.voxel_offset)
-        self.assertTrue(chunk == self.img[4:-4, 64:-64, 64:-64])
+        np.testing.assert_array_equal(chunk, self.img[4:-4, 64:-64, 64:-64])
 
         shutil.rmtree('/tmp/test')
 

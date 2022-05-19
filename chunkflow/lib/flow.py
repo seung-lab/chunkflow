@@ -1,18 +1,20 @@
-
+from typing import Union
 import logging
 from functools import update_wrapper, wraps
+
 import click
+from .bounding_boxes import Cartesian
 
 
 class CartesianParamType(click.ParamType):
     name = 'Cartesian'
-    def __init__(self) -> None:
-        super().__init__()
     
-    def convert(self, value, param, ctx):
+    def convert(self, value: Union[list, tuple], param, ctx):
         breakpoint()
-        
-        return super().convert(value, param, ctx)
+        assert len(value) == 3
+        return Cartesian.from_collection(value)        
+
+CartesianParam = CartesianParamType()
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
@@ -46,7 +48,7 @@ def default_none(ctx, _, value):
     type=click.Path(exists=False), default=None,
     help='log file path.')
 @click.option('--mip', '-m',
-              type=int, default=0,
+              type=click.INT, default=0,
               help='default mip level of chunks.')
 @click.option('--dry-run/--real-run', default=False,
               help='dry run or real run. default is real run.')

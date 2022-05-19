@@ -123,7 +123,7 @@ class Chunk(NDArrayOperatorsMixin):
         """create a fake chunk for tests.
 
         Args:
-            size (tuple, optional): chunk size or shape. Defaults to (64, 64, 64).
+            size (tuple, Cartesian, optional): chunk size or shape. Defaults to (64, 64, 64).
             dtype (type, optional): data type like numpy. Defaults to np.uint8.
             voxel_offset (Cartesian, optional): coordinate of starting voxel. Defaults to Cartesian(0, 0, 0).
             voxel_size (Cartesian, optional): physical size of each voxel. Defaults to None.
@@ -136,6 +136,9 @@ class Chunk(NDArrayOperatorsMixin):
         Returns:
             Chunk: the random chunk created.
         """
+        # if not isinstance(size, Cartesian):
+        #     size = Cartesian.from_collection(size)
+
         if isinstance(dtype, str):
             dtype = np.dtype(dtype)
 

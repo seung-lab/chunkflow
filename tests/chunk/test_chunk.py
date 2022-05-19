@@ -151,7 +151,7 @@ class Test3DChunk(unittest.TestCase):
         arr = np.ones((1, 3, 3, 3), dtype='float32')
         chunk = Chunk(arr, (0, -1, -1, -1))
         chunk[:, :,:,:] = 0 
-        self.assertTrue( chunk == 0 )
+        np.testing.assert_array_equal( chunk, 0 )
 
     def test_slices(self):
         arr = np.ones((1, 3, 3, 3), dtype='float32')

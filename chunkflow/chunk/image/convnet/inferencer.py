@@ -387,7 +387,7 @@ class Inferencer(object):
                 voxel_size=input_chunk.voxel_size,
             )
        
-        if input_chunk == 0:
+        if np.all(input_chunk == 0):
             logging.info('input is all zero, return zero buffer directly')
             if self.mask_myelin_threshold:
                 assert output_buffer.shape[0] == 4
