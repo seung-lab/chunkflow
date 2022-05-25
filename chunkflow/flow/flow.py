@@ -152,7 +152,7 @@ def generate_tasks(
 @click.option('--suffix', '-s', required=True, type=str,
     help='the post part of result file path. Normally include file extention.')
 @click.option('--mode', '-m', 
-    type=click.Choice(['missing', 'empty', 'exists']), default='empty',
+    type=click.Choice(['missing', 'empty', 'exist']), default='exist',
     help='skip this task if the corresponding file is missing/empty/exists')
 @click.option('--adjust-size', '-a', default=None, type=click.INT, callback=default_none,
     help='expand or shrink the bounding box. Currently, cloud-volume Bbox only support symetric grow.')
@@ -170,7 +170,7 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
 
             if 'empty' in mode:
                 if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
-                    logging.info(f'file {file_name} is empty, skip this task.')
+                    logging.info(f'file {file_name} do not exist or is empty, skip this task.')
                     task = None
             elif 'missing' in mode:
                 if not os.path.exists(file_name):
