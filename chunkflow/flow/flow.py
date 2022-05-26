@@ -333,16 +333,37 @@ def cloud_watch(tasks, name, log_name):
 
 
 @main.command('cleanup')
-@click.option('--dir', '-d', 
+@click.option('--dir', '-d',
+    default = './',
     type=click.Path(exists=True, file_okay=False, dir_okay=True, writable=True, resolve_path=True),
     help='the files in a directory')
+@click.option('--mode', '-m', 
+    type=click.Choice(['exist', 'empty', 'not-empty']), default='exist',
+    help='condition of clean up.')
+@click.option('--suffix', '-s', type=str, default=None,
+    help='suffix of files.')
 @generator
-def cleanup(dir: str):
-    for fname in tqdm(os.listdir(dir), desc='removing empty files: '):
-        fname = os.path.join(dir, fname)
-        if os.path.getsize(fname) == 0:
-            os.remove(fname)
+def cleanup(dir: str, mode: str, suffix: str):
+    dir = os.path.expanduser(dir)
 
+    for fname in tqdm(os.listdir(dir), desc='removing files: '):
+        fname = os.path.join(dir, fname)
+        if suffix and not fname.endswith(suffix):
+            # only consider files with matching suffix
+            continue
+        if 'exist' == mode:
+            if os.path.exists(fname):
+                os.remove(fname)
+        elif 'empty' == mode:
+            if os.path.getsize(fname) == 0:
+                os.remove(fname)
+        elif 'not-empty' == mode:
+            if os.path.getsize(fname) > 0:
+                os.remove(fname)
+        else:
+            raise ValueError(f'unsupported mode: {mode}')
+
+    logging.info(f'there are {len(os.listdir(dir))} files remaining.')
     yield None
 
 
