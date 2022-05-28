@@ -1,9 +1,10 @@
 import logging
-from .base import OperatorBase
 from cloudvolume import CloudVolume
 import tinybrain
 import numpy as np
 from cloudvolume.lib import Bbox
+from .base import OperatorBase
+
 
 class DownsampleUploadOperator(OperatorBase):
     """
@@ -46,6 +47,7 @@ class DownsampleUploadOperator(OperatorBase):
                                     autocrop=True,
                                     mip=mip,
                                     green_threads=True,
+                                    delete_black_uploads=True,
                                     progress=verbose)
 
         self.vols = vols

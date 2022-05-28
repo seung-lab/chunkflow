@@ -13,7 +13,6 @@ from chunkflow.lib.igneous.tasks import downsample_and_upload
 from chunkflow.chunk import Chunk
 
 from .base import OperatorBase
-from chunkflow.lib.igneous.tasks import downsample_and_upload
 #from .downsample_upload import DownsampleUploadOperator
 
 
@@ -45,6 +44,7 @@ class WritePrecomputedOperator(OperatorBase):
             mip=self.mip,
             cache=False,
             green_threads=True,
+            delete_black_uploads=True,
             progress=True)
             #parallel=True,
 
@@ -119,6 +119,7 @@ class WritePrecomputedOperator(OperatorBase):
             mip=self.mip,
             cache=False,
             green_threads=True,
+            delete_black_uploads=True,
             progress=False)
 
         # only use the last channel, it is the Z affinity
