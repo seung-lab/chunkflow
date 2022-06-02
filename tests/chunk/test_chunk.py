@@ -26,6 +26,10 @@ def create_chunk(size:tuple = (7, 8, 9), voxel_offset=(-2, -3, -4),
 
     return chunk
 
+def test_clone():
+    chunk = create_chunk()
+    assert chunk.clone() is not None
+
 def test_channel_voting():
     chunk = create_chunk(size=(5, 2,3,4), 
                          voxel_offset=(3,4,5), dtype=np.float32)
