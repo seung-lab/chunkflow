@@ -95,7 +95,7 @@ class Segmentation(Chunk):
         if isinstance(selected_obj_ids, str) and selected_obj_ids.endswith('.json'):
             # assume that ids is a json file in the storage path
             json_storage = CloudFiles(os.path.dirname(selected_obj_ids))
-            ids_str = json_storage.get_file(os.path.basename(selected_obj_ids))
+            ids_str = json_storage.get(os.path.basename(selected_obj_ids))
             selected_obj_ids = set(json.loads(ids_str))
             assert len(selected_obj_ids) > 0
             logging.info(f'number of selected objects: {len(selected_obj_ids)}')

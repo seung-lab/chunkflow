@@ -855,8 +855,6 @@ def write_tif(tasks, input_chunk_name, file_name, compression):
                help='cutout stop corrdinate.')
 @click.option('--cutout-size', '-s', type=click.INT, nargs=3, callback=default_none,
                help='cutout size of the chunk.')
-@click.option('--zero-filling/--no-zero-filling', default=False, type=bool,
-    help='if no such file, fill with zero.')
 @click.option('--set-bbox/--no-set-bbox', default=False, 
     help='set up bounding box in the task or not')
 @click.option('--output-chunk-name', '-o',
@@ -866,7 +864,7 @@ def write_tif(tasks, input_chunk_name, file_name, compression):
 def read_h5(tasks, name: str, file_name: str, dataset_path: str,
             dtype: str, voxel_offset: tuple, voxel_size: tuple, 
             cutout_start: tuple, cutout_stop: tuple, 
-            cutout_size: tuple, zero_filling: bool, set_bbox: bool,
+            cutout_size: tuple, set_bbox: bool,
             output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
@@ -891,7 +889,6 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_start=cutout_start_tmp,
                 cutout_size=cutout_size_tmp,
                 cutout_stop=cutout_stop_tmp,
-                zero_filling = zero_filling,
                 dtype=dtype,
             )
             if chunk is not None and dtype is not None:
@@ -1011,15 +1008,16 @@ def delete_task_in_queue(tasks, name):
 
 
 @main.command('delete-var')
-@click.option('--var-name', '-v',
-              type=str, required=True, help='the chunk name need to be deleted')
+@click.option('--var-names', '-v',
+              type=str, required=True, help='the variable names to be deleted')
 @operator
-def delete_var(tasks, var_name: str):
+def delete_var(tasks, var_names: str):
     """Delete a Chunk in task to release RAM"""
     for task in tasks:
         if task is not None:
-            logging.info(f'delete chunk: {var_name}')
-            del task[var_name]
+            logging.info(f'delete data: {var_names}')
+            for var_name in var_names.split(','):
+                del task[var_name]
         yield task
  
 

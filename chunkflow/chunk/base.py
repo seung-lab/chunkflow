@@ -242,7 +242,6 @@ class Chunk(NDArrayOperatorsMixin):
                 cutout_start: tuple = None,
                 cutout_stop: tuple = None,
                 cutout_size: tuple = None,
-                zero_filling: bool = False,
                 dtype: str = None):
 
         assert os.path.exists(file_name)
@@ -256,10 +255,10 @@ class Chunk(NDArrayOperatorsMixin):
             bbox = BoundingBox.from_list([*cutout_start, *cutout_stop])
             file_name += f'{bbox.to_filename()}.h5'
 
-            if zero_filling and (not os.path.exists(file_name) or os.path.getsize(file_name)==0) :
+            if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
                 # fill with zero
                 assert dtype is not None
-                logging.info(f'{file_name} do not exist, will return None.')
+                logging.info(f'{file_name} do not exist or is empty, will return None.')
                 # return cls.from_bbox(bbox, dtype=dtype, voxel_size=voxel_size, all_zero=True)
                 return None
 
