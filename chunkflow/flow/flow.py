@@ -1504,10 +1504,10 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
 
 @main.command('mask')
 @click.option('--name', type=str, default='mask', help='name of this operator')
-@click.option('--input-chunk-name', '-i',
-              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
-@click.option('--output-chunk-name', '-o',
-              type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
+@click.option('--input_names', '-i',
+              type=str, default=DEFAULT_CHUNK_NAME, help='input chunk names')
+@click.option('--output_names', '-o',
+              type=str, default=None, help='output chunk names')
 @click.option('--volume-path', '-v',
               type=str, required=True, help='mask volume path')
 @click.option('--mip', '-m', 
@@ -1521,11 +1521,14 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
               help='fill missing blocks with black or not. ' +
               'default is False.')
 @operator
-def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path, 
-         mip, inverse, fill_missing):
+def mask(tasks, name, input_names: str, output_names: str, volume_path: str, 
+         mip: int, inverse: bool, fill_missing: bool):
     """Mask the chunk. The mask could be in higher mip level and we
     will automatically upsample it to the same mip level with chunk.
     """
+    if output_names is None:
+        output_names = input_names
+        
     operator = MaskOperator(volume_path,
                             mip,
                             state['mip'],
@@ -1533,10 +1536,21 @@ def mask(tasks, name, input_chunk_name, output_chunk_name, volume_path,
                             fill_missing=fill_missing,
                             name=name)
 
+    input_names = input_names.split(',')
+    output_names = output_names.split(',')
+    assert len(input_names) == len(output_names)
+    assert len(input_names) > 0
     for task in tasks:
         if task is not None:
             start = time()
-            task[output_chunk_name] = operator(task[input_chunk_name])
+            chunks = []
+            for input_name in input_names:
+                chunks.append(task[input_name])
+
+            operator(chunks)
+
+            for output_name, chunk in zip(output_names, chunks):    
+                task[output_name] = chunk
             # Note that mask operation could be used several times,
             # this will only record the last masking operation
             task['log']['timer'][name] = time() - start

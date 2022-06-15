@@ -30,11 +30,15 @@ class MaskOperator(OperatorBase):
                                     mip=mask_mip)
 
         logging.info(f'build mask operator based on {volume_path} at mip {mask_mip}')
-
-    def __call__(self, chunk):
+    
+    def __call__(self, chunks: list):
         """ Make part of chunk to be black according to a mask chunk.
+        Note that the operation is inplace and the data in the input chunk is changed.
         """
-        assert isinstance(chunk, Chunk)
+        for chunk in chunks:
+            assert isinstance(chunk, Chunk)
+            assert chunk.voxel_offset == chunks[0].voxel_offset
+
         mask_voxel_size = Cartesian.from_collection(
             self.mask_vol.resolution[::-1]
         )
@@ -63,13 +67,15 @@ class MaskOperator(OperatorBase):
         # make it the same type with input
         mask_in_high_mip = mask_in_high_mip.astype(chunk.dtype)
         
-        for offset in np.ndindex(factor):
-            chunk.array[..., 
-                        np.s_[offset[0]::factor[0]], 
-                        np.s_[offset[1]::factor[1]],
-                        np.s_[offset[2]::factor[2]]] *= mask_in_high_mip
+        for chunk in chunks:
+            for offset in np.ndindex(factor):
+                chunk.array[..., 
+                            np.s_[offset[0]::factor[0]], 
+                            np.s_[offset[1]::factor[1]],
+                            np.s_[offset[2]::factor[2]]] *= mask_in_high_mip
         
-        return chunk
+        return
+
 
     def _read_mask_in_high_mip(self, chunk_bbox, factor):
         """
