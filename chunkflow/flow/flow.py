@@ -10,7 +10,8 @@ from copy import deepcopy
 import numpy as np
 import click
 import json
-from tqdm import tqdm 
+from tqdm import tqdm
+from traitlets import default 
 
 from chunkflow.lib.flow import *
 
@@ -183,6 +184,20 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
             
         yield task
 
+
+@main.command('mark-complete')
+@click.option('--prefix', '-p', type=str, default=None,
+    help='pre-path of a file.')
+@click.option('--suffix', '-s', type=str, default=None,
+    help='suffix of the flag file.')
+@operator
+def mark_complete(tasks, prefix: str, suffix: str):
+    for task in tasks:
+        if task is not None:
+            bbox = task['bbox']
+            fname = f'{prefix}{bbox.to_filename()}{suffix}'
+            Path(fname).touch()
+        yield task
 
 @main.command('skip-all-zero')
 @click.option('--input-chunk-name', '-i',
@@ -1683,15 +1698,13 @@ def mesh(tasks, name, input_chunk_name, mip, voxel_size, output_path, output_for
 
 
 @main.command('mesh-manifest')
-@click.option('--name', type=str, default='mesh-manifest', help='name of operator')
-@click.option('--input-name', '-i', type=str, default='prefix', help='input key name in task.')
 @click.option('--prefix', '-p', type=click.INT, default=None, help='prefix of meshes.')
 @click.option('--disbatch/--no-disbatch', default=False, help='use disBatch task index as prefix')
 @click.option('--digits', '-d', type=click.INT, default=1, help='number of digits of prefix')
 @click.option('--volume-path', '-v', type=str, required=True, help='cloudvolume path of dataset layer.' + 
               ' The mesh directory will be automatically figure out using the info file.')
-@operator
-def mesh_manifest(tasks, name: str, input_name: str, prefix: str, 
+@generator
+def mesh_manifest(prefix: str, 
         disbatch: bool, digits: int, volume_path: str):
     """Generate mesh manifest files."""
     operator = MeshManifestOperator(volume_path)
@@ -1701,14 +1714,11 @@ def mesh_manifest(tasks, name: str, input_name: str, prefix: str,
             assert 'DISBATCH_REPEAT_INDEX' in os.environ
             prefix = os.environ['DISBATCH_REPEAT_INDEX']
             operator(prefix, digits)
-    elif input_name:
-        for task in tasks:
-            start = time()
-            operator(task[input_name], digits)
-            task['log']['timer'][name] = time() - start
-            yield task
     else:
-        logging.error('requires one of parameters: prefix, input_name, disbatch')
+        for prefix in range(10**digits):
+            operator(prefix, digits)
+
+    return None
 
 @main.command('download-mesh')
 @click.option('--volume-path', '-v', type=str, required=True,

@@ -39,7 +39,8 @@ class MeshManifestOperator(OperatorBase):
     def __call__(self, prefix: Union[int, str], digits: int) -> None:
         assert int(prefix) < 10**digits
         prefix = str(prefix).zfill(digits)
-
+        logging.info(f'manifesting meshes with prefix: {prefix}')
+        
         id2filenames = defaultdict(list)
         for filename in tqdm(
             self.storage.list(prefix=prefix),
@@ -65,8 +66,8 @@ class MeshManifestOperator(OperatorBase):
             desc='upload aggregated manifest file'
             ):
 
-            logging.info(f'segment id: {seg_id}')
-            logging.info(f'fragments: {frags}')
+            # logging.info(f'segment id: {seg_id}')
+            # logging.info(f'fragments: {frags}')
             self.storage.put_json(
                 path=f'{seg_id}:{self.lod}',
                 content={"fragments": frags},
