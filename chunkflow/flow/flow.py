@@ -192,6 +192,16 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
     help='suffix of the flag file.')
 @operator
 def mark_complete(tasks, prefix: str, suffix: str):
+    """mark completion of a task as an empty file.
+
+    Args:
+        tasks (stream): the tasks stream
+        prefix (str): prefix of the mark file
+        suffix (str): suffix of the mark file
+
+    Yields:
+        None
+    """
     for task in tasks:
         if task is not None:
             bbox = task['bbox']

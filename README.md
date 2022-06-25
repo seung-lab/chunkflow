@@ -69,6 +69,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | inference       | Convolutional net inference |
 | load-synapses   | Load synapses from a file |
 | log-summary     | Summary of logs |
+| mark-complete   | mark task completion as an empty file | 
 | mask            | Black out the chunk based on another mask chunk |
 | mask-out-objects| Mask out selected or small objects |
 | mesh            | Build 3D meshes from segmentation chunk |
