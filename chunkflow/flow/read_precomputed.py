@@ -20,6 +20,7 @@ class ReadPrecomputedOperator(OperatorBase):
                  fill_missing: bool = False,
                  validate_mip: int = None,
                  blackout_sections: bool = None,
+                 use_https: bool = False,
                  dry_run: bool = False,
                  name: str = 'cutout'):
         super().__init__(name=name)
@@ -54,6 +55,7 @@ class ReadPrecomputedOperator(OperatorBase):
             progress=verbose,
             mip=self.mip,
             cache=False,
+            use_https=use_https,
             green_threads=True)
             #parallel=True,
         
