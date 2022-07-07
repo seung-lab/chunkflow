@@ -40,6 +40,9 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def floor(self):
         return Cartesian(floor(self.z), floor(self.y), floor(self.x))
 
+    def __hash__(self):
+        return hash((self.z, self.y, self.x))
+
     def __eq__(self, other: Union[int, tuple, Cartesian]) -> bool:
         if isinstance(other, int):
             return np.all([x==other for x in self])
@@ -163,6 +166,10 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def vec(self):
         return Vec(*self)
 
+    @property
+    def tuple(self):
+        return (self.z, self.y, self.x)
+
 
 class BoundingBox(Bbox):
     def __init__(self, 
@@ -181,13 +188,21 @@ class BoundingBox(Bbox):
         return cls(bbox.minpt, bbox.maxpt)
  
     @classmethod
-    def from_delta(cls, minpt, plus):
+    def from_delta(cls, 
+            minpt: Union[list, tuple, Cartesian, np.ndarray], 
+            plus: Union[list, tuple, Cartesian, np.ndarray]):
         bbox = super().from_delta(minpt, plus)
         return cls.from_bbox(bbox)
 
     @classmethod
     def from_list(cls, x: list):
         bbox = Bbox.from_list(x)
+        return cls.from_bbox(bbox)
+
+    @classmethod
+    def from_vec(cls, x: np.ndarray):
+        assert len(x) == 3
+        bbox = Bbox.from_vec(x)
         return cls.from_bbox(bbox)
 
     @classmethod
@@ -430,23 +445,31 @@ class BoundingBoxes(UserList):
         return cls(bboxes)
 
     @classmethod
-    def from_array(cls, arr: np.ndarray):
+    def from_array(cls, arr: np.ndarray, is_zyx: bool=True):
+        if not is_zyx:
+            # the coordinate is xyz,xyz
+            arr[:, :] = arr[:, [2,1,0,5,4,3]]
+
         bboxes = []
-        for idx in range(arr.shape(0)):
-            bbox = BoundingBox.from_vec(arr[idx, :])
+        for idx in range(arr.shape[0]):
+            bbox = BoundingBox.from_list(arr[idx, :])
             bboxes.append(bbox)
 
         return cls(bboxes)
 
     @classmethod
-    def from_file(cls, file_path: str):
-        arr = np.load(file_path)
-        return cls.from_array(arr)
+    def from_file(cls, file_path: str, is_zyx: bool=True):
+
+        if file_path.endswith('.npy'):
+            arr = np.load(file_path)
+        elif file_path.endswith('.txt'):
+            arr = np.loadtxt(file_path, dtype=int, delimiter=',')
+        return cls.from_array(arr, is_zyx=is_zyx)
 
     def as_array(self) -> np.ndarray:
         task_num = len(self.data)
 
-        arr = np.zeros((task_num, 6), dtype=np.int)
+        arr = np.zeros((task_num, 6), dtype=int)
         for idx, bbox in enumerate(self.data):
             arr[idx, :3] = bbox.minpt
             arr[idx, 3:] = bbox.maxpt
@@ -457,3 +480,6 @@ class BoundingBoxes(UserList):
             np.save(file_name, self.as_array())
         else:
             raise ValueError('only support npy format now.')
+
+    def __len__(self):
+        return len(self.data)

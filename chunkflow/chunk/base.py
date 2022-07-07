@@ -124,7 +124,7 @@ class Chunk(NDArrayOperatorsMixin):
 
         Args:
             size (tuple, Cartesian, optional): chunk size or shape. Defaults to (64, 64, 64).
-            dtype (type, optional): data type like numpy. Defaults to np.uint8.
+            dtype (type, optional): data type like numpy. Defaults to np.uint8. options: [uint8, uint16, uint32, uint64, float32]
             voxel_offset (Cartesian, optional): coordinate of starting voxel. Defaults to Cartesian(0, 0, 0).
             voxel_size (Cartesian, optional): physical size of each voxel. Defaults to None.
             pattern (str, optional): ways to create an array. ['sin', 'random', 'zero']. Defaults to 'sin'.
@@ -154,7 +154,7 @@ class Chunk(NDArrayOperatorsMixin):
 
             if dtype == np.uint8:
                 arr = (arr * 255).astype( dtype )
-            elif dtype == np.uint32 or dtype == np.uint64:
+            elif dtype==np.uint16 or dtype == np.uint32 or dtype == np.uint64:
                 arr = (arr>0.5).astype(dtype)
                 arr = cc3d.connected_components(arr, connectivity=6)
             elif np.issubdtype(dtype, np.floating):
@@ -226,10 +226,12 @@ class Chunk(NDArrayOperatorsMixin):
         elif self.ndim == 4:
             axes = 'CZYX'
         metadata = {'spacing': 1, 'unit': 'nm', 'axes': axes}
+        # breakpoint()
         tifffile.imwrite(
             file_name, data=img, 
-            imagej=True, 
-            resolution=self.voxel_size, 
+            volumetric = True,
+            # resolution=self.voxel_size.tuple, 
+            # imagej=True,
             metadata = metadata,
             compression = compression,
         )
@@ -503,7 +505,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return tuple(o + s for o, s in zip(self.voxel_offset, self.shape))
 
     def astype(self, dtype: np.dtype):
-        if dtype != self.array.dtype:
+        if dtype is None:
+            new_array = self.array
+        elif dtype != self.array.dtype:
             new_array = self.array.astype(dtype)
         else:
             new_array = self.array

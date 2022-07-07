@@ -13,6 +13,7 @@ from chunkflow.chunk import Chunk
 class WritePNGsOperator(OperatorBase):
     def __init__(self,
                  output_path: str = './pngs/',
+                 dtype: str = 'uint8',
                  name: str = 'save-pngs'):
         super().__init__(name=name)
 
@@ -20,10 +21,15 @@ class WritePNGsOperator(OperatorBase):
             warn(f'output path do not exist, will create %s {output_path}')
             os.makedirs(output_path)
 
+        self.dtype = np.dtype(dtype)
         self.output_path = output_path
 
     def __call__(self, chunk: Chunk):
         assert isinstance(chunk, Chunk)
+        breakpoint()
+        if not np.issubdtype(chunk.dtype, self.dtype):
+            chunk = chunk.astype(self.dtype)
+
         if chunk.is_affinity_map:
             properties = chunk.properties
             chunk = (chunk[1,...] + chunk[2,...]) / 2. * 255.

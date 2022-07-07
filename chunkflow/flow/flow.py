@@ -846,16 +846,20 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
 @click.option('--file-name', '-f', default=None,
     type=click.Path(dir_okay=False, resolve_path=True), 
     help='file name of tif file, the extention should be .tif or .tiff')
+@click.option('--dtype', '-t', type=click.Choice(['uint8', 'uint16', 'uint32', 'uint64', 'float32', 'float64']),
+    default=None, help='convert to this data type.')
 @click.option('--compression', '-c', 
     type=click.Choice(['', 'zlib', 'lzw', 'lzma', 'delta', 'packints', 'jpeg']),
     default = 'zlib', help = 'encoders that supported by tifffile' 
 )
 @operator
-def write_tif(tasks, input_chunk_name, file_name, compression):
+def write_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compression: str):
     """Write chunk as a TIF file."""
     for task in tasks:
         if task is not None:
-            task[input_chunk_name].to_tif(file_name, compression=compression)
+            chunk = task[input_chunk_name]
+            chunk = chunk.astype(dtype)
+            chunk.to_tif(file_name, compression=compression)
         yield task
 
 
@@ -979,13 +983,17 @@ def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset,
 @click.option('--name', type=str, default='write-pngs', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
+@click.option('--dtype', '-t', type=click.Choice(['uint8', 'uint16']), 
+    default='uint8', help='data type. only support uint8 and uint16')
 @click.option('--output-path', '-o',
               type=str, default='./pngs/', help='output path of saved 2d images formated as png.')
 @operator
-def write_pngs(tasks, name, input_chunk_name, output_path):
+def write_pngs(tasks, name, input_chunk_name, dtype, output_path):
     """Save as 2D PNG images."""
-    operator = WritePNGsOperator(output_path=output_path,
-                                                name=name)
+    operator = WritePNGsOperator(
+        output_path=output_path, 
+        dtype=dtype)
+
     for task in tasks:
         if task is not None:
             operator(task[input_chunk_name])

@@ -47,6 +47,9 @@ echo "write and read tif file."
 chunkflow create-chunk write-tif -f "/tmp/img.tif";
 chunkflow read-tif -f "/tmp/img.tif"; 
 rm /tmp/img.tif;
+chunkflow create-chunk --dtype uint16 --pattern sin write-tif -f /tmp/seg.tif
+chunkflow read-tif -f /tmp/seg.tif
+rm /tmp/seg.tif
 
 echo "create the info file of Neuroglancer Precomputed format."
 mkdir /tmp/seg

@@ -353,6 +353,9 @@ class Synapses():
             self.pre_confidence = np.concatenate((self.pre_confidence, confidences), axis=None)
         return self
 
+    def __len__(self):
+        return self.post_num
+    
     def __eq__(self, other: Synapses) -> bool:
         """compare two synapses.
         Note that we do not compare the confidence here!
@@ -366,8 +369,9 @@ class Synapses():
         if np.array_equal(self.pre, other.pre):
             if self.post is None and other.post is None:
                 return True
-            elif self.post is not None and other.post is not None and np.array_equal(
-                    self.post, other.post):
+            elif self.post is not None and \
+                    other.post is not None and \
+                    np.array_equal(self.post, other.post):
                 return True
             else:
                 return False
