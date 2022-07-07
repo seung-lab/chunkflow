@@ -6,6 +6,7 @@ from time import time
 from typing import Generator, List
 
 from copy import deepcopy
+from matplotlib import use
 
 import numpy as np
 import click
@@ -1082,6 +1083,8 @@ def delete_var(tasks, var_names: str):
 @click.option('--blackout-sections/--no-blackout-sections',
     default=False, help='blackout some sections. ' +
     'the section ids json file should named blackout_section_ids.json. default is False.')
+@click.option('--use-https/--use-credential', default=False,
+    help='if we read from a public dataset in cloud storage, it is required to use https.')
 @click.option(
     '--output-chunk-name', '-o',
     type=str, default=DEFAULT_CHUNK_NAME, 
@@ -1094,7 +1097,7 @@ def read_precomputed(tasks, name: str, volume_path: str, mip: int,
         chunk_start: tuple, chunk_size: tuple,
         expand_margin_size: tuple, expand_direction: str,
         fill_missing: bool, validate_mip: int, blackout_sections: bool,
-        output_chunk_name: str):
+        use_https: bool, output_chunk_name: str):
     """Cutout chunk from volume."""
     if mip is None:
         mip = state['mip']
@@ -1112,6 +1115,7 @@ def read_precomputed(tasks, name: str, volume_path: str, mip: int,
         fill_missing=fill_missing,
         validate_mip=validate_mip,
         blackout_sections=blackout_sections,
+        use_https=use_https,
         dry_run=state['dry_run'],
         name=name)
 
@@ -1735,8 +1739,7 @@ def mesh_manifest(prefix: str,
     else:
         for prefix in range(10**digits):
             operator(prefix, digits)
-
-    return None
+    yield None
 
 @main.command('download-mesh')
 @click.option('--volume-path', '-v', type=str, required=True,
