@@ -906,6 +906,9 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_start_tmp = bbox.minpt
                 cutout_stop_tmp = bbox.maxpt
                 cutout_size_tmp = cutout_stop_tmp - cutout_start_tmp
+
+                if not file_name.endswith('.h5'):
+                    file_name = f'{file_name}{bbox.to_filename()}.h5'
             else:
                 cutout_start_tmp = cutout_start
                 cutout_stop_tmp = cutout_stop

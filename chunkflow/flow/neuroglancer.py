@@ -34,9 +34,8 @@ class NeuroglancerOperator(OperatorBase):
         annotations = []
         
         pre_synapses = synapses.pre_with_physical_coordinate
-        self._append_point_annotation_layer(viewer_state, name + '_pre', pre_synapses)
-
         post_synapses = synapses.post_with_physical_coordinate
+        
         if post_synapses is not None:
             for post_idx in range(post_synapses.shape[0]):
                 pre_idx = post_synapses[post_idx, 0]
@@ -77,6 +76,10 @@ void main() {
 ''',
             ),
         )
+
+        self._append_point_annotation_layer(viewer_state, name + '_pre', pre_synapses)
+
+
 
     def _append_point_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, points: np.ndarray):
         annotations = []
