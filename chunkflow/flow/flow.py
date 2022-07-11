@@ -624,9 +624,9 @@ def create_chunk(tasks, size, dtype, pattern, voxel_offset, voxel_size, output_c
     help='C order or Fortran order in the file. XYZ is Fortran order, ZYX is C order.')
 @click.option('--resolution', '-r', type=click.INT, nargs=3, 
     default=None, callback=default_none, help='resolution of points.')
-@click.option('--remove-outside/--keep-all', default=True, 
+@click.option('--remove-outside/--keep-all', default=False, 
     help='remove synapses outside of the bounding box or not.')
-@click.option('--output-name', '-o', type=str, default='synapses', help='data name of the result.')
+@click.option('--output-name', '-o', type=str, default=DEFAULT_SYNAPSES_NAME, help='data name of the result.')
 @operator
 def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: bool, 
         resolution: tuple, remove_outside: bool, output_name: str):
@@ -665,6 +665,25 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: b
             task['log']['timer'][name] = time() - start
         yield task
 
+
+@main.command('save-synapses')
+@click.option('--input-name', '-i', type=str, default=DEFAULT_SYNAPSES_NAME)
+@click.option('--file-path', '-f',
+    type=click.Path(file_okay=True, dir_okay=False, resolve_path=True),
+    required=True, help='HDF5 file path.')
+@operator
+def save_synapses(tasks, input_name: str, file_path: str):
+    """Save synapses as HDF5 file."""
+    for task in tasks:
+        if task is not None:
+            syns = task[input_name]
+            if not file_path.endswith('.h5'):
+                if 'bbox' in task:
+                    bbox = task['bbox']
+                    file_path += bbox.to_filename()
+                file_path += '.h5'
+            syns.to_h5(file_path)
+        yield task
 
 @main.command('read-npy')
 @click.option('--name', '-n', type=str, default='read-npy', help='name of operator')
@@ -872,7 +891,7 @@ def write_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compress
 @click.option('--dataset-path', '-d', type=str, default=None,
               help='the dataset path inside HDF5 file.')
 @click.option('--dtype', '-e',
-              type=click.Choice(['float32', 'float64', 'uint32', 'uint64', 'uint8']),
+              type=click.Choice(['float32', 'float64', 'uint16', 'uint32', 'uint64', 'uint8']),
               default=None, help='transform data type.')
 @click.option('--voxel-offset', '-v', type=click.INT, nargs=3, default=None,
               callback=default_none, help='voxel offset of the dataset in hdf5 file.')

@@ -20,4 +20,5 @@ def test_synapses():
 
     syns.remove_synapses_without_post()
     assert syns.pre_num == 1
+    os.remove(temp_fname)
     

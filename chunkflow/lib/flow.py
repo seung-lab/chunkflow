@@ -19,6 +19,7 @@ CartesianParam = CartesianParamType()
 # global dict to hold the operators and parameters
 state = {'operators': {}}
 DEFAULT_CHUNK_NAME = 'chunk'
+DEFAULT_SYNAPSES_NAME = 'syns'
 
 
 def get_initial_task():

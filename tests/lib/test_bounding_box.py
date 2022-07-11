@@ -48,6 +48,12 @@ def test_cartesian():
     assert Cartesian(1,2,3).vec is not None
 
 def test_bounding_box():
+    bbox = BoundingBox.from_string('3166-3766_7531-8131_2440-3040')
+    bbox == BoundingBox(Cartesian(3166, 7531, 2440), Cartesian(3766, 8131, 3040))
+    
+    bbox = BoundingBox.from_string('Sp1,3166-3766_7531-8131_2440-3040.h5')
+    bbox == BoundingBox(Cartesian(3166, 7531, 2440), Cartesian(3766, 8131, 3040))
+
     bbox = Bbox.from_delta((1,3,2), (64, 32, 8))
     bbox = BoundingBox.from_bbox(bbox)
     assert bbox.start == Cartesian(1,3,2)

@@ -8,6 +8,7 @@ from math import ceil, floor
 from typing import Union
 from numbers import Number
 import itertools
+import re
 
 from copy import deepcopy
 
@@ -16,6 +17,8 @@ import h5py
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
+
+BOUNDING_BOX_RE = re.compile(r'(-?\d+)-(-?\d+)_(-?\d+)-(-?\d+)_(-?\d+)-(-?\d+)(?:\.gz|\.br|\.h5|\.json|\.npy|\.tif|\.csv|\.pkl|\.png|\.jpg)?$')
 
 def to_cartesian(x: Union[tuple, list]):
     if x is None:
@@ -186,7 +189,25 @@ class BoundingBox(Bbox):
     @classmethod
     def from_bbox(cls, bbox: Bbox):
         return cls(bbox.minpt, bbox.maxpt)
- 
+    
+    @classmethod
+    def from_string(cls, string: str):
+        # remove file extension
+        # if '.' in string:
+        #     string = os.path.split(string)[0]
+        # breakpoint()
+        # bbox = Bbox.from_filename(string)
+        match = BOUNDING_BOX_RE.search(string)
+        if match is None:
+            return None
+        else:
+            zstart, zstop, ystart, ystop, xstart, xstop = map(
+                int, match.groups()
+            )
+            start = Cartesian(zstart, ystart, xstart)
+            stop = Cartesian(zstop, ystop, xstop)
+            return cls(start, stop)
+
     @classmethod
     def from_delta(cls, 
             minpt: Union[list, tuple, Cartesian, np.ndarray], 
@@ -232,6 +253,10 @@ class BoundingBox(Bbox):
             # this will make the size to be odd
             maxpt += 1
         return cls(minpt, maxpt)
+
+    @property
+    def string(self):
+        return self.to_filename()
 
     @property
     def start(self):
