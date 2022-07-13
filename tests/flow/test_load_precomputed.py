@@ -8,10 +8,10 @@ from cloudfiles import CloudFiles
 
 from chunkflow.lib.bounding_boxes import BoundingBox
 
-from chunkflow.flow.read_precomputed import ReadPrecomputedOperator
+from chunkflow.flow.load_precomputed import ReadPrecomputedOperator
 
 
-class TestReadPrecomputed(unittest.TestCase):
+class TestLoadPrecomputed(unittest.TestCase):
     def setUp(self):
         print('test volume cutout...')
         # compute parameters

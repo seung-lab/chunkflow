@@ -192,11 +192,6 @@ class BoundingBox(Bbox):
     
     @classmethod
     def from_string(cls, string: str):
-        # remove file extension
-        # if '.' in string:
-        #     string = os.path.split(string)[0]
-        # breakpoint()
-        # bbox = Bbox.from_filename(string)
         match = BOUNDING_BOX_RE.search(string)
         if match is None:
             return None

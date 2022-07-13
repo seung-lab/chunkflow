@@ -110,7 +110,8 @@ def test_inference_pipeline():
                                         input_mask_mip,
                                         mip,
                                         inverse=False)
-    chunk = mask_input_operator(chunk)
+    chunks = mask_input_operator([chunk])
+    chunk = chunks[0]
 
     print('run convnet inference...')
     with Inferencer(None, None, patch_size,
@@ -132,11 +133,12 @@ def test_inference_pipeline():
                                         output_mask_mip,
                                         mip,
                                         inverse=False)
-    chunk = mask_output_operator(chunk)
+    chunks = mask_output_operator([chunk])
+    chunk = chunks[0]
     print('after masking: {}'.format(chunk.slices))
 
     print('save to output volume...')
-    save_operator = WritePrecomputedOperator(output_volume_path,
+    save_operator = SavePrecomputedOperator(output_volume_path,
                                     mip,
                                     upload_log=True,
                                     create_thumbnail=True)

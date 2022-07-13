@@ -16,14 +16,14 @@ from .base import OperatorBase
 #from .downsample_upload import DownsampleUploadOperator
 
 
-class WritePrecomputedOperator(OperatorBase):
+class SavePrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
                 intensity_threshold: int = None,
-                 name: str = 'write-precomputed'):
+                 name: str = 'save-precomputed'):
         super().__init__(name=name)
         
         self.upload_log = upload_log

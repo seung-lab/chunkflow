@@ -32,7 +32,7 @@ from chunkflow.chunk.image.convnet.inferencer import Inferencer
 # import operator functions
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
-from .read_precomputed import ReadPrecomputedOperator
+from .load_precomputed import ReadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
@@ -42,9 +42,9 @@ from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
 from .plugin import Plugin
-from .read_pngs import read_png_images
-from .write_precomputed import WritePrecomputedOperator
-from .write_pngs import WritePNGsOperator
+from .load_pngs import read_png_images
+from .save_precomputed import SavePrecomputedOperator
+from .save_pngs import SavePNGsOperator
 from .setup_env import setup_environment
 from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
@@ -313,7 +313,7 @@ def skip_none(tasks: dict, input_name: str, touch: bool, prefix: str, suffix: st
               help='Neuroglancer precomputed block compression algorithm.')
 @click.option('--voxel-size', '-v', type=click.INT, nargs=3, default=(40, 4, 4),
               help='voxel size or resolution of mip 0 image.')
-@click.option('--overwrite-info/--no-overwrite-info', default=False,
+@click.option('--oversave-info/--no-oversave-info', default=False,
               help='normally we should avoid overwriting info file to avoid errors.')
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, 
@@ -615,26 +615,34 @@ def create_chunk(tasks, size, dtype, pattern, voxel_offset, voxel_size, output_c
 
 
 @main.command('load-synapses')
-@click.option('--name', '-n', type=str, default='load-synapses', help='name of operator')
+@click.option('--name', '-n', type=str, default='load-synapses', 
+    help='name of operator')
 @click.option('--file-path', '-f',
     type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
-    required=True, help='files containing synapses. Currently support HDF5 and JSON.')
-@click.option('--path-suffix', '-s', type=str, default=None, help='file path suffix.')
+    required=True, 
+    help='files containing synapses. Currently support HDF5 and JSON.')
+@click.option('--path-suffix', '-s', type=str, default=None, 
+    help='file path suffix.')
 @click.option('--c-order/--f-order', default=True,
     help='C order or Fortran order in the file. XYZ is Fortran order, ZYX is C order.')
 @click.option('--resolution', '-r', type=click.INT, nargs=3, 
     default=None, callback=default_none, help='resolution of points.')
 @click.option('--remove-outside/--keep-all', default=False, 
     help='remove synapses outside of the bounding box or not.')
-@click.option('--output-name', '-o', type=str, default=DEFAULT_SYNAPSES_NAME, help='data name of the result.')
+@click.option('--set-bbox/--not-set-bbox', default=False)
+@click.option('--output-name', '-o', type=str, default=DEFAULT_SYNAPSES_NAME,
+    help='data name of the result.')
 @operator
-def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: bool, 
-        resolution: tuple, remove_outside: bool, output_name: str):
+def load_synapses(tasks, name: str, file_path: str, path_suffix: str, 
+        c_order: bool, resolution: tuple, remove_outside: bool, 
+        set_bbox: bool, output_name: str):
     """Load synapses formated as JSON or HDF5."""
     for task in tasks:
         if task is not None:
             start = time()
-            if os.path.isfile(file_path) and (file_path.endswith('.h5') or file_path.endswith('.json')):
+            if os.path.isfile(file_path) and \
+                    (file_path.endswith('.h5') or \
+                    file_path.endswith('.json')):
                 fname = file_path
             elif os.path.isdir(file_path):
                 bbox = task['bbox']
@@ -646,6 +654,11 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str, c_order: b
             else:
                 fname = file_path
             assert os.path.isfile(fname), f'can not find file: {fname}'
+
+            if set_bbox:
+                bbox = BoundingBox.from_string(fname)
+                assert bbox is not None
+                task['bbox'] = bbox
 
             if os.path.getsize(fname) == 0:
                 task[output_name] = None
@@ -685,8 +698,8 @@ def save_synapses(tasks, input_name: str, file_path: str):
             syns.to_h5(file_path)
         yield task
 
-@main.command('read-npy')
-@click.option('--name', '-n', type=str, default='read-npy', help='name of operator')
+@main.command('load-npy')
+@click.option('--name', '-n', type=str, default='load-npy', help='name of operator')
 @click.option('--file-path', '-f', 
     type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
     required=True, help='NPY file path')
@@ -715,8 +728,8 @@ def read_npy(tasks, name: str, file_path: str, resolution: tuple, output_name: s
             task['log']['timer'][name] = time() - start
         yield task
 
-@main.command('read-json')
-@click.option('--name', '-n', type=str, default='read-json', help='name of operator.')
+@main.command('load-json')
+@click.option('--name', '-n', type=str, default='load-json', help='name of operator.')
 @click.option('--file-path', '-f', 
     type=click.Path(file_okay=True, dir_okay=True, resolve_path=True), 
     required=True, help='JSON file name')
@@ -740,8 +753,8 @@ def read_json(tasks, name: str, file_path: str, output_name: str):
         yield task
 
 
-@main.command('read-nrrd')
-@click.option('--name', type=str, default='read-nrrd',
+@main.command('load-nrrd')
+@click.option('--name', type=str, default='load-nrrd',
               help='read nrrd file from local disk.')
 @click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
@@ -771,8 +784,8 @@ def read_nrrd(tasks, name: str, file_name: str, voxel_offset: tuple,
         yield task
 
 
-@main.command('write-nrrd')
-@click.option('--name', type=str, default='write-nrrd', help='name of operator')
+@main.command('save-nrrd')
+@click.option('--name', type=str, default='save-nrrd', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--file-name', '-f', default=None,
@@ -780,14 +793,14 @@ def read_nrrd(tasks, name: str, file_name: str, voxel_offset: tuple,
     help='file name of NRRD file.')
 @operator
 def write_tif(tasks, name, input_chunk_name, file_name):
-    """Write chunk as a NRRD file."""
+    """Save chunk as a NRRD file."""
     for task in tasks:
         if task is not None:
             task[input_chunk_name].to_nrrd(file_name)
         yield task
 
 
-@main.command('read-pngs')
+@main.command('load-pngs')
 @click.option('--path-prefix', '-p',
               required=True, type=str,
               help='directory path prefix of png files.')
@@ -808,7 +821,7 @@ def write_tif(tasks, name, input_chunk_name, file_name):
               type=click.INT, nargs=3, default=None, callback=default_none,
               help='cutout chunk size')
 @operator
-def read_pngs(tasks: dict, path_prefix: str, 
+def load_pngs(tasks: dict, path_prefix: str, 
                 output_chunk_name: str, cutout_offset: tuple,
                 volume_offset: tuple, voxel_size: tuple, 
                 digit_num: int, chunk_size: tuple):
@@ -829,8 +842,8 @@ def read_pngs(tasks: dict, path_prefix: str,
         yield task
 
 
-@main.command('read-tif')
-@click.option('--name', type=str, default='read-tif',
+@main.command('load-tif')
+@click.option('--name', type=str, default='load-tif',
               help='read tif file from local disk.')
 @click.option('--file-name', '-f', required=True,
               type=click.Path(exists=True, dir_okay=False),
@@ -860,7 +873,7 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
         yield task
 
 
-@main.command('write-tif')
+@main.command('save-tif')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--file-name', '-f', default=None,
@@ -874,7 +887,7 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
 )
 @operator
 def write_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compression: str):
-    """Write chunk as a TIF file."""
+    """Save chunk as a TIF file."""
     for task in tasks:
         if task is not None:
             chunk = task[input_chunk_name]
@@ -883,8 +896,8 @@ def write_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compress
         yield task
 
 
-@main.command('read-h5')
-@click.option('--name', type=str, default='read-h5',
+@main.command('load-h5')
+@click.option('--name', type=str, default='load-h5',
               help='read file from local disk.')
 @click.option('--file-name', '-f', type=str, required=True,
               help='read chunk from file, support .h5')
@@ -954,7 +967,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
         yield task
 
 
-@main.command('write-h5')
+@main.command('save-h5')
 @click.option('--input-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--file-name', '-f',
@@ -976,7 +989,7 @@ help = 'create an empty file if the input is None.'
 )
 @operator
 def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset, voxel_size, touch):
-    """Write chunk to HDF5 file."""
+    """Save chunk to HDF5 file."""
     for task in tasks:
         if task is not None:
             data = task[input_name]
@@ -1002,8 +1015,8 @@ def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset,
         yield task
 
 
-@main.command('write-pngs')
-@click.option('--name', type=str, default='write-pngs', help='name of operator')
+@main.command('save-pngs')
+@click.option('--name', type=str, default='save-pngs', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--dtype', '-t', type=click.Choice(['uint8', 'uint16']), 
@@ -1011,9 +1024,9 @@ def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset,
 @click.option('--output-path', '-o',
               type=str, default='./pngs/', help='output path of saved 2d images formated as png.')
 @operator
-def write_pngs(tasks, name, input_chunk_name, dtype, output_path):
+def save_pngs(tasks, name, input_chunk_name, dtype, output_path):
     """Save as 2D PNG images."""
-    operator = WritePNGsOperator(
+    operator = SavePNGsOperator(
         output_path=output_path, 
         dtype=dtype)
 
@@ -1077,9 +1090,9 @@ def delete_var(tasks, var_names: str):
         yield task
  
 
-@main.command('read-precomputed')
+@main.command('load-precomputed')
 @click.option('--name',
-              type=str, default='read-precomputed', help='name of this operator')
+              type=str, default='load-precomputed', help='name of this operator')
 @click.option('--volume-path', '-v',
               type=str, required=True, help='volume path')
 @click.option('--mip', '-m',
@@ -1115,7 +1128,7 @@ def delete_var(tasks, var_names: str):
     ' sometimes you may need to have a secondary volume to work on.'
 )
 @operator
-def read_precomputed(tasks, name: str, volume_path: str, mip: int,
+def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         chunk_start: tuple, chunk_size: tuple,
         expand_margin_size: tuple, expand_direction: str,
         fill_missing: bool, validate_mip: int, blackout_sections: bool,
@@ -1854,8 +1867,8 @@ def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
             task[output_chunk_name] = quantized_image
         yield task
 
-@main.command('write-precomputed')
-@click.option('--name', type=str, default='write-precomputed', help='name of this operator')
+@main.command('save-precomputed')
+@click.option('--name', type=str, default='save-precomputed', help='name of this operator')
 @click.option('--volume-path', '-v', type=str, required=True, help='volume path')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
@@ -1871,14 +1884,14 @@ def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
     help='do not save anything if all voxel intensity is below threshold.'
 )
 @operator
-def write_precomputed(tasks, name: str, volume_path: str, 
+def save_precomputed(tasks, name: str, volume_path: str, 
         input_chunk_name: str, mip: int, upload_log: bool, 
         create_thumbnail: bool, intensity_threshold: float):
     """Save chunk to volume."""
     if mip is None:
         mip = state['mip']
 
-    operator = WritePrecomputedOperator(
+    operator = SavePrecomputedOperator(
         volume_path,
         mip,
         upload_log=upload_log,

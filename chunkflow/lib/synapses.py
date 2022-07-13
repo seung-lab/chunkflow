@@ -81,16 +81,16 @@ class Synapses():
 
         
     @classmethod
-    def from_dict(cls, dc: dict):
+    def from_dict(cls, synapses: dict):
         """Synapses as a dictionary
 
         Args:
             synapses (dict): the whole synapses in a dictionary
         """
-        order = dc['order']
-        resolution = dc['resolution']
-        del dc['order']
-        del dc['resolution']
+        order = synapses['order']
+        resolution = synapses['resolution']
+        del synapses['order']
+        del synapses['resolution']
 
         pre_num = len(synapses)
         pre = np.zeros((pre_num, 3), dtype=np.int32)
@@ -393,7 +393,10 @@ class Synapses():
     
     @property
     def post_num(self) -> int:
-        return self.post.shape[0]
+        if self.post is None:
+            return None
+        else:
+            return self.post.shape[0]
 
     @property
     def pre_bounding_box(self) -> BoundingBox:

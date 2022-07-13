@@ -10,7 +10,7 @@ import pyspng
 from chunkflow.chunk import Chunk
 
 
-class WritePNGsOperator(OperatorBase):
+class SavePNGsOperator(OperatorBase):
     def __init__(self,
                  output_path: str = './pngs/',
                  dtype: str = 'uint8',

@@ -35,46 +35,52 @@ class MaskOperator(OperatorBase):
         """ Make part of chunk to be black according to a mask chunk.
         Note that the operation is inplace and the data in the input chunk is changed.
         """
-        for chunk in chunks:
-            assert isinstance(chunk, Chunk)
-            assert chunk.voxel_offset == chunks[0].voxel_offset
+        if isinstance(chunks, Chunk):
+            chunks = [chunks]
+        elif len(chunks)>1: 
+            for chunk in chunks:
+                assert isinstance(chunk, Chunk)
+                assert chunk.voxel_offset == chunks[0].voxel_offset
+                assert chunk.voxel_size == chunks[0].voxel_size
+        
+        assert isinstance(chunks, list)
+        assert len(chunks)>0
+
+        voxel_size = chunks[0].voxel_size
 
         mask_voxel_size = Cartesian.from_collection(
             self.mask_vol.resolution[::-1]
         )
-        factor = mask_voxel_size // chunk.voxel_size
+        factor = mask_voxel_size // voxel_size
         # factor = tuple(m//c for m, c in zip(self.mask_vol.resolution[::-1], chunk.voxel_size))
-        for m, c in zip(mask_voxel_size, chunk.voxel_size): 
+        for m, c in zip(mask_voxel_size, voxel_size): 
             assert m >= c
             assert m % c == 0
 
-        if np.alltrue(chunk == 0):
-            logging.warning("chunk is all black, return directly")
-            return chunk
-
-        mask_in_high_mip = self._read_mask_in_high_mip(chunk.bbox, factor)
+        mask_in_high_mip = self._read_mask_in_high_mip(chunks[0].bbox, factor)
 
         if np.alltrue(mask_in_high_mip == 0):
             logging.warning('the mask is all black, mask all the voxels directly')
-            np.multiply(chunk, 0, out=chunk)
-            return chunk
+            for chunk in chunks:
+                np.multiply(chunk, 0, out=chunk)
+            return chunks
         if np.all(mask_in_high_mip):
             logging.warning("mask elements are all positive, return directly")
-            return chunk
+            return chunks
 
         assert np.any(mask_in_high_mip)
 
-        # make it the same type with input
-        mask_in_high_mip = mask_in_high_mip.astype(chunk.dtype)
         
         for chunk in chunks:
+            # make it the same type with input
+            mask_in_high_mip = mask_in_high_mip.astype(chunk.dtype)
             for offset in np.ndindex(factor):
                 chunk.array[..., 
                             np.s_[offset[0]::factor[0]], 
                             np.s_[offset[1]::factor[1]],
                             np.s_[offset[2]::factor[2]]] *= mask_in_high_mip
         
-        return
+        return chunks
 
 
     def _read_mask_in_high_mip(self, chunk_bbox, factor):

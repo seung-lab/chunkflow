@@ -32,7 +32,7 @@ Perform Convolutional net inference to segment 3D image volume with one single c
 #!/bin/bash
 
 chunkflow \
-    read-tif --file-name path/of/image.tif -o image \
+    load-tif --file-name path/of/image.tif -o image \
     inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt \
         --input-patch-size 20 256 256 --output-patch-overlap 4 64 64 --num-output-channels 3 \
         -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs \
@@ -81,13 +81,13 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | normalize-section-shang | Normalization algorithm created by Shang |
 | plugin          | Import local code as a customized operator. |
 | quantize        | Quantize the affinity map |
-| read-h5         | Read HDF5 files |
-| read-npy        | Read NPY files |
-| read-json       | Read JSON files |
-| read-pngs       | Read png files |
-| read-precomputed| Cutout chunk from a local/cloud storage volume |
-| read-tif        | Read TIFF files |
-| read-nrrd       | Read NRRD files |
+| load-h5         | Read HDF5 files |
+| load-npy        | Read NPY files |
+| load-json       | Read JSON files |
+| load-pngs       | Read png files |
+| load-precomputed| Cutout chunk from a local/cloud storage volume |
+| load-tif        | Read TIFF files |
+| load-nrrd       | Read NRRD files |
 | remap-segmentation | Renumber a serials of segmentation chunks |
 | setup-env       | Prepare storage infor files and produce tasks |
 | skeletonize     | Create centerlines of objects in a segmentation chunk |
@@ -96,11 +96,11 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | skip-none       | If an item in task is None, skip this task |	
 | threshold       | Use a threshold to segment the probability map |
 | view            | Another chunk viewer in browser using CloudVolume |
-| write-h5        | Write chunk as HDF5 file |
-| write-pngs      | Save chunk as a serials of png files |
-| write-precomputed| Save chunk to local/cloud storage volume |
-| write-tif       | Write chunk as TIFF file |
-| write-nrrd      | Write chunk as NRRD file |
+| save-h5        | Save chunk as HDF5 file |
+| save-pngs      | Save chunk as a serials of png files |
+| save-precomputed| Save chunk to local/cloud storage volume |
+| save-tif       | Save chunk as TIFF file |
+| save-nrrd      | Save chunk as NRRD file |
 
 
 

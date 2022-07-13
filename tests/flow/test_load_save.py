@@ -6,10 +6,10 @@ import shutil
 from chunkflow.chunk import Chunk
 from chunkflow.lib.bounding_boxes import Cartesian
 
-from chunkflow.flow.write_pngs import WritePNGsOperator
+from chunkflow.flow.save_pngs import SavePNGsOperator
 
 
-def read_write_h5(chunk):
+def load_save_h5(chunk):
     assert isinstance(chunk, Chunk)
     file_name = 'test.h5'
     if os.path.exists(file_name):
@@ -23,7 +23,7 @@ def read_write_h5(chunk):
     os.remove(file_name)
 
 
-def read_write_tif(chunk):
+def load_save_tif(chunk):
     """We'll lost global offset information using tif format!"""
     assert isinstance(chunk, Chunk)
     file_name = 'test.tif'
@@ -42,25 +42,25 @@ def read_write_tif(chunk):
 def save_pngs(chunk):
     # test save images
     output_path = '/tmp/test/'
-    save_pngs_operator = WritePNGsOperator(output_path)
+    save_pngs_operator = SavePNGsOperator(output_path)
     save_pngs_operator(chunk)
     print('remove the temporary directory.')
     shutil.rmtree(output_path)
 
 
-class TestReadWrite(unittest.TestCase):
-    def test_read_write_image(self):
+class TestReadSave(unittest.TestCase):
+    def test_load_save_image(self):
         print('test image io...')
         arr = np.random.randint(0, 256, size=(8, 16, 16), dtype=np.uint8)
         chunk = Chunk(arr, voxel_offset=Cartesian(1, 2, 3))
-        read_write_h5(chunk)
-        read_write_tif(chunk)
+        load_save_h5(chunk)
+        load_save_tif(chunk)
 
-    def test_read_write_aff(self):
+    def test_load_save_aff(self):
         print('test affinitymap io...')
         arr = np.random.rand(3, 8, 16, 16).astype(np.float32)
         chunk = Chunk(arr, voxel_offset=Cartesian(1, 2, 3))
-        read_write_h5(chunk)
+        load_save_h5(chunk)
 
 
 if __name__ == '__main__':
