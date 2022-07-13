@@ -48,6 +48,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 
 | Operator Name   | Function |
 | --------------- | -------- |
+| adjust-bbox 	  | adjust the corner offset of bounding box |
 | aggregate-skeleton-fragments| Merge skeleton fragments from chunks |
 | channel-voting  | Vote across channels of semantic map |
 | cleanup         | remove empty files to clean up storage |

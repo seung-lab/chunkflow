@@ -148,6 +148,21 @@ def generate_tasks(
             yield task
 
 
+@main.command('adjust-bbox')
+@click.option('--corner-offset', '-c', type=click.INT, nargs=6, default=None,
+    help='adjust bounding box corner offset')
+@operator
+def adjust_bbox(tasks, corner_offset: tuple):
+    """adjust the corner of bounding box."""
+    for task in tasks:
+        if task is not None:
+            bbox = task['bbox']
+            bbox.adjust_corner(corner_offset)
+            logging.info(f'after bounding box adjustment: {bbox.string}')
+            task['bbox'] = bbox
+        yield task
+
+
 @main.command('skip-task')
 @click.option('--prefix', '-p', required=True, type=str,
     help='the pre part of result file path')
@@ -313,7 +328,7 @@ def skip_none(tasks: dict, input_name: str, touch: bool, prefix: str, suffix: st
               help='Neuroglancer precomputed block compression algorithm.')
 @click.option('--voxel-size', '-v', type=click.INT, nargs=3, default=(40, 4, 4),
               help='voxel size or resolution of mip 0 image.')
-@click.option('--oversave-info/--no-oversave-info', default=False,
+@click.option('--overwrite-info/--no-overwrite-info', default=False,
               help='normally we should avoid overwriting info file to avoid errors.')
 @generator
 def setup_env(volume_start, volume_stop, volume_size, layer_path, 

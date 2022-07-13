@@ -26,7 +26,6 @@ class SavePNGsOperator(OperatorBase):
 
     def __call__(self, chunk: Chunk):
         assert isinstance(chunk, Chunk)
-        breakpoint()
         if not np.issubdtype(chunk.dtype, self.dtype):
             chunk = chunk.astype(self.dtype)
 
