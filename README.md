@@ -12,16 +12,16 @@
 
 ## Problem 
 - Petabyte scale 3D image processing is slow and computationally demanding;
-- Computation have to be distributed with linear scalability;
+- Computation has to be distributed with linear scalability;
 - Local cluster and public cloud computing are not fully used at the same time;
-- Duplicated code across a variaty of routine tasks is hard to maintain.
+- Duplicated code across a variety of routine tasks is hard to maintain.
 
 ## Features
-- **Composable** operators. The chunk operators could be composed in commandline for flexible usage.
-- **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The backend could be any computer with internet connection and cloud authentication. Benefit from the robust design, the cheap unstable instances (preemptable intance in Google Cloud, spot instance in AWS) could be used to reduce cost by about three fold!
-- **Petabyte** scale. We have used chunkflow to output over eighteen petabyte images and scaled up to 3600 nodes with NVIDIA GPUs across three regions in [Google Cloud](https://cloud.google.com/), and chunkflow is still reliable.
+- **Composable** operators. The chunk operators could be composed in a command line for flexible usage.
+- **Hybrid Cloud Distributed** computation in both local and cloud computers. The task scheduling frontend and computationally heavy backend are decoupled using AWS Simple Queue Service. The backend could be any computer with an internet connection and cloud authentication. Benefit from the robust design, the cheap unstable instances (preemptable intance in Google Cloud, spot instance in AWS) could be used to reduce cost by about threefold!
+- **Petabyte** scale. We have used chunkflow to output over eighteen-petabyte images and scaled up to 3600 nodes with NVIDIA GPUs across three regions in [Google Cloud](https://cloud.google.com/), and chunkflow is still reliable.
 - Operators work with **3D** image volumes.
-- You can **plugin** your own code as an operator.
+- You can **plug in** your own code as an operator.
 
 Check out the [Documentation](https://pychunkflow.readthedocs.io/en/latest/index.html) for [installation](https://pychunkflow.readthedocs.io/en/latest/install.html) and [usage](https://pychunkflow.readthedocs.io/en/latest/tutorial.html). Try it out by following the [tutorial](https://pychunkflow.readthedocs.io/en/latest/tutorial.html). 
 
