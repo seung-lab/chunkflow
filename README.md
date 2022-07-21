@@ -103,7 +103,8 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | save-tif       | Save chunk as TIFF file |
 | save-nrrd      | Save chunk as NRRD file |
 
-
+## Affiliation
+This package is developed at Princeton University and Flatiron Institute.
 
 ## Reference
 We have a [paper](https://www.nature.com/articles/s41592-021-01088-5) for this repo: 
