@@ -22,7 +22,7 @@ with open("README.md", "r") as fh:
 
 VERSIONFILE = os.path.join(PACKAGE_DIR, "chunkflow/__version__.py")
 verstrline = open(VERSIONFILE, "rt").read()
-VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+VSRE = r"^version = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)
 if mo:
     version = mo.group(1)

@@ -66,8 +66,10 @@ from .view import ViewOperator
               type=click.INT, nargs=3, default=None, callback=default_none,
               help='size of region of interest')
 @click.option('--chunk-size', '-c',
-              type=click.INT, required=True, nargs=3,
+              type=click.INT, default=None, nargs=3,
               help='(z y x), size/shape of chunks')
+@click.option('--bounding-box', '-b', type=str, default=None,
+    help='the string representation of a bounding box')
 @click.option('--grid-size', '-g',
               type=click.INT, default=None, nargs=3, callback=default_none,
               help='(z y x), grid size of output blocks')
@@ -90,23 +92,30 @@ make the chunk size consistent or cut off at the stopping boundary.""")
               default=False, help='use disBatch environment variable or not')
 @generator
 def generate_tasks(
-        layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple,roi_size, chunk_size, 
-        grid_size: tuple, file_path: str, queue_name: str, respect_chunk_size: bool,
-        aligned_block_size: tuple, task_index_start: tuple, 
-        task_index_stop: tuple, disbatch: bool ):
+        layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple, 
+        roi_size: tuple, chunk_size: tuple, bounding_box:str,
+        grid_size: tuple, file_path: str, queue_name: str, 
+        respect_chunk_size: bool, aligned_block_size: tuple, 
+        task_index_start: tuple, task_index_stop: tuple, disbatch: bool ):
     """Generate a batch of tasks."""
     if mip is None:
         mip = state['mip']
     assert mip >=0 
 
-    """Generate tasks."""
-    bboxes = BoundingBoxes.from_manual_setup(
-        chunk_size, layer_path=layer_path,
-        roi_start=roi_start, roi_stop=roi_stop, 
-        roi_size=roi_size, mip=mip, grid_size=grid_size,
-        respect_chunk_size=respect_chunk_size,
-        aligned_block_size=aligned_block_size
-    )
+    if bounding_box is not None:
+        bboxes = [BoundingBox.from_string(bounding_box)]
+        if chunk_size is None:
+            chunk_size = bboxes[0].shape
+        else:
+            assert chunk_size == bboxes[0].shape
+    else:
+        bboxes = BoundingBoxes.from_manual_setup(
+            chunk_size, layer_path=layer_path,
+            roi_start=roi_start, roi_stop=roi_stop, 
+            roi_size=roi_size, mip=mip, grid_size=grid_size,
+            respect_chunk_size=respect_chunk_size,
+            aligned_block_size=aligned_block_size
+        )
     
     if task_index_start:
         if task_index_stop is None:

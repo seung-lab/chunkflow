@@ -284,7 +284,7 @@ class Chunk(NDArrayOperatorsMixin):
                     voxel_size = Cartesian(*f['voxel_size'])
                 else:
                     voxel_size = Cartesian(1, 1, 1)
-
+            
             if cutout_start is None:
                 cutout_start = voxel_offset
             if cutout_size is None:
@@ -294,7 +294,7 @@ class Chunk(NDArrayOperatorsMixin):
 
             for c, v in zip(cutout_start, voxel_offset):
                 assert c >= v, "can only cutout after the global voxel offset."
-
+            
             assert len(cutout_start) == 3
             assert len(cutout_stop) == 3
             dset = dset[...,
@@ -538,14 +538,13 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             voxel_size = self.voxel_size
         return Chunk(new_array, voxel_offset=voxel_offset, voxel_size=voxel_size)
 
-
     def fill(self, x):
         self.array.fill(x)
 
-    def squeeze_channel(self) -> np.ndarray:
+    def squeeze_channel(self, axis: int = 0) -> np.ndarray:
         """given a 4D array, squeeze the channel axis."""
         assert self.array.ndim == 4
-        new_array = np.squeeze(self, axis=0)
+        new_array = np.squeeze(self, axis=axis)
         return Chunk(new_array, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
     # @profile(precision=0)
