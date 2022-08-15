@@ -21,7 +21,7 @@ from cloudvolume.lib import Vec
 from cloudfiles import CloudFiles
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
-from chunkflow.lib.bounding_boxes import Cartesian, BoundingBox, BoundingBoxes
+from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox, BoundingBoxes
 from chunkflow.lib.synapses import Synapses
 
 from chunkflow.chunk import Chunk

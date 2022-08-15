@@ -4,7 +4,7 @@ from typing import Union
 
 import numpy as np
 
-from .bounding_boxes import Cartesian, BoundingBox
+from .cartesian_coordinate import Cartesian, BoundingBox
 
 
 class RegionOfInterest(BoundingBox):

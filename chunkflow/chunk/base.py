@@ -16,7 +16,7 @@ import tifffile
 import cc3d
 from cloudvolume.lib import yellow, Bbox
 
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 
 # from typing import Tuple
 # Offset = Tuple[int, int, int]

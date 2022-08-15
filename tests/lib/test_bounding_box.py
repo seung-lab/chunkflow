@@ -4,7 +4,7 @@ import numpy as np
 
 from cloudvolume.lib import Bbox, Vec
 
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian, to_cartesian, BoundingBoxes
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, to_cartesian, BoundingBoxes
 
 
 def test_cartesian():

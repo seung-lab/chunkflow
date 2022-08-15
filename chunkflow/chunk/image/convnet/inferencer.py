@@ -11,7 +11,7 @@ from typing import Union
 import numpy as np
 from tqdm import tqdm
 
-from chunkflow.lib.bounding_boxes import Cartesian, to_cartesian
+from chunkflow.lib.cartesian_coordinate import Cartesian, to_cartesian
 
 from .patch.base import PatchInferencerBase
 from chunkflow.chunk import Chunk

@@ -1,8 +1,8 @@
-from chunkflow.lib.bounding_boxes import BoundingBox
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 import numpy as np
 import unittest
 
-from chunkflow.lib.bounding_boxes import BoundingBox
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 from chunkflow.chunk import Chunk
 
 

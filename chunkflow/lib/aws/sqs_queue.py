@@ -5,7 +5,7 @@ from time import sleep
 from cloudvolume.secrets import aws_credentials
 from tqdm import tqdm
 
-from chunkflow.lib.bounding_boxes import BoundingBox
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 
 class SQSQueue(object):
     """upload/fetch messages using AWS Simple Queue Services."""

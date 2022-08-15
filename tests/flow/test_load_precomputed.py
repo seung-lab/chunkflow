@@ -6,7 +6,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import generate_random_string
 from cloudfiles import CloudFiles
 
-from chunkflow.lib.bounding_boxes import BoundingBox
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 
 from chunkflow.flow.load_precomputed import ReadPrecomputedOperator
 

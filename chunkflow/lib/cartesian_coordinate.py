@@ -211,8 +211,8 @@ class BoundingBox(Bbox):
         return cls.from_bbox(bbox)
 
     @classmethod
-    def from_list(cls, x: list):
-        bbox = Bbox.from_list(x)
+    def from_list(cls, lst: list):
+        bbox = Bbox.from_list(lst)
         return cls.from_bbox(bbox)
 
     @classmethod

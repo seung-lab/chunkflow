@@ -6,7 +6,7 @@ from cloudvolume import CloudVolume
 #from cloudvolume.volumecutout import VolumeCutout
 from cloudvolume.lib import generate_random_string
 
-from chunkflow.lib.bounding_boxes import BoundingBox
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from chunkflow.flow.flow import *
 

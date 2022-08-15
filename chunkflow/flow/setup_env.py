@@ -10,7 +10,7 @@ from cloudvolume.lib import Vec, yellow
 from cloudvolume import CloudVolume
 from cloudfiles import CloudFiles
 
-from chunkflow.lib.bounding_boxes import BoundingBoxes
+from chunkflow.lib.cartesian_coordinate import BoundingBoxes
 
 
 def tuple2string(tp: tuple):

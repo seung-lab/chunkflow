@@ -4,7 +4,7 @@ import numpy as np
 from cloudvolume import CloudVolume
 from cloudfiles import CloudFiles
 
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 from chunkflow.chunk.validate import validate_by_template_matching
 from tinybrain import downsample_with_averaging
 from chunkflow.chunk import Chunk

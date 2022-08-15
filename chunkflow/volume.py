@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 
 from cloudvolume import CloudVolume
-from .lib.bounding_boxes import BoundingBox, Cartesian
+from .lib.cartesian_coordinate import BoundingBox, Cartesian
 from .chunk import Chunk
 
 

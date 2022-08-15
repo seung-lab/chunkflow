@@ -13,7 +13,7 @@ from scipy.spatial import KDTree
 
 import chunkflow
 from chunkflow.chunk import Chunk
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 
 
 class Synapses():

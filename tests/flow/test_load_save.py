@@ -4,7 +4,7 @@ import os
 import shutil
 
 from chunkflow.chunk import Chunk
-from chunkflow.lib.bounding_boxes import Cartesian
+from chunkflow.lib.cartesian_coordinate import Cartesian
 
 from chunkflow.flow.save_pngs import SavePNGsOperator
 

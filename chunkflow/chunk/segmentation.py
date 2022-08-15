@@ -11,7 +11,7 @@ from .base import Chunk
 
 # from ...lib.gala import evaluate
 from chunkflow.lib.gala import evaluate
-from chunkflow.lib.bounding_boxes import Cartesian
+from chunkflow.lib.cartesian_coordinate import Cartesian
 
 import kimimaro
 import fastremap

@@ -8,7 +8,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, yellow
 from cloudfiles import CloudFiles
 
-from chunkflow.lib.bounding_boxes import BoundingBox
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 from chunkflow.lib.igneous.tasks import downsample_and_upload
 from chunkflow.chunk import Chunk
 

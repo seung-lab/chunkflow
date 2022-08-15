@@ -3,7 +3,7 @@ import shutil
 import numpy as np
 
 from cloudvolume.lib import generate_random_string
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 from chunkflow.volume import Volume
 
 
@@ -29,7 +29,7 @@ def test_volume():
     shape = (28, 320, 320)
     bbox = BoundingBox.from_delta(offset, shape)
     chunk = vol.cutout(bbox)
-    chunk = chunk.squeeze_channel()
+    # chunk = chunk.squeeze_channel()
 
     assert offset == chunk.voxel_offset
     np.testing.assert_array_equal(chunk, img[4:-4, 64:-64, 64:-64])
