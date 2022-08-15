@@ -110,10 +110,6 @@ class Inferencer(object):
             # since the overlap region is reweighted by patch mask
             assert self.output_crop_margin >= self.output_patch_overlap
 
-        # if self.input_patch_size != self.output_patch_size:
-        #     breakpoint()
-        # self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
-            # input_patch_size, output_patch_size))
         self.output_patch_crop_margin = (input_patch_size - output_patch_size) // 2
         
         #self.output_offset = tuple(opcm+ocm for opcm, ocm in zip(

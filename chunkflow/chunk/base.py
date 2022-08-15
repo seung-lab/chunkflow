@@ -226,7 +226,6 @@ class Chunk(NDArrayOperatorsMixin):
         elif self.ndim == 4:
             axes = 'CZYX'
         metadata = {'spacing': 1, 'unit': 'nm', 'axes': axes}
-        # breakpoint()
         tifffile.imwrite(
             file_name, data=img, 
             volumetric = True,

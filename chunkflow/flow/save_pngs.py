@@ -6,6 +6,7 @@ import numpy as np
 
 from tqdm import tqdm
 import pyspng
+from PIL import Image
 
 from chunkflow.chunk import Chunk
 
@@ -41,5 +42,15 @@ class SavePNGsOperator(OperatorBase):
             img = chunk.cutout((slice(z,z+1), chunk.slices[1], chunk.slices[2]))
             img = img.array[0,:,:]
             filename = os.path.join(self.output_path, f"{z:05d}.png")
-            with open(filename, "wb") as f:
-                f.write(pyspng.encode(img))
+            if np.issubdtype(img.dtype, np.uint16):
+                # pyspng do not support 16 bit image well.
+                img = Image.fromarray(img)
+                img.save(filename)
+            else:
+                binary = pyspng.encode(
+                    img,
+                    progressive=pyspng.ProgressiveMode.PROGRESSIVE,
+                    compress_level=6,
+                )
+                with open(filename, "wb") as fout:
+                    fout.write(binary)

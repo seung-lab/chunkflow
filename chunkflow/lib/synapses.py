@@ -169,9 +169,6 @@ class Synapses():
                 # map from xyz to zyx
                 pos = syn['Pos'][::-1]
                 pos = Cartesian(*pos)
-                # if 'To' not in syn['Prop']:
-                    # print(syn)
-                    # breakpoint()
                 if len(syn['Rels'])>0:
                     pre_pos = syn['Rels'][0]['To'][::-1]
                     pre_pos = Cartesian(*pre_pos)
@@ -190,7 +187,6 @@ class Synapses():
         for idx, pos in enumerate(pre_list):
             pre_pos2idx[pos] = idx
         assert len(pre_pos2idx) == len(pre_list)
-        # breakpoint()
         
         post_to_pre_indices = []
         for _, pre_pos in post_list:
@@ -599,7 +595,6 @@ class Synapses():
         for idx, item in enumerate(self.users):
             if user == item:
                 return idx 
-        breakpoint()
         return None
 
     def post_indices_from_user(self, user: str) -> set:
@@ -712,4 +707,3 @@ if __name__ == '__main__':
         )
     )
     assert len(synapses.pre_index2post_indices[0]) > 1
-    breakpoint()

@@ -10,7 +10,6 @@ class CartesianParamType(click.ParamType):
     name = 'Cartesian'
     
     def convert(self, value: Union[list, tuple], param, ctx):
-        breakpoint()
         assert len(value) == 3
         return Cartesian.from_collection(value)        
 

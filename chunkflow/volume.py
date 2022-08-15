@@ -22,23 +22,31 @@ class Volume:
         return self.vol.dtype
 
     @classmethod
+    def from_cloudvolume_path(cls, path: str, *arg, **kwargs):
+        vol = CloudVolume(path, *arg, **kwargs)
+        return cls(vol)
+
+    @classmethod
     def from_numpy(cls, arr: np.ndarray, vol_path: str):
         vol = CloudVolume.from_numpy(np.transpose(arr), vol_path=vol_path)
         return cls(vol)
 
     def cutout(self, key: Union[BoundingBox, list]):
         if isinstance(key, BoundingBox):
-            chunk = self.vol[ key.to_slices()[::-1] ]
+            arr = self.vol[ key.to_slices()[::-1] ]
             voxel_offset = key.start
         elif isinstance(key, list):
-            chunk = self.vol[key[::-1]]
+            arr = self.vol[key[::-1]]
             voxel_offset = Cartesian(key[0].start, key[1].start, key[2].start)
         else:
             raise ValueError('we only support BoundingBox or a list of slices')
 
         # transpose
-        chunk = np.transpose(chunk)
-        chunk = Chunk(np.asarray(chunk), voxel_offset=voxel_offset) 
+        arr = np.transpose(arr)
+        arr = np.asarray(arr)
+        if arr.ndim == 4 and arr.shape[0] == 1:
+            arr = np.squeeze(arr, axis=0)
+        chunk = Chunk(arr, voxel_offset=voxel_offset) 
         return chunk
 
     def _auto_convert_dtype(self, chunk: Chunk):

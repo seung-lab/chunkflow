@@ -1598,11 +1598,34 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
             yield task
 
 
+@main.command('multiply')
+@click.option('--input-names', '-i', type=str, default=DEFAULT_CHUNK_NAME)
+@click.option('--output-names', '-o', type=str, default=None)
+@click.option('--multiplier-name', '-m', type=str, required=True,
+    help='multiplier chunk name.')
+@operator
+def multiply(tasks, input_names: str, output_names: str, multiplier_name: str):
+    """Multiply chunks with another chunk"""
+    if output_names is None:
+        output_names = input_names
+
+    for task in tasks:
+        if task is not None:
+            input_names = input_names.split(',')
+            output_names = output_names.split(',')
+            assert len(input_names)==len(output_names), \
+                'the number of input and output chunks should be the same'
+            for input_name, output_name in zip(input_names, output_names):
+                task[output_name] = task[input_name] * task[multiplier_name]
+        
+        yield task
+
+
 @main.command('mask')
 @click.option('--name', type=str, default='mask', help='name of this operator')
-@click.option('--input_names', '-i',
+@click.option('--input-names', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk names')
-@click.option('--output_names', '-o',
+@click.option('--output-names', '-o',
               type=str, default=None, help='output chunk names')
 @click.option('--volume-path', '-v',
               type=str, required=True, help='mask volume path')

@@ -74,6 +74,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | mark-complete   | mark task completion as an empty file | 
 | mask            | Black out the chunk based on another mask chunk |
 | mask-out-objects| Mask out selected or small objects |
+| multiply 		  | Multiply chunks with another chunk |
 | mesh            | Build 3D meshes from segmentation chunk |
 | mesh-manifest   | Collect mesh fragments for object |
 | neuroglancer    | Visualize chunks using neuroglancer |
