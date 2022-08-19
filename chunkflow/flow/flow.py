@@ -42,7 +42,7 @@ from .neuroglancer import NeuroglancerOperator
 from .normalize_section_contrast import NormalizeSectionContrastOperator
 from .normalize_section_shang import NormalizeSectionShangOperator
 from .plugin import Plugin
-from .load_pngs import read_png_images
+from .load_pngs import load_png_images
 from .save_precomputed import SavePrecomputedOperator
 from .save_pngs import SavePNGsOperator
 from .setup_env import setup_environment
@@ -116,6 +116,7 @@ def generate_tasks(
             respect_chunk_size=respect_chunk_size,
             aligned_block_size=aligned_block_size
         )
+    print(f'number of all the candidate tasks: {len(bboxes)}')
     
     if task_index_start:
         if task_index_stop is None:
@@ -139,6 +140,7 @@ def generate_tasks(
     # if state['verbose']:
     bbox_num = len(bboxes)
     logging.info(f'total number of tasks: {bbox_num}') 
+    print(f'total number of tasks: {bbox_num}') 
 
     if queue_name is not None:
         queue = SQSQueue(queue_name)
@@ -706,7 +708,7 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str,
 @main.command('save-synapses')
 @click.option('--input-name', '-i', type=str, default=DEFAULT_SYNAPSES_NAME)
 @click.option('--file-path', '-f',
-    type=click.Path(file_okay=True, dir_okay=False, resolve_path=True),
+    type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
     required=True, help='HDF5 file path.')
 @operator
 def save_synapses(tasks, input_name: str, file_path: str):
@@ -816,7 +818,7 @@ def read_nrrd(tasks, name: str, file_name: str, voxel_offset: tuple,
     type=click.Path(dir_okay=False, resolve_path=True), 
     help='file name of NRRD file.')
 @operator
-def write_tif(tasks, name, input_chunk_name, file_name):
+def save_nrrd(tasks, name, input_chunk_name, file_name):
     """Save chunk as a NRRD file."""
     for task in tasks:
         if task is not None:
@@ -834,7 +836,7 @@ def write_tif(tasks, name, input_chunk_name, file_name):
 @click.option('--cutout-offset', '-c',
               type=click.INT, default=(0,0,0), nargs=3,
               help='cutout chunk from an offset')
-@click.option('--volume-offset', '-t',
+@click.option('--voxel-offset', '-t',
               type=click.INT, nargs=3, default=(0,0,0),
               help = 'the offset of png images volume, could be negative.')
 @click.option('--voxel-size', '-x', type=click.INT, nargs=3, default=None, callback=default_none,
@@ -844,25 +846,33 @@ def write_tif(tasks, name, input_chunk_name, file_name):
 @click.option('--chunk-size', '-s',
               type=click.INT, nargs=3, default=None, callback=default_none,
               help='cutout chunk size')
+@click.option('--dtype', type=str, default='uint8', 
+    help = 'data type of output chunk.')
 @operator
 def load_pngs(tasks: dict, path_prefix: str, 
                 output_chunk_name: str, cutout_offset: tuple,
-                volume_offset: tuple, voxel_size: tuple, 
-                digit_num: int, chunk_size: tuple):
+                voxel_offset: tuple, voxel_size: tuple, 
+                digit_num: int, chunk_size: tuple, dtype: str):
     """Read a serials of png files."""
+    cutout_offset = Cartesian.from_collection(cutout_offset)
+    voxel_offset = Cartesian.from_collection(voxel_offset)
+    voxel_size = Cartesian.from_collection(voxel_size)
     for task in tasks:
         if task is not None:
             if chunk_size is None:
-                assert 'bbox' in task, "no chunk_size, we are looking for bounding box in task"
-                bbox = task['bbox']
+                if 'bbox' in task:
+                    bbox = task['bbox']
+                else:
+                    bbox = None
             else:
                 bbox = BoundingBox.from_delta(cutout_offset, chunk_size)
 
-            task[output_chunk_name] = read_png_images(
-                path_prefix, bbox, 
-                volume_offset=volume_offset,
+            task[output_chunk_name] = load_png_images(
+                path_prefix, bbox = bbox, 
+                voxel_offset=voxel_offset,
                 digit_num=digit_num,
-                voxel_size=voxel_size)
+                voxel_size=voxel_size,
+                dtype=dtype)
         yield task
 
 
@@ -910,7 +920,7 @@ def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
     default = 'zlib', help = 'encoders that supported by tifffile' 
 )
 @operator
-def write_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compression: str):
+def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compression: str):
     """Save chunk as a TIF file."""
     for task in tasks:
         if task is not None:
@@ -1012,7 +1022,7 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
 help = 'create an empty file if the input is None.'
 )
 @operator
-def write_h5(tasks, input_name, file_name, chunk_size, compression, with_offset, voxel_size, touch):
+def save_h5(tasks, input_name, file_name, chunk_size, compression, with_offset, voxel_size, touch):
     """Save chunk to HDF5 file."""
     for task in tasks:
         if task is not None:

@@ -216,19 +216,19 @@ class BoundingBox(Bbox):
         return cls.from_bbox(bbox)
 
     @classmethod
-    def from_vec(cls, x: np.ndarray):
-        assert len(x) == 3
-        bbox = Bbox.from_vec(x)
+    def from_vec(cls, arr: np.ndarray):
+        assert len(arr) == 3
+        bbox = Bbox.from_vec(arr)
         return cls.from_bbox(bbox)
 
     @classmethod
-    def from_points(cls, x: np.ndarray):
-        bbox = Bbox.from_points(x)
+    def from_points(cls, arr: np.ndarray):
+        bbox = Bbox.from_points(arr)
         return cls.from_bbox(bbox)
 
     @classmethod
-    def from_slices(cls, x: tuple):
-        bbox = Bbox.from_slices(x)
+    def from_slices(cls, tpl: tuple):
+        bbox = Bbox.from_slices(tpl)
         return cls.from_bbox(bbox)
 
     @classmethod
@@ -452,6 +452,7 @@ class BoundingBoxes(UserList):
             grid_size.y // 2 * grid_size.x + \
                 grid_size.x // 2
         logging.info(f'center chunk index: {center_index}')
+        print(f'center chunk index: {center_index}')
 
         logging.info(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
 

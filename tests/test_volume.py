@@ -10,7 +10,6 @@ from chunkflow.volume import Volume
 def test_volume():
     print('test volume cutout...')
     # compute parameters
-    mip = 0
     size = (36, 448, 448)
 
     # create image dataset using cloud-volume
