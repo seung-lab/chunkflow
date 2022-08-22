@@ -839,7 +839,7 @@ def save_nrrd(tasks, name, input_chunk_name, file_name):
 @click.option('--voxel-offset', '-t',
               type=click.INT, nargs=3, default=(0,0,0),
               help = 'the offset of png images volume, could be negative.')
-@click.option('--voxel-size', '-x', type=click.INT, nargs=3, default=None, callback=default_none,
+@click.option('--voxel-size', '-x', type=click.INT, nargs=3, default=(1,1,1), callback=default_none,
               help='physical size of voxels. the unit is assumed to be nm.')
 @click.option('--digit-num', '-d', type=click.INT, default=5,
     help='the total number of digits with leading zero padding. For example, digit_num=3, the file name will be like 001.png')

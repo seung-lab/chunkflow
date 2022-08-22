@@ -1,4 +1,3 @@
-from genericpath import isdir
 import os
 import logging
 
@@ -36,7 +35,7 @@ def load_png_images(
             dir_path = os.path.dirname(path_prefix)
         fname = os.path.expanduser(dir_path)
 
-        for fname in os.listdir(dir_path):
+        for fname in sorted(os.listdir(dir_path)):
             if fname.endswith('.png'):
                 fname = os.path.join(dir_path, fname)
                 file_names.append(fname)
