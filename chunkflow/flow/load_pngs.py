@@ -13,7 +13,7 @@ import pyspng
 def load_image(file_name: str):
     with open(file_name, "rb") as f:
         img = pyspng.load(f.read())
-    img = np.expand_dims(img, axis=0)
+    # img = np.expand_dims(img, axis=0)
     return img
 
 def load_png_images(
@@ -41,7 +41,7 @@ def load_png_images(
                 file_names.append(fname)
         
         img = load_image(file_names[0])
-        shape = Cartesian(len(file_names), img.shape[1], img.shape[2])
+        shape = Cartesian(len(file_names), img.shape[0], img.shape[1])
         bbox = BoundingBox.from_delta(voxel_offset, shape)
     else:
         for z in tqdm( range(bbox.start[0], bbox.stop[0]) ):
@@ -58,12 +58,8 @@ def load_png_images(
     for z_offset, file_name in enumerate(file_names):
         if os.path.exists(file_name):
             img = load_image(file_name)
-            img_chunk = Chunk(
-                img,
-                voxel_offset = voxel_offset + z_offset,
-                voxel_size=voxel_size
-            )
-            chunk.blend(img_chunk)
+            img = img.astype(dtype=dtype)
+            chunk.array[z_offset, :, :] = img
         else:
             logging.warning(f'image file do not exist: {file_name}')
     
