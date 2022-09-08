@@ -100,25 +100,27 @@ class ROITree:
             atomic_block_size (Cartesian): the size of the leaf node/block
             atomic_voxel_size (Cartesian): the voxel size of leaf block
         """
-        assert roi.voxel_size % atomic_voxel_size == Cartesian(0, 0, 0)
-        assert roi.voxel_size // atomic_voxel_size % factor == Cartesian(0, 0, 0)
+        pass
+
+        # assert roi.voxel_size % atomic_voxel_size == Cartesian(0, 0, 0)
+        # assert roi.voxel_size // atomic_voxel_size % factor == Cartesian(0, 0, 0)
         
-        if roi.voxel_size == atomic_voxel_size:
-            # this is the leaf roi/block
-            return cls(roi, None, None, None)
+        # if roi.voxel_size == atomic_voxel_size:
+        #     # this is the leaf roi/block
+        #     return cls(roi, None, None, None)
 
-        # find the relatively longest axis to split
-        children_voxel_size = roi.voxel_size // factor
-        block_nums = roi.physical_size / (children_voxel_size *  )
-        block_nums = np.ceil(block_nums)
-        axis = np.argmax(block_nums)
+        # # find the relatively longest axis to split
+        # children_voxel_size = roi.voxel_size // factor
+        # block_nums = roi.physical_size / (children_voxel_size *  )
+        # block_nums = np.ceil(block_nums)
+        # axis = np.argmax(block_nums)
 
-        # split along axis
-        left_start = roi.start * factor
-        left_block_nums = 
-        left_stop = left_start + 
-        left_roi = RegionOfInterest()
-        left = cls.from_roi(left_roi, factor, atomic_block_size, atomic_voxel_size)
+        # # split along axis
+        # left_start = roi.start * factor
+        # left_block_nums = 
+        # left_stop = left_start + 
+        # left_roi = RegionOfInterest()
+        # left = cls.from_roi(left_roi, factor, atomic_block_size, atomic_voxel_size)
 
 
 
