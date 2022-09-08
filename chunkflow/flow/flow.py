@@ -150,6 +150,7 @@ def generate_tasks(
             if disbatch:
                 assert len(bboxes) == 1
                 bbox_index = disbatch_index
+            print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.to_filename()}')
             logging.info(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.to_filename()}')
             task = get_initial_task()
             task['bbox'] = bbox
@@ -647,7 +648,7 @@ def create_chunk(tasks, size, dtype, pattern, voxel_offset, voxel_size, output_c
     type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
     required=True, 
     help='files containing synapses. Currently support HDF5 and JSON.')
-@click.option('--path-suffix', '-s', type=str, default=None, 
+@click.option('--suffix', '-s', type=str, default=None, 
     help='file path suffix.')
 @click.option('--c-order/--f-order', default=True,
     help='C order or Fortran order in the file. XYZ is Fortran order, ZYX is C order.')
@@ -659,7 +660,7 @@ def create_chunk(tasks, size, dtype, pattern, voxel_offset, voxel_size, output_c
 @click.option('--output-name', '-o', type=str, default=DEFAULT_SYNAPSES_NAME,
     help='data name of the result.')
 @operator
-def load_synapses(tasks, name: str, file_path: str, path_suffix: str, 
+def load_synapses(tasks, name: str, file_path: str, suffix: str, 
         c_order: bool, resolution: tuple, remove_outside: bool, 
         set_bbox: bool, output_name: str):
     """Load synapses formated as JSON or HDF5."""
@@ -672,11 +673,16 @@ def load_synapses(tasks, name: str, file_path: str, path_suffix: str,
                 fname = file_path
             elif os.path.isdir(file_path):
                 bbox = task['bbox']
-                assert path_suffix is not None
-                fname = os.path.join(file_path, f'{bbox.to_filename()}{path_suffix}')
+                if suffix is not None:
+                    fname = os.path.join(file_path, f'{bbox.to_filename()}{suffix}')
+                else:
+                    fname = os.path.join(file_path, f'{bbox.to_filename()}')
+                    if not os.path.exists(fname) and '.' not in fname:
+                        fname += '.h5'
+                        
             elif not os.path.exists(file_path):
                 bbox = task['bbox']
-                fname = f'{file_path}{bbox.to_filename()}{path_suffix}'
+                fname = f'{file_path}{bbox.to_filename()}{suffix}'
             else:
                 fname = file_path
             assert os.path.isfile(fname), f'can not find file: {fname}'
@@ -719,9 +725,15 @@ def save_synapses(tasks, input_name: str, file_path: str):
             if not file_path.endswith('.h5'):
                 if 'bbox' in task:
                     bbox = task['bbox']
-                    file_path += bbox.to_filename()
+                    if os.path.isdir(file_path):
+                        file_path = os.path.join(file_path, bbox.string)
+                    else:
+                        file_path += bbox.string
                 file_path += '.h5'
-            syns.to_h5(file_path)
+            if syns is None:
+                Path(file_path).touch()
+            else:
+                syns.to_h5(file_path)
         yield task
 
 @main.command('load-npy')
@@ -1646,7 +1658,7 @@ def multiply(tasks, input_names: str, output_names: str, multiplier_name: str):
               help='inverse the mask or not. default is True. ' +
               'the mask will be multiplied to chunk.')
 @click.option('--fill-missing/--no-fill-missing',
-              default=False,
+              default=True,
               help='fill missing blocks with black or not. ' +
               'default is False.')
 @operator

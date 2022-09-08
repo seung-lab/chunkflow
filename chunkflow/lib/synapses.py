@@ -50,7 +50,7 @@ class Synapses():
         if post is not None:
             if post_confidence is not None:
                 assert post_confidence.ndim == 1
-                assert len(post_confidence) == post.shape[1]
+                assert len(post_confidence) == post.shape[0]
 
             assert post.ndim == 2
             # parent pre index, z, y, x
@@ -83,22 +83,22 @@ class Synapses():
 
         
     @classmethod
-    def from_dict(cls, synapses: dict):
+    def from_dict(cls, syns_dict: dict):
         """Synapses as a dictionary
 
         Args:
-            synapses (dict): the whole synapses in a dictionary
+            syns_dict (dict): the whole synapses in a dictionary
         """
-        order = synapses['order']
-        resolution = synapses['resolution']
-        del synapses['order']
-        del synapses['resolution']
+        order = syns_dict['order']
+        resolution = syns_dict['resolution']
+        del syns_dict['order']
+        del syns_dict['resolution']
 
-        pre_num = len(synapses)
+        pre_num = len(syns_dict)
         pre = np.zeros((pre_num, 3), dtype=np.int32)
         post_list = []
         pre_indices = []
-        for sid, synapse in enumerate(synapses.values()):
+        for sid, synapse in enumerate(syns_dict.values()):
             pre[sid, :] = np.asarray(synapse['coord'])
             if 'postsynapses' in synapse:
                 for idx, post_coordinate in enumerate(synapse['postsynapses']):
@@ -240,6 +240,10 @@ class Synapses():
 
     @classmethod
     def from_h5(cls, fname: str, resolution: tuple = None, c_order: bool = True):
+        if os.path.getsize(fname) == 0:
+            print(f'synapse file is empty: {fname}')
+            return None
+
         with h5py.File(fname, 'r') as hf:
             if 'pre' in hf.keys():
                 pre = hf['pre']
@@ -305,6 +309,7 @@ class Synapses():
             fname (str): the file name to be saved
         """
         assert fname.endswith(".h5") or fname.endswith(".hdf5")
+        print(f'save synapses to {fname}')
         with h5py.File(fname, "w") as hf:
             
             hf['pre'] = self.pre
@@ -501,10 +506,14 @@ class Synapses():
         # pi2pi = defaultdict(list)
         pi2pi = []
         for idx in range(self.pre_num):
-            # find the post synapses for this presynapse
-            post_indices = np.nonzero(self.post[:, 0]==idx)
-            assert len(post_indices) == 1
-            post_indices = post_indices[0].tolist()
+            if self.post is None:
+                post_indices = None
+            else:
+                # find the post synapses for this presynapse
+                post_indices = np.nonzero(self.post[:, 0]==idx)
+                assert len(post_indices) == 1
+                post_indices = post_indices[0].tolist()
+            
             pi2pi.append(post_indices)
 
         return pi2pi
