@@ -98,7 +98,7 @@ class Chunk(NDArrayOperatorsMixin):
             _type_: _description_
         """
         assert isinstance(bbox, BoundingBox)
-        size = bbox.maxpt - bbox.minp
+        size = bbox.maxpt - bbox.minpt
         return cls.create(size=size, dtype=dtype, voxel_offset=bbox.minpt,
             voxel_size=voxel_size, pattern=pattern)
     
