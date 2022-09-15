@@ -3,17 +3,13 @@ from __future__ import annotations
 import os
 import json
 import time
-from typing import List
 from copy import deepcopy
 
 import numpy as np
 import h5py
 
-from scipy.spatial import KDTree
-
 import chunkflow
-from chunkflow.chunk import Chunk
-from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
+from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox
 
 
 class Synapses():
@@ -301,6 +297,16 @@ class Synapses():
             # transform to C order
             syns.transpose_axis()
         return syns
+    
+    @classmethod
+    def from_file(cls, fname: str, resolution: tuple = None, c_order: bool = True):
+        assert os.path.exists(fname)
+        if fname.endswith('.json'):
+            return cls.from_json(fname, resolution = resolution, c_order=c_order)
+        elif fname.endswith('.h5'):
+            return cls.from_h5(fname, resolution=resolution, c_order=c_order)
+        else:
+            raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
 
     def to_h5(self, fname: str) -> None:
         """save to a HDF5 file
@@ -334,16 +340,57 @@ class Synapses():
             if self.post_users is not None:
                 hf['post_users'] = self.post_users
 
-    @classmethod
-    def from_file(cls, fname: str, resolution: tuple = None, c_order: bool = True):
-        assert os.path.exists(fname)
-        if fname.endswith('.json'):
-            return cls.from_json(fname, resolution = resolution, c_order=c_order)
-        elif fname.endswith('.h5'):
-            return cls.from_h5(fname, resolution=resolution, c_order=c_order)
-        else:
-            raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
+    def to_dvid_list_of_dict(self, 
+            user: str = 'chunkflow',
+            comment: str = 'ingested using chunkflow'):
+        """convert to dictionary for bulk ingestion of synapses
+        """
+        data = []
 
+        for post_idx in range(self.post_num):
+            pre_idx = self.post[post_idx, 0]
+            pre_coord = self.pre[pre_idx, :][::-1]
+            pre_coord = [int(x) for x in pre_coord]
+
+            post_coord = self.post_coordinates[post_idx, :][::-1]
+            post_coord = [int(x) for x in post_coord]
+            dic = {
+                'Kind': 'PostSyn',
+                'Pos': post_coord,
+                'Prop': {
+                    'annotation': comment,
+                    'conf': str(self.post_confidence[post_idx]),
+                    'user': user
+                },
+                'Rels': [{'Rel': 'PostSynTo', 'To': pre_coord}],
+                'Tags': []
+            }
+            data.append(dic)
+
+        for pre_idx, post_indices in enumerate(self.pre_index2post_indices):
+            rels = []
+            for post_idx in post_indices:
+                post_coord = self.post_coordinates[post_idx, :][::-1]
+                post_coord = [int(x) for x in post_coord]
+                rels.append({
+                    'Rel': 'PreSynTo', 'To': post_coord
+                })
+
+            pre_coord = self.pre[pre_idx, :][::-1]
+            pre_coord = [int(x) for x in pre_coord]
+            data.append({
+                'Kind': 'PreSyn',
+                'Pos': pre_coord,
+                'Prop': {
+                    'annotation': comment,
+                    'conf': str(self.pre_confidence[pre_idx]),
+                    'user': user
+                },
+                'Rels': rels,
+                'Tags': []
+            })
+        return data
+    
     def to_neutu_task(self, fname: str, 
             software_revision: int=4809,
             description: str = "transformed using chunkflow",
