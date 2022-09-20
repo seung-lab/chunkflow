@@ -1,10 +1,12 @@
+import os, shutil
+
 import numpy as np
 
 from cloudvolume import CloudVolume
 #from cloudvolume.volumecutout import VolumeCutout
-from cloudvolume.lib import generate_random_string, Bbox
-import os, shutil
+from cloudvolume.lib import generate_random_string
 
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from chunkflow.flow.flow import *
 
@@ -31,7 +33,7 @@ def test_inference_pipeline():
         output_size[1] // (2**output_mask_mip),
         output_size[2] // (2**output_mask_mip),
     )
-    output_bbox = Bbox.from_slices(
+    output_bbox = BoundingBox.from_slices(
         tuple(slice(c, i - c)
             for i, c in zip(input_size, cropping_margin_size)))
 
@@ -108,7 +110,8 @@ def test_inference_pipeline():
                                         input_mask_mip,
                                         mip,
                                         inverse=False)
-    chunk = mask_input_operator(chunk)
+    chunks = mask_input_operator([chunk])
+    chunk = chunks[0]
 
     print('run convnet inference...')
     with Inferencer(None, None, patch_size,
@@ -130,11 +133,12 @@ def test_inference_pipeline():
                                         output_mask_mip,
                                         mip,
                                         inverse=False)
-    chunk = mask_output_operator(chunk)
+    chunks = mask_output_operator([chunk])
+    chunk = chunks[0]
     print('after masking: {}'.format(chunk.slices))
 
     print('save to output volume...')
-    save_operator = WritePrecomputedOperator(output_volume_path,
+    save_operator = SavePrecomputedOperator(output_volume_path,
                                     mip,
                                     upload_log=True,
                                     create_thumbnail=True)

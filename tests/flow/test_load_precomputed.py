@@ -3,13 +3,15 @@ import shutil
 import numpy as np
 
 from cloudvolume import CloudVolume
-from cloudvolume.storage import Storage
-from cloudvolume.lib import generate_random_string, Bbox
+from cloudvolume.lib import generate_random_string
+from cloudfiles import CloudFiles
 
-from chunkflow.flow.read_precomputed import ReadPrecomputedOperator
+from chunkflow.lib.cartesian_coordinate import BoundingBox
+
+from chunkflow.flow.load_precomputed import ReadPrecomputedOperator
 
 
-class TestReadPrecomputed(unittest.TestCase):
+class TestLoadPrecomputed(unittest.TestCase):
     def setUp(self):
         print('test volume cutout...')
         # compute parameters
@@ -28,8 +30,8 @@ class TestReadPrecomputed(unittest.TestCase):
         # prepare blackout section ids
         self.blackout_section_ids = [17, 20]
         ids = {'section_ids': self.blackout_section_ids}
-        with Storage(self.volume_path) as stor:
-            stor.put_json('blackout_section_ids.json', ids)
+        stor = CloudFiles(self.volume_path)
+        stor.put_json('blackout_section_ids.json', ids)
 
     def test_cutout(self):
         print('test volume cutout...')
@@ -37,11 +39,11 @@ class TestReadPrecomputed(unittest.TestCase):
 
         offset = (4, 64, 64)
         shape = (28, 320, 320)
-        output_bbox = Bbox.from_delta(offset, shape)
+        output_bbox = BoundingBox.from_delta(offset, shape)
         chunk = operator(output_bbox)
 
         self.assertEqual(offset, chunk.voxel_offset)
-        self.assertTrue(chunk == self.img[4:-4, 64:-64, 64:-64])
+        np.testing.assert_array_equal(chunk, self.img[4:-4, 64:-64, 64:-64])
 
         shutil.rmtree('/tmp/test')
 
@@ -53,7 +55,7 @@ class TestReadPrecomputed(unittest.TestCase):
 
         offset = (4, 64, 64)
         shape = (28, 320, 320)
-        output_bbox = Bbox.from_delta(offset, shape)
+        output_bbox = BoundingBox.from_delta(offset, shape)
         chunk = operator(output_bbox)
 
         img = np.copy(self.img)

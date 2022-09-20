@@ -1,8 +1,10 @@
+import os
+
 import numpy as np
 
 from cloudvolume.lib import Bbox, Vec
 
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian, to_cartesian
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, to_cartesian, BoundingBoxes
 
 
 def test_cartesian():
@@ -42,9 +44,20 @@ def test_cartesian():
 
     assert -Cartesian(1,-2,3) == Cartesian(-1, 2, -3)
 
+    assert Cartesian(1,2,3).tuple == (1,2,3)
+    assert Cartesian(1,2,3).vec is not None
+
 def test_bounding_box():
+    bbox = BoundingBox.from_string('3166-3766_7531-8131_2440-3040')
+    bbox == BoundingBox(Cartesian(3166, 7531, 2440), Cartesian(3766, 8131, 3040))
+    
+    bbox = BoundingBox.from_string('Sp1,3166-3766_7531-8131_2440-3040.h5')
+    bbox == BoundingBox(Cartesian(3166, 7531, 2440), Cartesian(3766, 8131, 3040))
+
     bbox = Bbox.from_delta((1,3,2), (64, 32, 8))
     bbox = BoundingBox.from_bbox(bbox)
+    assert bbox.start == Cartesian(1,3,2)
+    assert bbox.stop == Cartesian(65, 35, 10)
 
     bbox = bbox.clone()
     assert isinstance(bbox, BoundingBox)
@@ -60,4 +73,9 @@ def test_bounding_box():
     assert bbox == BoundingBox.from_list([-2, -1, 0, 5, 6, 7])
 
 
-    
+def test_bounding_boxes():
+    fname = os.path.join(os.path.dirname(__file__), 'sp3_bboxes.txt')
+    bboxes = BoundingBoxes.from_file(fname)
+    fname = os.path.join(os.path.dirname(__file__), 'sp3_bboxes.npy')
+    bboxes.to_file(fname)
+    os.remove(fname)

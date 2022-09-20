@@ -16,6 +16,7 @@ from __future__ import division
 from builtins import range
 
 import numpy as np
+import click
 
 DEFAULT_MAX_DOWNSAMPLING = 64  # maximum factor to downsample by
 DEFAULT_MAX_DOWNSAMPLED_SIZE = 128  # minimum length of a side after downsampling
@@ -32,7 +33,7 @@ def compute_near_isotropic_downsampling_scales(
     """Compute a list of successive downsampling factors."""
 
     num_dims = len(voxel_size)
-    cur_scale = np.ones((num_dims, ), dtype=int)
+    cur_scale = np.ones((num_dims, ), dtype=click.INT)
     scales = [tuple(cur_scale)]
     while (len(scales) < max_scales and (np.prod(cur_scale) < max_downsampling)
            and np.all(size / cur_scale > max_downsampled_size)

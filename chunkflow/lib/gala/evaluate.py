@@ -10,7 +10,7 @@ import h5py
 import scipy.ndimage as nd
 import scipy.sparse as sparse
 from skimage.segmentation import relabel_sequential
-from scipy.ndimage.measurements import label
+from scipy.ndimage import label
 from scipy.spatial.distance import pdist, squareform
 from sklearn.metrics import precision_recall_curve
 
@@ -35,10 +35,10 @@ def nzcol(mat, row_idx):
     --------
     >>> mat = sparse.csr_matrix(np.array([[0, 1, 0, 0], [0, 5, 8, 0]]))
     >>> nzcol(mat, 1)
-    array([1, 2], dtype=int32)
+    array([1, 2], dtype=click.INT32)
     >>> mat[1, 2] = 0
     >>> nzcol(mat, 1)
-    array([1], dtype=int32)
+    array([1], dtype=click.INT32)
     """
     return mat[row_idx].nonzero()[1]
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import numpy as np
-from cloudvolume.storage import SimpleStorage
+from cloudfiles import CloudFiles
 from chunkflow.chunk import Chunk
 
 from .base import OperatorBase
@@ -43,7 +43,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
        
         # intensity value lookup table cache
         self.lookup_tables = dict()
-        self.stor = SimpleStorage(self.levels_path)
+        self.stor = CloudFiles(self.levels_path)
 
     def __call__(self, chunk):
         # this is a image, not affinitymap
@@ -104,7 +104,7 @@ class NormalizeSectionContrastOperator(OperatorBase):
         lookup tables are constructed and cached.
         """
         if z not in self.lookup_tables:
-            data = self.stor.get_file(f'{z}')
+            data = self.stor.get(f'{z}')
             assert data is not None, f'histogram of section {z} is missing!'
             data = json.loads(data.decode('utf-8'))
             levels = np.array(data['levels'], dtype=np.uint64)

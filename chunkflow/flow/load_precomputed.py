@@ -2,10 +2,9 @@ import logging
 
 import numpy as np
 from cloudvolume import CloudVolume
-from cloudvolume.lib import Bbox
-from cloudvolume.storage import Storage
+from cloudfiles import CloudFiles
 
-from chunkflow.lib.bounding_boxes import Cartesian
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 from chunkflow.chunk.validate import validate_by_template_matching
 from tinybrain import downsample_with_averaging
 from chunkflow.chunk import Chunk
@@ -17,24 +16,36 @@ class ReadPrecomputedOperator(OperatorBase):
                  volume_path: str,
                  mip: int = 0,
                  expand_margin_size: Cartesian=Cartesian(0, 0, 0),
+                 expand_direction: int = None,
                  fill_missing: bool = False,
                  validate_mip: int = None,
                  blackout_sections: bool = None,
+                 use_https: bool = False,
                  dry_run: bool = False,
                  name: str = 'cutout'):
         super().__init__(name=name)
         self.volume_path = volume_path
         self.mip = mip
-        self.expand_margin_size = expand_margin_size
         self.fill_missing = fill_missing
         self.validate_mip = validate_mip
         self.blackout_sections = blackout_sections
         self.dry_run = dry_run
 
+        if isinstance(expand_margin_size, tuple):
+            expand_margin_size = Cartesian.from_collection(expand_margin_size)
+
+        if expand_direction == 1:
+            expand_margin_size = (0, 0, 0, *expand_margin_size)
+        elif expand_direction == -1:
+            expand_margin_size = (*expand_margin_size, 0, 0, 0)
+        else: 
+            assert expand_direction is None
+        self.expand_margin_size = expand_margin_size
+        
         if blackout_sections:
-            with Storage(volume_path) as stor:
-                self.blackout_section_ids = stor.get_json(
-                    'blackout_section_ids.json')['section_ids']
+            stor = CloudFiles(volume_path)
+            self.blackout_section_ids = stor.get_json(
+                'blackout_section_ids.json')['section_ids']
 
         verbose = (logging.getLogger().getEffectiveLevel() <= 30)
         self.vol = CloudVolume(
@@ -44,16 +55,28 @@ class ReadPrecomputedOperator(OperatorBase):
             progress=verbose,
             mip=self.mip,
             cache=False,
+            use_https=use_https,
             green_threads=True)
+            #parallel=True,
         
-    def __call__(self, output_bbox):
-        chunk_slices = tuple(
-            slice(s.start - m, s.stop + m)
-            for s, m in zip(output_bbox.to_slices(), self.expand_margin_size))
+    def __call__(self, output_bbox: BoundingBox):
+        # if we do not clone this bounding box, 
+        # the bounding box in task will be modified!
+        assert isinstance(output_bbox, BoundingBox)
+        output_bbox = output_bbox.clone()
+        output_bbox.adjust(self.expand_margin_size)
+        chunk_slices = output_bbox.to_slices()
         
         if self.dry_run:
-            input_bbox = Bbox.from_slices(chunk_slices)
-            return Chunk.from_bbox(input_bbox)
+            # input_bbox = BoundingBox.from_slices(chunk_slices)
+            # we can not use pattern=zero since it might got skipped by 
+            # the operator of skip-all-zero
+            return Chunk.from_bbox(
+                output_bbox,
+                pattern='random',
+                dtype=self.vol.dtype,
+                voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]),
+            )
 
         logging.info('cutout {} from {}'.format(chunk_slices[::-1],
                                              self.volume_path))
@@ -72,14 +95,13 @@ class ReadPrecomputedOperator(OperatorBase):
         # this should not be neccessary
         # TODO: remove this step and use 4D array all over this package.
         # always use 4D array will simplify some operations
-        voxel_offset = tuple(s.start for s in chunk_slices)
+        # voxel_offset = Cartesian(s.start for s in chunk_slices)
         if chunk.shape[0] == 1:
             chunk = np.squeeze(chunk, axis=0)
-        else:
-            voxel_offset = (0, ) + voxel_offset
 
-        chunk = Chunk(chunk, voxel_offset=voxel_offset,
-                voxel_size=tuple(self.vol.resolution[::-1]))
+        chunk = Chunk(
+            chunk, voxel_offset=output_bbox.start,
+            voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]))
 
         if self.blackout_sections:
             chunk = self._blackout_sections(chunk)
@@ -146,7 +168,7 @@ class ReadPrecomputedOperator(OperatorBase):
                                     self.vol.voxel_offset, factor3))
         clamped_slices = tuple(
             slice(o, s) for o, s in zip(clamped_offset, clamped_stop))
-        clamped_bbox = Bbox.from_slices(clamped_slices)
+        clamped_bbox = BoundingBox.from_slices(clamped_slices)
         clamped_input = chunk.cutout(clamped_slices[::-1])
         # transform to xyz order
         clamped_input = np.transpose(clamped_input)

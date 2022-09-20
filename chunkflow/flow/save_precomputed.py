@@ -5,25 +5,25 @@ import json
 import numpy as np
 
 from cloudvolume import CloudVolume
-from cloudvolume.lib import Vec, Bbox, yellow
+from cloudvolume.lib import Vec, yellow
 from cloudfiles import CloudFiles
 
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 from chunkflow.lib.igneous.tasks import downsample_and_upload
 from chunkflow.chunk import Chunk
 
 from .base import OperatorBase
-from chunkflow.lib.igneous.tasks import downsample_and_upload
 #from .downsample_upload import DownsampleUploadOperator
 
 
-class WritePrecomputedOperator(OperatorBase):
+class SavePrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
                 intensity_threshold: int = None,
-                 name: str = 'write-precomputed'):
+                 name: str = 'save-precomputed'):
         super().__init__(name=name)
         
         self.upload_log = upload_log
@@ -44,7 +44,9 @@ class WritePrecomputedOperator(OperatorBase):
             mip=self.mip,
             cache=False,
             green_threads=True,
+            delete_black_uploads=True,
             progress=True)
+            #parallel=True,
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')
@@ -117,6 +119,7 @@ class WritePrecomputedOperator(OperatorBase):
             mip=self.mip,
             cache=False,
             green_threads=True,
+            delete_black_uploads=True,
             progress=False)
 
         # only use the last channel, it is the Z affinity
@@ -128,7 +131,7 @@ class WritePrecomputedOperator(OperatorBase):
         #self.thumbnail_operator(image)
         # transpose to xyzc
         image = np.transpose(image)
-        image_bbox = Bbox.from_slices(chunk.slices[::-1][:3])
+        image_bbox = BoundingBox.from_slices(chunk.slices[::-1][:3])
 
         downsample_and_upload(image,
                               image_bbox,
@@ -142,7 +145,7 @@ class WritePrecomputedOperator(OperatorBase):
 
     def _upload_log(self, log, output_bbox):
         assert log
-        assert isinstance(output_bbox, Bbox)
+        assert isinstance(output_bbox, BoundingBox)
 
         logging.info(f'uploaded log: {log}')
 

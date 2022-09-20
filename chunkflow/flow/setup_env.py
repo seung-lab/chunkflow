@@ -7,10 +7,10 @@ import os
 import numpy as np
 
 from cloudvolume.lib import Vec, yellow
-from cloudvolume.storage import SimpleStorage
 from cloudvolume import CloudVolume
+from cloudfiles import CloudFiles
 
-from chunkflow.lib.bounding_boxes import BoundingBoxes
+from chunkflow.lib.cartesian_coordinate import BoundingBoxes
 
 
 def tuple2string(tp: tuple):
@@ -54,11 +54,11 @@ def get_optimized_block_size(
                 cost = current_cost
                 patch_num = (pnz, pnxy, pnxy)
     
-    print('\n--input-patch-size ', tuple2string(input_patch_size))
-    print('--output-patch-size ', tuple2string(output_patch_size))
-    print('--output-patch-overlap ', tuple2string(output_patch_overlap))
-    print('--output-patch-stride ', tuple2string(patch_stride))
-    print('--patch-num ', patch_num)
+    logging.info(f'\n--input-patch-size {tuple2string(input_patch_size)}')
+    logging.info(f'--output-patch-size {tuple2string(output_patch_size)}')
+    logging.info(f'--output-patch-overlap {tuple2string(output_patch_overlap)}')
+    logging.info(f'--output-patch-stride {tuple2string(patch_stride)}')
+    logging.info(f'--patch-num {patch_num}')
 
     assert mip>=0
     block_mip = (mip + thumbnail_mip) // 2
@@ -81,19 +81,17 @@ def get_optimized_block_size(
                 output_chunk_size[1]//block_factor,
                 output_chunk_size[2]//block_factor)
 
-    print('\n--input-chunk-size ' + tuple2string(input_chunk_size))
-    print('--input-volume-start ' + tuple2string(input_chunk_start))
-    print('--output-chunk-size ' + tuple2string(output_chunk_size))
-    print('cutout expand margin size ' + tuple2string(expand_margin_size))
+    logging.info('\n--input-chunk-size ' + tuple2string(input_chunk_size))
+    logging.info('--input-volume-start ' + tuple2string(input_chunk_start))
+    logging.info('--output-chunk-size ' + tuple2string(output_chunk_size))
+    logging.info('cutout expand margin size ' + tuple2string(expand_margin_size))
 
-    print('output volume start: ' + tuple2string(volume_start))
-    print('block size ' + tuple2string(block_size))
-    print('size of each block (uncompressed, uint8, 1 channel): ', 
-            np.prod(block_size)/1e6, ' MB')
-    print('RAM size of each block: ',
-            np.prod(output_chunk_size)/1024/1024/1024*4*channel_num, ' GB')
+    logging.info('output volume start: ' + tuple2string(volume_start))
+    logging.info('block size ' + tuple2string(block_size))
+    logging.info(f'size of each block (uncompressed, uint8, 1 channel): {np.prod(block_size)/1e6} MB')
+    logging.info(f'RAM size of each block: {np.prod(output_chunk_size)/1024/1024/1024*4*channel_num} GB')
     voxel_utilization = np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size)
-    print('voxel utilization: {:.2f}'.format(voxel_utilization))
+    logging.info('voxel utilization: {:.2f}'.format(voxel_utilization))
 
     return block_size, output_chunk_size, factor
 
@@ -122,9 +120,9 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
         volume_stop = volume_start + volume_size
     else:
         volume_size = volume_stop - volume_start
-    print('\noutput volume start: ' + tuple2string(volume_start))
-    print('output volume stop: ' + tuple2string(volume_stop))
-    print('output volume size: ' + tuple2string(volume_size))
+    logging.info('\noutput volume start: ' + tuple2string(volume_start))
+    logging.info('output volume stop: ' + tuple2string(volume_stop))
+    logging.info('output volume size: ' + tuple2string(volume_size))
     
     if output_patch_overlap is None:
         # use 50% patch overlap in default
@@ -134,7 +132,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     if crop_chunk_margin is None:
         crop_chunk_margin = output_patch_overlap
     assert crop_chunk_margin[1] == crop_chunk_margin[2]
-    print('margin size: ' + tuple2string(crop_chunk_margin))
+    logging.info('margin size: ' + tuple2string(crop_chunk_margin))
     
     if thumbnail:
         # thumnail requires maximum mip level of 5
@@ -147,17 +145,17 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     )
 
     if not dry_run:
-        storage = SimpleStorage(layer_path)
+        storage = CloudFiles(layer_path)
         thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
-        thumbnail_storage = SimpleStorage(thumbnail_layer_path)
+        thumbnail_storage = CloudFiles(thumbnail_layer_path)
 
         if not overwrite_info:
-            print('\ncheck that we are not overwriting existing info file.')
+            logging.info('\ncheck that we are not overwriting existing info file.')
             assert storage.exists('info')
             assert thumbnail_storage.exists('info')
 
         if overwrite_info:
-            print('create and upload info file to ', layer_path)
+            logging.info(f'create and upload info file to {layer_path}')
             # Note that cloudvolume use fortran order rather than C order
             info = CloudVolume.create_new_info(channel_num, layer_type='image',
                                             data_type=dtype,
@@ -175,7 +173,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
             thumbnail_block_size = (output_chunk_size[0]//factor,
                                     output_chunk_size[1]//thumbnail_factor,
                                     output_chunk_size[2]//thumbnail_factor)
-            print('thumbnail block size: ' + tuple2string(thumbnail_block_size))
+            logging.info('thumbnail block size: ' + tuple2string(thumbnail_block_size))
             thumbnail_info = CloudVolume.create_new_info(
                 1, layer_type='image', 
                 data_type='uint8',
@@ -188,7 +186,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
             thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
             thumbnail_vol.commit_info()
        
-    print('create a list of bounding boxes...')
+    logging.info('create a list of bounding boxes...')
     roi_start = (volume_start[0],
                  volume_start[1]//factor,
                  volume_start[2]//factor)

@@ -5,8 +5,7 @@ import logging
 from .base import OperatorBase
 from chunkflow.chunk.segmentation import Segmentation
 
-from cloudvolume.storage import Storage
-
+from cloudfiles import CloudFiles
 
 class SkeletonizeOperator(OperatorBase):
     """Create mesh files from segmentation."""
@@ -21,7 +20,7 @@ class SkeletonizeOperator(OperatorBase):
             operator name.
         """
         super().__init__(name=name)
-        self.storage = Storage(output_path)
+        self.storage = CloudFiles(output_path)
 
     def __call__(self, seg, voxel_size):
         if seg is None:
@@ -35,5 +34,5 @@ class SkeletonizeOperator(OperatorBase):
         bbox_str = seg.bbox.to_filename()
         for neuron_id, skel in skels.items():
             file_name = f'{neuron_id}:{bbox_str}'
-            self.storage.put_file(file_name, skel.to_precomputed())
+            self.storage.put(file_name, skel.to_precomputed())
         return skels 

@@ -11,7 +11,7 @@ from typing import Union
 import numpy as np
 from tqdm import tqdm
 
-from chunkflow.lib.bounding_boxes import Cartesian, to_cartesian
+from chunkflow.lib.cartesian_coordinate import Cartesian, to_cartesian
 
 from .patch.base import PatchInferencerBase
 from chunkflow.chunk import Chunk
@@ -110,10 +110,6 @@ class Inferencer(object):
             # since the overlap region is reweighted by patch mask
             assert self.output_crop_margin >= self.output_patch_overlap
 
-        # if self.input_patch_size != self.output_patch_size:
-        #     breakpoint()
-        # self.output_patch_crop_margin = tuple((ips-ops)//2 for ips, ops in zip(
-            # input_patch_size, output_patch_size))
         self.output_patch_crop_margin = (input_patch_size - output_patch_size) // 2
         
         #self.output_offset = tuple(opcm+ocm for opcm, ocm in zip(
@@ -187,7 +183,7 @@ class Inferencer(object):
         patch offset list and output chunk mask. Otherwise, recompute them.
         """
         if np.array_equal(self.input_size, input_chunk.shape):
-            print('reusing output chunk mask.')
+            logging.info('reusing output chunk mask.')
             assert self.patch_slices_list is not None
         else:
             if self.input_size is not None:
@@ -268,7 +264,7 @@ class Inferencer(object):
         input_patch_overlap = self.input_patch_overlap 
         input_patch_stride = self.input_patch_stride 
 
-        print('Construct patch slices list...')
+        logging.info('Construct patch slices list...')
         for iz in range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]):
             if iz + input_patch_size[0] > self.input_size[0]:
                 iz = self.input_size[0] - input_patch_size[0]
@@ -373,7 +369,7 @@ class Inferencer(object):
             self._check_alignment()
          
         if self.dry_run:
-            print('dry run, return a special artifical chunk.')
+            logging.info('dry run, return a special artifical chunk.')
             size=output_buffer.shape
             
             if self.mask_myelin_threshold:
@@ -387,8 +383,8 @@ class Inferencer(object):
                 voxel_size=input_chunk.voxel_size,
             )
        
-        if input_chunk == 0:
-            print('input is all zero, return zero buffer directly')
+        if np.all(input_chunk == 0):
+            logging.info('input is all zero, return zero buffer directly')
             if self.mask_myelin_threshold:
                 assert output_buffer.shape[0] == 4
                 return output_buffer[:-1, ...]

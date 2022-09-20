@@ -2,5 +2,8 @@
 # -*- coding: utf-8 -*-
 
 # Using Green Threads
-import gevent.monkey
-gevent.monkey.patch_all(thread=False)
+# import gevent.monkey
+#from gevent import monkey
+#monkey.patch_all(thread=True)
+
+from .__version__ import *

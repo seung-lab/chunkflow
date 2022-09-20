@@ -2,7 +2,7 @@ __doc__ = """Image chunk class"""
 
 import numpy as np
 
-from chunkflow.lib.bounding_boxes import Cartesian
+from chunkflow.lib.cartesian_coordinate import Cartesian
 from chunkflow.chunk import Chunk
 
 class AffinityMap(Chunk):

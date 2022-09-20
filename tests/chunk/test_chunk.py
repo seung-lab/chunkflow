@@ -1,7 +1,8 @@
-from chunkflow.lib.bounding_boxes import BoundingBox
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 import numpy as np
 import unittest
-from cloudvolume.lib import Bbox
+
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 from chunkflow.chunk import Chunk
 
 
@@ -24,6 +25,10 @@ def create_chunk(size:tuple = (7, 8, 9), voxel_offset=(-2, -3, -4),
     chunk.voxel_stop
 
     return chunk
+
+def test_clone():
+    chunk = create_chunk()
+    assert chunk.clone() is not None
 
 def test_channel_voting():
     chunk = create_chunk(size=(5, 2,3,4), 
@@ -82,7 +87,7 @@ class Test3DChunk(unittest.TestCase):
     #    self.assertEqual(np.min(self.chunk), np.min(self.chunk.array))
 
     def test_create_from_bounding_box(self):
-        bbox = Bbox.from_delta(self.voxel_offset, self.size)
+        bbox = BoundingBox.from_delta(self.voxel_offset, self.size)
         bbox = BoundingBox.from_bbox(bbox)
         Chunk.from_bbox( bbox )
 
@@ -91,8 +96,9 @@ class Test3DChunk(unittest.TestCase):
         self.chunk -= 1
 
     def test_bbox(self):
-        self.assertEqual(self.chunk.bbox,
-                         Bbox.from_delta(self.voxel_offset, self.size))
+        self.assertEqual(
+            self.chunk.bbox,
+            BoundingBox.from_delta(self.voxel_offset, self.size))
 
     def test_slices(self):
         self.assertEqual(self.chunk.slices,
@@ -149,7 +155,7 @@ class Test3DChunk(unittest.TestCase):
         arr = np.ones((1, 3, 3, 3), dtype='float32')
         chunk = Chunk(arr, (0, -1, -1, -1))
         chunk[:, :,:,:] = 0 
-        self.assertTrue( chunk == 0 )
+        np.testing.assert_array_equal( chunk, 0 )
 
     def test_slices(self):
         arr = np.ones((1, 3, 3, 3), dtype='float32')

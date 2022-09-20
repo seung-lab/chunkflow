@@ -4,8 +4,6 @@ import numpy as np
 from chunkflow.chunk import Chunk
 
 from cloudvolume import CloudVolume
-from cloudvolume.storage import Storage
-from cloudvolume.lib import Bbox
 
 from chunkflow.flow.downsample_upload import DownsampleUploadOperator
 

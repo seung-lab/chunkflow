@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import os
 import json
-from typing import List
+import time
 from copy import deepcopy
 
 import numpy as np
 import h5py
 
-from scipy.spatial import KDTree
-
-from chunkflow.chunk import Chunk
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
+import chunkflow
+from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox
 
 
 class Synapses():
@@ -48,7 +46,7 @@ class Synapses():
         if post is not None:
             if post_confidence is not None:
                 assert post_confidence.ndim == 1
-                assert len(post_confidence) == post.shape[1]
+                assert len(post_confidence) == post.shape[0]
 
             assert post.ndim == 2
             # parent pre index, z, y, x
@@ -81,22 +79,22 @@ class Synapses():
 
         
     @classmethod
-    def from_dict(cls, dc: dict):
+    def from_dict(cls, syns_dict: dict):
         """Synapses as a dictionary
 
         Args:
-            synapses (dict): the whole synapses in a dictionary
+            syns_dict (dict): the whole synapses in a dictionary
         """
-        order = dc['order']
-        resolution = dc['resolution']
-        del dc['order']
-        del dc['resolution']
+        order = syns_dict['order']
+        resolution = syns_dict['resolution']
+        del syns_dict['order']
+        del syns_dict['resolution']
 
-        pre_num = len(synapses)
+        pre_num = len(syns_dict)
         pre = np.zeros((pre_num, 3), dtype=np.int32)
         post_list = []
         pre_indices = []
-        for sid, synapse in enumerate(synapses.values()):
+        for sid, synapse in enumerate(syns_dict.values()):
             pre[sid, :] = np.asarray(synapse['coord'])
             if 'postsynapses' in synapse:
                 for idx, post_coordinate in enumerate(synapse['postsynapses']):
@@ -167,9 +165,6 @@ class Synapses():
                 # map from xyz to zyx
                 pos = syn['Pos'][::-1]
                 pos = Cartesian(*pos)
-                # if 'To' not in syn['Prop']:
-                    # print(syn)
-                    # breakpoint()
                 if len(syn['Rels'])>0:
                     pre_pos = syn['Rels'][0]['To'][::-1]
                     pre_pos = Cartesian(*pre_pos)
@@ -188,7 +183,6 @@ class Synapses():
         for idx, pos in enumerate(pre_list):
             pre_pos2idx[pos] = idx
         assert len(pre_pos2idx) == len(pre_list)
-        # breakpoint()
         
         post_to_pre_indices = []
         for _, pre_pos in post_list:
@@ -226,16 +220,26 @@ class Synapses():
         )
             
     @classmethod
-    def from_json(cls, fname: str, resolution: tuple = None):
+    def from_json(cls, fname: str, resolution: tuple = None, c_order: bool = True):
         with open(fname, 'r') as file:
             syns = json.load(file)
 
         if resolution is not None:
             syns['resolution'] = resolution
-        return cls.from_dict(syns)
+
+        syns = cls.from_dict(syns)
+
+        if not c_order:
+            syns.transpose_axis()
+            
+        return syns 
 
     @classmethod
     def from_h5(cls, fname: str, resolution: tuple = None, c_order: bool = True):
+        if os.path.getsize(fname) == 0:
+            print(f'synapse file is empty: {fname}')
+            return None
+
         with h5py.File(fname, 'r') as hf:
             if 'pre' in hf.keys():
                 pre = hf['pre']
@@ -282,18 +286,27 @@ class Synapses():
             else:
                 post_users = None
 
-        if not c_order:
-            # transform to C order
-            pre = pre[:, ::-1]
-            post[:, 1:] = post[:, 1:][:, ::-1]
-
-        return cls(
+        syns = cls(
             pre, post=post, pre_confidence=pre_confidence, 
             post_confidence=post_confidence, resolution=resolution,
             users = users,
             pre_users = pre_users,
             post_users = post_users,
         )
+        if not c_order:
+            # transform to C order
+            syns.transpose_axis()
+        return syns
+    
+    @classmethod
+    def from_file(cls, fname: str, resolution: tuple = None, c_order: bool = True):
+        assert os.path.exists(fname)
+        if fname.endswith('.json'):
+            return cls.from_json(fname, resolution = resolution, c_order=c_order)
+        elif fname.endswith('.h5'):
+            return cls.from_h5(fname, resolution=resolution, c_order=c_order)
+        else:
+            raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
 
     def to_h5(self, fname: str) -> None:
         """save to a HDF5 file
@@ -302,6 +315,7 @@ class Synapses():
             fname (str): the file name to be saved
         """
         assert fname.endswith(".h5") or fname.endswith(".hdf5")
+        print(f'save synapses to {fname}')
         with h5py.File(fname, "w") as hf:
             
             hf['pre'] = self.pre
@@ -326,16 +340,102 @@ class Synapses():
             if self.post_users is not None:
                 hf['post_users'] = self.post_users
 
-    @classmethod
-    def from_file(cls, fname: str, resolution: tuple = None, c_order: bool = True):
-        assert os.path.exists(fname)
-        if fname.endswith('.json'):
-            assert c_order
-            return cls.from_json(fname, resolution = resolution)
-        elif fname.endswith('.h5'):
-            return cls.from_h5(fname, resolution=resolution, c_order=c_order)
-        else:
-            raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
+    def to_dvid_list_of_dict(self, 
+            user: str = 'chunkflow',
+            comment: str = 'ingested using chunkflow'):
+        """convert to dictionary for bulk ingestion of synapses
+        """
+        data = []
+
+        for post_idx in range(self.post_num):
+            pre_idx = self.post[post_idx, 0]
+            pre_coord = self.pre[pre_idx, :][::-1]
+            pre_coord = [int(x) for x in pre_coord]
+
+            post_coord = self.post_coordinates[post_idx, :][::-1]
+            post_coord = [int(x) for x in post_coord]
+            dic = {
+                'Kind': 'PostSyn',
+                'Pos': post_coord,
+                'Prop': {
+                    'annotation': comment,
+                    'conf': str(self.post_confidence[post_idx]),
+                    'user': user
+                },
+                'Rels': [{'Rel': 'PostSynTo', 'To': pre_coord}],
+                'Tags': []
+            }
+            data.append(dic)
+
+        for pre_idx, post_indices in enumerate(self.pre_index2post_indices):
+            rels = []
+            for post_idx in post_indices:
+                post_coord = self.post_coordinates[post_idx, :][::-1]
+                post_coord = [int(x) for x in post_coord]
+                rels.append({
+                    'Rel': 'PreSynTo', 'To': post_coord
+                })
+
+            pre_coord = self.pre[pre_idx, :][::-1]
+            pre_coord = [int(x) for x in pre_coord]
+            data.append({
+                'Kind': 'PreSyn',
+                'Pos': pre_coord,
+                'Prop': {
+                    'annotation': comment,
+                    'conf': str(self.pre_confidence[pre_idx]),
+                    'user': user
+                },
+                'Rels': rels,
+                'Tags': []
+            })
+        return data
+    
+    def to_neutu_task(self, fname: str, 
+            software_revision: int=4809,
+            description: str = "transformed using chunkflow",
+            file_version: int = 1,
+            body_id: int = None
+        ):
+        """transform to a JSON file as an input to NeuTu.
+        Note that current version only support presynapse. 
+        There is no post-synapses transformed!
+
+        Args:
+            fname (str): file name with extension of .json
+        """
+        assert fname.endswith('.json')
+        task = {
+            'metadata': {
+                "date": time.strftime('%d-%B-%Y %H:%M'),
+                "session path": "",
+                "software revision": software_revision,
+                "description": description,
+                "coordinate system": "dvid",
+                "software": "chunkflow",
+                "file version": file_version,
+                "username": "chunkflow",
+                "software version": chunkflow.version,
+                "computer": "localhost"
+            }
+        }
+
+        if body_id is None:
+            body_id = ""
+
+        data = []
+        for idx in range(self.pre_num):
+            z, y, x = self.pre[idx, :]
+            data.append({
+                "body ID": body_id,
+                "location": [int(x), int(y), int(z)]
+            })
+
+        task['data'] = data
+
+        with open(fname, 'w') as jf:
+            json.dump(task, jf)
+        return
 
     def add_pre(self, pre: np.ndarray, confidence: float = 1.):
         """add some additional pre synapses
@@ -353,6 +453,16 @@ class Synapses():
             self.pre_confidence = np.concatenate((self.pre_confidence, confidences), axis=None)
         return self
 
+    def transpose_axis(self):
+        # transform to C order
+        self.pre = self.pre[:, ::-1]
+        self.resolution = self.resolution[::-1]
+        if self.post is not None:
+            self.post[:, 1:] = self.post[:, 1:][:, ::-1]
+        
+    def __len__(self):
+        return self.post_num
+    
     def __eq__(self, other: Synapses) -> bool:
         """compare two synapses.
         Note that we do not compare the confidence here!
@@ -366,8 +476,9 @@ class Synapses():
         if np.array_equal(self.pre, other.pre):
             if self.post is None and other.post is None:
                 return True
-            elif self.post is not None and other.post is not None and np.array_equal(
-                    self.post, other.post):
+            elif self.post is not None and \
+                    other.post is not None and \
+                    np.array_equal(self.post, other.post):
                 return True
             else:
                 return False
@@ -389,7 +500,10 @@ class Synapses():
     
     @property
     def post_num(self) -> int:
-        return self.post.shape[0]
+        if self.post is None:
+            return None
+        else:
+            return self.post.shape[0]
 
     @property
     def pre_bounding_box(self) -> BoundingBox:
@@ -439,10 +553,14 @@ class Synapses():
         # pi2pi = defaultdict(list)
         pi2pi = []
         for idx in range(self.pre_num):
-            # find the post synapses for this presynapse
-            post_indices = np.nonzero(self.post[:, 0]==idx)
-            assert len(post_indices) == 1
-            post_indices = post_indices[0].tolist()
+            if self.post is None:
+                post_indices = None
+            else:
+                # find the post synapses for this presynapse
+                post_indices = np.nonzero(self.post[:, 0]==idx)
+                assert len(post_indices) == 1
+                post_indices = post_indices[0].tolist()
+            
             pi2pi.append(post_indices)
 
         return pi2pi
@@ -499,10 +617,14 @@ class Synapses():
         self.pre = np.delete(self.pre, indices, axis=0)
         if self.pre_confidence is not None:
             self.pre_confidence = np.delete(self.pre_confidence, indices)
+        if self.pre_users is not None:
+            self.pre_users = np.delete(self.pre_users, indices)
 
         if self.post is not None: 
             post_indices = np.isin(self.post[:, 0], indices)
             self.post = np.delete(self.post, post_indices, axis=0)
+            if self.post_users is not None:
+                self.post_users = np.delete(self.post_users, post_indices)
             for idx in range(self.post_num):
                 self.post[idx, 0] = old2new[self.post[idx, 0]]
 
@@ -529,7 +651,6 @@ class Synapses():
         for idx, item in enumerate(self.users):
             if user == item:
                 return idx 
-        breakpoint()
         return None
 
     def post_indices_from_user(self, user: str) -> set:
@@ -642,4 +763,3 @@ if __name__ == '__main__':
         )
     )
     assert len(synapses.pre_index2post_indices[0]) > 1
-    breakpoint()

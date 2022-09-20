@@ -12,8 +12,7 @@ import re
 
 import numpy as np
 
-from cloudvolume import CloudVolume, Storage
-from cloudvolume.lib import min2, Vec, Bbox, mkdir
+from cloudvolume.lib import min2, Vec
 
 from . import downsample, downsample_scales
 

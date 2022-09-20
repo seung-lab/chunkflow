@@ -1,6 +1,9 @@
+from __future__ import annotations
+import logging
 from typing import Union
 import os
 from numbers import Number
+
 import h5py
 import numpy as np
 import nrrd
@@ -13,7 +16,7 @@ import tifffile
 import cc3d
 from cloudvolume.lib import yellow, Bbox
 
-from chunkflow.lib.bounding_boxes import BoundingBox, Cartesian
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
@@ -46,7 +49,7 @@ class Chunk(NDArrayOperatorsMixin):
                 self.array = array.array
                 voxel_offset = array.voxel_offset
             else:
-                voxel_offset = (0, 0, 0)
+                voxel_offset = Cartesian(0, 0, 0)
         
         if voxel_offset is not None:
             if len(voxel_offset) == 4:
@@ -54,7 +57,12 @@ class Chunk(NDArrayOperatorsMixin):
                 voxel_offset = voxel_offset[1:]
             assert len(voxel_offset) == 3
 
+        if not isinstance(voxel_offset, Cartesian):
+            voxel_offset = Cartesian.from_collection(voxel_offset)
         self.voxel_offset = voxel_offset
+
+        if voxel_size is not None and not isinstance(voxel_size, Cartesian):
+            voxel_size = Cartesian.from_collection(voxel_size)
         self.voxel_size = voxel_size
         if voxel_size is not None:
             assert len(voxel_size) == 3
@@ -76,54 +84,96 @@ class Chunk(NDArrayOperatorsMixin):
     
     @classmethod
     def from_bbox(cls, bbox: BoundingBox, dtype: type = np.uint8,
-            voxel_size: tuple=None, all_zero: bool=False):
-        """
-        :param bbox: bounding box of chunk.
-        :param dtype: numpy data type
-        :param all_zero: is it all zero or with a fancy function
-        :return: a new chunk
+            pattern: str='zero',
+            voxel_size: tuple=None):
+        """create a chunk from bounding box
+
+        Args:
+            bbox (BoundingBox): 3D bounding box
+            dtype (type, optional): data type. Defaults to np.uint8.
+            pattern (str, optional): method to create empty array. [zero, random, sin]. Defaults to 'zero'.
+            voxel_size (tuple, optional): physical size of a voxel. Defaults to None.
+
+        Returns:
+            _type_: _description_
         """
         assert isinstance(bbox, BoundingBox)
         size = bbox.maxpt - bbox.minpt
         return cls.create(size=size, dtype=dtype, voxel_offset=bbox.minpt,
-            voxel_size=voxel_size, all_zero=all_zero)
+            voxel_size=voxel_size, pattern=pattern)
+    
+    def connected_component(self, threshold: float = None, 
+                            connectivity: int = 6):
+        """threshold the map chunk and get connected components."""
+        if not self.is_segmentation and threshold is not None:
+            seg = self.threshold(threshold)
+            seg = seg.array
+        else:
+            seg = self.array 
+        seg = cc3d.connected_components(seg, connectivity=connectivity)
+        return Chunk(seg, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
     @classmethod
-    def create(cls, size: tuple = (64, 64, 64),
-               dtype: type = np.uint8, voxel_offset: tuple = (0, 0, 0),
-               voxel_size: tuple = None,
-               all_zero: bool = False):
+    def create(cls, size: Cartesian = Cartesian(64, 64, 64),
+               dtype: type = np.uint8, 
+               voxel_offset: Cartesian = Cartesian(0, 0, 0),
+               voxel_size: Cartesian = None,
+               pattern: str = 'sin',
+               high: int = 255):
+        """create a fake chunk for tests.
+
+        Args:
+            size (tuple, Cartesian, optional): chunk size or shape. Defaults to (64, 64, 64).
+            dtype (type, optional): data type like numpy. Defaults to np.uint8. options: [uint8, uint16, uint32, uint64, float32]
+            voxel_offset (Cartesian, optional): coordinate of starting voxel. Defaults to Cartesian(0, 0, 0).
+            voxel_size (Cartesian, optional): physical size of each voxel. Defaults to None.
+            pattern (str, optional): ways to create an array. ['sin', 'random', 'zero']. Defaults to 'sin'.
+            high (int, optional): the high value of random integer array. Defaults to 255.
+
+        Raises:
+            NotImplementedError: not support pattern or data type was used.
+
+        Returns:
+            Chunk: the random chunk created.
         """
-        :param size: size of chunk
-        :param dtype: numpy data type
-        :param voxel_offset: offset of the upper left corner
-        :param voxel_size: physical size of each voxel.
-        :param all_zero: is it all zero or create using a function
-        :return: a new chunk
-        """
+        # if not isinstance(size, Cartesian):
+        #     size = Cartesian.from_collection(size)
+
         if isinstance(dtype, str):
             dtype = np.dtype(dtype)
 
-        if all_zero:
-            chunk = np.zeros(size, dtype=dtype)
-        else:
+        if pattern == 'zero':
+            arr = np.zeros(size, dtype=dtype)
+        elif pattern == 'sin':
             ix, iy, iz = np.meshgrid(*[np.linspace(0, 1, n) for 
                                        n in size[-3:]], indexing='ij')
-            chunk = np.abs(np.sin(4 * (ix + iy + iz)))
+            arr = np.abs(np.sin(4 * (ix + iy + iz)))
             if len(size) == 4:
-                chunk = np.expand_dims(chunk, axis=0)
-                chunk = np.repeat(chunk, size[0], axis=0)
+                arr = np.expand_dims(arr, axis=0)
+                arr = np.repeat(arr, size[0], axis=0)
 
-            if np.dtype(dtype) == np.uint8:
-                chunk = (chunk * 255).astype( dtype )
-            elif np.dtype(dtype) == np.uint32:
-                chunk = (chunk>0.5).astype(dtype) 
+            if dtype == np.uint8:
+                arr = (arr * 255).astype( dtype )
+            elif dtype==np.uint16 or dtype == np.uint32 or dtype == np.uint64:
+                arr = (arr>0.5).astype(dtype)
+                arr = cc3d.connected_components(arr, connectivity=6)
             elif np.issubdtype(dtype, np.floating):
-                chunk = chunk.astype(dtype)
+                arr = arr.astype(dtype)
             else:
-                raise NotImplementedError()
+                raise NotImplementedError(f'do not support this data type: {dtype}')
+        elif pattern == 'random':
+            if np.issubdtype(dtype, np.floating):
+                arr = np.random.rand(*size)
+                arr = arr.astype(dtype)
+            elif np.issubdtype(dtype, np.integer):
+                arr = np.random.randint(high, size=size, dtype=dtype)
+                arr = cc3d.connected_components(arr, connectivity=6)
+            else:
+                raise NotImplementedError(f'do not support this data type: {dtype}')
+        else:
+            raise NotImplementedError(f'do not support the pattern: {pattern}')
 
-        return cls(chunk, voxel_offset=voxel_offset, voxel_size=voxel_size)
+        return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
 
     def clone(self):
         return Chunk(self.array.copy(), 
@@ -144,7 +194,7 @@ class Chunk(NDArrayOperatorsMixin):
         elif not file_name.endswith('.nrrd'):
             file_name += f'_{self.bbox.to_filename()}.nrrd'
 
-        print('write chunk to file: ', file_name)
+        logging.info(f'write chunk to file: {file_name}')
         nrrd.write(file_name, self.array)
 
     @classmethod
@@ -154,13 +204,13 @@ class Chunk(NDArrayOperatorsMixin):
 
         if dtype:
             arr = arr.astype(dtype)
-        print(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
+        logging.info(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
         return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
     
-    def to_tif(self, file_name: str=None):
+    def to_tif(self, file_name: str=None, compression: str = 'zlib'):
         if file_name is None:
             file_name = f'{self.bbox.to_filename()}.tif'
-        print('write chunk to file: ', file_name)
+        logging.info(f'write chunk to file: {file_name}')
 
         if self.array.dtype==np.float32:
             # visualization in float32 is not working correctly in ImageJ
@@ -170,7 +220,20 @@ class Chunk(NDArrayOperatorsMixin):
             img = img.astype( np.uint8 )
         else:
             img = self.array
-        tifffile.imwrite(file_name, data=img)
+        
+        if self.ndim == 3:
+            axes = 'ZYX'
+        elif self.ndim == 4:
+            axes = 'CZYX'
+        metadata = {'spacing': 1, 'unit': 'nm', 'axes': axes}
+        tifffile.imwrite(
+            file_name, data=img, 
+            volumetric = True,
+            # resolution=self.voxel_size.tuple, 
+            # imagej=True,
+            metadata = metadata,
+            compression = compression,
+        )
 
     @classmethod
     def from_h5(cls, file_name: str,
@@ -180,10 +243,10 @@ class Chunk(NDArrayOperatorsMixin):
                 cutout_start: tuple = None,
                 cutout_stop: tuple = None,
                 cutout_size: tuple = None,
-                zero_filling: bool = False,
                 dtype: str = None):
 
-        assert os.path.exists(file_name)
+        if not os.path.exists(file_name):
+            raise ValueError(f'the file do not exist: {file_name}')
         
         if cutout_start is not None and cutout_size is not None:
             cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
@@ -194,11 +257,12 @@ class Chunk(NDArrayOperatorsMixin):
             bbox = BoundingBox.from_list([*cutout_start, *cutout_stop])
             file_name += f'{bbox.to_filename()}.h5'
 
-            if not os.path.exists(file_name) and zero_filling:
+            if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
                 # fill with zero
                 assert dtype is not None
-                print(f'file do not exist, will fill with zero: {file_name}')
-                return cls.from_bbox(bbox, dtype=dtype, voxel_size=voxel_size, all_zero=True)
+                logging.info(f'{file_name} do not exist or is empty, will return None.')
+                # return cls.from_bbox(bbox, dtype=dtype, voxel_size=voxel_size, all_zero=True)
+                return None
 
         with h5py.File(file_name, 'r') as f:
             if dataset_path is None:
@@ -219,7 +283,7 @@ class Chunk(NDArrayOperatorsMixin):
                     voxel_size = Cartesian(*f['voxel_size'])
                 else:
                     voxel_size = Cartesian(1, 1, 1)
-
+            
             if cutout_start is None:
                 cutout_start = voxel_offset
             if cutout_size is None:
@@ -229,7 +293,7 @@ class Chunk(NDArrayOperatorsMixin):
 
             for c, v in zip(cutout_start, voxel_offset):
                 assert c >= v, "can only cutout after the global voxel offset."
-
+            
             assert len(cutout_start) == 3
             assert len(cutout_stop) == 3
             dset = dset[...,
@@ -239,7 +303,7 @@ class Chunk(NDArrayOperatorsMixin):
             ]
                     
         
-        print(f"""read from HDF5 file: {file_name} and start with {cutout_start}, \
+        logging.info(f"""read from HDF5 file: {file_name} and start with {cutout_start}, \
 ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         arr = np.asarray(dset)
         if arr.dtype == np.dtype('<f4'):
@@ -247,12 +311,12 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         elif arr.dtype == np.dtype('<f8'):
             arr = arr.astype('float64') 
 
-        print('new chunk voxel offset: {}'.format(cutout_start))
+        logging.info(f'new chunk voxel offset: {cutout_start}')
 
         return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
-                chunk_size: tuple=(64,64,64),
+                chunk_size: Cartesian = Cartesian(64,64,64),
                 with_unique: bool= True, 
                 compression="gzip",
                 voxel_size: tuple = None):
@@ -268,7 +332,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         if not file_name.endswith('.h5'):
             file_name += self.bbox.to_filename() + '.h5'
 
-        print('write chunk to file: ', file_name)
+        logging.info(f'write chunk to file: {file_name}')
         if os.path.exists(file_name):
             print(yellow(f'deleting existing file: {file_name}'))
             os.remove(file_name)
@@ -348,9 +412,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             return np.array_equal(self.array, value.array) and np.array_equal(
                 self.voxel_offset, value.voxel_offset)
         elif isinstance(value, Number):
-            return np.all(self.array==value)
+            # return np.all(self.array==value)
+            return self.array == value
         elif isinstance(value, np.ndarray):
-            return np.all(self.array == value)
+            # return np.all(self.array == value)
+            return self.array == value
         else:
             raise NotImplementedError
 
@@ -364,12 +430,20 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     @property
     def properties(self) -> dict:
         props = dict()
-        if self.voxel_offset is not None or self.voxel_offset != (0, 0, 0):
+        if self.voxel_offset is not None or self.voxel_offset != Cartesian(0, 0, 0):
             props['voxel_offset'] = self.voxel_offset
-        if self.voxel_size is not None or self.voxel_size != (1, 1, 1):
+        if self.voxel_size is not None or self.voxel_size != Cartesian(1, 1, 1):
             props['voxel_size'] = self.voxel_size
         return props 
-    
+
+    @property
+    def flags(self):
+        return self.array.flags
+
+    @property
+    def size(self):
+        return self.array.size
+
     @property
     def slices(self) -> tuple:
         """
@@ -431,7 +505,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return tuple(o + s for o, s in zip(self.voxel_offset, self.shape))
 
     def astype(self, dtype: np.dtype):
-        if dtype != self.array.dtype:
+        if dtype is None:
+            new_array = self.array
+        elif dtype != self.array.dtype:
             new_array = self.array.astype(dtype)
         else:
             new_array = self.array
@@ -447,27 +523,27 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def min(self, *args, **kwargs):
         return self.array.min(*args, **kwargs)
 
-    def transpose(self):
+    def transpose(self, only_array: bool=False):
         """To-Do: support arbitrary axis transpose"""
         new_array = self.array.transpose()
-        if self.voxel_offset is not None:
+        if not only_array and self.voxel_offset is not None:
             voxel_offset = self.voxel_offset[::-1]
         else:
             voxel_offset = self.voxel_offset
-        if self.voxel_size is not None:
+        
+        if not only_array and self.voxel_size is not None:
             voxel_size = self.voxel_size[::-1]
         else:
             voxel_size = self.voxel_size
         return Chunk(new_array, voxel_offset=voxel_offset, voxel_size=voxel_size)
 
-
     def fill(self, x):
         self.array.fill(x)
 
-    def squeeze_channel(self) -> np.ndarray:
+    def squeeze_channel(self, axis: int = 0) -> np.ndarray:
         """given a 4D array, squeeze the channel axis."""
         assert self.array.ndim == 4
-        new_array = np.squeeze(self, axis=0)
+        new_array = np.squeeze(self, axis=axis)
         return Chunk(new_array, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
     # @profile(precision=0)
@@ -501,7 +577,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
                 o + m for o, m in zip(self.voxel_offset, margin_size))
             return Chunk(new_array, voxel_offset=voxel_offset, voxel_size=self.voxel_size)
         else:
-            print('automatically crop the chunk to output bounding box.')
+            logging.info('automatically crop the chunk to output bounding box.')
             assert output_bbox is not None
             return self.cutout(output_bbox.to_slices())
     
@@ -516,17 +592,6 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         seg = seg.astype(np.uint8)
         return seg
     
-    def connected_component(self, threshold: float = None, 
-                            connectivity: int = 6):
-        """threshold the map chunk and get connected components."""
-        if not self.is_segmentation and threshold is not None:
-            seg = self.threshold(threshold)
-            seg = seg.array
-        else:
-            seg = self.array 
-        seg = cc3d.connected_components(seg, connectivity=connectivity)
-        return Chunk(seg, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
-
     def where(self, mask: np.ndarray) -> tuple:
         """
         find the indexes of masked value as an alternative of np.where function
@@ -594,16 +659,17 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
         self.array[internal_slices] += patch.array[patch_slices]
 
-    def maskout(self, chunk):
+    def maskout(self, chunk: Chunk):
         """ Make part of the chunk to be black.
         """
-        assert chunk.voxel_size
-        assert self.voxel_size
-        # the voxel size should be divisible
-        div = tuple(s%c==0 for s, c in zip(self.voxel_size, chunk.voxel_size))
-        assert np.alltrue(div)
+        assert chunk.voxel_size is not None
+        assert self.voxel_size is not None
+        assert self.voxel_size >= chunk.voxel_size
 
-        factor = tuple(s//c for s, c in zip(self.voxel_size, chunk.voxel_size))
+        # the voxel size should be divisible
+        assert Cartesian(0, 0, 0) == self.voxel_size % chunk.voxel_size
+
+        factor = self.voxel_size // chunk.voxel_size
         for offset in np.ndindex(factor):
             chunk.array[
                 ...,

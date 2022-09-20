@@ -72,7 +72,7 @@ Now let's play with some real data! You can download the data from `CREMI <https
 
 Run this command and open the link in your browser::
 
-   chunkflow read-h5 --file-name sample_A_20160501.hdf --dataset-path /volumes/raw neuroglancer --voxel-size 40 4 4 
+   chunkflow load-h5 --file-name sample_A_20160501.hdf --dataset-path /volumes/raw neuroglancer --voxel-size 40 4 4 
 
 Change the file path if you put your image in some other places. You should see the image in neuroglancer:
 
@@ -84,11 +84,11 @@ Cutout/Save a Chunk from Large Scale Volume in Cloud Storage
 -------------------------------------------------------------
 We use CloudVolume_ to perform cutout/saving of chunks in a large scale volumemetric dataset. To be convenient, we use local file system in this tutorial. To use cloud storage, you can just setup the authentication following the documentation of CloudVolume_ and replace the path to cloud storage. You can create a volume and ingest the image stack to the volume::
 
-   chunkflow read-h5 --file-name sample_A_20160501.hdf --dataset-path /volumes/raw write-precomputed --volume-path file:///tmp/your/key/path 
+   chunkflow load-h5 --file-name sample_A_20160501.hdf --dataset-path /volumes/raw save-precomputed --volume-path file:///tmp/your/key/path 
 
 Now you can cutout the image chunk from the volume::
 
-   chunkflow read-precomputed --volume-path file:///tmp/your/key/path --start 0 0 0 --stop 128 512 512 write-h5 --file-name /tmp/cutout_chunk.h5
+   chunkflow load-precomputed --volume-path file:///tmp/your/key/path --start 0 0 0 --stop 128 512 512 save-h5 --file-name /tmp/cutout_chunk.h5
 
 .. _CloudVolume: https://github.com/seung-lab/cloud-volume
 
@@ -97,7 +97,7 @@ Evaluation of Segmentation
 ==========================
 You can read two segmentation volumes and compare them::
 
-   chunkflow read-tif --file-name groundtruth.tif -o gt read-tif --file-name /tmp/segmentation.tif -o seg evaluate-segmentation -g gt -s seg
+   chunkflow load-tif --file-name groundtruth.tif -o gt load-tif --file-name /tmp/segmentation.tif -o seg evaluate-segmentation -g gt -s seg
 
 The result will print out in terminal::
 
@@ -106,7 +106,7 @@ The result will print out in terminal::
    VOI split: 0.300484
    VOI merge: 0.143631
 
-Of course, you can replace the ``read-tif`` operator to other reading operators, such as ``read-h5`` and ``read-precomputed``.
+Of course, you can replace the ``load-tif`` operator to other reading operators, such as ``load-h5`` and ``load-precomputed``.
 
 
 Convolutional Network Inference
@@ -155,7 +155,7 @@ Synaptic Cleft Detection
 ------------------------
 With only one command, you can perform the inference to produce cleft map and visualize it::
 
-   chunkflow read-tif -f path/of/image.tif -o image inference --convnet-model model.py --convnet-weight-path weight.chkpt --patch-size 18 192 192 --patch-overlap 4 64 64 --framework pytorch --batch-size 6 --bump wu --num-output-channels 1 --mask-output-chunk -i image -o cleft write-tif -i cleft -f cleft.tif neuroglancer -c image,cleft -p 33333 -v 30 6 6
+   chunkflow load-tif -f path/of/image.tif -o image inference --convnet-model model.py --convnet-weight-path weight.chkpt --patch-size 18 192 192 --patch-overlap 4 64 64 --framework pytorch --batch-size 6 --bump wu --num-output-channels 1 --mask-output-chunk -i image -o cleft save-tif -i cleft -f cleft.tif neuroglancer -c image,cleft -p 33333 -v 30 6 6
 
 You can see the image with output synapse cleft map:
 
@@ -166,7 +166,7 @@ You can see the image with output synapse cleft map:
 
 You can also apply a threshold to get a segmentation of the cleft map::
 
-   chunkflow read-tif -f path/of/image.tif -o image read-tif -f cleft.tif -o cleft connected-components -i cleft -o seg -t 0.1 neuroglancer -p 33333 -c image,seg -v 30 6 6
+   chunkflow load-tif -f path/of/image.tif -o image load-tif -f cleft.tif -o cleft connected-components -i cleft -o seg -t 0.1 neuroglancer -p 33333 -c image,seg -v 30 6 6
 
 You should see segmentation overlayed with image:
 
@@ -174,14 +174,14 @@ You should see segmentation overlayed with image:
 
 .. |cleft_target| image:: _static/image/cleft_target.png
 
-Of course, you can add a writing operator, such as ``write-tif``, before the ``neuroglancer`` operator to save the segmentation.
+Of course, you can add a writing operator, such as ``save-tif``, before the ``neuroglancer`` operator to save the segmentation.
 
 Dense Neuron Segmentation
 -------------------------
 
 We used a ConvNet trained using SNEMI3D_ dataset, you can download the data from the website. Then, we can perform boundary detection with one single command:: 
 
-    chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 neuroglancer -c image,affs -p 33333 -v 30 6 6
+    chunkflow load-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs save-h5 -i affs --file-name affs.h5 neuroglancer -c image,affs -p 33333 -v 30 6 6
 
 .. _SNEMI3D: http://brainiac2.mit.edu/SNEMI3D/home
 
@@ -193,7 +193,7 @@ The boundary map is also saved in ``affs.h5`` file and could be used in later pr
 
 You can perform mean affinity segmentation with one single command::
 
-   chunkflow read-h5 --file-name affs.h5 -o affs agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif read-tif --file-name image.tif -o image neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
+   chunkflow load-h5 --file-name affs.h5 -o affs agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg save-tif -i seg -f seg.tif load-tif --file-name image.tif -o image neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 
 You should be able to see the image, affinity map and segmentation in neuroglancer. Overlay the segmentation with the image looks like this:
 
@@ -205,7 +205,7 @@ If the computation takes too long, you can decrease the ``aff-threshold-high`` t
 
 Of course, you can also combine the two setups to one single command::
     
-    chunkflow read-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs write-h5 -i affs --file-name affs.h5 agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg write-tif -i seg -f seg.tif neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
+    chunkflow load-tif --file-name path/of/image.tif -o image inference --convnet-model path/of/model.py --convnet-weight-path path/of/weight.pt --patch-size 20 256 256 --patch-overlap 4 64 64 --num-output-channels 3 -f pytorch --batch-size 12 --mask-output-chunk -i image -o affs save-h5 -i affs --file-name affs.h5 agglomerate --threshold 0.7 --aff-threshold-low 0.001 --aff-threshold-high 0.9999 -i affs -o seg save-tif -i seg -f seg.tif neuroglancer -c image,affs,seg -p 33333 -v 30 6 6
 
 
 Distributed Computation in Both Local and Cloud
@@ -252,29 +252,29 @@ You can fetch the task from SQS queue, and perform the computation locally. You 
 
 Here is a simple example to downsample the dataset with multiple resolutions::
 
-   chunkflow --mip 0 fetch-task -q my-queue read-precomputed -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5 delete-task-in-queue
+   chunkflow --mip 0 fetch-task -q my-queue load-precomputed -v gs://my/dataset/path -m 0 --fill-missing downsample-upload -v gs://my/dataset/path --start-mip 1 --stop-mip 5 delete-task-in-queue
 
 After downsampling, you can visualize the dataset with much larger field of view. Here is an `example
-<https://neuroglancer-demo.appspot.com/#!%7B%22layers%22:%5B%7B%22source%22:%22precomputed://gs://neuroglancer-public-data/kasthuri2011/image_color_corrected%22%2C%22type%22:%22image%22%2C%22name%22:%22corrected-image%22%7D%5D%2C%22navigation%22:%7B%22pose%22:%7B%22position%22:%7B%22voxelSize%22:%5B6%2C6%2C30%5D%2C%22voxelCoordinates%22:%5B3890.492431640625%2C7464.080078125%2C1198.0423583984375%5D%7D%7D%2C%22zoomFactor%22:245.12283916194264%7D%2C%22perspectiveOrientation%22:%5B0.1614261269569397%2C-0.412894606590271%2C-0.28569135069847107%2C-0.849611759185791%5D%2C%22perspectiveZoom%22:578.24635639373%2C%22layout%22:%224panel%22%7D>`_. Due to the limit of memory capacity of typical computers, we can not perform hierarchical downsampling from mip 0 to highest mip level in one step, thus we normally do in twice. For the first time, we perform downsampling from mip 0 to mip 5, than perform downsampling from mip 5 to mip 10.
+<https://neuroglancer-demo.appspot.com/#!%7B%22layers%22:%5B%7B%22source%22:%22precomputed://gs://neuroglancer-public-data/kasthuri2011/image_color_corrected%22%2C%22type%22:%22image%22%2C%22name%22:%22corrected-image%22%7D%5D%2C%22navigation%22:%7B%22pose%22:%7B%22position%22:%7B%22voxelSize%22:%5B6%2C6%2C30%5D%2C%22voxelCartesians%22:%5B3890.492431640625%2C7464.080078125%2C1198.0423583984375%5D%7D%7D%2C%22zoomFactor%22:245.12283916194264%7D%2C%22perspectiveOrientation%22:%5B0.1614261269569397%2C-0.412894606590271%2C-0.28569135069847107%2C-0.849611759185791%5D%2C%22perspectiveZoom%22:578.24635639373%2C%22layout%22:%224panel%22%7D>`_. Due to the limit of memory capacity of typical computers, we can not perform hierarchical downsampling from mip 0 to highest mip level in one step, thus we normally do in twice. For the first time, we perform downsampling from mip 0 to mip 5, than perform downsampling from mip 5 to mip 10.
 
 .. note:: If you forget adding the ``delete-task-in-queue`` operator in the end, it will still works, but the task in queue will not be deleted and workers will keep doing the same task! This is good for debug, but not good in production.
 
 Here is an example to generate meshes from segmentation in mip 3::
 
-   chunkflow --mip 3 fetch-task -q my-queue -v 600 read-precomputed -v gs://my/dataset/path --fill-missing mesh --voxel-size 45 5 5 -o gs://my/dataset/path --dust-threshold 100 delete-task-in-queue
+   chunkflow --mip 3 fetch-task -q my-queue -v 600 load-precomputed -v gs://my/dataset/path --fill-missing mesh --voxel-size 45 5 5 -o gs://my/dataset/path --dust-threshold 100 delete-task-in-queue
 
 The computation will also include a downsampling step for meshes to reduce the number of triangles. The meshing will produce chunked mesh fragments rather than the whole object mesh. Thus, we need another step, called ``mesh-manifest``, to collect the fragments::
 
    chunkflow mesh-manifest --volume-path gs://my/dataset/path --prefix 7
 
 Normally, we have millions of objects in case of dense reconstruction of Electron Microscopy images. We would like to distribute the collection for speedup. We use ``prefix`` parameter to split the jobs. In the above example, we are only doing mesh manifest for objects start with ``7``. If all the object names start with number, we need to do it from 0 to 9, or from 00 to 99, to cover all the objects. The prefix will determine the number of jobs. If there are billions of objects, we might need to use deeper split, such as from 000 to 999. After the mesh manifest, you should be able to see the 3D objects using neuroglancer, like `this one
-<https://neuroglancer-demo.appspot.com/#!%7B%22layers%22:%5B%7B%22source%22:%22precomputed://gs://neuroglancer-public-data/kasthuri2011/ground_truth%22%2C%22type%22:%22segmentation%22%2C%22selectedAlpha%22:0.63%2C%22notSelectedAlpha%22:0.14%2C%22segments%22:%5B%2213%22%2C%2215%22%2C%222282%22%2C%223189%22%2C%223207%22%2C%223208%22%2C%223224%22%2C%223228%22%2C%223710%22%2C%223758%22%2C%224027%22%2C%22444%22%2C%224651%22%2C%224901%22%2C%224965%22%5D%2C%22skeletonRendering%22:%7B%22mode2d%22:%22lines_and_points%22%2C%22mode3d%22:%22lines%22%7D%2C%22name%22:%22ground_truth%22%7D%5D%2C%22navigation%22:%7B%22pose%22:%7B%22position%22:%7B%22voxelSize%22:%5B6%2C6%2C30%5D%2C%22voxelCoordinates%22:%5B5523.99072265625%2C8538.9384765625%2C1198.0423583984375%5D%7D%7D%2C%22zoomFactor%22:22.573112129999547%7D%2C%22perspectiveOrientation%22:%5B0.15436482429504395%2C-0.9670825004577637%2C0.01203650888055563%2C0.20193573832511902%5D%2C%22perspectiveZoom%22:340.35867907175077%2C%22layout%22:%223d%22%7D>`_.
+<https://neuroglancer-demo.appspot.com/#!%7B%22layers%22:%5B%7B%22source%22:%22precomputed://gs://neuroglancer-public-data/kasthuri2011/ground_truth%22%2C%22type%22:%22segmentation%22%2C%22selectedAlpha%22:0.63%2C%22notSelectedAlpha%22:0.14%2C%22segments%22:%5B%2213%22%2C%2215%22%2C%222282%22%2C%223189%22%2C%223207%22%2C%223208%22%2C%223224%22%2C%223228%22%2C%223710%22%2C%223758%22%2C%224027%22%2C%22444%22%2C%224651%22%2C%224901%22%2C%224965%22%5D%2C%22skeletonRendering%22:%7B%22mode2d%22:%22lines_and_points%22%2C%22mode3d%22:%22lines%22%7D%2C%22name%22:%22ground_truth%22%7D%5D%2C%22navigation%22:%7B%22pose%22:%7B%22position%22:%7B%22voxelSize%22:%5B6%2C6%2C30%5D%2C%22voxelCartesians%22:%5B5523.99072265625%2C8538.9384765625%2C1198.0423583984375%5D%7D%7D%2C%22zoomFactor%22:22.573112129999547%7D%2C%22perspectiveOrientation%22:%5B0.15436482429504395%2C-0.9670825004577637%2C0.01203650888055563%2C0.20193573832511902%5D%2C%22perspectiveZoom%22:340.35867907175077%2C%22layout%22:%223d%22%7D>`_.
 
 .. note:: This command will generate meshes for all the objects in the segmentation volume. You can also specify selected object ids using the `--ids` parameter. We normally call it sparse meshing. This is useful if you only need a few objects and will make the computation much faster.
 
 Here is a complex example to perform convolutional inference::
 
-   chunkflow --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 read-precomputed --volume-path="s3://my/image/volume/path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 write-precomputed --volume-path="file://my/output/volume/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
+   chunkflow --mip 2 fetch-task --queue-name=my-queue --visibility-timeout=3600 load-precomputed --volume-path="s3://my/image/volume/path --expand-margin-size 10 128 128 --fill-missing inference --convnet-model=my-model-name --convnet-weight-path="/nets/weight.pt" --patch-size 20 256 256 --patch-overlap 10 128 128 --framework='pytorch' --batch-size=8 save-precomputed --volume-path="file://my/output/volume/path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
 
 Here is more complex example with mask and skip operations in production run of petabyte scale image processing::
 
@@ -287,7 +287,7 @@ Here is more complex example with mask and skip operations in production run of 
    export OUTPUT_LAYER_PATH="gs://bucket/my/output/layer/path"
    export OUTPUT_MASK_LAYER_PATH="gs://bucket/my/output/mask/layer/path"
    export CUDA_VISIBLE_DEVICES="3"
-   chunkflow --mip 1 fetch-task -r 20 --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT read-precomputed --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 10 128 128 --fill-missing mask --name='check-all-zero-and-skip-to-save' --check-all-zero --volume-path="$IMAGE_MASK_LAYER_PATH" --mip 8 --skip-to='write-precomputed' --fill-missing --inverse normalize-section-contrast -p "gs://bucket/my/histogram/path/levels/1" -l 0.0023 -u 0.01 inference --convnet-model="$CONVNET_MODEL_FILE" --convnet-weight-path="${CONVNET_WEIGHT_FILE}" --input-patch-size 20 256 256 --output-patch-size 16 192 192 --output-patch-overlap 2 32 32 --output-crop-margin 8 96 96 --num-output-channels 4 --framework='pytorch' --batch-size 6 --patch-num 14 9 9 mask --name='mask-aff' --volume-path="$OUTPUT_MASK_LAYER_PATH" --mip 8 --fill-missing --inverse write-precomputed --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
+   chunkflow --mip 1 fetch-task -r 20 --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT load-precomputed --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 10 128 128 --fill-missing mask --name='check-all-zero-and-skip-to-save' --check-all-zero --volume-path="$IMAGE_MASK_LAYER_PATH" --mip 8 --skip-to='save-precomputed' --fill-missing --inverse normalize-section-contrast -p "gs://bucket/my/histogram/path/levels/1" -l 0.0023 -u 0.01 inference --convnet-model="$CONVNET_MODEL_FILE" --convnet-weight-path="${CONVNET_WEIGHT_FILE}" --input-patch-size 20 256 256 --output-patch-size 16 192 192 --output-patch-overlap 2 32 32 --output-crop-margin 8 96 96 --num-output-channels 4 --framework='pytorch' --batch-size 6 --patch-num 14 9 9 mask --name='mask-aff' --volume-path="$OUTPUT_MASK_LAYER_PATH" --mip 8 --fill-missing --inverse save-precomputed --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
 
 .. note:: The chunk size should also be divisible by the corresponding high mip level mask. For example, the chunk with size `24 x 24 x 24` can only be masked out with mip level no larger than 3. Because the maximum diviser of 24 with exponential of 2 is 8 (8=2^3). As a result, mask in high mip level will limit the chunk size choice!
 

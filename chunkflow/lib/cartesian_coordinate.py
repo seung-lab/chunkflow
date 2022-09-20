@@ -4,10 +4,11 @@ from __future__ import annotations
 import logging
 import os
 from collections import UserList, namedtuple
-from math import ceil
+from math import ceil, floor
 from typing import Union
 from numbers import Number
 import itertools
+import re
 
 from copy import deepcopy
 
@@ -16,6 +17,8 @@ import h5py
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec, Bbox
+
+BOUNDING_BOX_RE = re.compile(r'(-?\d+)-(-?\d+)_(-?\d+)-(-?\d+)_(-?\d+)-(-?\d+)(?:\.gz|\.br|\.h5|\.json|\.npy|\.tif|\.csv|\.pkl|\.png|\.jpg)?$')
 
 def to_cartesian(x: Union[tuple, list]):
     if x is None:
@@ -32,13 +35,24 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def from_collection(cls, col: Union[tuple, list, Vec]):
         return cls(*col)
 
-    def __eq__(self, other: Union[int, Cartesian]) -> bool:
+    @property
+    def ceil(self):
+        return Cartesian(ceil(self.z), ceil(self.y), ceil(self.x))
+    
+    @property
+    def floor(self):
+        return Cartesian(floor(self.z), floor(self.y), floor(self.x))
+
+    def __hash__(self):
+        return hash((self.z, self.y, self.x))
+
+    def __eq__(self, other: Union[int, tuple, Cartesian]) -> bool:
         if isinstance(other, int):
             return np.all([x==other for x in self])
-        elif isinstance(other, Cartesian):
+        elif isinstance(other, Cartesian) or isinstance(other, tuple):
             return np.all([x==y for x, y in zip(self, other)])
         else:
-            raise TypeError('only support int or Cartesian for now.')
+            raise TypeError(f'only support int, tuple or Cartesian for now, but get {type(other)}')
     
     def __sub__(self, offset: Union[Cartesian, Number]):
         """subtract to another voxel coordinate
@@ -155,38 +169,66 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def vec(self):
         return Vec(*self)
 
+    @property
+    def tuple(self):
+        return (self.z, self.y, self.x)
+
 
 class BoundingBox(Bbox):
     def __init__(self, 
-            minpt: Union[list, Cartesian], 
-            maxpt: Union[list, Cartesian], 
-            dtype=None, 
-            voxel_size: Cartesian = None):
+            minpt: Union[list, Cartesian],
+            maxpt: Union[list, Cartesian],
+            dtype: np.dtype =None):
         if isinstance(minpt, Cartesian):
             minpt = minpt.vec
         
         if isinstance(maxpt, Cartesian):
             maxpt = maxpt.vec
         super().__init__(minpt, maxpt, dtype=dtype)
-        self._voxel_size = voxel_size
 
     @classmethod
-    def from_bbox(cls, bbox: Bbox, voxel_size: tuple = None):
-        return cls(bbox.minpt, bbox.maxpt, voxel_size=voxel_size)
+    def from_bbox(cls, bbox: Bbox):
+        return cls(bbox.minpt, bbox.maxpt)
+    
+    @classmethod
+    def from_string(cls, string: str):
+        match = BOUNDING_BOX_RE.search(string)
+        if match is None:
+            return None
+        else:
+            zstart, zstop, ystart, ystop, xstart, xstop = map(
+                int, match.groups()
+            )
+            start = Cartesian(zstart, ystart, xstart)
+            stop = Cartesian(zstop, ystop, xstop)
+            return cls(start, stop)
 
     @classmethod
-    def from_delta(cls, minpt, plus):
+    def from_delta(cls, 
+            minpt: Union[list, tuple, Cartesian, np.ndarray], 
+            plus: Union[list, tuple, Cartesian, np.ndarray]):
         bbox = super().from_delta(minpt, plus)
         return cls.from_bbox(bbox)
 
     @classmethod
-    def from_list(cls, x: list):
-        bbox = Bbox.from_list(x)
+    def from_list(cls, lst: list):
+        bbox = Bbox.from_list(lst)
         return cls.from_bbox(bbox)
 
     @classmethod
-    def from_points(cls, x: np.ndarray):
-        bbox = Bbox.from_points(x)
+    def from_vec(cls, arr: np.ndarray):
+        assert len(arr) == 3
+        bbox = Bbox.from_vec(arr)
+        return cls.from_bbox(bbox)
+
+    @classmethod
+    def from_points(cls, arr: np.ndarray):
+        bbox = Bbox.from_points(arr)
+        return cls.from_bbox(bbox)
+
+    @classmethod
+    def from_slices(cls, tpl: tuple):
+        bbox = Bbox.from_slices(tpl)
         return cls.from_bbox(bbox)
 
     @classmethod
@@ -207,13 +249,29 @@ class BoundingBox(Bbox):
             maxpt += 1
         return cls(minpt, maxpt)
 
+    @property
+    def string(self):
+        return self.to_filename()
+
+    @property
+    def start(self):
+        return Cartesian.from_collection(self.minpt)
+    
+    @property
+    def stop(self):
+        return Cartesian.from_collection(self.maxpt)
+
+    @property
+    def shape(self):
+        return self.stop - self.start
+        
     def __repr__(self):
-        return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}, voxel_size={self.voxel_size})'
+        return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}'
 
     def clone(self):
         bbox = Bbox(self.minpt, self.maxpt, dtype=self.dtype)
         bbox = bbox.clone()
-        return BoundingBox.from_bbox(bbox, voxel_size=self.voxel_size)
+        return BoundingBox.from_bbox(bbox)
 
     def adjust(self, size: Union[Cartesian, int, tuple, list, Vec]):
         if size is None:
@@ -229,6 +287,12 @@ class BoundingBox(Bbox):
         self.maxpt += size[-3:]
         return self
 
+    def adjust_corner(self, corner_offset: Union[tuple, list]):
+        if corner_offset is not None:
+            assert len(corner_offset) == 6
+            self.minpt += Cartesian.from_collection(corner_offset[:3])
+            self.maxpt += Cartesian.from_collection(corner_offset[-3:])
+
     def union(self, bbox2):
         """Merge another bounding box
 
@@ -238,8 +302,6 @@ class BoundingBox(Bbox):
         Returns:
             BoundingBox: bounding box after merging
         """
-        if isinstance(bbox2, BoundingBox):
-            assert self.voxel_size == bbox2.voxel_size
 
         self.minpt = np.minimum(self.minpt, bbox2.minpt)
         self.maxpt = np.maximum(self.maxpt, bbox2.maxpt)
@@ -254,10 +316,6 @@ class BoundingBox(Bbox):
     @property
     def shape(self):
         return Cartesian(*(self.maxpt - self.minpt))
-
-    @property
-    def voxel_size(self):
-        return self._voxel_size
 
     @property
     def left_neighbors(self):
@@ -276,29 +334,7 @@ class BoundingBox(Bbox):
         bbox_x = self.from_delta(minpt, sz)
         return bbox_z, bbox_y, bbox_x
 
-    @voxel_size.setter
-    def voxel_size(self, vs: tuple):
-        self._voxel_size = vs
-
-    def slices_in_scale(self, voxel_size: tuple) -> tuple:
-        """slices with specific voxel size volume
-
-        Args:
-            voxel_size (tuple): the target volume voxel size
-
-        Returns:
-            tuple: tuple of slices
-        """
-        minpt = tuple( p * s1 // s2 for p, s1, s2 in zip(
-            self.minpt, self._voxel_size, voxel_size
-        ))
-        maxpt = tuple( p * s1 // s2 for p, s1, s2 in zip(
-            self.maxpt, self._voxel_size, voxel_size
-        ))
-        bbox = Bbox(minpt, maxpt)
-        return bbox.to_slices()
-
-
+    
 class BoundingBoxes(UserList):
     def __init__(self, bboxes: list) -> None:
         super().__init__()
@@ -399,7 +435,8 @@ class BoundingBoxes(UserList):
 
         if grid_size is None:
             grid_size = (roi_size - chunk_overlap) / stride 
-            grid_size = Cartesian.from_collection([ceil(x) for x in grid_size])
+            grid_size = grid_size.ceil
+            # grid_size = Cartesian.from_collection([ceil(x) for x in grid_size])
 
         # the stride should not be zero if there is more than one chunks
         for g, s in zip(grid_size, stride):
@@ -411,8 +448,13 @@ class BoundingBoxes(UserList):
         logging.info(f'stride: {stride}')
         logging.info(f'grid size: {grid_size}')
         logging.info(f'final output stop: {final_output_stop}')
+        center_index = grid_size.z // 2 * (grid_size.y*grid_size.x) + \
+            grid_size.y // 2 * grid_size.x + \
+                grid_size.x // 2
+        logging.info(f'center chunk index: {center_index}')
+        print(f'center chunk index: {center_index}')
 
-        print(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
+        logging.info(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
 
         bboxes = []
         for (gz, gy, gx) in itertools.product(
@@ -426,27 +468,35 @@ class BoundingBoxes(UserList):
             if not bounded or np.all(tuple(m < p for m, p in zip(bbox.maxpt, roi_stop))):
                 bboxes.append( bbox )
 
-        print(f'get {len(bboxes)} bounding boxes as tasks.')
+        logging.info(f'get {len(bboxes)} bounding boxes as tasks.')
         return cls(bboxes)
 
     @classmethod
-    def from_array(cls, arr: np.ndarray):
+    def from_array(cls, arr: np.ndarray, is_zyx: bool=True):
+        if not is_zyx:
+            # the coordinate is xyz,xyz
+            arr[:, :] = arr[:, [2,1,0,5,4,3]]
+
         bboxes = []
-        for idx in range(arr.shape(0)):
-            bbox = BoundingBox.from_vec(arr[idx, :])
+        for idx in range(arr.shape[0]):
+            bbox = BoundingBox.from_list(arr[idx, :])
             bboxes.append(bbox)
 
         return cls(bboxes)
 
     @classmethod
-    def from_file(cls, file_path: str):
-        arr = np.load(file_path)
-        return cls.from_array(arr)
+    def from_file(cls, file_path: str, is_zyx: bool=True):
+
+        if file_path.endswith('.npy'):
+            arr = np.load(file_path)
+        elif file_path.endswith('.txt'):
+            arr = np.loadtxt(file_path, dtype=int, delimiter=',')
+        return cls.from_array(arr, is_zyx=is_zyx)
 
     def as_array(self) -> np.ndarray:
         task_num = len(self.data)
 
-        arr = np.zeros((task_num, 6), dtype=np.int)
+        arr = np.zeros((task_num, 6), dtype=int)
         for idx, bbox in enumerate(self.data):
             arr[idx, :3] = bbox.minpt
             arr[idx, 3:] = bbox.maxpt
@@ -457,3 +507,6 @@ class BoundingBoxes(UserList):
             np.save(file_name, self.as_array())
         else:
             raise ValueError('only support npy format now.')
+
+    def __len__(self):
+        return len(self.data)

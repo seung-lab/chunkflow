@@ -1,22 +1,25 @@
-
+import sys
+from typing import Union
 import logging
 from functools import update_wrapper, wraps
+
 import click
+from .cartesian_coordinate import Cartesian
 
 
 class CartesianParamType(click.ParamType):
     name = 'Cartesian'
-    def __init__(self) -> None:
-        super().__init__()
     
-    def convert(self, value, param, ctx):
-        breakpoint()
-        
-        return super().convert(value, param, ctx)
+    def convert(self, value: Union[list, tuple], param, ctx):
+        assert len(value) == 3
+        return Cartesian.from_collection(value)        
+
+CartesianParam = CartesianParamType()
 
 # global dict to hold the operators and parameters
 state = {'operators': {}}
 DEFAULT_CHUNK_NAME = 'chunk'
+DEFAULT_SYNAPSES_NAME = 'syns'
 
 
 def get_initial_task():
@@ -46,7 +49,7 @@ def default_none(ctx, _, value):
     type=click.Path(exists=False), default=None,
     help='log file path.')
 @click.option('--mip', '-m',
-              type=int, default=0,
+              type=click.INT, default=0,
               help='default mip level of chunks.')
 @click.option('--dry-run/--real-run', default=False,
               help='dry run or real run. default is real run.')
@@ -54,25 +57,36 @@ def default_none(ctx, _, value):
     help='show more information or not. default is False.')
 def main(log_level, log_file, mip, dry_run, verbose):
     """Compose operators and create your own pipeline."""
-    if log_file is not None:
-        str2level = {
-            'debug'     : logging.DEBUG,
-            'info'      : logging.INFO,
-            'warning'   : logging.WARNING,
-            'error'     : logging.ERROR,
-            'critical'  : logging.CRITICAL
-        }
-        logging.basicConfig(filename=log_file, 
-                            level=str2level[log_level])
+    str2level = {
+        'debug'     : logging.DEBUG,
+        'info'      : logging.INFO,
+        'warning'   : logging.WARNING,
+        'error'     : logging.ERROR,
+        'critical'  : logging.CRITICAL
+    }
+    log_level = str2level[log_level]
+
+    console = logging.StreamHandler(sys.stdout)
+    console.setLevel(log_level)
+    formater = logging.Formatter('%(name)-13s: %(levelname)-8s %(message)s')
+    console.setFormatter(formater)
+    logging.getLogger().addHandler(console)
+
+    if log_file is not None and len(log_file)>0:
+        fileHandler = logging.FileHandler(filename=log_file)
+        fileHandler.setLevel(log_level)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fileHandler.setFormatter(formatter)
+        logging.getLogger().addHandler(fileHandler)
+
     state['mip'] = mip
     state['dry_run'] = dry_run
     state['verbose'] = verbose
     if dry_run:
         logging.warning('\nYou are using dry-run mode, will not do the work!')
-    pass
 
 
-@main.resultcallback()
+@main.result_callback()
 def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
@@ -88,9 +102,8 @@ def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
         # task = next(stream)
 
     # Evaluate the stream and throw away the items.
-    if stream:
-        for _ in stream:
-            pass
+    for _ in stream:
+        pass
 
 
 def operator(func):
