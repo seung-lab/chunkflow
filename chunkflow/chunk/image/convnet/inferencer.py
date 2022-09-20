@@ -34,23 +34,23 @@ class Inferencer(object):
     large chunk size.
     """
     def __init__(self,
-                 convnet_model: Union[str, PatchInferencerBase],
-                 convnet_weight_path: str,
-                 input_patch_size: Union[tuple, list, Cartesian],
-                 output_patch_size: Union[tuple, list, Cartesian] = None,
-                 patch_num: Union[tuple, list, Cartesian] = None,
-                 num_output_channels: int = 3,
-                 output_patch_overlap: Union[tuple, list, Cartesian] = None,
-                 output_crop_margin: Union[tuple, list, Cartesian] = None,
-                 dtype = 'float32',
-                 framework: str = 'universal',
-                 batch_size: int = 1,
-                 bump: str = 'wu',
-                 input_size: Union[tuple, list, Cartesian] = None,
-                 mask_output_chunk: bool = True,
-                 mask_myelin_threshold = None,
-                 test_time_augmentation: bool = False,
-                 dry_run: bool = False):
+            convnet_model: Union[str, PatchInferencerBase],
+            convnet_weight_path: str,
+            input_patch_size: Union[tuple, list, Cartesian],
+            output_patch_size: Union[tuple, list, Cartesian] = None,
+            patch_num: Union[tuple, list, Cartesian] = None,
+            num_output_channels: int = 3,
+            output_patch_overlap: Union[tuple, list, Cartesian] = None,
+            output_crop_margin: Union[tuple, list, Cartesian] = None,
+            dtype = 'float32',
+            framework: str = 'universal',
+            batch_size: int = 1,
+            bump: str = 'wu',
+            input_size: Union[tuple, list, Cartesian] = None,
+            mask_output_chunk: bool = True,
+            mask_myelin_threshold = None,
+            test_time_augmentation: bool = False,
+            dry_run: bool = False):
         """convnet inference patch by patch in a chunk
 
         Args:

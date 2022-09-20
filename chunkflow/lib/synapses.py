@@ -4,11 +4,14 @@ import os
 import json
 import time
 from copy import deepcopy
+from typing import List
 
 import numpy as np
 import h5py
+from scipy.spatial import KDTree
 
 import chunkflow
+from chunkflow.chunk import Chunk
 from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox
 
 
