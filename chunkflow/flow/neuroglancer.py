@@ -43,8 +43,6 @@ class NeuroglancerOperator(OperatorBase):
                 post_coordinate = post_synapses[post_idx, 1:]
                 post_annotation = ng.LineAnnotation(
                         id=str(post_idx),
-                        # note that the synapse coordinate is already in xyz order
-                        # so we do not need to reverse it!
                         pointA=pre_coordinate,
                         pointB=post_coordinate,
                         props=['#0ff', 5]

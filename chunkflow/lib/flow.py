@@ -1,3 +1,4 @@
+import sys
 from typing import Union
 import logging
 from functools import update_wrapper, wraps
@@ -63,8 +64,21 @@ def main(log_level, log_file, mip, dry_run, verbose):
         'error'     : logging.ERROR,
         'critical'  : logging.CRITICAL
     }
-    logging.basicConfig(filename=log_file, 
-                        level=str2level[log_level])
+    log_level = str2level[log_level]
+
+    console = logging.StreamHandler(sys.stdout)
+    console.setLevel(log_level)
+    formater = logging.Formatter('%(name)-13s: %(levelname)-8s %(message)s')
+    console.setFormatter(formater)
+    logging.getLogger().addHandler(console)
+
+    if log_file is not None and len(log_file)>0:
+        fileHandler = logging.FileHandler(filename=log_file)
+        fileHandler.setLevel(log_level)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fileHandler.setFormatter(formatter)
+        logging.getLogger().addHandler(fileHandler)
+
     state['mip'] = mip
     state['dry_run'] = dry_run
     state['verbose'] = verbose

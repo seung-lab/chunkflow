@@ -20,10 +20,8 @@ def array_to_chunk(arr: Union[np.ndarray, Chunk], voxel_offset: Cartesian,
         # in case the plugin did some symmetric cropping
         offset = tuple(vo + (ins - outs)//2 for vo, ins, outs in zip(voxel_offset, shape[-3:], arr.shape[-3:]) )
         return Chunk(arr, voxel_offset=offset, voxel_size=voxel_size)
-    elif isinstance(arr, Chunk):
-        return arr
     else:
-        raise TypeError(f'only support ndarray and Chunk, but got {type(arr)}')
+        return arr
 
 def simplest_type(s: str):
     try:
@@ -108,7 +106,8 @@ class Plugin(OperatorBase):
                 raise ValueError(f'unsupported argument: {args}')
                 
         # assert isinstance(outputs, list) or isinstance(outputs, tuple) or outputs is None
-        
+        if isinstance(outputs, tuple):
+            outputs = [*outputs] 
         # automatically convert the ndarrays to Chunks
         if voxel_offset is not None and outputs is not None:
             assert shape is not None

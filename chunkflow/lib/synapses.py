@@ -3,17 +3,13 @@ from __future__ import annotations
 import os
 import json
 import time
-from typing import List
 from copy import deepcopy
 
 import numpy as np
 import h5py
 
-from scipy.spatial import KDTree
-
 import chunkflow
-from chunkflow.chunk import Chunk
-from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
+from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox
 
 
 class Synapses():
@@ -50,7 +46,7 @@ class Synapses():
         if post is not None:
             if post_confidence is not None:
                 assert post_confidence.ndim == 1
-                assert len(post_confidence) == post.shape[1]
+                assert len(post_confidence) == post.shape[0]
 
             assert post.ndim == 2
             # parent pre index, z, y, x
@@ -83,22 +79,22 @@ class Synapses():
 
         
     @classmethod
-    def from_dict(cls, synapses: dict):
+    def from_dict(cls, syns_dict: dict):
         """Synapses as a dictionary
 
         Args:
-            synapses (dict): the whole synapses in a dictionary
+            syns_dict (dict): the whole synapses in a dictionary
         """
-        order = synapses['order']
-        resolution = synapses['resolution']
-        del synapses['order']
-        del synapses['resolution']
+        order = syns_dict['order']
+        resolution = syns_dict['resolution']
+        del syns_dict['order']
+        del syns_dict['resolution']
 
-        pre_num = len(synapses)
+        pre_num = len(syns_dict)
         pre = np.zeros((pre_num, 3), dtype=np.int32)
         post_list = []
         pre_indices = []
-        for sid, synapse in enumerate(synapses.values()):
+        for sid, synapse in enumerate(syns_dict.values()):
             pre[sid, :] = np.asarray(synapse['coord'])
             if 'postsynapses' in synapse:
                 for idx, post_coordinate in enumerate(synapse['postsynapses']):
@@ -240,6 +236,10 @@ class Synapses():
 
     @classmethod
     def from_h5(cls, fname: str, resolution: tuple = None, c_order: bool = True):
+        if os.path.getsize(fname) == 0:
+            print(f'synapse file is empty: {fname}')
+            return None
+
         with h5py.File(fname, 'r') as hf:
             if 'pre' in hf.keys():
                 pre = hf['pre']
@@ -297,6 +297,16 @@ class Synapses():
             # transform to C order
             syns.transpose_axis()
         return syns
+    
+    @classmethod
+    def from_file(cls, fname: str, resolution: tuple = None, c_order: bool = True):
+        assert os.path.exists(fname)
+        if fname.endswith('.json'):
+            return cls.from_json(fname, resolution = resolution, c_order=c_order)
+        elif fname.endswith('.h5'):
+            return cls.from_h5(fname, resolution=resolution, c_order=c_order)
+        else:
+            raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
 
     def to_h5(self, fname: str) -> None:
         """save to a HDF5 file
@@ -305,6 +315,7 @@ class Synapses():
             fname (str): the file name to be saved
         """
         assert fname.endswith(".h5") or fname.endswith(".hdf5")
+        print(f'save synapses to {fname}')
         with h5py.File(fname, "w") as hf:
             
             hf['pre'] = self.pre
@@ -329,16 +340,57 @@ class Synapses():
             if self.post_users is not None:
                 hf['post_users'] = self.post_users
 
-    @classmethod
-    def from_file(cls, fname: str, resolution: tuple = None, c_order: bool = True):
-        assert os.path.exists(fname)
-        if fname.endswith('.json'):
-            return cls.from_json(fname, resolution = resolution, c_order=c_order)
-        elif fname.endswith('.h5'):
-            return cls.from_h5(fname, resolution=resolution, c_order=c_order)
-        else:
-            raise ValueError(f'only support JSON and HDF5 file, but got {fname}')
+    def to_dvid_list_of_dict(self, 
+            user: str = 'chunkflow',
+            comment: str = 'ingested using chunkflow'):
+        """convert to dictionary for bulk ingestion of synapses
+        """
+        data = []
 
+        for post_idx in range(self.post_num):
+            pre_idx = self.post[post_idx, 0]
+            pre_coord = self.pre[pre_idx, :][::-1]
+            pre_coord = [int(x) for x in pre_coord]
+
+            post_coord = self.post_coordinates[post_idx, :][::-1]
+            post_coord = [int(x) for x in post_coord]
+            dic = {
+                'Kind': 'PostSyn',
+                'Pos': post_coord,
+                'Prop': {
+                    'annotation': comment,
+                    'conf': str(self.post_confidence[post_idx]),
+                    'user': user
+                },
+                'Rels': [{'Rel': 'PostSynTo', 'To': pre_coord}],
+                'Tags': []
+            }
+            data.append(dic)
+
+        for pre_idx, post_indices in enumerate(self.pre_index2post_indices):
+            rels = []
+            for post_idx in post_indices:
+                post_coord = self.post_coordinates[post_idx, :][::-1]
+                post_coord = [int(x) for x in post_coord]
+                rels.append({
+                    'Rel': 'PreSynTo', 'To': post_coord
+                })
+
+            pre_coord = self.pre[pre_idx, :][::-1]
+            pre_coord = [int(x) for x in pre_coord]
+            data.append({
+                'Kind': 'PreSyn',
+                'Pos': pre_coord,
+                'Prop': {
+                    'annotation': comment,
+                    'conf': str(self.pre_confidence[pre_idx]),
+                    'user': user
+                },
+                'Rels': rels,
+                'Tags': []
+            })
+        return data
+    
     def to_neutu_task(self, fname: str, 
             software_revision: int=4809,
             description: str = "transformed using chunkflow",
@@ -501,10 +553,14 @@ class Synapses():
         # pi2pi = defaultdict(list)
         pi2pi = []
         for idx in range(self.pre_num):
-            # find the post synapses for this presynapse
-            post_indices = np.nonzero(self.post[:, 0]==idx)
-            assert len(post_indices) == 1
-            post_indices = post_indices[0].tolist()
+            if self.post is None:
+                post_indices = None
+            else:
+                # find the post synapses for this presynapse
+                post_indices = np.nonzero(self.post[:, 0]==idx)
+                assert len(post_indices) == 1
+                post_indices = post_indices[0].tolist()
+            
             pi2pi.append(post_indices)
 
         return pi2pi

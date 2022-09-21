@@ -16,6 +16,7 @@ from __future__ import division
 from builtins import range
 
 import numpy as np
+import click
 
 DEFAULT_MAX_DOWNSAMPLING = 64  # maximum factor to downsample by
 DEFAULT_MAX_DOWNSAMPLED_SIZE = 128  # minimum length of a side after downsampling

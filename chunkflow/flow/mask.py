@@ -14,7 +14,7 @@ class MaskOperator(OperatorBase):
                  mask_mip: int,
                  chunk_mip: int,
                  inverse: bool = False,
-                 fill_missing: bool = False,
+                 fill_missing: bool = True,
                  name: str = 'mask'):
         super().__init__(name=name)
 
