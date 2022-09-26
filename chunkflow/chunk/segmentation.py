@@ -60,11 +60,11 @@ class Segmentation(Chunk):
         variation_of_information = evaluate.vi(this.array, groundtruth)
         fowlkes_mallows_index = evaluate.fm_index(this.array, groundtruth)
         edit_distance = evaluate.edit_distance(this.array, groundtruth, size_threshold=size_threshold)
-        print('rand index: ', rand_index)
-        print('adjusted rand index: ', adjusted_rand_index)
-        print('variation of information: ', variation_of_information)
-        print('edit distance: ', edit_distance)
-        print('Fowlkes Mallows Index: ', fowlkes_mallows_index)
+        print(f'rand index: {rand_index: .3f}')
+        print(f'adjusted rand index: {adjusted_rand_index: .3f}')
+        print(f'variation of information: {variation_of_information: .3f}')
+        print(f'edit distance: {edit_distance}')
+        print(f'Fowlkes Mallows Index: {fowlkes_mallows_index: .3f}')
 
         ret = {}
         ret['rand_index'] = rand_index
