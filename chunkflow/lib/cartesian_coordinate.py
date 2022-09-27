@@ -318,6 +318,10 @@ class BoundingBox(Bbox):
         return Cartesian(*(self.maxpt - self.minpt))
 
     @property
+    def slices(self):
+        return [slice(x0, x1) for x0, x1 in zip(self.start, self.stop)]
+
+    @property
     def left_neighbors(self):
         sz = self.size3()
 
