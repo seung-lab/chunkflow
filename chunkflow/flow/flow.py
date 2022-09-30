@@ -6,13 +6,11 @@ from time import time
 from typing import Generator, List
 
 from copy import deepcopy
-from matplotlib import use
 
 import numpy as np
 import click
 import json
 from tqdm import tqdm
-from traitlets import default 
 
 from chunkflow.lib.flow import *
 
