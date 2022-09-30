@@ -28,5 +28,4 @@ docs/source/tutorial/
 docs/source/_build/
 *.DS_Store
 *.log
-chunkflow/plugins/*.py
 chunkflow/plugins/chunkflow-plugins
