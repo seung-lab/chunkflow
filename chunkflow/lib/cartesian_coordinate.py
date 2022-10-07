@@ -264,7 +264,10 @@ class BoundingBox(Bbox):
     @property
     def shape(self):
         return self.stop - self.start
-        
+
+    def __len__(self):
+        return np.product(self.shape)
+
     def __repr__(self):
         return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}'
 
