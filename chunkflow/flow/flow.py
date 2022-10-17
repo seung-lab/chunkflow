@@ -1137,7 +1137,9 @@ def delete_var(tasks, var_names: str):
  
 
 @main.command('load-tensorstore')
-@click.option('--driver', '-d', type=str, default='neuroglancer_precomputed',
+@click.option('--driver', '-d', 
+    type=click.Choice(['neuroglancer_precomputed', 'zarr', 'n5']), 
+    default='neuroglancer_precomputed',
     help='driver type of tensorstore. default is neuroglancer_precomputed')
 @click.option('--kvstore', '-s', type=str, required=True,
     help='path of key value store, such as gs://neuroglancer-janelia-flyem-hemibrain/v1.1/segmentation/ or file:///tmp/dataset')
@@ -1152,6 +1154,12 @@ def delete_var(tasks, var_names: str):
 def load_tensorstore(tasks, driver: str, kvstore: str, cache: int, 
         voxel_size: tuple, output_name: str):
     """Load chunk from dataset using tensorstore"""
+    if driver == 'n5':
+        kv_driver, path = kvstore.split('://')
+        kvstore = {
+            'driver': kv_driver,
+            'path': path
+        }
     dataset_future = ts.open({
         'driver': driver,
         'kvstore': kvstore,
