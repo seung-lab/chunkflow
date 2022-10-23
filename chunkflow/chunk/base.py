@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from typing import Union
+from typing import Union, Optional
 import os
 from numbers import Number
 
@@ -73,7 +73,8 @@ class Chunk(NDArrayOperatorsMixin):
     _HANDLED_TYPES = (np.ndarray, Number)
     
     @classmethod
-    def from_array(cls, array: np.ndarray, bbox: BoundingBox, voxel_size: tuple = None):
+    def from_array(cls, array: np.ndarray, bbox: BoundingBox, 
+            voxel_size: Optional[tuple] = None):
         """
         :param array: ndarray data
         :param bbox: cloudvolume bounding box
@@ -316,7 +317,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
-                chunk_size: Cartesian = Cartesian(64,64,64),
+                chunk_size: Union[Cartesian, tuple] = (64,64,64),
                 with_unique: bool= True, 
                 compression="gzip",
                 voxel_size: tuple = None):
@@ -336,7 +337,6 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         if os.path.exists(file_name):
             print(yellow(f'deleting existing file: {file_name}'))
             os.remove(file_name)
-
 
         with h5py.File(file_name, 'w') as f:
             f.create_dataset('/main', data=self.array, chunks=chunk_size, compression=compression)
@@ -567,12 +567,30 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             margin_size: tuple = None, 
             output_bbox: BoundingBox=None
         ):
+        """_summary_
+
+        Args:
+            margin_size (tuple, optional): -z,-y,-x,+z,+y,+x. Defaults to None.
+            output_bbox (BoundingBox, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
 
         if margin_size:
-            new_array = self.array[...,
-                margin_size[0]: -margin_size[0],
-                margin_size[1]: -margin_size[1],
-                margin_size[2]: -margin_size[2]]
+            sz,sy,sx = self.array.shape[-3:]
+            if len(margin_size) == 3:
+                new_array = self.array[...,
+                    margin_size[0]: sz-margin_size[0],
+                    margin_size[1]: sy-margin_size[1],
+                    margin_size[2]: sx-margin_size[5]]
+            elif len(margin_size) == 6:
+                new_array = self.array[...,
+                    margin_size[0]: sz-margin_size[3],
+                    margin_size[1]: sy-margin_size[4],
+                    margin_size[2]: sx-margin_size[5]]
+            else:
+                raise ValueError('only support 3 or 6 elements.')
             voxel_offset = tuple(
                 o + m for o, m in zip(self.voxel_offset, margin_size))
             return Chunk(new_array, voxel_offset=voxel_offset, voxel_size=self.voxel_size)

@@ -1681,15 +1681,16 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
 @operator
 def multiply(tasks, input_names: str, output_names: str, multiplier_name: str):
     """Multiply chunks with another chunk"""
+    input_names = input_names.split(',')
     if output_names is None:
         output_names = input_names
+    else:
+        output_names = output_names.split(',')
+        assert len(input_names)==len(output_names), \
+            'the number of input and output chunks should be the same'
 
     for task in tasks:
         if task is not None:
-            input_names = input_names.split(',')
-            output_names = output_names.split(',')
-            assert len(input_names)==len(output_names), \
-                'the number of input and output chunks should be the same'
             for input_name, output_name in zip(input_names, output_names):
                 task[output_name] = task[input_name] * task[multiplier_name]
         
@@ -1793,7 +1794,7 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
 @click.option('--name', type=str, default='crop-margin',
     help='name of this operator')
 @click.option('--margin-size', '-m',
-    type=click.INT, nargs=3, default=None, callback=default_none,
+    type=click.INT, nargs=6, default=None, callback=default_none,
     help='crop the chunk margin. ' +
             'The default is None and will use the bbox as croping range.')
 @click.option('--crop-bbox/--no-crop-bbox', default=True,
