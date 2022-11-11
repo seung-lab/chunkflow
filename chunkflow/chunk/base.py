@@ -317,7 +317,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
-                chunk_size: Union[Cartesian, tuple] = (64,64,64),
+                chunk_size: Union[Cartesian, tuple] = (8,8,8),
                 with_unique: bool= True, 
                 compression="gzip",
                 voxel_size: tuple = None):
@@ -329,6 +329,8 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         """
         if chunk_size:
             assert len(chunk_size) == 3
+        if isinstance(chunk_size, Cartesian):
+            chunk_size = tuple(*chunk_size)
 
         if not file_name.endswith('.h5'):
             file_name += self.bbox.to_filename() + '.h5'

@@ -722,18 +722,23 @@ def save_synapses(tasks, input_name: str, file_path: str):
     for task in tasks:
         if task is not None:
             syns = task[input_name]
-            if not file_path.endswith('.h5'):
-                if 'bbox' in task:
-                    bbox = task['bbox']
-                    if os.path.isdir(file_path):
-                        file_path = os.path.join(file_path, bbox.string)
-                    else:
-                        file_path += bbox.string
-                file_path += '.h5'
-            if syns is None:
-                Path(file_path).touch()
+            if file_path.endswith('.json'):
+                data = syns.json_dict
+                with open(file_path, 'w') as file:
+                    json.dump(data, file)
             else:
-                syns.to_h5(file_path)
+                if not file_path.endswith('.h5'):
+                    if 'bbox' in task:
+                        bbox = task['bbox']
+                        if os.path.isdir(file_path):
+                            file_path = os.path.join(file_path, bbox.string)
+                        else:
+                            file_path += bbox.string
+                    file_path += '.h5'
+                if syns is None:
+                    Path(file_path).touch()
+                else:
+                    syns.to_h5(file_path)
         yield task
 
 @main.command('load-npy')
