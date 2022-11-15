@@ -4,14 +4,11 @@ import json
 
 import logging
 import multiprocessing
-from typing import Union, Optional
-import random
 
 import numpy as np
 
 import kimimaro
 import fastremap
-from skimage.color import label2rgb
 
 from cloudfiles import CloudFiles
 
@@ -117,32 +114,3 @@ class Segmentation(Chunk):
             parallel=multiprocessing.cpu_count() // 2
         )
         return skels
-
-    def to_rgb(self, 
-            img: Union[np.ndarray, Chunk, None] = None, 
-            colors: Optional[list] = None,
-            alpha: float = 0.5):
-        if isinstance(img, Chunk):
-            img = img.array
-
-        seg, _= self.remap()
-        if colors is None:
-            colors = []
-            for _ in range(seg.max()):
-                color = (
-                    random.uniform(0.2, 0.8), 
-                    random.uniform(0.2, 0.8), 
-                    random.uniform(0.2, 0.8), 
-                )
-                colors.append(color)
-
-        rgb = label2rgb(
-            seg,
-            image = img,
-            alpha=alpha,
-            bg_label = 0,
-            colors=colors
-        )
-        return rgb
-
-
