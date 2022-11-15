@@ -172,6 +172,10 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     @property
     def tuple(self):
         return (self.z, self.y, self.x)
+    
+    @property
+    def list(self):
+        return [self.z, self.y, self.x]
 
 
 class BoundingBox(Bbox):

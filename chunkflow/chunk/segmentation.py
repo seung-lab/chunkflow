@@ -4,19 +4,21 @@ import json
 
 import logging
 import multiprocessing
-from typing import Union
+from typing import Union, Optional
+import random
 
 import numpy as np
-from .base import Chunk
-
-# from ...lib.gala import evaluate
-from chunkflow.lib.gala import evaluate
-from chunkflow.lib.cartesian_coordinate import Cartesian
 
 import kimimaro
 import fastremap
+from skimage.color import label2rgb
 
 from cloudfiles import CloudFiles
+
+# from ...lib.gala import evaluate
+from .base import Chunk
+from chunkflow.lib.gala import evaluate
+from chunkflow.lib.cartesian_coordinate import Cartesian
 
 
 class Segmentation(Chunk):
@@ -74,10 +76,11 @@ class Segmentation(Chunk):
         ret['edit_distance'] = edit_distance
         return ret
 
-    def remap(self, start_id: int):
+    def remap(self, start_id: int = 0):
         fastremap.renumber(self.array, preserve_zero=True, in_place=True)
         seg = self.astype(np.uint64)
-        seg.array[seg.array>0] += start_id
+        if start_id > 0:
+            seg.array[seg.array>0] += start_id
         start_id = seg.max()
         return seg, start_id
 
@@ -114,4 +117,32 @@ class Segmentation(Chunk):
             parallel=multiprocessing.cpu_count() // 2
         )
         return skels
+
+    def to_rgb(self, 
+            img: Union[np.ndarray, Chunk, None] = None, 
+            colors: Optional[list] = None,
+            alpha: float = 0.5):
+        if isinstance(img, Chunk):
+            img = img.array
+
+        seg, _= self.remap()
+        if colors is None:
+            colors = []
+            for _ in range(seg.max()):
+                color = (
+                    random.uniform(0.2, 0.8), 
+                    random.uniform(0.2, 0.8), 
+                    random.uniform(0.2, 0.8), 
+                )
+                colors.append(color)
+
+        rgb = label2rgb(
+            seg,
+            image = img,
+            alpha=alpha,
+            bg_label = 0,
+            colors=colors
+        )
+        return rgb
+
 
