@@ -4,19 +4,18 @@ import json
 
 import logging
 import multiprocessing
-from typing import Union
 
 import numpy as np
-from .base import Chunk
-
-# from ...lib.gala import evaluate
-from chunkflow.lib.gala import evaluate
-from chunkflow.lib.cartesian_coordinate import Cartesian
 
 import kimimaro
 import fastremap
 
 from cloudfiles import CloudFiles
+
+# from ...lib.gala import evaluate
+from .base import Chunk
+from chunkflow.lib.gala import evaluate
+from chunkflow.lib.cartesian_coordinate import Cartesian
 
 
 class Segmentation(Chunk):
@@ -60,11 +59,11 @@ class Segmentation(Chunk):
         variation_of_information = evaluate.vi(this.array, groundtruth)
         fowlkes_mallows_index = evaluate.fm_index(this.array, groundtruth)
         edit_distance = evaluate.edit_distance(this.array, groundtruth, size_threshold=size_threshold)
-        print('rand index: ', rand_index)
-        print('adjusted rand index: ', adjusted_rand_index)
-        print('variation of information: ', variation_of_information)
-        print('edit distance: ', edit_distance)
-        print('Fowlkes Mallows Index: ', fowlkes_mallows_index)
+        print(f'rand index: {rand_index: .3f}')
+        print(f'adjusted rand index: {adjusted_rand_index: .3f}')
+        print(f'variation of information: {variation_of_information: .3f}')
+        print(f'edit distance: {edit_distance}')
+        print(f'Fowlkes Mallows Index: {fowlkes_mallows_index: .3f}')
 
         ret = {}
         ret['rand_index'] = rand_index
@@ -74,10 +73,11 @@ class Segmentation(Chunk):
         ret['edit_distance'] = edit_distance
         return ret
 
-    def remap(self, start_id: int):
+    def remap(self, start_id: int = 0):
         fastremap.renumber(self.array, preserve_zero=True, in_place=True)
         seg = self.astype(np.uint64)
-        seg.array[seg.array>0] += start_id
+        if start_id > 0:
+            seg.array[seg.array>0] += start_id
         start_id = seg.max()
         return seg, start_id
 
@@ -114,4 +114,3 @@ class Segmentation(Chunk):
             parallel=multiprocessing.cpu_count() // 2
         )
         return skels
-

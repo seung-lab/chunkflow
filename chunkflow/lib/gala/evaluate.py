@@ -620,48 +620,6 @@ def special_points_evaluate(eval_fct, coords, flatten=True, coord_format=True):
         return eval_fct(sx, sy, *args, **kwargs)
     return special_eval_fct
 
-
-def make_synaptic_functions(fn, fcts):
-    """Make evaluation functions that only evaluate at synaptic sites.
-
-    Parameters
-    ----------
-    fn : string
-        Filename containing synapse coordinates, in Raveler format. [1]
-    fcts : function, or iterable of functions
-        Functions to be converted to synaptic evaluation.
-
-    Returns
-    -------
-    syn_fcts : function or iterable of functions
-        Evaluation functions that will evaluate only at synaptic sites.
-
-    Raises
-    ------
-    ImportError : if the `syngeo` package [2, 3] is not installed.
-
-    References
-    ----------
-    [1] https://wiki.janelia.org/wiki/display/flyem/synapse+annotation+file+format
-    [2] https://github.com/janelia-flyem/synapse-geometry
-    [3] https://github.com/jni/synapse-geometry
-    """
-    from syngeo import io as synio
-    synapse_coords = \
-        synio.raveler_synapse_annotations_to_coords(fn, 'arrays')
-    synapse_coords = np.array(list(it.chain(*synapse_coords)))
-    make_function = partial(special_points_evaluate, coords=synapse_coords)
-    if not isinstance(fcts, coll.Iterable):
-        return make_function(fcts)
-    else:
-        return list(map(make_function, fcts))
-
-
-def make_synaptic_vi(fn):
-    """Shortcut for `make_synaptic_functions(fn, split_vi)`."""
-    return make_synaptic_functions(fn, split_vi)
-
-
 def vi(x, y=None, weights=np.ones(2), ignore_x=[0], ignore_y=[0]):
     """Return the variation of information metric. [1]
 

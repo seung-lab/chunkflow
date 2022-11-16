@@ -172,6 +172,10 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     @property
     def tuple(self):
         return (self.z, self.y, self.x)
+    
+    @property
+    def list(self):
+        return [self.z, self.y, self.x]
 
 
 class BoundingBox(Bbox):
@@ -316,6 +320,10 @@ class BoundingBox(Bbox):
     @property
     def shape(self):
         return Cartesian(*(self.maxpt - self.minpt))
+
+    @property
+    def slices(self):
+        return [slice(x0, x1) for x0, x1 in zip(self.start, self.stop)]
 
     @property
     def left_neighbors(self):

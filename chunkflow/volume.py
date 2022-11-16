@@ -74,3 +74,6 @@ class Volume:
         # transpose czyx to xyzc order
         arr = np.transpose(chunk.array)
         self[chunk.slices[::-1]] = arr
+
+
+# class SynapseVolume:

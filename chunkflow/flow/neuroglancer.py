@@ -125,15 +125,19 @@ void main() {
             units=['nm', 'nm', 'nm'],
             names=['z', 'y', 'x']
         )
-        shader="""#uicontrol int channel slider(min=0, max=4)
-#uicontrol vec3 color color(default="white")
-#uicontrol float brightness slider(min=-1, max=1)
-#uicontrol float contrast slider(min=-3, max=3, step=0.01)
+        shader="""#uicontrol invlerp normalized
 void main() {
-  emitRGB(color *
-          (toNormalized(getDataValue(channel)) + brightness) *
-          exp(contrast));
+  emitGrayscale(normalized());
 }"""
+#         shader="""#uicontrol int channel slider(min=0, max=4)
+# #uicontrol vec3 color color(default="white")
+# #uicontrol float brightness slider(min=-1, max=1)
+# #uicontrol float contrast slider(min=-3, max=3, step=0.01)
+# void main() {
+#   emitRGB(color *
+#           (toNormalized(getDataValue(channel)) + brightness) *
+#           exp(contrast));
+# }"""
         viewer_state.layers.append(
             name=chunk_name,
             layer=ng.LocalVolume(

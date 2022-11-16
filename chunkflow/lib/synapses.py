@@ -343,6 +343,23 @@ class Synapses():
             if self.post_users is not None:
                 hf['post_users'] = self.post_users
 
+    @property
+    def json_dict(self):
+        """to JSON file
+        """
+        data = {}
+        data['pre'] = self.pre.tolist()
+        if self.post is not None:
+            data['post'] = self.post.tolist()
+        
+        if self.pre_confidence is not None:
+            data['pre_confidence'] = self.pre_confidence.tolist()
+        
+        if self.post_confidence is not None:
+            data['post_confidence'] = self.post_confidence.tolist()
+        
+        return data
+
     def to_dvid_list_of_dict(self, 
             user: str = 'chunkflow',
             comment: str = 'ingested using chunkflow'):

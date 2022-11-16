@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from importlib.metadata import requires
 import os
 from pathlib import Path
 from time import time
@@ -6,19 +7,18 @@ from time import time
 from typing import Generator, List
 
 from copy import deepcopy
-from matplotlib import use
 
 import numpy as np
 import click
 import json
 from tqdm import tqdm
-from traitlets import default 
 
 from chunkflow.lib.flow import *
 
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec
 from cloudfiles import CloudFiles
+import tensorstore as ts
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox, BoundingBoxes
@@ -722,18 +722,23 @@ def save_synapses(tasks, input_name: str, file_path: str):
     for task in tasks:
         if task is not None:
             syns = task[input_name]
-            if not file_path.endswith('.h5'):
-                if 'bbox' in task:
-                    bbox = task['bbox']
-                    if os.path.isdir(file_path):
-                        file_path = os.path.join(file_path, bbox.string)
-                    else:
-                        file_path += bbox.string
-                file_path += '.h5'
-            if syns is None:
-                Path(file_path).touch()
+            if file_path.endswith('.json'):
+                data = syns.json_dict
+                with open(file_path, 'w') as file:
+                    json.dump(data, file)
             else:
-                syns.to_h5(file_path)
+                if not file_path.endswith('.h5'):
+                    if 'bbox' in task:
+                        bbox = task['bbox']
+                        if os.path.isdir(file_path):
+                            file_path = os.path.join(file_path, bbox.string)
+                        else:
+                            file_path += bbox.string
+                    file_path += '.h5'
+                if syns is None:
+                    Path(file_path).touch()
+                else:
+                    syns.to_h5(file_path)
         yield task
 
 @main.command('load-npy')
@@ -969,7 +974,7 @@ def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compressi
               type=str, default=DEFAULT_CHUNK_NAME,
               help='chunk name in the global state')
 @operator
-def read_h5(tasks, name: str, file_name: str, dataset_path: str,
+def load_h5(tasks, name: str, file_name: str, dataset_path: str,
             dtype: str, voxel_offset: tuple, voxel_size: tuple, 
             cutout_start: tuple, cutout_stop: tuple, 
             cutout_size: tuple, set_bbox: bool,
@@ -1135,6 +1140,59 @@ def delete_var(tasks, var_names: str):
                 del task[var_name]
         yield task
  
+
+@main.command('load-tensorstore')
+@click.option('--driver', '-d', 
+    type=click.Choice(['neuroglancer_precomputed', 'zarr', 'n5']), 
+    default='neuroglancer_precomputed',
+    help='driver type of tensorstore. default is neuroglancer_precomputed')
+@click.option('--kvstore', '-s', type=str, required=True,
+    help='path of key value store, such as gs://neuroglancer-janelia-flyem-hemibrain/v1.1/segmentation/ or file:///tmp/dataset')
+@click.option('--cache', '-c', type=click.INT, default=100_000_000,
+    help='size of cache pool. default is 100MB')
+@click.option('--voxel-size', type=click.INT, nargs=3, default=None, callback=default_none,
+    help='voxel size; default is None.'
+)
+@click.option('--output-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
+    help=f'output chunk name. default is {DEFAULT_CHUNK_NAME}')
+@operator
+def load_tensorstore(tasks, driver: str, kvstore: str, cache: int, 
+        voxel_size: tuple, output_name: str):
+    """Load chunk from dataset using tensorstore"""
+    if driver == 'n5':
+        kv_driver, path = kvstore.split('://')
+        kvstore = {
+            'driver': kv_driver,
+            'path': path
+        }
+    dataset_future = ts.open({
+        'driver': driver,
+        'kvstore': kvstore,
+        'context': {
+            'cache_pool': {
+                'total_bytes_limit': cache,
+            }
+        },
+        'recheck_cached_data': 'open',
+    })
+    dataset = dataset_future.result()
+
+    for task in tasks:
+        if task is not None:
+            bbox: BoundingBox = task['bbox']
+            slices = bbox.slices
+            arr = dataset[slices[0], slices[1], slices[2]].read().result()
+            assert arr.ndim == 4
+            arr = arr.transpose()
+            if arr.shape[0] == 1:
+                arr = np.squeeze(arr, axis=0)
+            chunk = Chunk(arr, 
+                voxel_offset = bbox.start, 
+                voxel_size = Cartesian.from_collection(voxel_size),
+            )
+            task[output_name] = chunk
+        yield task
+
 
 @main.command('load-precomputed')
 @click.option('--name',
@@ -1628,15 +1686,16 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
 @operator
 def multiply(tasks, input_names: str, output_names: str, multiplier_name: str):
     """Multiply chunks with another chunk"""
+    input_names = input_names.split(',')
     if output_names is None:
         output_names = input_names
+    else:
+        output_names = output_names.split(',')
+        assert len(input_names)==len(output_names), \
+            'the number of input and output chunks should be the same'
 
     for task in tasks:
         if task is not None:
-            input_names = input_names.split(',')
-            output_names = output_names.split(',')
-            assert len(input_names)==len(output_names), \
-                'the number of input and output chunks should be the same'
             for input_name, output_name in zip(input_names, output_names):
                 task[output_name] = task[input_name] * task[multiplier_name]
         
@@ -1740,7 +1799,7 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
 @click.option('--name', type=str, default='crop-margin',
     help='name of this operator')
 @click.option('--margin-size', '-m',
-    type=click.INT, nargs=3, default=None, callback=default_none,
+    type=click.INT, nargs=6, default=None, callback=default_none,
     help='crop the chunk margin. ' +
             'The default is None and will use the bbox as croping range.')
 @click.option('--crop-bbox/--no-crop-bbox', default=True,
