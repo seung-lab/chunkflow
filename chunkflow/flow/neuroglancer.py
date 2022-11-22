@@ -153,6 +153,8 @@ void main() {
         if np.issubdtype(chunk.dtype, np.int64):
             assert chunk.min() >= 0
             chunk = chunk.astype(np.uint64)
+        elif np.issubdtype(chunk.dtype, np.uint8):
+            chunk = chunk.astype(np.uint32)
         voxel_size = self._get_voxel_size(chunk)
         dimensions = ng.CoordinateSpace(
             scales=voxel_size,
@@ -237,12 +239,25 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 elif isinstance(data, np.ndarray) and 2 == data.ndim and 3 == data.shape[1]:
                     # points
                     self._append_point_annotation_layer(viewer_state, name, data)
-                elif data.is_image or (data.ndim==3 and np.issubdtype(data.dtype, np.floating)):
-                    self._append_image_layer(viewer_state, name, data)
-                elif data.is_segmentation:
-                    self._append_segmentation_layer(viewer_state, name, data)
-                elif data.is_probability_map:
-                    self._append_probability_map_layer(viewer_state, name, data)
+                elif isinstance(data, Chunk):
+                    if data.type is None:
+                        if data.is_image or data.is_affinity_map:
+                            self._append_image_layer(viewer_state, name, data)
+                        elif data.is_segmentation:
+                            self._append_segmentation_layer(viewer_state, name, data)
+                        elif data.is_probability_map:
+                            self._append_probability_map_layer(viewer_state, name, data)
+                        else:
+                            raise ValueError('unsupported data type.')
+                    if data.type == 'segmentation':
+                        self._append_segmentation_layer(viewer_state, name, data)
+                    elif data.type == 'probability_map':
+                        self._append_probability_map_layer(viewer_state, name, data)
+                    elif data.type in set(['image', 'affinity_map']):
+                        self._append_image_layer(viewer_state, name, data)
+                    else: 
+                        raise ValueError('only support image, affinity map, probability_map, and segmentation for now.')
+
                 else:
                     breakpoint()
                     raise ValueError(f'do not support this type: {type(data)}')

@@ -1536,7 +1536,12 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
             start = time()
             if input_names is not None:
                 input_name_list = input_names.split(',')
-                inputs = [task[i] for i in input_name_list]
+                inputs = []
+                for input_name in input_name_list:
+                    if input_name == 'None':
+                        inputs.append(None)
+                    else:
+                        inputs.append(task[input_name])
             else:
                 inputs = []
             outputs = operator(inputs, args=args)
@@ -1802,7 +1807,7 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
     type=click.INT, nargs=6, default=None, callback=default_none,
     help='crop the chunk margin. ' +
             'The default is None and will use the bbox as croping range.')
-@click.option('--crop-bbox/--no-crop-bbox', default=True,
+@click.option('--crop-bbox/--no-crop-bbox', default=False,
     help='adjust the bounding box or not.')
 @click.option('--input-chunk-name', '-i',
     type=str, default='chunk', help='input chunk name.')
@@ -2065,11 +2070,10 @@ def threshold(tasks, name, input_chunk_name, output_chunk_name,
 
 
 @main.command('channel-voting')
-@click.option('--name', type=str, default='channel-voting', help='name of operator')
-@click.option('--input-chunk-name', type=str, default=DEFAULT_CHUNK_NAME)
-@click.option('--output-chunk-name', type=str, default=DEFAULT_CHUNK_NAME)
+@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME)
+@click.option('--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME)
 @operator
-def channel_voting(tasks, name, input_chunk_name, output_chunk_name):
+def channel_voting(tasks, input_chunk_name, output_chunk_name):
     """all channels vote to get a uint8 volume. The channel with max intensity wins."""
     for task in tasks:
         task[output_chunk_name] = task[input_chunk_name].channel_voting() 

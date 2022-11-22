@@ -283,7 +283,7 @@ class BoundingBox(Bbox):
             return self
 
         if not isinstance(size, int):
-            assert len(size)==3 or len(size)==6
+            assert len(size)==3 
             size = Vec(*size)
         else:
             size = Cartesian(size, size, size)
