@@ -22,7 +22,7 @@ from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 # Offset = Tuple[int, int, int]
 from .validate import validate_by_template_matching
 
-def type_is_valid(type: str):
+def layer_type_is_valid(type: str):
     return type in set([None, 'image', 'segmentation', 'probability_map', 'affinity_map', 'unknown'])
 
 
@@ -30,7 +30,7 @@ class Chunk(NDArrayOperatorsMixin):
     def __init__(self, array: np.ndarray, 
             voxel_offset: Cartesian = None, 
             voxel_size: Cartesian = None,
-            type: str = None):
+            layer_type: str = None):
         """chunk of a volume
     
         a chunk of big array with offset
@@ -49,7 +49,7 @@ class Chunk(NDArrayOperatorsMixin):
         """
         assert array.ndim >= 3 and array.ndim <= 4
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
-        assert type_is_valid(type)
+        assert layer_type_is_valid(layer_type), f'layer type: {layer_type} is unsupported!'
 
         self.array = array
         if voxel_offset is None:
@@ -76,20 +76,20 @@ class Chunk(NDArrayOperatorsMixin):
             assert len(voxel_size) == 3
             assert np.alltrue([vs > 0 for vs in voxel_size])
         
-        if type is not None:
-            self.type = type 
+        if layer_type is not None:
+            self.layer_type = layer_type 
         else:
             # best guess
             if self.is_image:
-                self.type = 'image'
+                self.layer_type = 'image'
             elif self.is_segmentation:
-                self.type = 'segmentation'
+                self.layer_type = 'segmentation'
             elif self.is_probability_map:
-                self.type = 'probability_map'
+                self.layer_type = 'probability_map'
             elif self.is_affinity_map:
-                self.type = 'affinity_map'
+                self.layer_type = 'affinity_map'
             else:
-                self.type = 'unknown'
+                self.layer_type = 'unknown'
 
     # One might also consider adding the built-in list type to this
     # list, to support operations like np.add(array_like, list)
@@ -378,8 +378,8 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
                 voxel_size = self.voxel_size
             if voxel_size is not None:
                 f.create_dataset('/voxel_size', data=voxel_size)
-            if self.type is not None:
-                f.attrs['type'] = self.type
+            if self.layer_type is not None:
+                f.attrs['layer_type'] = self.layer_type
 
             if with_offset and self.voxel_offset is not None:
                 f.create_dataset('/voxel_offset', data=self.voxel_offset)
@@ -493,27 +493,6 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def is_probability_map(self) -> bool:
         return self.array.ndim == 4 and self.array.dtype == np.float32
 
-    # @property
-    # def type(self) -> str:
-    #     if self.data_type is None:
-    #         if self.is_image:
-    #             self.type = 'image'
-    #         elif self.is_segmentation:
-    #             self.type = 'segmentation'
-    #         elif self.is_probability_map:
-    #             self.type = 'probability_map'
-    #         elif self.is_affinity_map:
-    #             self.type = 'affinity_map'
-    #         else:
-    #             self.type = 'unknown'
-
-    #     return self.type
-
-    # @type.setter
-    # def type(self, value: str):
-    #     assert value in set([None, 'image', 'segmentation', 'probability_map', 'affinity_map', 'unknown'])
-    #     self.type = value
-    
     @property
     def properties(self) -> dict:
         props = dict()
@@ -521,8 +500,8 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             props['voxel_offset'] = self.voxel_offset
         if self.voxel_size is not None or self.voxel_size != Cartesian(1, 1, 1):
             props['voxel_size'] = self.voxel_size
-        if self.type is not None:
-            props['type'] = self.type
+        if self.layer_type is not None:
+            props['layer_type'] = self.layer_type
 
         return props 
     
@@ -533,8 +512,8 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         if 'voxel_size' in properties:
             self.voxel_size = properties['voxel_size']
         
-        if 'type' in properties:
-            self.type = properties['type']
+        if 'layer_type' in properties:
+            self.layer_type = properties['layer_type']
 
     @properties.setter
     def properties(self, value: dict):
@@ -742,7 +721,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return Chunk(arr, 
             voxel_offset=voxel_offset, 
             voxel_size=self.voxel_size, 
-            type=self.type)
+            layer_type=self.layer_type)
 
     def save(self, patch):
         """

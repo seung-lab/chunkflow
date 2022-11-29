@@ -98,10 +98,12 @@ class ReadPrecomputedOperator(OperatorBase):
         # voxel_offset = Cartesian(s.start for s in chunk_slices)
         if chunk.shape[0] == 1:
             chunk = np.squeeze(chunk, axis=0)
-
+        
         chunk = Chunk(
-            chunk, voxel_offset=output_bbox.start,
-            voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]))
+            chunk, 
+            voxel_offset=output_bbox.start,
+            voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]),
+            layer_type=self.vol.layer_type)
 
         if self.blackout_sections:
             chunk = self._blackout_sections(chunk)

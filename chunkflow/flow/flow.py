@@ -49,6 +49,26 @@ from .setup_env import setup_environment
 from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
 
+@main.command('create-bbox')
+@click.option('--start', '-s', 
+    type=click.INT, required=True, nargs=3,
+    help = 'voxel offset or start of the bounding box.')
+@click.option('--stop', '-p',
+    type=click.INT, default=None, nargs=3, callback=default_none,
+    help='voxel stop or end of bounding box.')
+@click.option('--size', '-z', 
+    type=click.INT, default=None, nargs=3, callback=default_none,
+    help='volume size or dimension.')
+@generator
+def create_bbox(start: tuple, stop: tuple, size: tuple):
+    assert stop is not None or size is not None
+    if stop is None:
+        stop = Cartesian.from_collection(start) + Cartesian.from_collection(size)
+    bbox = BoundingBox(start, stop)
+    task = get_initial_task()
+    task['bbox'] = bbox
+    yield task
+
 
 @main.command('generate-tasks')
 @click.option('--layer-path', '-l',
@@ -90,13 +110,16 @@ make the chunk size consistent or cut off at the stopping boundary.""")
               type=click.INT, default=None, help='stop index of task list.')
 @click.option('--disbatch/--no-disbatch', '-d',
               default=False, help='use disBatch environment variable or not')
+@click.option('--use-https/--use-credential', default=False,
+    help='if we read from a public dataset in cloud storage, it is required to use https.')
 @generator
 def generate_tasks(
         layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple, 
         roi_size: tuple, chunk_size: tuple, bounding_box:str,
         grid_size: tuple, file_path: str, queue_name: str, 
         respect_chunk_size: bool, aligned_block_size: tuple, 
-        task_index_start: tuple, task_index_stop: tuple, disbatch: bool ):
+        task_index_start: tuple, task_index_stop: tuple, 
+        disbatch: bool, use_https: bool):
     """Generate a batch of tasks."""
     if mip is None:
         mip = state['mip']
@@ -114,7 +137,8 @@ def generate_tasks(
             roi_start=roi_start, roi_stop=roi_stop, 
             roi_size=roi_size, mip=mip, grid_size=grid_size,
             respect_chunk_size=respect_chunk_size,
-            aligned_block_size=aligned_block_size
+            aligned_block_size=aligned_block_size,
+            use_https=use_https
         )
     print(f'number of all the candidate tasks: {len(bboxes)}')
     
@@ -127,6 +151,7 @@ def generate_tasks(
     elif disbatch:
         assert 'DISBATCH_REPEAT_INDEX' in os.environ
         disbatch_index = int(os.environ['DISBATCH_REPEAT_INDEX'])
+        assert disbatch_index < len(bboxes), f'DISBATCH_REPEAT_INDEX is larger than the task number!'
         bboxes = [bboxes[disbatch_index],]
         logging.info(f'selected a task with disBatch index {disbatch_index}')
         
