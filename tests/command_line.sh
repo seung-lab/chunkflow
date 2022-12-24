@@ -7,6 +7,9 @@ echo -e "\ndownsample image..."
 chunkflow create-chunk --dtype uint8 --pattern sin downsample
 echo -e "\ndownsample segmentation..."
 chunkflow create-chunk --dtype uint32 --pattern sin downsample
+# we do not support float32 yet, but will be add later.
+# chunkflow create-chunk --dtype float32 --pattern sin downsample
+
 
 # this example is from [nuclease](https://github.com/janelia-flyem/neuclease)
 # echo -e "test nuclease..."
