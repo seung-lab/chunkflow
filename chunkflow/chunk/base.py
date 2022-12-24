@@ -268,7 +268,7 @@ class Chunk(NDArrayOperatorsMixin):
                 cutout_stop: tuple = None,
                 cutout_size: tuple = None,
                 dtype: str = None,
-                type: str = None):
+                layer_type: str = None):
 
         file_name = os.path.expanduser(file_name)
         if not os.path.exists(file_name):
@@ -310,17 +310,23 @@ class Chunk(NDArrayOperatorsMixin):
                 else:
                     voxel_size = Cartesian(1, 1, 1)
 
-            if type is None:
-                if 'type' in f.attrs:
-                    type = f.attrs['type']
+            if layer_type is None:
+                if 'layer_type' in f.attrs:
+                    layer_type = f.attrs['layer_type']
                     # type = str(f['type'])
-                    breakpoint()
-                    assert type_is_valid(type)
+                    assert layer_type_is_valid(layer_type)
             
             if cutout_start is None:
                 cutout_start = voxel_offset
             if cutout_size is None:
                 cutout_size = dset.shape[-3:]
+                cutout_size = Cartesian.from_collection(cutout_size)
+            elif np.min(cutout_size) < 0:
+                cutout_size = [x for x in cutout_size]
+                for idx in range(-1, -4, -1):
+                    if cutout_size[idx]<0:
+                        cutout_size[idx] = dset.shape[idx]
+                cutout_size = Cartesian.from_collection(cutout_size)
             if cutout_stop is None:
                 cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
@@ -346,7 +352,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
         logging.info(f'new chunk voxel offset: {cutout_start}')
 
-        return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size, type=type)
+        return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size, layer_type=layer_type)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
                 chunk_size: Union[Cartesian, tuple] = (8,8,8),
@@ -622,7 +628,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return Chunk(out, 
             voxel_offset=self.voxel_offset, 
             voxel_size=self.voxel_size,
-            type='segmentation',
+            layer_type='segmentation',
         )
 
     def mask_using_last_channel(self, threshold: float = 0.3) -> np.ndarray:

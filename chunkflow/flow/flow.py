@@ -25,6 +25,7 @@ from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox, BoundingB
 from chunkflow.lib.synapses import Synapses
 
 from chunkflow.chunk import Chunk
+from chunkflow.chunk.image import Image
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
@@ -32,15 +33,13 @@ from chunkflow.chunk.image.convnet.inferencer import Inferencer
 # import operator functions
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
-from .load_precomputed import ReadPrecomputedOperator
+from .load_precomputed import LoadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
 from .mesh import MeshOperator
 from .mesh_manifest import MeshManifestOperator
 from .neuroglancer import NeuroglancerOperator
-from .normalize_section_contrast import NormalizeSectionContrastOperator
-from .normalize_section_shang import NormalizeSectionShangOperator
 from .plugin import Plugin
 from .load_pngs import load_png_images
 from .save_precomputed import SavePrecomputedOperator
@@ -1271,7 +1270,7 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         # only -1 or 1
         expand_direction = int(expand_direction)
     
-    operator = ReadPrecomputedOperator(
+    operator = LoadPrecomputedOperator(
         volume_path,
         mip=mip,
         expand_margin_size=expand_margin_size,
@@ -1454,15 +1453,13 @@ def normalize_intensity(tasks, name, input_chunk_name, output_chunk_name):
         yield task
 
 
-@main.command('normalize-contrast-nkem')
+@main.command('normalize-contrast')
 @click.option('--name', type=str, default='normalize-contrast-nkem',
               help='name of operator.')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
-@click.option('--levels-path', '-p', type=str, required=True,
-              help='the path of section histograms.')
 @click.option('--lower-clip-fraction', '-l', type=click.FLOAT, default=0.01, 
               help='lower intensity fraction to clip out.')
 @click.option('--upper-clip-fraction', '-u', type=click.FLOAT, default=0.01, 
@@ -1471,22 +1468,28 @@ def normalize_intensity(tasks, name, input_chunk_name, output_chunk_name):
               help='the minimum intensity of transformed chunk.')
 @click.option('--maxval', type=click.INT, default=255,
               help='the maximum intensity of transformed chunk.')
+@click.option('--per-section/--whole', default=True, 
+help='per section normalization or normalize the whole chunk.')
 @operator
-def normalize_contrast_nkem(tasks, name, input_chunk_name, output_chunk_name, 
-                                levels_path, lower_clip_fraction,
-                                upper_clip_fraction, minval, maxval):
+def normalize_contrast(tasks, 
+        name: str, input_chunk_name: str, output_chunk_name: str, 
+        lower_clip_fraction: float, upper_clip_fraction: float, 
+        minval: int, maxval: int, per_section: bool):
     """Normalize the section contrast using precomputed histograms."""
     
-    operator = NormalizeSectionContrastOperator(
-        levels_path,
-        lower_clip_fraction=lower_clip_fraction,
-        upper_clip_fraction=upper_clip_fraction,
-        minval=minval, maxval=maxval, name=name)
-
     for task in tasks:
         if task is not None:
             start = time()
-            task[output_chunk_name] = operator(task[input_chunk_name])
+            chunk = task[input_chunk_name]
+            chunk = chunk.clone()
+            chunk = Image.from_chunk(chunk)
+            chunk.normalize_contrast(
+                lower_clip_fraction=lower_clip_fraction,
+                upper_clip_fraction=upper_clip_fraction,
+                minval=minval,
+                maxval=maxval,
+                per_section=per_section) 
+            task[output_chunk_name] = chunk
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -1519,16 +1522,12 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
     The transformed chunk has floating point values.
     """
 
-    operator = NormalizeSectionShangOperator(
-        nominalmin=nominalmin,
-        nominalmax=nominalmax,
-        clipvalues=clipvalues,
-        name=name)
-
     for task in tasks:
         if task is not None:
             start = time()
-            task[output_chunk_name] = operator(task[input_chunk_name])
+            chunk = task[input_chunk_name]
+            chunk = chunk.normalize_section_shang(nominalmin, nominalmax, clipvalues)
+            task[output_chunk_name] = chunk
             task['log']['timer'][name] = time() - start
         yield task
 
