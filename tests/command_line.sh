@@ -3,6 +3,11 @@
 echo -e "\ngenerate tasks..."
 chunkflow generate-tasks -c 0 0 0 -s 0 0 0 -g 1 1 1
 
+echo -e "\ndownsample image..."
+chunkflow create-chunk --dtype uint8 --pattern sin downsample
+echo -e "\ndownsample segmentation..."
+chunkflow create-chunk --dtype uint32 --pattern sin downsample
+
 # this example is from [nuclease](https://github.com/janelia-flyem/neuclease)
 # echo -e "test nuclease..."
 # chunkflow generate-tasks --roi-start 20789 21341 17019 --chunk-size 16 128 128  plugin -f cutout_dvid_label -i bbox -o chunk

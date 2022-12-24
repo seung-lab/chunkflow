@@ -12,8 +12,9 @@ import click
 import json
 from tqdm import tqdm
 
-from chunkflow.lib.flow import *
+import tinybrain
 
+from chunkflow.lib.flow import *
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec
 from cloudfiles import CloudFiles
@@ -1354,6 +1355,36 @@ def evaluate_segmenation(tasks, segmentation_chunk_name,
             task[output] = seg.evaluate(groundtruth)
         yield task
 
+
+@main.command('downsample')
+@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
+    help = 'input chunk name')
+@click.option('--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
+    help='output chunk name')
+@click.option('--factor', '-f', type=click.INT, nargs=3, default=(2,2,2),
+    help='downsample factor in zyx. The default is 2x2x2.')
+@operator
+def downsample(tasks, input_chunk_name: str, output_chunk_name: str, factor: tuple):
+    for task in tasks:
+        if task is not None:
+            chunk = task[input_chunk_name]
+            if chunk.is_image:
+                arr = tinybrain.downsample_with_averaging(chunk.array, factor)[0]
+            elif chunk.is_segmentation:
+                arr = tinybrain.downsample_segmentation(chunk.array, factor)[0]
+            else:
+                raise TypeError(f'only support image or segmentation, but got: {chunk.dtype}')
+                
+            factor = Cartesian.from_collection(factor)
+            voxel_offset = chunk.voxel_offset // factor
+            voxel_size = chunk.voxel_size * factor
+
+            output_chunk = Chunk(arr, 
+                voxel_offset=voxel_offset,
+                voxel_size=voxel_size,
+                layer_type=chunk.layer_type)
+            task[output_chunk_name] = output_chunk
+        yield task
 
 @main.command('downsample-upload')
 @click.option('--name',
