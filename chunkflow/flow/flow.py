@@ -24,6 +24,7 @@ from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox, BoundingB
 from chunkflow.lib.synapses import Synapses
 
 from chunkflow.chunk import Chunk
+from chunkflow.chunk.image import Image
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
@@ -31,15 +32,13 @@ from chunkflow.chunk.image.convnet.inferencer import Inferencer
 # import operator functions
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
 from .cloud_watch import CloudWatchOperator
-from .load_precomputed import ReadPrecomputedOperator
+from .load_precomputed import LoadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
 from .mesh import MeshOperator
 from .mesh_manifest import MeshManifestOperator
 from .neuroglancer import NeuroglancerOperator
-from .normalize_section_contrast import NormalizeSectionContrastOperator
-from .normalize_section_shang import NormalizeSectionShangOperator
 from .plugin import Plugin
 from .load_pngs import load_png_images
 from .save_precomputed import SavePrecomputedOperator
@@ -47,6 +46,26 @@ from .save_pngs import SavePNGsOperator
 from .setup_env import setup_environment
 from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
+
+@main.command('create-bbox')
+@click.option('--start', '-s', 
+    type=click.INT, required=True, nargs=3,
+    help = 'voxel offset or start of the bounding box.')
+@click.option('--stop', '-p',
+    type=click.INT, default=None, nargs=3, callback=default_none,
+    help='voxel stop or end of bounding box.')
+@click.option('--size', '-z', 
+    type=click.INT, default=None, nargs=3, callback=default_none,
+    help='volume size or dimension.')
+@generator
+def create_bbox(start: tuple, stop: tuple, size: tuple):
+    assert stop is not None or size is not None
+    if stop is None:
+        stop = Cartesian.from_collection(start) + Cartesian.from_collection(size)
+    bbox = BoundingBox(start, stop)
+    task = get_initial_task()
+    task['bbox'] = bbox
+    yield task
 
 
 @main.command('generate-tasks')
@@ -89,13 +108,16 @@ make the chunk size consistent or cut off at the stopping boundary.""")
               type=click.INT, default=None, help='stop index of task list.')
 @click.option('--disbatch/--no-disbatch', '-d',
               default=False, help='use disBatch environment variable or not')
+@click.option('--use-https/--use-credential', default=False,
+    help='if we read from a public dataset in cloud storage, it is required to use https.')
 @generator
 def generate_tasks(
         layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple, 
         roi_size: tuple, chunk_size: tuple, bounding_box:str,
         grid_size: tuple, file_path: str, queue_name: str, 
         respect_chunk_size: bool, aligned_block_size: tuple, 
-        task_index_start: tuple, task_index_stop: tuple, disbatch: bool ):
+        task_index_start: tuple, task_index_stop: tuple, 
+        disbatch: bool, use_https: bool):
     """Generate a batch of tasks."""
     if mip is None:
         mip = state['mip']
@@ -113,7 +135,8 @@ def generate_tasks(
             roi_start=roi_start, roi_stop=roi_stop, 
             roi_size=roi_size, mip=mip, grid_size=grid_size,
             respect_chunk_size=respect_chunk_size,
-            aligned_block_size=aligned_block_size
+            aligned_block_size=aligned_block_size,
+            use_https=use_https
         )
     print(f'number of all the candidate tasks: {len(bboxes)}')
     
@@ -126,6 +149,7 @@ def generate_tasks(
     elif disbatch:
         assert 'DISBATCH_REPEAT_INDEX' in os.environ
         disbatch_index = int(os.environ['DISBATCH_REPEAT_INDEX'])
+        assert disbatch_index < len(bboxes), f'DISBATCH_REPEAT_INDEX is larger than the task number!'
         bboxes = [bboxes[disbatch_index],]
         logging.info(f'selected a task with disBatch index {disbatch_index}')
         
@@ -1245,7 +1269,7 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         # only -1 or 1
         expand_direction = int(expand_direction)
     
-    operator = ReadPrecomputedOperator(
+    operator = LoadPrecomputedOperator(
         volume_path,
         mip=mip,
         expand_margin_size=expand_margin_size,
@@ -1428,15 +1452,13 @@ def normalize_intensity(tasks, name, input_chunk_name, output_chunk_name):
         yield task
 
 
-@main.command('normalize-contrast-nkem')
+@main.command('normalize-contrast')
 @click.option('--name', type=str, default='normalize-contrast-nkem',
               help='name of operator.')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
-@click.option('--levels-path', '-p', type=str, required=True,
-              help='the path of section histograms.')
 @click.option('--lower-clip-fraction', '-l', type=click.FLOAT, default=0.01, 
               help='lower intensity fraction to clip out.')
 @click.option('--upper-clip-fraction', '-u', type=click.FLOAT, default=0.01, 
@@ -1445,22 +1467,28 @@ def normalize_intensity(tasks, name, input_chunk_name, output_chunk_name):
               help='the minimum intensity of transformed chunk.')
 @click.option('--maxval', type=click.INT, default=255,
               help='the maximum intensity of transformed chunk.')
+@click.option('--per-section/--whole', default=True, 
+help='per section normalization or normalize the whole chunk.')
 @operator
-def normalize_contrast_nkem(tasks, name, input_chunk_name, output_chunk_name, 
-                                levels_path, lower_clip_fraction,
-                                upper_clip_fraction, minval, maxval):
+def normalize_contrast(tasks, 
+        name: str, input_chunk_name: str, output_chunk_name: str, 
+        lower_clip_fraction: float, upper_clip_fraction: float, 
+        minval: int, maxval: int, per_section: bool):
     """Normalize the section contrast using precomputed histograms."""
     
-    operator = NormalizeSectionContrastOperator(
-        levels_path,
-        lower_clip_fraction=lower_clip_fraction,
-        upper_clip_fraction=upper_clip_fraction,
-        minval=minval, maxval=maxval, name=name)
-
     for task in tasks:
         if task is not None:
             start = time()
-            task[output_chunk_name] = operator(task[input_chunk_name])
+            chunk = task[input_chunk_name]
+            chunk = chunk.clone()
+            chunk = Image.from_chunk(chunk)
+            chunk.normalize_contrast(
+                lower_clip_fraction=lower_clip_fraction,
+                upper_clip_fraction=upper_clip_fraction,
+                minval=minval,
+                maxval=maxval,
+                per_section=per_section) 
+            task[output_chunk_name] = chunk
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -1493,16 +1521,12 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
     The transformed chunk has floating point values.
     """
 
-    operator = NormalizeSectionShangOperator(
-        nominalmin=nominalmin,
-        nominalmax=nominalmax,
-        clipvalues=clipvalues,
-        name=name)
-
     for task in tasks:
         if task is not None:
             start = time()
-            task[output_chunk_name] = operator(task[input_chunk_name])
+            chunk = task[input_chunk_name]
+            chunk = chunk.normalize_section_shang(nominalmin, nominalmax, clipvalues)
+            task[output_chunk_name] = chunk
             task['log']['timer'][name] = time() - start
         yield task
 

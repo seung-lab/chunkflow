@@ -323,7 +323,7 @@ class BoundingBox(Bbox):
 
     @property
     def slices(self):
-        return [slice(x0, x1) for x0, x1 in zip(self.start, self.stop)]
+        return tuple(slice(x0, x1) for x0, x1 in zip(self.start, self.stop))
 
     @property
     def left_neighbors(self):
@@ -360,7 +360,9 @@ class BoundingBoxes(UserList):
             aligned_block_size: Union[Vec, tuple, Cartesian]=None,
             bounded: bool = False,
             layer_path: str = None,
-            mip: int = 0):
+            mip: int = 0,
+            use_https: bool = False,
+            ):
 
         if not layer_path:
             if grid_size is None and roi_size is None and roi_stop is None:
@@ -390,7 +392,7 @@ class BoundingBoxes(UserList):
 
                 roi_stop = roi_start + roi_size
             else:
-                vol = CloudVolume(layer_path, mip=mip)
+                vol = CloudVolume(layer_path, mip=mip, use_https=use_https)
                 # dataset shape as z,y,x
                 dataset_size = vol.mip_shape(mip)[:3][::-1]
                 dataset_offset = vol.mip_voxel_offset(mip)[::-1]
