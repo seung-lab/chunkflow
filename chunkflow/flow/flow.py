@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from importlib.metadata import requires
 import os
 from pathlib import Path
 from time import time
