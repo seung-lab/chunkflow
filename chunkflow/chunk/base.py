@@ -800,3 +800,13 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         """
         for z in range(self.shape[-3]):
             self.array[..., z, :, :] = gaussian_filter(self.array[..., z, :, :], sigma)
+
+def load_chunk(file_path: str):
+    if file_path.endswith('.h5'):
+        return Chunk.from_h5(file_path)
+    elif file_path.endswith('.npy'):
+        arr = np.loads(file_path)
+        return Chunk(array=arr)
+    else:
+        raise ValueError(f'only .h5 and .npy files are supported, but got {file_path}')
+    

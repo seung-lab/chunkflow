@@ -1,1 +1,1 @@
-from .base import Chunk
+from .base import Chunk, load_chunk
