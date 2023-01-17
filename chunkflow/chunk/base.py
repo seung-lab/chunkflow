@@ -657,7 +657,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
                 new_array = self.array[...,
                     margin_size[0]: sz-margin_size[0],
                     margin_size[1]: sy-margin_size[1],
-                    margin_size[2]: sx-margin_size[5]]
+                    margin_size[2]: sx-margin_size[2]]
             elif len(margin_size) == 6:
                 new_array = self.array[...,
                     margin_size[0]: sz-margin_size[3],

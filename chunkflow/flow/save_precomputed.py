@@ -22,14 +22,12 @@ class SavePrecomputedOperator(OperatorBase):
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
-                intensity_threshold: int = None,
                  name: str = 'save-precomputed'):
         super().__init__(name=name)
         
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
-        self.intensity_threshold = intensity_threshold
 
         # if not volume_path.startswith('precomputed://'):
         #     volume_path += 'precomputed://'
@@ -60,16 +58,12 @@ class SavePrecomputedOperator(OperatorBase):
         chunk = Chunk(arr, voxel_offset=(0, *bbox.minpt))
         return chunk
 
-    def __call__(self, chunk, log=None):
+    def __call__(self, chunk: Chunk, log=None):
         assert isinstance(chunk, Chunk)
         logging.info('save chunk.')
         
         start = time.time()
         
-        if self.intensity_threshold is not None and np.all(chunk.array < self.intensity_threshold):
-            print('the voxel intensity in this chunk are all below intensity threshold, return directly without saving anything.')
-            return 
-
         chunk = self._auto_convert_dtype(chunk, self.volume)
         
         # transpose czyx to xyzc order

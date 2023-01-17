@@ -12,6 +12,7 @@ import click
 import json
 from tqdm import tqdm
 
+import zarr
 import tinybrain
 
 from chunkflow.lib.flow import *
@@ -1307,6 +1308,43 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
             task['cutout_volume_path'] = volume_path
         yield task
 
+@main.command('load-zarr')
+@click.option('--path', '-p', type=str, required=True,
+    help = 'Zarr store path')
+@click.option('--chunk-start', '-s', type=click.INT, nargs=3, default=None,
+    help='voxel offset or start')
+@click.option('--chunk-size', '-z', type=click.INT, nargs=3, default=None,
+    help='chunk size')
+@click.option('--voxel-size', '-v', type=click.FLOAT, nargs=3, default=None)
+@click.option('--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
+    help='output chunk name.')
+@operator
+def load_zarr(tasks, path: str, chunk_start: tuple, voxel_size: tuple, 
+        chunk_size: tuple, output_chunk_name: str):
+    """Load Zarr arrays."""
+    z = zarr.open(path, mode='r')
+    meta = z.attrs.asdict()
+    volume_offset = Cartesian.from_collection(meta['offset'])
+    if voxel_size is None:
+        voxel_size = meta['resolution']
+    for task in tasks:
+        if task is not None:
+            if chunk_size is None and chunk_start is None and 'bbox' not in task:
+                arr = z[:]
+                voxel_offset = volume_offset
+            else:
+                if chunk_start is not None and chunk_size is not None:
+                    bbox = BoundingBox.from_delta(chunk_start, chunk_size)
+                elif 'bbox' in task:
+                    bbox = task['bbox']
+                else:
+                    raise ValueError(f'bounding box not defined.')
+                arr = z[bbox.slices]
+                voxel_offset = volume_offset + chunk_start
+            chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size) 
+            task[output_chunk_name] = chunk
+        yield task
+
 
 @main.command('remap-segmentation')
 @click.option('--input-chunk-name', '-i',
@@ -2091,6 +2129,7 @@ def save_precomputed(tasks, name: str, volume_path: str,
             # the time elapsed was recorded internally
             chunk = task[input_chunk_name]
             if intensity_threshold is not None and np.all(chunk.array < intensity_threshold):
+                print(f'average intensity lower than threshold, skip this task.')
                 pass
             else:
                 operator(chunk, log=task.get('log', {'timer': {}}))
