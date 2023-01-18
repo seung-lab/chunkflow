@@ -349,82 +349,22 @@ class BoundingBoxes(UserList):
         self.data = bboxes
 
     @classmethod
-    def from_manual_setup(cls,
-            chunk_size:Union[Vec, tuple], 
-            chunk_overlap: Union[Vec, tuple, Cartesian]=Cartesian(0,0,0),
-            roi_start: Union[Vec, tuple, Cartesian]=None, 
-            roi_stop: Union[Vec, tuple, Cartesian]=None, 
-            roi_size: Union[Vec, tuple, Cartesian]=None,
-            grid_size: Union[Vec, tuple, Cartesian]=None,
+    def from_volume_bbox(cls,
+            volume_bbox: BoundingBox, 
+            chunk_size: Union[Cartesian, Vec, tuple, list],
+            chunk_overlap: Union[Cartesian, Vec, tuple, list] = Cartesian(0, 0, 0), 
             respect_chunk_size: bool = True,
             aligned_block_size: Union[Vec, tuple, Cartesian]=None,
             bounded: bool = False,
-            layer_path: str = None,
-            mip: int = 0,
-            use_https: bool = False,
-            ):
-
-        if not layer_path:
-            if grid_size is None and roi_size is None and roi_stop is None:
-                grid_size = Cartesian(1, 1, 1)
-
-            if roi_start is None:
-                roi_start = Cartesian(0, 0, 0)
-            elif not isinstance(roi_start, Cartesian):
-                roi_start = Cartesian.from_collection(roi_start)
-            if roi_size is None and chunk_size is not None:
-                roi_size = Cartesian.from_collection(chunk_size)
-            roi_stop = roi_start + roi_size
-        else:
-            if layer_path.endswith('.h5'):
-                assert os.path.exists(layer_path)
-                with h5py.File(layer_path, mode='r') as file:
-                    for key in file.keys():
-                        if 'offset' in key:
-                            roi_start = Cartesian(*(file[key]))
-                        elif 'voxel_size' not in key:
-                            if roi_size is None:
-                                roi_size = Cartesian(*file[key].shape[-3:])
-                if roi_start is None:
-                    roi_start = Cartesian(0, 0, 0)
-                if roi_size is None and chunk_size is not None:
-                    roi_size = Cartesian.from_collection(chunk_size)
-
-                roi_stop = roi_start + roi_size
-            else:
-                vol = CloudVolume(layer_path, mip=mip, use_https=use_https)
-                # dataset shape as z,y,x
-                dataset_size = vol.mip_shape(mip)[:3][::-1]
-                dataset_offset = vol.mip_voxel_offset(mip)[::-1]
-                dataset_size = Cartesian.from_collection(dataset_size)
-                dataset_offset = Cartesian.from_collection(dataset_offset)
-
-                if roi_size is None:
-                    roi_size = dataset_size
-                if roi_stop is None:
-                    roi_stop = dataset_offset + dataset_size
-                if roi_start is None:
-                    # note that we normally start from -overlap to keep the chunks aligned!
-                    roi_start = dataset_offset - chunk_overlap
-        assert roi_start is not None
-
-        if not isinstance(chunk_size, Cartesian):
-            chunk_size = Cartesian(*chunk_size)
+        ):
         if not isinstance(chunk_overlap, Cartesian):
             chunk_overlap = Cartesian(*chunk_overlap)
-        if not isinstance(roi_start, Cartesian):
-            assert len(roi_start) == 3
-            roi_start = Cartesian(*roi_start)
-        if not isinstance(roi_size, Cartesian):
-            roi_size = Cartesian(*roi_size)
-        if grid_size is not None and not isinstance(grid_size, Cartesian):
-            grid_size = Cartesian(*grid_size)
-        if not isinstance(roi_stop, Cartesian):
-            roi_stop = Cartesian(*roi_stop)
+
+        roi_start = volume_bbox.start
+        roi_size = volume_bbox.shape
 
         stride = chunk_size - chunk_overlap
-        if roi_stop is None:
-            roi_stop = roi_start + stride*grid_size + chunk_overlap
+        # roi_stop = roi_start + stride*grid_size + chunk_overlap
 
         if aligned_block_size is not None:
             if not isinstance(aligned_block_size, Vec):
@@ -439,13 +379,10 @@ class BoundingBoxes(UserList):
                 if roi_stop[idx] % aligned_block_size[idx] > 0:
                     roi_stop_temp[idx] += aligned_block_size[idx] - roi_stop[idx] % aligned_block_size[idx]
             roi_stop = Cartesian.from_collection(roi_stop_temp)
-
-        if roi_size is None:
             roi_size = roi_stop - roi_start
 
-        if grid_size is None:
-            grid_size = (roi_size - chunk_overlap) / stride 
-            grid_size = grid_size.ceil
+        grid_size = (roi_size - chunk_overlap) / stride 
+        grid_size = grid_size.ceil
             # grid_size = Cartesian.from_collection([ceil(x) for x in grid_size])
 
         # the stride should not be zero if there is more than one chunks

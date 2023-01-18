@@ -1,6 +1,8 @@
 import sys
-from typing import Union
+from typing import Union, Callable
 import logging
+logging.getLogger().setLevel(logging.INFO)
+
 from functools import update_wrapper, wraps
 
 import click
@@ -43,8 +45,8 @@ def default_none(ctx, _, value):
 @click.group(chain=True)
 @click.option('--log-level', '-l',
               type=click.Choice(['debug', 'info', 'warning', 'error', 'critical']), 
-              default='info',
-              help='print informations level. default is level 1.')
+              default='debug',
+              help='print informations level. default is level INFO.')
 @click.option('--log-file', '-f',
     type=click.Path(exists=False), default=None,
     help='log file path.')
@@ -65,6 +67,7 @@ def main(log_level, log_file, mip, dry_run, verbose):
         'critical'  : logging.CRITICAL
     }
     log_level = str2level[log_level]
+    logging.getLogger().setLevel(log_level)
 
     console = logging.StreamHandler(sys.stdout)
     console.setLevel(log_level)
@@ -73,11 +76,11 @@ def main(log_level, log_file, mip, dry_run, verbose):
     logging.getLogger().addHandler(console)
 
     if log_file is not None and len(log_file)>0:
-        fileHandler = logging.FileHandler(filename=log_file)
-        fileHandler.setLevel(log_level)
+        file_handler = logging.FileHandler(filename=log_file)
+        file_handler.setLevel(log_level)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        fileHandler.setFormatter(formatter)
-        logging.getLogger().addHandler(fileHandler)
+        file_handler.setFormatter(formatter)
+        logging.getLogger().addHandler(file_handler)
 
     state['mip'] = mip
     state['dry_run'] = dry_run
@@ -102,11 +105,13 @@ def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
         # task = next(stream)
 
     # Evaluate the stream and throw away the items.
-    for _ in stream:
+    for item in stream:
+        print(f'item in stream: {item}')
+        breakpoint()
         pass
 
 
-def operator(func):
+def operator(func: Callable):
     """
     Help decorator to rewrite a function so that
     it returns another function from it.
@@ -120,13 +125,30 @@ def operator(func):
     return wrapper
 
 
-def generator(func):
+def generator(func: Callable):
     """Similar to the :func:`operator` but passes through old values unchanged 
     and does not pass through the values as parameter.
     """
     @operator
     def new_func(stream, *args, **kwargs):
-        for item in func(*args, **kwargs):
-            yield item
+        for task in func(*args, **kwargs):
+            yield task
 
+    return update_wrapper(new_func, func)
+
+def initiator(func: Callable):
+    """Setup some basic parameters for the task.
+    Note that a pipeline should be composed by initiator-->generator-->operator in order.
+    """
+    
+    # @wraps(func)
+    # def wrapper(*args, **kwargs):
+    #     def initiator(stream):
+    #         return func(stream, *args, **kwargs)
+    #     return initiator
+    # return wrapper
+
+    @operator
+    def new_func(stream, *args, **kwargs):
+       yield func(*args, **kwargs)
     return update_wrapper(new_func, func)
