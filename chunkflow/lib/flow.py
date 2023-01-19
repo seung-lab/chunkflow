@@ -1,5 +1,5 @@
 import sys
-from typing import Union, Callable
+from typing import Union, Callable, Iterable
 import logging
 logging.getLogger().setLevel(logging.INFO)
 
@@ -14,7 +14,7 @@ class CartesianParamType(click.ParamType):
     
     def convert(self, value: Union[list, tuple], param, ctx):
         assert len(value) == 3
-        return Cartesian.from_collection(value)        
+        return Cartesian.from_collection(value) 
 
 CartesianParam = CartesianParamType()
 
@@ -40,9 +40,45 @@ def default_none(ctx, _, value):
         return value
 
 
+# https://stackoverflow.com/questions/58745652/how-can-command-list-display-be-categorised-within-a-click-chained-group
+class GroupedGroup(click.Group):
+    def command(self, *args, **kwargs):
+        """Gather the command help groups"""
+        help_group = kwargs.pop('group', None)
+        decorator = super(GroupedGroup, self).command(*args, **kwargs)
+
+        def wrapper(f):
+            cmd = decorator(f)
+            cmd.help_group = help_group
+            return cmd
+
+        return wrapper
+
+    def format_commands(self, ctx, formatter):
+        # Modified fom the base class method
+
+        commands = []
+        for subcommand in self.list_commands(ctx):
+            cmd = self.get_command(ctx, subcommand)
+            if not (cmd is None or cmd.hidden):
+                commands.append((subcommand, cmd))
+
+        if commands:
+            longest = max(len(cmd[0]) for cmd in commands)
+            # allow for 3 times the default spacing
+            limit = formatter.width - 6 - longest
+
+            groups = {}
+            for subcommand, cmd in commands:
+                help_str = cmd.get_short_help_str(limit)
+                subcommand += ' ' * (longest - len(subcommand))
+                groups.setdefault(
+                    cmd.help_group, []).append((subcommand, help_str))
+
+
 # the code design is based on:
-# https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
-@click.group(chain=True)
+# https://github.com/pallets/click/blob/main/examples/imagepipe/imagepipe.py
+@click.group(name='chunkflow', chain=True, cls=GroupedGroup)
 @click.option('--log-level', '-l',
               type=click.Choice(['debug', 'info', 'warning', 'error', 'critical']), 
               default='debug',
@@ -90,7 +126,7 @@ def main(log_level, log_file, mip, dry_run, verbose):
 
 
 @main.result_callback()
-def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
+def process_commands(processors: Iterable, log_level, log_file, mip, dry_run, verbose):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
     returns a function we can chain them together to feed one 
@@ -100,14 +136,17 @@ def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
     stream = [get_initial_task(), ]
 
     # Pipe it through all stream operators.
-    for operator in operators:
-        stream = operator(stream)
+    for processor in processors:
+        breakpoint()
+        stream = processor(stream)
         # task = next(stream)
 
     # Evaluate the stream and throw away the items.
     for item in stream:
         print(f'item in stream: {item}')
-        breakpoint()
+        if item is None:
+            breakpoint()
+            continue
         pass
 
 
@@ -118,9 +157,9 @@ def operator(func: Callable):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        def operator(stream):
+        def processor(stream: Iterable):
             return func(stream, *args, **kwargs)
-        return operator
+        return processor
 
     return wrapper
 
@@ -130,7 +169,7 @@ def generator(func: Callable):
     and does not pass through the values as parameter.
     """
     @operator
-    def new_func(stream, *args, **kwargs):
+    def new_func(stream: Iterable, *args, **kwargs):
         for task in func(*args, **kwargs):
             yield task
 
@@ -149,6 +188,9 @@ def initiator(func: Callable):
     # return wrapper
 
     @operator
-    def new_func(stream, *args, **kwargs):
-       yield func(*args, **kwargs)
+    def new_func(stream: Iterable, *args, **kwargs):
+        ret = func(*args, **kwargs)
+        # while True:
+        yield ret
+        
     return update_wrapper(new_func, func)

@@ -108,7 +108,7 @@ def create_bbox_from_h5(file_path: str, volume: bool):
     state[key_name] = BoundingBox.from_delta(roi_start, roi_size)
 
 
-@main.command('create-bbox-from-zarr')
+@main.command('create-bbox-from-zarr', group='Initiator')
 @click.option('--path', '-p', type=str, required=True,
     help='path of Zarr volume.')
 @click.option('--name', '-n', type=str, default='volume_bbox',
@@ -122,7 +122,8 @@ def create_volume_bbox_from_zarr(path: str, name: str):
     print('bounding box: ', bbox)
     state[name] = bbox
     print(f'state after zarr: {state}')
-    yield state
+    breakpoint()
+    yield None
 
 @main.command('create-bbox-from-precomputed')
 @click.option('--path', '-p', type=str, required=True,
@@ -146,7 +147,7 @@ def create_bbox_from_precomputed(path: str, mip: int, use_https: bool, name: str
     state[name] = volume_bbox
 
 
-@main.command('divide-volume')
+@main.command('divide-volume', group='Initiator')
 @click.option('--chunk-size', '-c',
               type=click.INT, default=None, nargs=3,
               help='(z y x), size/shape of chunks')
@@ -161,6 +162,7 @@ make the chunk size consistent or cut off at the stopping boundary.""")
 @initiator
 def divide_volume(chunk_size: tuple, respect_chunk_size: bool, 
         aligned_block_size: bool, bounded: bool):
+    """Decompose the volume to a grid of chunks with/without overlap."""
     breakpoint()
     volume_bbox = state['volume_bbox']
     bboxes = BoundingBoxes.from_manual_setup(
@@ -171,7 +173,7 @@ def divide_volume(chunk_size: tuple, respect_chunk_size: bool,
     )
     state['bboxes'] = bboxes
     print(f'state after divide volume: {state}')
-    yield state
+    yield None
 
 
 @main.command('save-tasks')
