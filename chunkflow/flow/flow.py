@@ -1308,6 +1308,7 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
             task['cutout_volume_path'] = volume_path
         yield task
 
+
 @main.command('load-zarr')
 @click.option('--path', '-p', type=str, required=True,
     help = 'Zarr store path')
@@ -1324,9 +1325,11 @@ def load_zarr(tasks, path: str, chunk_start: tuple, voxel_size: tuple,
     """Load Zarr arrays."""
     z = zarr.open(path, mode='r')
     meta = z.attrs.asdict()
-    volume_offset = Cartesian.from_collection(meta['offset'])
+    # Note that this is the physical
+    physical_volume_offset = Cartesian.from_collection(meta['offset'])
     if voxel_size is None:
-        voxel_size = meta['resolution']
+        voxel_size = Cartesian.from_collection(meta['resolution'])
+    volume_offset = physical_volume_offset / voxel_size
     for task in tasks:
         if task is not None:
             if chunk_size is None and chunk_start is None and 'bbox' not in task:
