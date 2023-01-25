@@ -99,7 +99,7 @@ def test_inference_pipeline():
 
     # run pipeline by composing functions
     print('cutout image chunk...')
-    cutout_operator = ReadPrecomputedOperator(
+    cutout_operator = LoadPrecomputedOperator(
         input_volume_path,
         mip=mip,
         expand_margin_size=cropping_margin_size)
