@@ -90,6 +90,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | load-precomputed| Cutout chunk from a local/cloud storage volume |
 | load-tif        | Read TIFF files |
 | load-nrrd       | Read NRRD files |
+| load-zarr    	  | Read Zarr files |
 | remap-segmentation | Renumber a serials of segmentation chunks |
 | setup-env       | Prepare storage infor files and produce tasks |
 | skeletonize     | Create centerlines of objects in a segmentation chunk |
