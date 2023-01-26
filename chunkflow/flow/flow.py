@@ -1309,9 +1309,9 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         yield task
 
 @main.command('load-zarr')
-@click.option('--path', '-p', type=str, required=True,
+@click.option('--store', '-s', type=str, required=True,
     help = 'Zarr store path')
-@click.option('--chunk-start', '-s', type=click.INT, nargs=3, default=None,
+@click.option('--chunk-start', '-t', type=click.INT, nargs=3, default=None,
     help='voxel offset or start')
 @click.option('--chunk-size', '-z', type=click.INT, nargs=3, default=None,
     help='chunk size')
@@ -1343,6 +1343,39 @@ def load_zarr(tasks, path: str, chunk_start: tuple, voxel_size: tuple,
                 voxel_offset = volume_offset + chunk_start
             chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size) 
             task[output_chunk_name] = chunk
+        yield task
+
+
+@main.command('save-zarr')
+@click.option('--store', '-s', type=str, required=True,
+    help = 'Zarr store path')
+@click.option('--shape', '-s', type=click.INT, nargs=3,
+    default=None, callback=default_none,
+    help='shape of the whole volume.')
+@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
+    help='input chunk name.')
+@operator
+def save_zarr(tasks, store: str, shape: tuple, input_chunk_name: str):
+    """Load Zarr arrays."""
+    
+    if os.path.exists(store):
+        zarr_store = zarr.open(store, mode='w')
+    else:
+        assert shape is not None
+        zarr_store = zarr.open(store, mode='w', shape=shape,)
+    for task in tasks:
+        if task is not None:
+            chunk = task[input_chunk_name]
+            if not os.path.exists(store):
+                # create it and store the whole array here.
+                za[:] = chunk.array
+            else:
+                if chunk.ndim == 4: 
+                    za[(slice(None),) + chunk.slices] = chunk.array
+                elif chunk.ndim == 3:
+                    za[chunk.slices] = chunk.array
+                else:
+                    raise ValueError(f'only support 3D and 4D array for now, but get {chunk.ndim}')
         yield task
 
 

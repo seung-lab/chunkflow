@@ -264,6 +264,9 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
 
         print('Open this url in browser: ')
         viewer_url = viewer.get_viewer_url()
+        if '.fios-router.home' in viewer_url:
+            _, _, address2 = viewer_url.split(':')
+            viewer_url = 'http://localhost:' + address2
         print(viewer_url)
 
         key = None
