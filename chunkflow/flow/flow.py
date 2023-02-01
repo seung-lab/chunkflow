@@ -481,7 +481,7 @@ def cleanup(dir: str, mode: str, suffix: str):
 def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num: int, 
                 layer_type: str, data_type: str, encoding: str, voxel_size: tuple, 
                 voxel_offset: tuple, volume_size: tuple, block_size: tuple, factor: tuple, max_mip: int):
-    """Create metadata for Neuroglancer Precomputed volume."""
+    """Create attrsdata for Neuroglancer Precomputed volume."""
     
     for task in tasks:
         if task is not None:
@@ -1256,26 +1256,47 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
 
 
 @main.command('load-zarr')
-@click.option('--store', '-s', type=str, required=True,
-    help = 'Zarr store path')
-@click.option('--chunk-start', '-t', type=click.INT, nargs=3, default=None,
+@click.option('--store', '-f', type=str, required=True,
+    help='Zarr store path')
+@click.option('--path', '-p', type=str, default = None,
+    help = 'Zarr path in the store')
+@click.option('--chunk-start', '-s', type=click.INT, nargs=3, default=None,
     help='voxel offset or start')
 @click.option('--chunk-size', '-z', type=click.INT, nargs=3, default=None,
     help='chunk size')
 @click.option('--voxel-size', '-v', type=click.FLOAT, nargs=3, default=None)
+@click.option('--backend', '-b', type=str, default='NestedDirectoryStore',
+    help='the storage backend.')
 @click.option('--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
     help='output chunk name.')
 @operator
-def load_zarr(tasks, path: str, chunk_start: tuple, voxel_size: tuple, 
-        chunk_size: tuple, output_chunk_name: str):
+def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tuple, 
+        chunk_size: tuple, backend: str, output_chunk_name: str):
     """Load Zarr arrays."""
-    z = zarr.open(path, mode='r')
-    meta = z.attrs.asdict()
+    if backend == 'NestedDirectoryStore':
+        store = zarr.NestedDirectoryStore(store)
+    z = zarr.open(store, mode='r', path=path)
+    attrs = z.attrs.asdict()
+    
     # Note that this is the physical
-    physical_volume_offset = Cartesian.from_collection(meta['offset'])
+    if 'offset' in attrs:
+        physical_volume_offset = Cartesian.from_collection(attrs['offset'])
+        volume_offset = physical_volume_offset / voxel_size
+    elif 'voxel_offset' in attrs:
+        volume_offset = Cartesian.from_collection(attrs['voxel_offset'])
+    else:
+        print('no voxel offset, set default value: 0x0x0')
+        volume_offset = Cartesian(0, 0, 0)
+
     if voxel_size is None:
-        voxel_size = Cartesian.from_collection(meta['resolution'])
-    volume_offset = physical_volume_offset / voxel_size
+        if 'resolution' in attrs:
+            voxel_size = Cartesian.from_collection(attrs['resolution'])
+        elif 'voxel_size' in attrs:
+            voxel_size = Cartesian.from_collection(attrs['voxel_size'])
+        else:
+            print('no voxel size, set default value: 1x1x1')
+            voxel_size = Cartesian(1, 1, 1)
+            # raise ValueError(f'no voxel size attribute!')
     for task in tasks:
         if task is not None:
             if chunk_size is None and chunk_start is None and 'bbox' not in task:
@@ -1288,8 +1309,10 @@ def load_zarr(tasks, path: str, chunk_start: tuple, voxel_size: tuple,
                     bbox = task['bbox']
                 else:
                     raise ValueError(f'bounding box not defined.')
-                arr = z[bbox.slices]
-                voxel_offset = volume_offset + chunk_start
+                arr_start = bbox.start - volume_offset
+                arr_bbox = BoundingBox.from_delta(arr_start, bbox.shape)
+                arr = z[arr_bbox.slices]
+                voxel_offset = chunk_start
             chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size) 
             task[output_chunk_name] = chunk
         yield task
