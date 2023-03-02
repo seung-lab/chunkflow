@@ -29,6 +29,15 @@ def simplest_type(s: str):
     except:
         return s
 
+def str_to_dict(string: str):
+    keywords = {}
+    for item in string.split(';'):
+        assert '=' in item
+        item = item.split('=')
+        keywords[item[0]] = simplest_type(item[1])
+    return keywords
+
+
 class Plugin(OperatorBase):
     r"""
     Chunk operation using a custom python file.
