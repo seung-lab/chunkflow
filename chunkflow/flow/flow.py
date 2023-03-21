@@ -1307,6 +1307,8 @@ def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tupl
                     bbox = BoundingBox.from_delta(chunk_start, chunk_size)
                 elif 'bbox' in task:
                     bbox = task['bbox']
+                    chunk_start = bbox.start
+                    chunk_size = bbox.shape
                 else:
                     raise ValueError(f'bounding box not defined.')
                 arr_start = bbox.start - volume_offset
@@ -2113,10 +2115,13 @@ def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
     default=None, type=click.FLOAT,
     help='do not save anything if all voxel intensity is below threshold.'
 )
+@click.option('--fill-missing/--no-fill', default=False,
+    help='save blocks with all zeros or not. Default is not.')
 @operator
 def save_precomputed(tasks, name: str, volume_path: str, 
         input_chunk_name: str, mip: int, upload_log: bool, 
-        create_thumbnail: bool, intensity_threshold: float):
+        create_thumbnail: bool, intensity_threshold: float,
+        fill_missing: bool):
     """Save chunk to volume."""
     if mip is None:
         mip = state['mip']
@@ -2126,7 +2131,8 @@ def save_precomputed(tasks, name: str, volume_path: str,
         mip,
         upload_log=upload_log,
         create_thumbnail=create_thumbnail,
-        name=name
+        name=name,
+        fill_missing=fill_missing,
     )
 
     for task in tasks:
