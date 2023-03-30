@@ -10,8 +10,6 @@ import nrrd
 from numpy.core.numerictypes import issubdtype
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
-# from scipy.ndimage import gaussian_filter
-
 import tifffile
 import cc3d
 from cloudvolume.lib import yellow, Bbox
@@ -200,8 +198,11 @@ class Chunk(NDArrayOperatorsMixin):
         return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
 
     def clone(self):
-        return Chunk(self.array.copy(), 
-            voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
+        return Chunk(
+            self.array.copy(), 
+            voxel_offset=self.voxel_offset, 
+            voxel_size=self.voxel_size
+        )
 
     @classmethod
     def from_nrrd(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
@@ -574,7 +575,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def voxel_stop(self) -> tuple:
         return tuple(o + s for o, s in zip(self.voxel_offset, self.shape))
 
-    def astype(self, dtype: np.dtype):
+    def astype(self, dtype: Union[np.dtype, str]):
         if dtype is None:
             new_array = self.array
         elif dtype != self.array.dtype:
