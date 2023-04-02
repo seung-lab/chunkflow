@@ -47,7 +47,10 @@ class Chunk(NDArrayOperatorsMixin):
         Return: 
             a new chunk with array data and global offset
         """
-        assert array.ndim >= 3 and array.ndim <= 4
+        if array.ndim == 2:
+            array = np.expand_dims(array, axis=0)
+        else:
+            assert array.ndim >= 3 and array.ndim <= 4
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         assert layer_type_is_valid(layer_type), f'layer type: {layer_type} is unsupported!'
 

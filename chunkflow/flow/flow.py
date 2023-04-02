@@ -928,7 +928,7 @@ def load_pngs(tasks: dict, path_prefix: str,
 @click.option('--voxel-size', '-s', type=click.INT, nargs=3, default=None, callback=default_none,
               help='physical size of voxels. The unit is assumed to be nm.')
 @click.option('--dtype', '-d',
-              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
+              type=click.Choice(['uint8', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
               help='convert to data type')
 @click.option('--output-chunk-name', '-o', type=str, default='chunk',
               help='chunk name in the global state')
