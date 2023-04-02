@@ -22,6 +22,7 @@ class SavePrecomputedOperator(OperatorBase):
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
+                 fill_missing: bool = False,
                  name: str = 'save-precomputed'):
         super().__init__(name=name)
         
@@ -36,7 +37,7 @@ class SavePrecomputedOperator(OperatorBase):
         # gevent.monkey.patch_all(thread=False)
         self.volume = CloudVolume(
             self.volume_path,
-            fill_missing=True,
+            fill_missing=fill_missing,
             bounded=False,
             autocrop=True,
             mip=self.mip,
@@ -63,7 +64,6 @@ class SavePrecomputedOperator(OperatorBase):
         logging.info('save chunk.')
         
         start = time.time()
-        
         chunk = self._auto_convert_dtype(chunk, self.volume)
         
         # transpose czyx to xyzc order

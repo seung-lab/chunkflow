@@ -1,4 +1,6 @@
 from typing import Union
+from abc import ABC, abstractmethod
+from functools import cached_property
 
 import numpy as np
 
@@ -6,8 +8,19 @@ from cloudvolume import CloudVolume
 from .lib.cartesian_coordinate import BoundingBox, Cartesian
 from .chunk import Chunk
 
+class AbstractVolume(ABC):
+    def __init__(self) -> None:
+        super().__init__()
 
-class Volume:
+    @abstractmethod
+    def cutout(self, key: Union[BoundingBox, list]):
+        pass
+
+    @abstractmethod
+    def save(self, chk: Chunk):
+        pass
+
+class PrecomputedVolume(AbstractVolume):
     """The major difference with CloudVolume is that we use C order here. 
     ZYX indexing.
 
@@ -30,6 +43,10 @@ class Volume:
     def from_numpy(cls, arr: np.ndarray, vol_path: str):
         vol = CloudVolume.from_numpy(np.transpose(arr), vol_path=vol_path)
         return cls(vol)
+
+    @cached_property
+    def shape(self):
+        return self.vol.shape
 
     def cutout(self, key: Union[BoundingBox, list]):
         if isinstance(key, BoundingBox):
@@ -75,5 +92,7 @@ class Volume:
         arr = np.transpose(chunk.array)
         self[chunk.slices[::-1]] = arr
 
+
+# class ZarrVolume(AbstractVolume):
 
 # class SynapseVolume:
