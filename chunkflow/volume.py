@@ -1,5 +1,6 @@
+from __future__ import annotations
 from typing import Union
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 from functools import cached_property
 
 import numpy as np
@@ -12,12 +13,24 @@ class AbstractVolume(ABC):
     def __init__(self) -> None:
         super().__init__()
 
-    @abstractmethod
-    def cutout(self, key: Union[BoundingBox, list]):
+    @abstractproperty
+    def bounding_box(self) -> BoundingBox:
+        pass
+
+    @abstractproperty
+    def block_size(self) -> Cartesian:
+        pass
+
+    @abstractproperty
+    def voxel_size(self) -> Cartesian:
         pass
 
     @abstractmethod
-    def save(self, chk: Chunk):
+    def cutout(self, key: Union[BoundingBox, list]) -> Chunk:
+        pass
+
+    @abstractmethod
+    def save(self, chk: Chunk) -> None:
         pass
 
 class PrecomputedVolume(AbstractVolume):
@@ -29,21 +42,68 @@ class PrecomputedVolume(AbstractVolume):
     """
     def __init__(self, vol: CloudVolume) -> None:
         self.vol = vol
-
-    @property
-    def dtype(self):
-        return self.vol.dtype
-
+    
     @classmethod
-    def from_cloudvolume_path(cls, path: str, *arg, **kwargs):
-        vol = CloudVolume(path, *arg, **kwargs)
+    def from_cloudvolume_path(cls, path: str, *arg, **kwargs) -> PrecomputedVolume:
+        vol = CloudVolume(path, *arg, fill_missing=True, **kwargs)
         return cls(vol)
 
     @classmethod
-    def from_numpy(cls, arr: np.ndarray, vol_path: str):
+    def from_numpy(cls, arr: np.ndarray, vol_path: str) -> PrecomputedVolume:
         vol = CloudVolume.from_numpy(np.transpose(arr), vol_path=vol_path)
         return cls(vol)
 
+    @cached_property
+    def bounding_box(self):
+        bbox = self.vol.bounds
+        bbox = BoundingBox.from_bbox(bbox)
+        # from xyz to zyx
+        bbox.inverse_order()
+        return bbox
+    
+    @cached_property
+    def start(self) -> Cartesian:
+        self.bounding_box.start
+
+    @cached_property
+    def stop(self) -> Cartesian:
+        self.bounding_box.stop
+
+    @cached_property
+    def voxel_size(self) -> Cartesian:
+        voxel_size = self.vol.resolution[::-1]
+        voxel_size = Cartesian.from_collection(voxel_size)
+        return voxel_size
+
+    @cached_property
+    def dtype(self):
+        return self.vol.dtype
+
+    @cached_property
+    def block_size(self):
+        return Cartesian.from_collection(
+            self.vol.chunk_size[::-1])
+
+    @cached_property
+    def block_bounding_boxes(self) -> List[BoundingBox]:
+        bboxes = []
+        for z in range(self.start.z, self.stop.z-self.block_size.z, self.block_size.z):
+            for y in range(self.start.y, self.stop.y-self.block_size.y, self.block_size.y):
+                for x in range(self.start.x, self.stop.x-self.block_size.x, self.block_size.x):
+                    bbox = BoundingBox.from_delta(Cartesian(z,y,x), self.block_size)
+                    bboxes.append(bbox)
+        return bboxes
+
+    @property
+    def nonzero_block_bounding_boxes(self) -> List[BoundingBox]:
+        nnz_bboxes = []
+        for bbox in self.block_bounding_boxes:
+            chunk = self.cutout(bbox)
+            if np.all(chunk > 0):
+                nnz_bboxes.append(bbox)
+
+        return nnz_bboxes
+   
     @cached_property
     def shape(self):
         return self.vol.shape

@@ -8,6 +8,7 @@ import numpy as np
 
 from chunkflow.chunk import Chunk
 from chunkflow.lib.synapses import Synapses
+from chunkflow.point_cloud import PointCloud
 
 from .base import OperatorBase
 
@@ -75,27 +76,40 @@ void main() {
             ),
         )
 
-        self._append_point_annotation_layer(viewer_state, name + '_pre', pre_synapses)
+        self._append_point_annotation_layer(
+            viewer_state, name + '_pre', pre_synapses)
 
 
 
-    def _append_point_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, points: np.ndarray):
+    def _append_point_annotation_layer(self, 
+            viewer_state: ng.viewer_state.ViewerState, 
+            name: str, points: PointCloud, 
+            color: str = '#ff0', size: int = 8):
         annotations = []
         
-        for sid in range(points.shape[0]):
+        for sid in range(points.point_num):
             # we would like to show line first and then the presynapse point
             # so, we have distinct color to show T-bar
             pre_annotation = ng.PointAnnotation(
                 id=str(sid),
-                point=points[sid, :].tolist(),
-                props=['#ff0', 8]
+                point=points.points[sid, :].tolist(),
+                props=[color, size]
             )
             annotations.append(pre_annotation)
 
         viewer_state.layers.append(
             name=name,
             layer=ng.LocalAnnotationLayer(
-                dimensions=ng.CoordinateSpace(names=['z', 'y', 'x'], units="nm", scales=(1, 1, 1)),
+                dimensions=ng.CoordinateSpace(
+                    names=['z', 'y', 'x'], 
+                    units="nm", 
+                    #scales=(1, 1, 1)
+                    scales=(
+                        points.voxel_size.z, 
+                        points.voxel_size.y, 
+                        points.voxel_size.x, 
+                    )
+                ),
                 annotation_properties=[
                     ng.AnnotationPropertySpec(
                         id='color',
@@ -233,6 +247,9 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 data = datas[name]
                 if data is None:
                     continue
+                elif isinstance(data, PointCloud):
+                    # points
+                    self._append_point_annotation_layer(viewer_state, name, data)
                 elif isinstance(data, Synapses):
                     # this could be synapses
                     self._append_synapse_annotation_layer(viewer_state, name, data)

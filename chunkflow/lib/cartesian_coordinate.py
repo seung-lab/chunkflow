@@ -1,6 +1,7 @@
 # support the class method with parameter type of itself
 from __future__ import annotations
 
+import random
 import logging
 import os
 from collections import UserList, namedtuple
@@ -42,7 +43,7 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     @property
     def floor(self):
         return Cartesian(floor(self.z), floor(self.y), floor(self.x))
-
+    
     def __hash__(self):
         return hash((self.z, self.y, self.x))
 
@@ -265,12 +266,54 @@ class BoundingBox(Bbox):
     def stop(self):
         return Cartesian.from_collection(self.maxpt)
 
+    # @property
+    # def center(self) -> Cartesian:
+    #     ct = (self.minpt + self.maxpt) // 2
+    #     ct = Cartesian.from_collection(ct)
+    #     return ct
+
+    @property
+    def random_coordinate(self) -> Cartesian:
+        """find a random coordinate inside this bounding box
+
+        Returns:
+            Cartesian: the coordinate inside this bounding box
+        """
+        z = random.randrange(self.minpt[0], self.maxpt[0])
+        y = random.randrange(self.minpt[1], self.maxpt[1])
+        x = random.randrange(self.minpt[2], self.maxpt[2])
+        return Cartesian(z, y, x)
+
     @property
     def shape(self):
         return self.stop - self.start
         
     def __repr__(self):
         return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}'
+
+    def __mul__(self, operand: Cartesian | int):
+        assert isinstance(operand, int) or isinstance(operand, Cartesian)
+        start = self.start * operand
+        stop = self.stop * operand
+        return BoundingBox(start, stop)
+
+    def __floordiv__(self, other: int | Cartesian | BoundingBox) -> BoundingBox:
+        if isinstance(other, int) or isinstance(other, Cartesian):
+            minpt = self.minpt // other
+            maxpt = self.maxpt // other
+        elif isinstance(BoundingBox):
+            minpt = self.minpt // other.minpt
+            maxpt = self.maxpt // other.maxpt
+        else:
+            raise ValueError(f'unsupported type of operand: {type(other)}')
+        return BoundingBox(minpt, maxpt)
+         
+    def __ifloordiv__(self, other: BoundingBox | int | Cartesian):
+        return self // other
+
+    def inverse_order(self):
+        self.minpt = self.minpt[::-1]
+        self.maxpt = self.maxpt[::-1]
 
     def clone(self):
         bbox = Bbox(self.minpt, self.maxpt, dtype=self.dtype)

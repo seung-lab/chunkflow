@@ -29,6 +29,7 @@ from chunkflow.chunk.image import Image
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
+from chunkflow.point_cloud import PointCloud
 
 # import operator functions
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
@@ -266,7 +267,7 @@ def mark_complete(tasks, prefix: str, suffix: str):
     type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--prefix', '-p', type=str, default=None, 
     help = 'pre-path of a file. we would like to keep a trace that this task was executed.')
-@click.option('--suffix', '-s', type=str, default=None,
+@click.option('--suffix', '-s', type=str, default=".h5",
     help='post-path of a file. normally include the extention of result file.')
 @click.option('--adjust-size', '-a', type=click.INT, default=None,
     help='change the bounding box of chunk if it do not match with final result file name.')
@@ -285,7 +286,8 @@ def skip_all_zero(tasks, input_chunk_name: str, prefix: str, suffix: str, adjust
                         bbox = chunk.bbox.clone()
                     else:
                         bbox = task['bbox']
-                    bbox.adjust(adjust_size)
+                    if adjust_size is not None:
+                        bbox.adjust(adjust_size)
                     fname = f'{prefix}{bbox.to_filename()}{suffix}'
                     if not os.path.exists(fname):
                         logging.info(f'create an empty file as mark: {fname}')
@@ -735,6 +737,22 @@ def load_synapses(tasks, name: str, file_path: str, suffix: str,
         yield task
 
 
+@main.command('save-points')
+@click.option('--input-name', '-i', type=str, default='point_cloud')
+@click.option('--file-path', '-f',
+    type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
+    required=True, help='HDF5 file path.')
+@operator
+def save_points(tasks, input_name: str, file_path: str):
+    """Save synapses as HDF5 file."""
+    for task in tasks:
+        if task is not None:
+            points = task[input_name]
+            assert isinstance(points, PointCloud)
+            points.to_h5(file_path)
+        yield task
+
+ 
 @main.command('save-synapses')
 @click.option('--input-name', '-i', type=str, default=DEFAULT_SYNAPSES_NAME)
 @click.option('--file-path', '-f',

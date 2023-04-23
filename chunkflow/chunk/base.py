@@ -561,7 +561,19 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         """
         bbox = BoundingBox.from_delta(self.voxel_offset, self.array.shape[-3:])
         return bbox
-    
+
+    @property
+    def bounding_box(self) -> BoundingBox:
+        return self.bbox
+
+    @property
+    def start(self) -> Cartesian:
+        return self.bbox.start
+
+    @property
+    def stop(self) -> Cartesian:
+        return self.bbox.stop
+
     @property
     def ndim(self) -> int:
         return self.array.ndim 
@@ -596,6 +608,24 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
     def min(self, *args, **kwargs):
         return self.array.min(*args, **kwargs)
+
+    def shrink(self, size: tuple):
+        """shrink the array from surrounding boundary
+
+        Args:
+            size (tuple): the shrink size in -Z,-Y, -X, Z, Y, X direction.
+            sometimes, the shrinking might be asymmetric. that's why we need
+            6 elements rather than 3.
+        """
+        assert len(size) == 6 or len(size) == 3
+        z, y, x = self.shape[-3:]
+        self.array = self.array[
+            ...,
+            size[0]:z-size[-3],
+            size[1]:y-size[-2],
+            size[2]:x-size[-1],
+        ]
+        self.voxel_offset += Cartesian.from_collection(size[:3])
 
     def transpose(self, only_array: bool=False):
         """To-Do: support arbitrary axis transpose"""

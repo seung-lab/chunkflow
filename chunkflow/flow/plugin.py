@@ -13,6 +13,8 @@ from .base import OperatorBase
 
 from chunkflow.lib import load_source
 from chunkflow.chunk import Chunk
+from chunkflow.point_cloud import PointCloud
+
 
 def array_to_chunk(arr: Union[np.ndarray, Chunk], voxel_offset: Cartesian, 
         voxel_size: Cartesian, shape: tuple):
@@ -123,6 +125,8 @@ class Plugin(OperatorBase):
             if isinstance(outputs, list) or isinstance(outputs, tuple):
                 for idx, output in enumerate(outputs):
                     outputs[idx] = array_to_chunk(output, voxel_offset, voxel_size, shape)
+            elif isinstance(outputs, PointCloud):
+                pass
             elif isinstance(outputs, np.ndarray):
                     outputs = array_to_chunk(outputs, voxel_offset, voxel_size, shape)
             elif isinstance(outputs, Chunk):
