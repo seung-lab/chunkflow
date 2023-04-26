@@ -21,3 +21,4 @@ urllib3>=1.25.11
 docutils>=0.10
 pynrrd
 zarr
+scipy

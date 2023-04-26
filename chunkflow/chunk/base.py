@@ -12,8 +12,9 @@ from numpy.lib.mixins import NDArrayOperatorsMixin
 
 import tifffile
 import cc3d
-from cloudvolume.lib import yellow, Bbox
+from scipy.ndimage import gaussian_filter
 
+from cloudvolume.lib import yellow, Bbox
 from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 
 # from typing import Tuple
