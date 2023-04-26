@@ -218,9 +218,9 @@ class Chunk(NDArrayOperatorsMixin):
     
     def to_nrrd(self, file_name: str=None):
         if file_name is None:
-            file_name = f'{self.bbox.to_filename()}.nrrd'
+            file_name = f'{self.bbox.string}.nrrd'
         elif not file_name.endswith('.nrrd'):
-            file_name += f'_{self.bbox.to_filename()}.nrrd'
+            file_name += f'_{self.bbox.string}.nrrd'
 
         logging.info(f'write chunk to file: {file_name}')
         nrrd.write(file_name, self.array)
@@ -237,7 +237,7 @@ class Chunk(NDArrayOperatorsMixin):
     
     def to_tif(self, file_name: str=None, compression: str = 'zlib'):
         if file_name is None:
-            file_name = f'{self.bbox.to_filename()}.tif'
+            file_name = f'{self.bbox.string}.tif'
         logging.info(f'write chunk to file: {file_name}')
 
         if self.array.dtype==np.float32:
@@ -284,7 +284,7 @@ class Chunk(NDArrayOperatorsMixin):
             assert cutout_start is not None 
             assert cutout_stop is not None
             bbox = BoundingBox.from_list([*cutout_start, *cutout_stop])
-            file_name += f'{bbox.to_filename()}.h5'
+            file_name += f'{bbox.string}.h5'
 
             if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
                 # fill with zero
@@ -374,7 +374,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             chunk_size = tuple(*chunk_size)
 
         if not file_name.endswith('.h5'):
-            file_name += self.bbox.to_filename() + '.h5'
+            file_name += self.bbox.string + '.h5'
 
         logging.info(f'write chunk to file: {file_name}')
         if os.path.exists(file_name):
@@ -705,7 +705,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         else:
             logging.info('automatically crop the chunk to output bounding box.')
             assert output_bbox is not None
-            return self.cutout(output_bbox.to_slices())
+            return self.cutout(output_bbox.slices)
     
     def threshold(self, threshold: float):
         array = self.array > threshold
@@ -748,7 +748,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         :return: another chunk of region of interest
         """
         if isinstance(x, BoundingBox) or isinstance(x, Bbox):
-            slices = x.to_slices()
+            slices = x.slices
         else:
             slices = x
             

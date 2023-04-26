@@ -529,13 +529,13 @@ class Synapses():
     def pre_bounding_box(self) -> BoundingBox:
         bbox = BoundingBox.from_points(self.pre)
         # the end point is exclusive
-        bbox.adjust((0,0,0, 1,1,1))
+        bbox = bbox.adjust((0,0,0, 1,1,1))
         return bbox
 
     def post_bounding_box(self) -> BoundingBox:
         bbox = BoundingBox.from_points(self.post_coordinates)
         # the right direction is exclusive
-        bbox.adjust((0,0,0, 1,1,1))
+        bbox = bbox.adjust((0,0,0, 1,1,1))
         return bbox
     
     @property

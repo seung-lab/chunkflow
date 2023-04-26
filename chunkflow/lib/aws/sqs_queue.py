@@ -169,7 +169,7 @@ class SQSQueue(object):
         for mid, message in tqdm(enumerate(message_list), 
                                  desc='sending messages to sqs queue: '):
             if isinstance(message, BoundingBox):
-                message = message.to_filename()
+                message = message.string
 
             entry = {'Id': str(mid), 'MessageBody': message}
             task_entries.append(entry)

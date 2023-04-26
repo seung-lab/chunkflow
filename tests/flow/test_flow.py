@@ -147,7 +147,7 @@ def test_inference_pipeline():
 
     # evaluate the output
     print('start evaluation...')
-    out = output_vol[output_bbox.to_slices()[::-1] +
+    out = output_vol[output_bbox.slices[::-1] +
                             (slice(0, 3), )]
     out = np.asarray(out)
     out = out[:, :, :, 0] * 255

@@ -2,12 +2,12 @@
 import logging
 import os
 import os.path as path
-from ast import literal_eval
 from typing import Union
 
 import numpy as np
 
 from chunkflow.lib.cartesian_coordinate import Cartesian
+from chunkflow.lib.utils import str_to_dict
 
 from .base import OperatorBase
 
@@ -24,20 +24,6 @@ def array_to_chunk(arr: Union[np.ndarray, Chunk], voxel_offset: Cartesian,
         return Chunk(arr, voxel_offset=offset, voxel_size=voxel_size)
     else:
         return arr
-
-def simplest_type(s: str):
-    try:
-        return literal_eval(s)
-    except:
-        return s
-
-def str_to_dict(string: str):
-    keywords = {}
-    for item in string.split(';'):
-        assert '=' in item
-        item = item.split('=')
-        keywords[item[0]] = simplest_type(item[1])
-    return keywords
 
 
 class Plugin(OperatorBase):
@@ -88,14 +74,8 @@ class Plugin(OperatorBase):
                 voxel_size = inp.voxel_size
                 shape = inp.shape
                 break
-        if args is not None:
-            if '=' in args:
-                keywords = {}
-                for item in args.split(';'):
-                    assert '=' in item
-                    item = item.split('=')
-                    keywords[item[0]] = simplest_type(item[1])
-                args = keywords
+        if args is not None and '=' in args:
+            args = str_to_dict(args)
 
         if len(inputs) == 0 and args is None:
             outputs = self.execute()

@@ -15,7 +15,7 @@ def execute(bbox: BoundingBox, fname: str = None):
         # voxel_size = [int(x/10.) for x in mrc.voxel_size]
         # voxel_size = Cartesian.from_collection(voxel_size)
         # print(f'voxel size: {voxel_size}')
-        arr = mrc.data[bbox.to_slices()]
+        arr = mrc.data[bbox.slices]
 
     # somehow, mrcfile pick it up with int8!
     arr = arr.view(np.uint8)

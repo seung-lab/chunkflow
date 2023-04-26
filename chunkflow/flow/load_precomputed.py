@@ -64,8 +64,8 @@ class LoadPrecomputedOperator(OperatorBase):
         # the bounding box in task will be modified!
         assert isinstance(output_bbox, BoundingBox)
         output_bbox = output_bbox.clone()
-        output_bbox.adjust(self.expand_margin_size)
-        chunk_slices = output_bbox.to_slices()
+        output_bbox = output_bbox.adjust(self.expand_margin_size)
+        chunk_slices = output_bbox.slices
         
         if self.dry_run:
             # input_bbox = BoundingBox.from_slices(chunk_slices)
@@ -191,7 +191,7 @@ class LoadPrecomputedOperator(OperatorBase):
         # validation by template matching
         assert validate_by_template_matching(clamped_input)
 
-        validate_input = validate_vol[validate_bbox.to_slices()]
+        validate_input = validate_vol[validate_bbox.slices]
         if validate_input.shape[3] == 1:
             validate_input = np.squeeze(validate_input, axis=3)
 

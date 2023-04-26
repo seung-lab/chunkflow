@@ -31,7 +31,7 @@ class SkeletonizeOperator(OperatorBase):
       
         seg = Segmentation.from_chunk(seg)
         skels = seg.skeletonize(voxel_size)
-        bbox_str = seg.bbox.to_filename()
+        bbox_str = seg.bbox.string
         for neuron_id, skel in skels.items():
             file_name = f'{neuron_id}:{bbox_str}'
             self.storage.put(file_name, skel.to_precomputed())

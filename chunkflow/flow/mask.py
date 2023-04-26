@@ -89,7 +89,7 @@ class MaskOperator(OperatorBase):
         """
         # print("download mask chunk...")
         # make sure that the slices only contains zyx without channel
-        chunk_slices = chunk_bbox.to_slices()[-3:]
+        chunk_slices = chunk_bbox.slices[-3:]
 
         # only scale the indices in XY plane
         # only scale the indices in XY plane

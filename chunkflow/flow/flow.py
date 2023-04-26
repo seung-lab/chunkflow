@@ -175,13 +175,13 @@ def generate_tasks(
             if disbatch:
                 assert len(bboxes) == 1
                 bbox_index = disbatch_index
-            print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.to_filename()}')
-            logging.info(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.to_filename()}')
+            print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.string}')
+            logging.info(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.string}')
             task = get_initial_task()
             task['bbox'] = bbox
             task['bbox_index'] = bbox_index
             task['bbox_num'] = bbox_num
-            task['log']['bbox'] = bbox.to_filename()
+            task['log']['bbox'] = bbox.string
             yield task
 
 
@@ -194,7 +194,7 @@ def adjust_bbox(tasks, corner_offset: tuple):
     for task in tasks:
         if task is not None:
             bbox = task['bbox']
-            bbox.adjust_corner(corner_offset)
+            bbox = bbox.adjust_corner(corner_offset)
             logging.info(f'after bounding box adjustment: {bbox.string}')
             task['bbox'] = bbox
         yield task
@@ -219,8 +219,8 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
             bbox = task['bbox']
             if adjust_size is not None:
                 bbox = bbox.clone()
-                bbox.adjust(adjust_size)
-            file_name = prefix + bbox.to_filename() + suffix
+                bbox = bbox.adjust(adjust_size)
+            file_name = prefix + bbox.string + suffix
 
             if 'empty' in mode:
                 if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
@@ -258,7 +258,7 @@ def mark_complete(tasks, prefix: str, suffix: str):
     for task in tasks:
         if task is not None:
             bbox = task['bbox']
-            fname = f'{prefix}{bbox.to_filename()}{suffix}'
+            fname = f'{prefix}{bbox.string}{suffix}'
             Path(fname).touch()
         yield task
 
@@ -287,8 +287,8 @@ def skip_all_zero(tasks, input_chunk_name: str, prefix: str, suffix: str, adjust
                     else:
                         bbox = task['bbox']
                     if adjust_size is not None:
-                        bbox.adjust(adjust_size)
-                    fname = f'{prefix}{bbox.to_filename()}{suffix}'
+                        bbox = bbox.adjust(adjust_size)
+                    fname = f'{prefix}{bbox.string}{suffix}'
                     if not os.path.exists(fname):
                         logging.info(f'create an empty file as mark: {fname}')
                         Path(fname).touch()
@@ -316,7 +316,7 @@ def skip_none(tasks: dict, input_name: str, touch: bool, prefix: str, suffix: st
                     assert prefix is not None
                     assert suffix is not None
                     bbox = task['bbox']
-                    fname = f'{prefix}{bbox.to_filename()}{suffix}'
+                    fname = f'{prefix}{bbox.string}{suffix}'
                     Path(fname).touch()
         yield task
 
@@ -388,7 +388,7 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
         for bbox in bboxes:
             task = get_initial_task()
             task['bbox'] = bbox
-            task['log']['bbox'] = bbox.to_filename()
+            task['log']['bbox'] = bbox.string
             yield task
 
 
@@ -605,7 +605,7 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
         task['queue'] = queue
         task['task_handle'] = task_handle
         task['bbox'] = bbox
-        task['log']['bbox'] = bbox.to_filename()
+        task['log']['bbox'] = bbox.string
         yield task
 
 
@@ -700,15 +700,15 @@ def load_synapses(tasks, name: str, file_path: str, suffix: str,
             elif os.path.isdir(file_path):
                 bbox = task['bbox']
                 if suffix is not None:
-                    fname = os.path.join(file_path, f'{bbox.to_filename()}{suffix}')
+                    fname = os.path.join(file_path, f'{bbox.string}{suffix}')
                 else:
-                    fname = os.path.join(file_path, f'{bbox.to_filename()}')
+                    fname = os.path.join(file_path, f'{bbox.string}')
                     if not os.path.exists(fname) and '.' not in fname:
                         fname += '.h5'
                         
             elif not os.path.exists(file_path):
                 bbox = task['bbox']
-                fname = f'{file_path}{bbox.to_filename()}{suffix}'
+                fname = f'{file_path}{bbox.string}{suffix}'
             else:
                 fname = file_path
             assert os.path.isfile(fname), f'can not find file: {fname}'
@@ -799,9 +799,9 @@ def read_npy(tasks, name: str, file_path: str, resolution: tuple, output_name: s
             if not file_path.endswith('.npy'):
                 bbox = task['bbox']
                 if os.path.isdir(file_path):
-                    file_path = os.path.join(file_path, f'{bbox.to_filename()}.npy')
+                    file_path = os.path.join(file_path, f'{bbox.string}.npy')
                 else:
-                    file_path = f'{file_path}{bbox.to_filename()}.npy'
+                    file_path = f'{file_path}{bbox.string}.npy'
             assert os.path.exists(file_path)
             if 0 == os.path.getsize(file_path):
                 task[output_name] = None
@@ -828,9 +828,9 @@ def read_json(tasks, name: str, file_path: str, output_name: str):
             if not file_path.endswith('.json'):
                 bbox = task['bbox']
                 if os.path.isdir(file_path):
-                    file_path = os.path.join(file_path, f'{bbox.to_filename()}.json')
+                    file_path = os.path.join(file_path, f'{bbox.string}.json')
                 else:
-                    file_path = f'{file_path}{bbox.to_filename()}.json'
+                    file_path = f'{file_path}{bbox.string}.json'
             assert os.path.exists(file_path)
             with open(file_path, 'r') as file:
                 task[output_name] = json.load(file)
@@ -1033,7 +1033,7 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_size_tmp = cutout_stop_tmp - cutout_start_tmp
 
                 if not file_name.endswith('.h5'):
-                    file_name = f'{file_name}{bbox.to_filename()}.h5'
+                    file_name = f'{file_name}{bbox.string}.h5'
             else:
                 cutout_start_tmp = cutout_start
                 cutout_stop_tmp = cutout_stop
@@ -1091,7 +1091,7 @@ def save_h5(tasks, input_name: str, file_name: str, chunk_size: tuple,
             data = task[input_name]
             if isinstance(data, Chunk):
                 if not file_name.endswith('.h5'):
-                    file_name = f'{file_name}{data.bbox.to_filename()}.h5'
+                    file_name = f'{file_name}{data.bbox.string}.h5'
 
                 if dtype is not None:
                     data = data.astype(dtype)
@@ -1106,7 +1106,7 @@ def save_h5(tasks, input_name: str, file_name: str, chunk_size: tuple,
                 if touch:
                     if not file_name.endswith('.h5'):
                         bbox = task['bbox']
-                        file_name = f'{file_name}{bbox.to_filename()}.h5'
+                        file_name = f'{file_name}{bbox.string}.h5'
                     Path(file_name).touch()
             else:
                 raise ValueError(f'unsuported type of input data: {data}')
@@ -1949,11 +1949,11 @@ def crop_margin(tasks, name: str, margin_size: tuple, crop_bbox: bool,
                 if crop_bbox and 'bbox' in task:
                     bbox = task['bbox']
                     assert isinstance(bbox, BoundingBox)
-                    bbox.adjust(-Cartesian.from_collection(margin_size))
+                    bbox = bbox.adjust(-Cartesian.from_collection(margin_size))
             else:
                 # use the output bbox for croping 
                 task[output_chunk_name] = task[
-                    input_chunk_name].cutout(task['bbox'].to_slices())
+                    input_chunk_name].cutout(task['bbox'].slices)
             task['log']['timer'][name] = time() - start
         yield task
 

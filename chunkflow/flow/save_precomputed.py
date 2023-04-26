@@ -144,6 +144,6 @@ class SavePrecomputedOperator(OperatorBase):
         logging.info(f'uploaded log: {log}')
 
         # write to google cloud storage
-        self.log_storage.put_json(output_bbox.to_filename() +
+        self.log_storage.put_json(output_bbox.string +
                                   '.json',
                                   content=json.dumps(log))

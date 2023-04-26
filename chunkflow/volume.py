@@ -4,10 +4,13 @@ from abc import ABC, abstractmethod, abstractproperty
 from functools import cached_property
 
 import numpy as np
+from tqdm import tqdm
 
 from cloudvolume import CloudVolume
-from .lib.cartesian_coordinate import BoundingBox, Cartesian
+from chunkflow.lib.utils import str_to_dict
+from .lib.cartesian_coordinate import BoundingBox, Cartesian, BoundingBoxes
 from .chunk import Chunk
+
 
 class AbstractVolume(ABC):
     def __init__(self) -> None:
@@ -44,8 +47,28 @@ class PrecomputedVolume(AbstractVolume):
         self.vol = vol
     
     @classmethod
-    def from_cloudvolume_path(cls, path: str, *arg, **kwargs) -> PrecomputedVolume:
-        vol = CloudVolume(path, *arg, fill_missing=True, **kwargs)
+    def from_cloudvolume_path(cls, path: str, *arg, 
+            fill_missing: bool=True, **kwargs) -> PrecomputedVolume:
+        """load from a cloud volume path
+        This path could be encoded with keywords.
+        For example: precomputed://file:///volume/path#preload=True;cache='/tmp/'
+
+        Args:
+            path (str): the volume path with keyword encoding.
+
+        Returns:
+            PrecomputedVolume: the Volume instance
+        """
+        if '#' in path:
+            secs = path.split('#')
+            assert len(secs) == 2
+            path = secs[0]
+            specified_keywords = str_to_dict(secs[1])
+            if 'preload' in specified_keywords:
+                del specified_keywords['preload']
+            kwargs.update(specified_keywords)
+
+        vol = CloudVolume(path, *arg, fill_missing=fill_missing, **kwargs)
         return cls(vol)
 
     @classmethod
@@ -63,11 +86,11 @@ class PrecomputedVolume(AbstractVolume):
     
     @cached_property
     def start(self) -> Cartesian:
-        self.bounding_box.start
+        return self.bounding_box.start
 
     @cached_property
     def stop(self) -> Cartesian:
-        self.bounding_box.stop
+        return self.bounding_box.stop
 
     @cached_property
     def voxel_size(self) -> Cartesian:
@@ -85,8 +108,8 @@ class PrecomputedVolume(AbstractVolume):
             self.vol.chunk_size[::-1])
 
     @cached_property
-    def block_bounding_boxes(self) -> List[BoundingBox]:
-        bboxes = []
+    def block_bounding_boxes(self) -> BoundingBoxes:
+        bboxes = BoundingBoxes()
         for z in range(self.start.z, self.stop.z-self.block_size.z, self.block_size.z):
             for y in range(self.start.y, self.stop.y-self.block_size.y, self.block_size.y):
                 for x in range(self.start.x, self.stop.x-self.block_size.x, self.block_size.x):
@@ -95,14 +118,17 @@ class PrecomputedVolume(AbstractVolume):
         return bboxes
 
     @property
-    def nonzero_block_bounding_boxes(self) -> List[BoundingBox]:
+    def nonzero_block_bounding_boxes(self) -> BoundingBoxes:
         nnz_bboxes = []
-        for bbox in self.block_bounding_boxes:
+        for bbox in tqdm(
+                self.block_bounding_boxes, 
+                desc='iterate mask blocks...'):
             chunk = self.cutout(bbox)
             if np.all(chunk > 0):
                 nnz_bboxes.append(bbox)
 
         return nnz_bboxes
+    
    
     @cached_property
     def shape(self):
@@ -110,7 +136,7 @@ class PrecomputedVolume(AbstractVolume):
 
     def cutout(self, key: Union[BoundingBox, list]):
         if isinstance(key, BoundingBox):
-            arr = self.vol[ key.to_slices()[::-1] ]
+            arr = self.vol[ key.slices[::-1] ]
             voxel_offset = key.start
         elif isinstance(key, list):
             arr = self.vol[key[::-1]]
@@ -156,3 +182,44 @@ class PrecomputedVolume(AbstractVolume):
 # class ZarrVolume(AbstractVolume):
 
 # class SynapseVolume:
+
+def load_chunk_or_volume(file_path: str, *arg, **kwargs):
+    """load chunk or volume
+    Note that if the mip level is larger than 1, the volume will be preloaded to RAM as a chunk!
+
+    Args:
+        file_path (str): the file path of chunk or volume. 
+    
+    Returns:
+        Union[Chunk, AbstractVolume]: loaded chunk or volume
+    """
+    if kwargs is None:
+        kwargs = dict()
+
+    if file_path.endswith('.h5'):
+        return Chunk.from_h5(file_path)
+    elif file_path.endswith('.npy'):
+        arr = np.loads(file_path)
+        return Chunk(array=arr)
+    elif 'file://' in file_path:
+        # Neuroglancer Precomputed images
+        if '#' in file_path:
+            file_path, kwarg_str = file_path.split('#')
+            kwargs.update(str_to_dict(kwarg_str))
+            assert len(kwargs) > 0
+        if 'preload' in kwargs:
+            preload = kwargs['preload']
+            del kwargs['preload']
+        else:
+            preload = False
+        
+        vol = PrecomputedVolume.from_cloudvolume_path(file_path, *arg, **kwargs)
+        if not preload:
+            return vol
+        else:
+            chunk = vol.cutout(vol.bounding_box)
+            chunk.voxel_size = vol.voxel_size
+            return chunk
+    else:
+        raise ValueError(f'only .h5 and .npy files are supported, but got {file_path}')
+    

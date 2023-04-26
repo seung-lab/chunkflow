@@ -70,6 +70,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | inference       | Convolutional net inference |
 | load-synapses   | Load synapses from a file |
 | save-synapses   | Save synapses as a HDF5 file. |
+| save-points     | Save point cloud as a HDF5 file. |
 | log-summary     | Summary of logs |
 | mark-complete   | mark task completion as an empty file | 
 | mask            | Black out the chunk based on another mask chunk |

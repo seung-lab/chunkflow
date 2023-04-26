@@ -1,17 +1,6 @@
-import time
-import json
-import math
-import os
-import random
-import re
-# from tempfile import NamedTemporaryFile  # used by BigArrayTask
-
-# from backports import lzma               # used by HyperSquareTask
-# import blosc                             # used by BigArrayTask
-# import h5py                              # used by BigArrayTask
-
 import numpy as np
 
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 from cloudvolume.lib import min2, Vec
 
 from . import downsample, downsample_scales
@@ -62,7 +51,7 @@ def downsample_and_upload(image,
 
     vol.mip = mip
     if not skip_first:
-        vol[bounds.to_slices()] = image
+        vol[bounds.slices] = image
 
     new_bounds = bounds.clone()
 
@@ -70,11 +59,12 @@ def downsample_and_upload(image,
         vol.mip += 1
         image = downsamplefn(image, factor3)
         new_bounds //= factor3
-        new_bounds.maxpt = new_bounds.minpt + Vec(*image.shape[:3])
+        delta = Cartesian.from_collection(image.shape[:3])
+        new_bounds = BoundingBox.from_delta(new_bounds.start, delta)
         if factor3 is factors[-1]:
             # this is the last mip level
-            vol[new_bounds.to_slices()] = image
+            vol[new_bounds.slices] = image
         else:
             # this is not the last mip level
             if not only_last_mip:
-                vol[new_bounds.to_slices()] = image
+                vol[new_bounds.slices] = image
