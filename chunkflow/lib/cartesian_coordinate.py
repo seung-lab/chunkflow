@@ -180,6 +180,10 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def list(self):
         return [self.z, self.y, self.x]
 
+    @property
+    def inverse(self):
+        return Cartesian(self.x, self.y, self.z)
+
 
 @dataclass(frozen=True)
 class BoundingBox():
@@ -357,9 +361,10 @@ class BoundingBox():
         return self // other
 
     def inverse_order(self):
-        start = self.start[::-1]
-        stop  = self.stop[::-1]
-        return BoundingBox(start, stop)
+        return BoundingBox(
+            self.start.inverse, 
+            self.stop.inverse
+        )
 
     def clone(self):
         return BoundingBox(self.start, self.stop)
@@ -413,9 +418,34 @@ class BoundingBox():
             (self.maxpt >= Vec(*point)))) and np.all(
                 np.asarray((self.minpt <= Vec(*point)))) 
 
-    @property
+    def decompose(self, block_size: Cartesian, 
+            ignore_unaligned: bool = True) -> BoundingBoxes:
+        """decompose the bounding box to a list of bounding boxes
+        If there exist some space that can not fit in a whole block, it will be 
+        ignored! 
+
+        Args:
+            block_size (Cartesian): the decomposed block size.
+
+        Returns:
+            BoundingBoxes: a list of bounding boxes
+        """
+        assert ignore_unaligned 
+        if not isinstance(block_size, Cartesian):
+            block_size = Cartesian.from_collection(block_size)
+        
+        bboxes = BoundingBoxes()
+
+        for z in range(self.start.z, self.stop.z-block_size.z, block_size.z):
+            for y in range(self.start.y, self.stop.y-block_size.y, block_size.y):
+                for x in range(self.start.x, self.stop.x-block_size.x, block_size.x):
+                    bbox = BoundingBox.from_delta(Cartesian(z,y,x), block_size)
+                    bboxes.append(bbox)
+        return bboxes
+
+    @cached_property
     def shape(self):
-        return Cartesian(*(self.maxpt - self.minpt))
+        return self.stop - self.start
 
     @property
     def slices(self):
@@ -600,7 +630,8 @@ class BoundingBoxes(UserList):
             arr = np.loadtxt(file_path, dtype=int, delimiter=',')
         return cls.from_array(arr, is_zyx=is_zyx)
 
-    def as_array(self) -> np.ndarray:
+    @property
+    def array(self) -> np.ndarray:
         task_num = len(self.data)
 
         arr = np.zeros((task_num, 6), dtype=int)
@@ -611,7 +642,7 @@ class BoundingBoxes(UserList):
 
     def to_file(self, file_name: str) -> None:
         if file_name.endswith('.npy'):
-            np.save(file_name, self.as_array())
+            np.save(file_name, self.array)
         else:
             raise ValueError('only support npy format now.')
 
@@ -646,5 +677,4 @@ class PhysicalBoudingBox(BoundingBox):
             start = self.start * factors
             stop = self.stop * factors
         return PhysicalBoudingBox(start, stop, voxel_size2)
-
 

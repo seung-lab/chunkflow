@@ -15,7 +15,7 @@ import cc3d
 from scipy.ndimage import gaussian_filter
 
 from cloudvolume.lib import yellow, Bbox
-from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, PhysicalBoudingBox
 
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
@@ -48,8 +48,6 @@ class Chunk(NDArrayOperatorsMixin):
         """
         if array.ndim == 2:
             array = np.expand_dims(array, axis=0)
-        else:
-            assert array.ndim >= 3 and array.ndim <= 4
         assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
         assert layer_type_is_valid(layer_type), f'layer type: {layer_type} is unsupported!'
 
@@ -523,6 +521,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             self.voxel_size = properties['voxel_size']
         
         if 'layer_type' in properties:
+
             self.layer_type = properties['layer_type']
 
     @properties.setter
@@ -566,6 +565,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     @property
     def bounding_box(self) -> BoundingBox:
         return self.bbox
+
+    @property
+    def physical_bounding_box(self) -> PhysicalBoudingBox:
+        return PhysicalBoudingBox(
+            self.start, self.stop, self.voxel_size)
 
     @property
     def start(self) -> Cartesian:

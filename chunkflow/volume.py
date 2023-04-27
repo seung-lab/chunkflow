@@ -2,19 +2,19 @@ from __future__ import annotations
 from typing import Union
 from abc import ABC, abstractmethod, abstractproperty
 from functools import cached_property
+from dataclasses import dataclass
 
 import numpy as np
 from tqdm import tqdm
 
 from cloudvolume import CloudVolume
 from chunkflow.lib.utils import str_to_dict
-from .lib.cartesian_coordinate import BoundingBox, Cartesian, BoundingBoxes
+from .lib.cartesian_coordinate import BoundingBox, Cartesian, BoundingBoxes, PhysicalBoudingBox
 from .chunk import Chunk
 
 
+@dataclass(frozen=True)
 class AbstractVolume(ABC):
-    def __init__(self) -> None:
-        super().__init__()
 
     @abstractproperty
     def bounding_box(self) -> BoundingBox:
@@ -36,6 +36,7 @@ class AbstractVolume(ABC):
     def save(self, chk: Chunk) -> None:
         pass
 
+@dataclass(frozen=True)
 class PrecomputedVolume(AbstractVolume):
     """The major difference with CloudVolume is that we use C order here. 
     ZYX indexing.
@@ -43,8 +44,7 @@ class PrecomputedVolume(AbstractVolume):
     Args:
         CloudVolume (class): the cloud-volume class
     """
-    def __init__(self, vol: CloudVolume) -> None:
-        self.vol = vol
+    vol: CloudVolume
     
     @classmethod
     def from_cloudvolume_path(cls, path: str, *arg, 
@@ -81,7 +81,7 @@ class PrecomputedVolume(AbstractVolume):
         bbox = self.vol.bounds
         bbox = BoundingBox.from_bbox(bbox)
         # from xyz to zyx
-        bbox.inverse_order()
+        bbox = bbox.inverse_order()
         return bbox
     
     @cached_property
@@ -107,32 +107,65 @@ class PrecomputedVolume(AbstractVolume):
         return Cartesian.from_collection(
             self.vol.chunk_size[::-1])
 
+    @cached_property 
+    def physical_bounding_box(self) -> PhysicalBoudingBox:
+        return PhysicalBoundingBox(self.start, self.stop, self.voxel_size)
+
     @cached_property
     def block_bounding_boxes(self) -> BoundingBoxes:
-        bboxes = BoundingBoxes()
-        for z in range(self.start.z, self.stop.z-self.block_size.z, self.block_size.z):
-            for y in range(self.start.y, self.stop.y-self.block_size.y, self.block_size.y):
-                for x in range(self.start.x, self.stop.x-self.block_size.x, self.block_size.x):
-                    bbox = BoundingBox.from_delta(Cartesian(z,y,x), self.block_size)
-                    bboxes.append(bbox)
-        return bboxes
+        return self.bounding_box.decompose(self.block_size)
 
-    @property
-    def nonzero_block_bounding_boxes(self) -> BoundingBoxes:
-        nnz_bboxes = []
-        for bbox in tqdm(
+    # @property
+    # def nonzero_block_bounding_boxes(self) -> BoundingBoxes:
+    #     nnz_bboxes = []
+    #     for bbox in tqdm(
+    #             self.block_bounding_boxes, 
+    #             desc='iterate mask blocks...'):
+    #         block = self.cutout(bbox)
+    #         if np.all(block > 0):
+    #             nnz_bboxes.append(bbox)
+
+    #     return nnz_bboxes
+
+    def get_nonzero_block_bounding_boxes_with_different_voxel_size(
+            self, voxel_size_low: Cartesian) -> BoundingBoxes:
+        """get nonzero block bounding boxes with different voxel size.
+        This is normally used to get a list of block bounding boxes for image that are 
+        totally nonzero in a mask volume with higher mip level.
+
+        Args:
+            voxel_size_low (Cartesian): voxel size in lower mip level. The resolution is higher and voxel size is smaller.
+
+        Returns:
+            BoundingBoxes: bounding boxes that in a lower mip level with mask all nonzero.
+        """
+        # we only support lower mip levels for now
+        assert voxel_size_low < self.voxel_size, f'expecting new voxel size smaller than current one: {voxel_size_low}<{self.voxel_size}'
+        nonzero_bboxes_low = BoundingBoxes()
+        for bbox_high in tqdm(
                 self.block_bounding_boxes, 
                 desc='iterate mask blocks...'):
-            chunk = self.cutout(bbox)
-            if np.all(chunk > 0):
-                nnz_bboxes.append(bbox)
+            block_high = self.cutout(bbox_high)
+            # one block in high mip level represents several blocks in lower mip level
+            # we assume that the block size is consistent across mip levels which might not
+            # be true in some cases!
+            pbbox_low = block_high.physical_bounding_box.to_other_voxel_size(
+                voxel_size_low
+            )
+            for bbox_low in pbbox_low.decompose(self.block_size):
+                pbbox_low = PhysicalBoudingBox(
+                    bbox_low.start, bbox_low.stop, voxel_size_low)
+                pbbox_high = pbbox_low.to_other_voxel_size(self.voxel_size)
+                chunk_high = block_high.cutout(pbbox_high)
+                
+                if np.all(chunk_high > 0):
+                    nonzero_bboxes_low.append(pbbox_low)
 
-        return nnz_bboxes
-    
+        return nonzero_bboxes_low
    
     @cached_property
     def shape(self):
-        return self.vol.shape
+        return self.vol.shape[::-1]
 
     def cutout(self, key: Union[BoundingBox, list]):
         if isinstance(key, BoundingBox):
@@ -149,7 +182,7 @@ class PrecomputedVolume(AbstractVolume):
         arr = np.asarray(arr)
         if arr.ndim == 4 and arr.shape[0] == 1:
             arr = np.squeeze(arr, axis=0)
-        chunk = Chunk(arr, voxel_offset=voxel_offset) 
+        chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=self.voxel_size) 
         return chunk
 
     def _auto_convert_dtype(self, chunk: Chunk):
