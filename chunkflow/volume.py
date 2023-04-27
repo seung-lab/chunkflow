@@ -9,7 +9,8 @@ from tqdm import tqdm
 
 from cloudvolume import CloudVolume
 from chunkflow.lib.utils import str_to_dict
-from .lib.cartesian_coordinate import BoundingBox, Cartesian, BoundingBoxes, PhysicalBoudingBox
+from .lib.cartesian_coordinate import \
+    BoundingBox, Cartesian, BoundingBoxes, PhysicalBoudingBox
 from .chunk import Chunk
 
 
@@ -109,7 +110,8 @@ class PrecomputedVolume(AbstractVolume):
 
     @cached_property 
     def physical_bounding_box(self) -> PhysicalBoudingBox:
-        return PhysicalBoundingBox(self.start, self.stop, self.voxel_size)
+        return PhysicalBoudingBox(
+            self.start, self.stop, self.voxel_size)
 
     @cached_property
     def block_bounding_boxes(self) -> BoundingBoxes:
