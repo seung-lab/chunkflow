@@ -185,6 +185,16 @@ def generate_tasks(
             yield task
 
 
+@main.command('debug')
+@operator
+def debug(tasks):
+    for task in tasks:
+        if task is not None:
+            print(f'task: {task}')
+            breakpoint()
+        yield task
+
+
 @main.command('adjust-bbox')
 @click.option('--corner-offset', '-c', type=click.INT, nargs=6, default=None,
     help='adjust bounding box corner offset')
