@@ -8,7 +8,7 @@ from cloudfiles import CloudFiles
 
 from chunkflow.lib.cartesian_coordinate import BoundingBox
 
-from chunkflow.flow.load_precomputed import ReadPrecomputedOperator
+from chunkflow.flow.load_precomputed import LoadPrecomputedOperator
 
 
 class TestLoadPrecomputed(unittest.TestCase):
@@ -35,7 +35,7 @@ class TestLoadPrecomputed(unittest.TestCase):
 
     def test_cutout(self):
         print('test volume cutout...')
-        operator = ReadPrecomputedOperator(self.volume_path, mip=self.mip)
+        operator = LoadPrecomputedOperator(self.volume_path, mip=self.mip)
 
         offset = (4, 64, 64)
         shape = (28, 320, 320)
@@ -49,7 +49,7 @@ class TestLoadPrecomputed(unittest.TestCase):
 
     def test_blackout_sections(self):
         print('test blackout sections...')
-        operator = ReadPrecomputedOperator(self.volume_path,
+        operator = LoadPrecomputedOperator(self.volume_path,
                                   mip=self.mip,
                                   blackout_sections=True)
 

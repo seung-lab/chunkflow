@@ -10,39 +10,47 @@ import nrrd
 from numpy.core.numerictypes import issubdtype
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
-from scipy.ndimage import gaussian_filter
-
 import tifffile
 import cc3d
-from cloudvolume.lib import yellow, Bbox
+from scipy.ndimage import gaussian_filter
 
-from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
+from cloudvolume.lib import yellow, Bbox
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, PhysicalBoudingBox
 
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
 from .validate import validate_by_template_matching
 
+def layer_type_is_valid(type: str):
+    return type in set([None, 'image', 'segmentation', 'probability_map', 'affinity_map', 'unknown'])
+
 
 class Chunk(NDArrayOperatorsMixin):
-    r"""
-       Chunk 
-    
-    a chunk of big array with offset
-    implementation using numpy `dispatch<
-    https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
-    and `examples<https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
-
-    :param array: the data array chunk in a big dataset
-    :param voxel_offset (Cartesian): the offset of this array chunk. 3 numbers: z, y, x
-    :param voxel_size (Cartesian): the size of each voxel, normally with unit of nm. 3 numbers: z, y, x.
-    :return: a new chunk with array data and global offset
-    """
     def __init__(self, array: np.ndarray, 
             voxel_offset: Cartesian = None, 
-            voxel_size: Cartesian = None):
-        assert array.ndim >= 3 and array.ndim <= 4
-        assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
+            voxel_size: Cartesian = None,
+            layer_type: str = None):
+        """chunk of a volume
+    
+        a chunk of big array with offset
+        implementation using numpy `dispatch<
+        https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
+        and `examples<https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
+
+        Args:
+            array (np.ndarray): the data
+            voxel_offset (Cartesian, optional): voxel offset. Defaults to None.
+            voxel_size (Cartesian, optional): voxel size. Defaults to None.
+            type (str, optional): type of chunk. [None, image, segmentation, probability_map, affinity_map, unknown]. Defaults to None.
         
+        Return: 
+            a new chunk with array data and global offset
+        """
+        if array.ndim == 2:
+            array = np.expand_dims(array, axis=0)
+        assert isinstance(array, np.ndarray) or isinstance(array, Chunk)
+        assert layer_type_is_valid(layer_type), f'layer type: {layer_type} is unsupported!'
+
         self.array = array
         if voxel_offset is None:
             if isinstance(array, Chunk):
@@ -68,6 +76,21 @@ class Chunk(NDArrayOperatorsMixin):
             assert len(voxel_size) == 3
             assert np.alltrue([vs > 0 for vs in voxel_size])
         
+        if layer_type is not None:
+            self.layer_type = layer_type 
+        else:
+            # best guess
+            if self.is_image:
+                self.layer_type = 'image'
+            elif self.is_segmentation:
+                self.layer_type = 'segmentation'
+            elif self.is_probability_map:
+                self.layer_type = 'probability_map'
+            elif self.is_affinity_map:
+                self.layer_type = 'affinity_map'
+            else:
+                self.layer_type = 'unknown'
+
     # One might also consider adding the built-in list type to this
     # list, to support operations like np.add(array_like, list)
     _HANDLED_TYPES = (np.ndarray, Number)
@@ -177,8 +200,11 @@ class Chunk(NDArrayOperatorsMixin):
         return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
 
     def clone(self):
-        return Chunk(self.array.copy(), 
-            voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
+        return Chunk(
+            self.array.copy(), 
+            voxel_offset=self.voxel_offset, 
+            voxel_size=self.voxel_size
+        )
 
     @classmethod
     def from_nrrd(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
@@ -191,9 +217,9 @@ class Chunk(NDArrayOperatorsMixin):
     
     def to_nrrd(self, file_name: str=None):
         if file_name is None:
-            file_name = f'{self.bbox.to_filename()}.nrrd'
+            file_name = f'{self.bbox.string}.nrrd'
         elif not file_name.endswith('.nrrd'):
-            file_name += f'_{self.bbox.to_filename()}.nrrd'
+            file_name += f'_{self.bbox.string}.nrrd'
 
         logging.info(f'write chunk to file: {file_name}')
         nrrd.write(file_name, self.array)
@@ -210,7 +236,7 @@ class Chunk(NDArrayOperatorsMixin):
     
     def to_tif(self, file_name: str=None, compression: str = 'zlib'):
         if file_name is None:
-            file_name = f'{self.bbox.to_filename()}.tif'
+            file_name = f'{self.bbox.string}.tif'
         logging.info(f'write chunk to file: {file_name}')
 
         if self.array.dtype==np.float32:
@@ -244,10 +270,11 @@ class Chunk(NDArrayOperatorsMixin):
                 cutout_start: tuple = None,
                 cutout_stop: tuple = None,
                 cutout_size: tuple = None,
-                dtype: str = None):
+                dtype: str = None,
+                layer_type: str = None):
 
-        if not os.path.exists(file_name):
-            raise ValueError(f'the file do not exist: {file_name}')
+        file_name = os.path.expanduser(file_name)
+        assert os.path.exists(file_name), f'the file do not exist: {file_name}'
         
         if cutout_start is not None and cutout_size is not None:
             cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
@@ -256,7 +283,7 @@ class Chunk(NDArrayOperatorsMixin):
             assert cutout_start is not None 
             assert cutout_stop is not None
             bbox = BoundingBox.from_list([*cutout_start, *cutout_stop])
-            file_name += f'{bbox.to_filename()}.h5'
+            file_name += f'{bbox.string}.h5'
 
             if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
                 # fill with zero
@@ -284,11 +311,24 @@ class Chunk(NDArrayOperatorsMixin):
                     voxel_size = Cartesian(*f['voxel_size'])
                 else:
                     voxel_size = Cartesian(1, 1, 1)
+
+            if layer_type is None:
+                if 'layer_type' in f.attrs:
+                    layer_type = f.attrs['layer_type']
+                    # type = str(f['type'])
+                    assert layer_type_is_valid(layer_type)
             
             if cutout_start is None:
                 cutout_start = voxel_offset
             if cutout_size is None:
                 cutout_size = dset.shape[-3:]
+                cutout_size = Cartesian.from_collection(cutout_size)
+            elif np.min(cutout_size) < 0:
+                cutout_size = [x for x in cutout_size]
+                for idx in range(-1, -4, -1):
+                    if cutout_size[idx]<0:
+                        cutout_size[idx] = dset.shape[idx]
+                cutout_size = Cartesian.from_collection(cutout_size)
             if cutout_stop is None:
                 cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
@@ -314,7 +354,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
         logging.info(f'new chunk voxel offset: {cutout_start}')
 
-        return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size)
+        return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size, layer_type=layer_type)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 
                 chunk_size: Union[Cartesian, tuple] = (8,8,8),
@@ -333,7 +373,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             chunk_size = tuple(*chunk_size)
 
         if not file_name.endswith('.h5'):
-            file_name += self.bbox.to_filename() + '.h5'
+            file_name += self.bbox.string + '.h5'
 
         logging.info(f'write chunk to file: {file_name}')
         if os.path.exists(file_name):
@@ -346,6 +386,8 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
                 voxel_size = self.voxel_size
             if voxel_size is not None:
                 f.create_dataset('/voxel_size', data=voxel_size)
+            if self.layer_type is not None:
+                f.attrs['layer_type'] = self.layer_type
 
             if with_offset and self.voxel_offset is not None:
                 f.create_dataset('/voxel_offset', data=self.voxel_offset)
@@ -422,12 +464,42 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         else:
             raise NotImplementedError
 
-    def set_properties(self, properties: dict):
-        if 'voxel_offset' in properties:
-            self.voxel_offset = properties['voxel_offset']
 
-        if 'voxel_size' in properties:
-            self.voxel_size = properties['voxel_size']
+    # @property
+    # def voxel_offset(self) -> Cartesian:
+    #     return self.voxel_offset
+
+    # @voxel_offset.setter
+    # def voxel_offset(self, value: Cartesian):
+    #     self.voxel_offset = value
+
+    # @property
+    # def voxel_size(self) -> Cartesian:
+    #     return self.voxel_size
+
+    # @voxel_size.setter
+    # def voxel_size(self, value: Cartesian):
+    #     self.voxel_size = value
+
+    @property
+    def is_image(self) -> bool:
+        return issubdtype(self.dtype, np.uint8) and \
+                    self.ndim == 3
+
+    @property 
+    def is_segmentation(self) -> bool:
+        return self.array.ndim == 3 and \
+                    (np.issubdtype(self.array.dtype, np.integer) or \
+                        np.issubdtype(self.dtype, bool)) and \
+                            self.array.dtype != np.uint8
+
+    @property
+    def is_affinity_map(self) -> bool:
+        return self.array.ndim == 4 and self.shape[0] == 3 and self.array.dtype == np.float32
+    
+    @property
+    def is_probability_map(self) -> bool:
+        return self.array.ndim == 4 and self.array.dtype == np.float32
 
     @property
     def properties(self) -> dict:
@@ -436,7 +508,25 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             props['voxel_offset'] = self.voxel_offset
         if self.voxel_size is not None or self.voxel_size != Cartesian(1, 1, 1):
             props['voxel_size'] = self.voxel_size
+        if self.layer_type is not None:
+            props['layer_type'] = self.layer_type
+
         return props 
+    
+    def set_properties(self, properties: dict):
+        if 'voxel_offset' in properties:
+            self.voxel_offset = properties['voxel_offset']
+
+        if 'voxel_size' in properties:
+            self.voxel_size = properties['voxel_size']
+        
+        if 'layer_type' in properties:
+
+            self.layer_type = properties['layer_type']
+
+    @properties.setter
+    def properties(self, value: dict):
+        self.set_properties(value)
 
     @property
     def flags(self):
@@ -453,25 +543,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         """
         return tuple(
             slice(o, o + s) for o, s in zip(self.ndoffset, self.shape))
-
-    @property
-    def is_image(self) -> bool:
-        return self.array.ndim == 3 and self.array.dtype == np.uint8
-
-    @property 
-    def is_segmentation(self) -> bool:
-        return self.array.ndim == 3 and (np.issubdtype(
-            self.array.dtype, np.integer) or np.issubdtype(
-                self.dtype, bool)) and self.array.dtype != np.uint8
-
-    @property
-    def is_affinity_map(self) -> bool:
-        return self.array.ndim == 4 and self.shape[0] == 3 and self.array.dtype == np.float32
     
-    @property
-    def is_probability_map(self) -> bool:
-        return self.array.ndim == 4 and self.array.dtype == np.float32
-
     @property
     def ndoffset(self) -> tuple:
         """ 
@@ -489,7 +561,24 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         """
         bbox = BoundingBox.from_delta(self.voxel_offset, self.array.shape[-3:])
         return bbox
-    
+
+    @property
+    def bounding_box(self) -> BoundingBox:
+        return self.bbox
+
+    @property
+    def physical_bounding_box(self) -> PhysicalBoudingBox:
+        return PhysicalBoudingBox(
+            self.start, self.stop, self.voxel_size)
+
+    @property
+    def start(self) -> Cartesian:
+        return self.bbox.start
+
+    @property
+    def stop(self) -> Cartesian:
+        return self.bbox.stop
+
     @property
     def ndim(self) -> int:
         return self.array.ndim 
@@ -506,7 +595,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def voxel_stop(self) -> tuple:
         return tuple(o + s for o, s in zip(self.voxel_offset, self.shape))
 
-    def astype(self, dtype: np.dtype):
+    def astype(self, dtype: Union[np.dtype, str]):
         if dtype is None:
             new_array = self.array
         elif dtype != self.array.dtype:
@@ -524,6 +613,24 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
     def min(self, *args, **kwargs):
         return self.array.min(*args, **kwargs)
+
+    def shrink(self, size: tuple):
+        """shrink the array from surrounding boundary
+
+        Args:
+            size (tuple): the shrink size in -Z,-Y, -X, Z, Y, X direction.
+            sometimes, the shrinking might be asymmetric. that's why we need
+            6 elements rather than 3.
+        """
+        assert len(size) == 6 or len(size) == 3
+        z, y, x = self.shape[-3:]
+        self.array = self.array[
+            ...,
+            size[0]:z-size[-3],
+            size[1]:y-size[-2],
+            size[2]:x-size[-1],
+        ]
+        self.voxel_offset += Cartesian.from_collection(size[:3])
 
     def transpose(self, only_array: bool=False):
         """To-Do: support arbitrary axis transpose"""
@@ -556,7 +663,11 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         np.argmax(self.array, axis=0, out=out)
         # our selected channel index start from 1
         out += 1
-        return Chunk(out, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
+        return Chunk(out, 
+            voxel_offset=self.voxel_offset, 
+            voxel_size=self.voxel_size,
+            layer_type='segmentation',
+        )
 
     def mask_using_last_channel(self, threshold: float = 0.3) -> np.ndarray:
         mask = (self.array[-1, :, :, :] < threshold)
@@ -585,7 +696,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
                 new_array = self.array[...,
                     margin_size[0]: sz-margin_size[0],
                     margin_size[1]: sy-margin_size[1],
-                    margin_size[2]: sx-margin_size[5]]
+                    margin_size[2]: sx-margin_size[2]]
             elif len(margin_size) == 6:
                 new_array = self.array[...,
                     margin_size[0]: sz-margin_size[3],
@@ -599,7 +710,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         else:
             logging.info('automatically crop the chunk to output bounding box.')
             assert output_bbox is not None
-            return self.cutout(output_bbox.to_slices())
+            return self.cutout(output_bbox.slices)
     
     def threshold(self, threshold: float):
         array = self.array > threshold
@@ -642,7 +753,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         :return: another chunk of region of interest
         """
         if isinstance(x, BoundingBox) or isinstance(x, Bbox):
-            slices = x.to_slices()
+            slices = x.slices
         else:
             slices = x
             
@@ -651,7 +762,10 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         internalSlices = self._get_internal_slices(slices)
         arr = self.array[internalSlices]
         voxel_offset = tuple(s.start for s in slices[-3:])
-        return Chunk(arr, voxel_offset=voxel_offset, voxel_size=self.voxel_size)
+        return Chunk(arr, 
+            voxel_offset=voxel_offset, 
+            voxel_size=self.voxel_size, 
+            layer_type=self.layer_type)
 
     def save(self, patch):
         """

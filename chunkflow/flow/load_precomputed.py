@@ -11,7 +11,7 @@ from chunkflow.chunk import Chunk
 from .base import OperatorBase
 
 
-class ReadPrecomputedOperator(OperatorBase):
+class LoadPrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int = 0,
@@ -64,8 +64,8 @@ class ReadPrecomputedOperator(OperatorBase):
         # the bounding box in task will be modified!
         assert isinstance(output_bbox, BoundingBox)
         output_bbox = output_bbox.clone()
-        output_bbox.adjust(self.expand_margin_size)
-        chunk_slices = output_bbox.to_slices()
+        output_bbox = output_bbox.adjust(self.expand_margin_size)
+        chunk_slices = output_bbox.slices
         
         if self.dry_run:
             # input_bbox = BoundingBox.from_slices(chunk_slices)
@@ -98,10 +98,12 @@ class ReadPrecomputedOperator(OperatorBase):
         # voxel_offset = Cartesian(s.start for s in chunk_slices)
         if chunk.shape[0] == 1:
             chunk = np.squeeze(chunk, axis=0)
-
+        
         chunk = Chunk(
-            chunk, voxel_offset=output_bbox.start,
-            voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]))
+            chunk, 
+            voxel_offset=output_bbox.start,
+            voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]),
+            layer_type=self.vol.layer_type)
 
         if self.blackout_sections:
             chunk = self._blackout_sections(chunk)
@@ -189,7 +191,7 @@ class ReadPrecomputedOperator(OperatorBase):
         # validation by template matching
         assert validate_by_template_matching(clamped_input)
 
-        validate_input = validate_vol[validate_bbox.to_slices()]
+        validate_input = validate_vol[validate_bbox.slices]
         if validate_input.shape[3] == 1:
             validate_input = np.squeeze(validate_input, axis=3)
 

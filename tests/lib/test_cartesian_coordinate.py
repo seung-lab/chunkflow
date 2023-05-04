@@ -4,7 +4,7 @@ import numpy as np
 
 from cloudvolume.lib import Bbox, Vec
 
-from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, to_cartesian, BoundingBoxes
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, to_cartesian, BoundingBoxes, PhysicalBoudingBox
 
 
 def test_cartesian():
@@ -72,6 +72,11 @@ def test_bounding_box():
     bbox = BoundingBox.from_center(Cartesian(1,2,3), 3, even_size=False)
     assert bbox == BoundingBox.from_list([-2, -1, 0, 5, 6, 7])
 
+    bbox1 = BoundingBox.from_list([0,1,2, 2,3,4])
+    bbox2 = BoundingBox.from_list([1,2,3, 3,4,5])
+    assert bbox1.union(bbox2) == BoundingBox.from_list([0,1,2, 3,4,5])
+    assert bbox1.intersection(bbox2) == BoundingBox.from_list([1,2,3, 2,3,4])
+
 
 def test_bounding_boxes():
     fname = os.path.join(os.path.dirname(__file__), 'sp3_bboxes.txt')
@@ -79,3 +84,13 @@ def test_bounding_boxes():
     fname = os.path.join(os.path.dirname(__file__), 'sp3_bboxes.npy')
     bboxes.to_file(fname)
     os.remove(fname)
+    
+
+def test_physical_bounding_box():
+    start = Cartesian(0, 1, 2)
+    stop  = Cartesian(2, 3, 4)
+    voxel_size = Cartesian(2, 2, 2)
+    pbbox = PhysicalBoudingBox(start, stop, voxel_size)
+
+    pbbox2 = pbbox.to_other_voxel_size(Cartesian(1,1,1))
+    assert pbbox2.start == Cartesian(0,2,4)

@@ -1,0 +1,5 @@
+pytest
+neovim
+pynvim
+twine
+flake8

@@ -22,14 +22,13 @@ class SavePrecomputedOperator(OperatorBase):
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
-                intensity_threshold: int = None,
+                 fill_missing: bool = False,
                  name: str = 'save-precomputed'):
         super().__init__(name=name)
         
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
-        self.intensity_threshold = intensity_threshold
 
         # if not volume_path.startswith('precomputed://'):
         #     volume_path += 'precomputed://'
@@ -38,7 +37,7 @@ class SavePrecomputedOperator(OperatorBase):
         # gevent.monkey.patch_all(thread=False)
         self.volume = CloudVolume(
             self.volume_path,
-            fill_missing=True,
+            fill_missing=fill_missing,
             bounded=False,
             autocrop=True,
             mip=self.mip,
@@ -60,16 +59,11 @@ class SavePrecomputedOperator(OperatorBase):
         chunk = Chunk(arr, voxel_offset=(0, *bbox.minpt))
         return chunk
 
-    def __call__(self, chunk, log=None):
+    def __call__(self, chunk: Chunk, log=None):
         assert isinstance(chunk, Chunk)
         logging.info('save chunk.')
         
         start = time.time()
-        
-        if self.intensity_threshold is not None and np.all(chunk.array < self.intensity_threshold):
-            print('the voxel intensity in this chunk are all below intensity threshold, return directly without saving anything.')
-            return 
-
         chunk = self._auto_convert_dtype(chunk, self.volume)
         
         # transpose czyx to xyzc order
@@ -150,6 +144,6 @@ class SavePrecomputedOperator(OperatorBase):
         logging.info(f'uploaded log: {log}')
 
         # write to google cloud storage
-        self.log_storage.put_json(output_bbox.to_filename() +
+        self.log_storage.put_json(output_bbox.string +
                                   '.json',
                                   content=json.dumps(log))

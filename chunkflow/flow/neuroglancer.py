@@ -8,6 +8,7 @@ import numpy as np
 
 from chunkflow.chunk import Chunk
 from chunkflow.lib.synapses import Synapses
+from chunkflow.point_cloud import PointCloud
 
 from .base import OperatorBase
 
@@ -75,27 +76,40 @@ void main() {
             ),
         )
 
-        self._append_point_annotation_layer(viewer_state, name + '_pre', pre_synapses)
+        self._append_point_annotation_layer(
+            viewer_state, name + '_pre', pre_synapses)
 
 
 
-    def _append_point_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, points: np.ndarray):
+    def _append_point_annotation_layer(self, 
+            viewer_state: ng.viewer_state.ViewerState, 
+            name: str, points: PointCloud, 
+            color: str = '#ff0', size: int = 8):
         annotations = []
         
-        for sid in range(points.shape[0]):
+        for sid in range(points.point_num):
             # we would like to show line first and then the presynapse point
             # so, we have distinct color to show T-bar
             pre_annotation = ng.PointAnnotation(
                 id=str(sid),
-                point=points[sid, :].tolist(),
-                props=['#ff0', 8]
+                point=points.points[sid, :].tolist(),
+                props=[color, size]
             )
             annotations.append(pre_annotation)
 
         viewer_state.layers.append(
             name=name,
             layer=ng.LocalAnnotationLayer(
-                dimensions=ng.CoordinateSpace(names=['z', 'y', 'x'], units="nm", scales=(1, 1, 1)),
+                dimensions=ng.CoordinateSpace(
+                    names=['z', 'y', 'x'], 
+                    units="nm", 
+                    #scales=(1, 1, 1)
+                    scales=(
+                        points.voxel_size.z, 
+                        points.voxel_size.y, 
+                        points.voxel_size.x, 
+                    )
+                ),
                 annotation_properties=[
                     ng.AnnotationPropertySpec(
                         id='color',
@@ -153,6 +167,8 @@ void main() {
         if np.issubdtype(chunk.dtype, np.int64):
             assert chunk.min() >= 0
             chunk = chunk.astype(np.uint64)
+        elif np.issubdtype(chunk.dtype, np.uint8):
+            chunk = chunk.astype(np.uint32)
         voxel_size = self._get_voxel_size(chunk)
         dimensions = ng.CoordinateSpace(
             scales=voxel_size,
@@ -231,24 +247,43 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 data = datas[name]
                 if data is None:
                     continue
+                elif isinstance(data, PointCloud):
+                    # points
+                    self._append_point_annotation_layer(viewer_state, name, data)
                 elif isinstance(data, Synapses):
                     # this could be synapses
                     self._append_synapse_annotation_layer(viewer_state, name, data)
                 elif isinstance(data, np.ndarray) and 2 == data.ndim and 3 == data.shape[1]:
                     # points
                     self._append_point_annotation_layer(viewer_state, name, data)
-                elif data.is_image or (data.ndim==3 and np.issubdtype(data.dtype, np.floating)):
-                    self._append_image_layer(viewer_state, name, data)
-                elif data.is_segmentation:
-                    self._append_segmentation_layer(viewer_state, name, data)
-                elif data.is_probability_map:
-                    self._append_probability_map_layer(viewer_state, name, data)
+                elif isinstance(data, Chunk):
+                    if data.layer_type is None:
+                        if data.is_image or data.is_affinity_map:
+                            self._append_image_layer(viewer_state, name, data)
+                        elif data.is_segmentation:
+                            self._append_segmentation_layer(viewer_state, name, data)
+                        elif data.is_probability_map:
+                            self._append_probability_map_layer(viewer_state, name, data)
+                        else:
+                            raise ValueError('unsupported data type.')
+                    if data.layer_type == 'segmentation':
+                        self._append_segmentation_layer(viewer_state, name, data)
+                    elif data.layer_type == 'probability_map':
+                        self._append_probability_map_layer(viewer_state, name, data)
+                    elif data.layer_type in set(['image', 'affinity_map']):
+                        self._append_image_layer(viewer_state, name, data)
+                    else: 
+                        raise ValueError('only support image, affinity map, probability_map, and segmentation for now.')
+
                 else:
                     breakpoint()
                     raise ValueError(f'do not support this type: {type(data)}')
 
         print('Open this url in browser: ')
         viewer_url = viewer.get_viewer_url()
+        if '.fios-router.home' in viewer_url:
+            _, _, address2 = viewer_url.split(':')
+            viewer_url = 'http://localhost:' + address2
         print(viewer_url)
 
         key = None

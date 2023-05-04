@@ -80,8 +80,9 @@ def test_aligned_input_chunk_with_croped_patch():
     input_size = (2*14+6, 2*160+96, 2*160+96)
     num_output_channels = 1
      
+    # numpy randint stop is exclusive
     image = np.random.randint(
-        1, 255,
+        1, 256,
         size=input_size, 
         dtype=np.uint8)
     
