@@ -1774,15 +1774,19 @@ def copy_var(tasks, from_name: str, to_name: str, deep_copy: bool):
               + 'This will also work with non-aligned chunk size.')
 @click.option('--mask-myelin-threshold', '-y', default=None, type=click.FLOAT,
               help='mask myelin if netoutput have myelin channel.')
+@click.option('--augment/--no-augment',
+    default=True, help='transform the input patch and transform back the output patch')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--output-chunk-name', '-o',
               type=str, default='chunk', help='output chunk name')
 @operator
-def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
-              output_patch_size, output_patch_overlap, output_crop_margin, patch_num,
-              num_output_channels, dtype, framework, batch_size, bump, mask_output_chunk,
-              mask_myelin_threshold, input_chunk_name, output_chunk_name):
+def inference(
+    tasks, name: str, convnet_model: str, convnet_weight_path: str,
+    input_patch_size: tuple, output_patch_size: tuple, output_patch_overlap: tuple, output_crop_margin: tuple, patch_num: int, num_output_channels: int, 
+    dtype: str, framework: str, batch_size: int, bump: str, mask_output_chunk: bool,
+              mask_myelin_threshold: float, augment: bool,
+              input_chunk_name, output_chunk_name):
     """Perform convolutional network inference for chunks."""
     with Inferencer(
         convnet_model,
@@ -1797,6 +1801,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         dtype=dtype,
         batch_size=batch_size,
         bump=bump,
+        augment=augment,
         mask_output_chunk=mask_output_chunk,
         mask_myelin_threshold=mask_myelin_threshold,
         dry_run=state['dry_run']) as inferencer:

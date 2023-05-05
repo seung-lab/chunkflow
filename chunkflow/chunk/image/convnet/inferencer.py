@@ -15,7 +15,7 @@ from chunkflow.lib.cartesian_coordinate import Cartesian, to_cartesian
 
 from .patch.base import PatchInferencerBase
 from chunkflow.chunk import Chunk
-# from chunkflow.chunk.affinity_map import AffinityMap
+from .transform import TransformSequences
 
 
 class Inferencer(object):
@@ -49,7 +49,7 @@ class Inferencer(object):
             input_size: Union[tuple, list, Cartesian] = None,
             mask_output_chunk: bool = True,
             mask_myelin_threshold = None,
-            test_time_augmentation: bool = False,
+            augment: bool = False,
             dry_run: bool = False):
         """convnet inference patch by patch in a chunk
 
@@ -154,8 +154,11 @@ class Inferencer(object):
         self.dry_run = dry_run
         
         # allocate a buffer to avoid redundant memory allocation
-        self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
-                                           dtype=dtype)
+        self.input_patch_buffer = np.zeros(
+            (batch_size, 1, *input_patch_size), dtype=dtype)
+        # self.output_patch_buffer = np.zeros(
+        #     (batch_size, num_output_channels, *output_patch_size), 
+        #     dtype=dtype)
 
         self.patch_slices_list = []
         
@@ -165,7 +168,10 @@ class Inferencer(object):
             convnet_weight_path = os.path.expanduser(convnet_weight_path)
         self._prepare_patch_inferencer(framework, convnet_model, convnet_weight_path, bump)
 
-        self.test_time_augmentation = test_time_augmentation
+        if augment:
+            self.transform_sequences = TransformSequences()
+        else:
+            self.transform_sequences = None
    
     @property
     def compute_device(self):
@@ -417,11 +423,18 @@ class Inferencer(object):
             # the input and output patch is a 5d numpy array with
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
-            if not self.test_time_augmentation:
+            if self.transform_sequences is None:
                 output_patch = self.patch_inferencer(self.input_patch_buffer)
             else:
                 # test time augmentation
-                pass
+                input_patches = self.transform_sequences.forward(self.input_patch_buffer)
+                output_patches = []
+                for input_patch in input_patches:
+                    output_patch = self.patch_inferencer(input_patch)
+                    output_patches.append(output_patch)
+                output_patches = self.transform_sequences.backward(output_patches)
+                # average 
+                output_patch = sum(output_patches) / len(output_patches)
 
             end = time.time()
             logging.debug(f'run inference for {self.batch_size:d} patch takes {end-start:.3f} sec')
