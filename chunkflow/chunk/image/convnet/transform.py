@@ -98,8 +98,10 @@ class Transpose(TransformBase):
         super().__init__()
 
     def _transpose(self, arr: np.ndarray):
-        for z in range(arr.shape[-3]):
-            arr[..., z, :, :] = np.transpose(arr[..., z, :, :])
+        arr = np.swapaxes(arr, -1, -2)
+        #for z in range(arr.shape[-3]):
+        #    #arr[..., z, :, :] = np.transpose(arr[..., z, :, :])
+        #    arr = np.swapaxes(arr, -1, -2)
         return arr
     
     def forward(self, arr):
@@ -114,7 +116,7 @@ class TransformSequences:
             transpose: bool = True,
             fliplr: bool = True,
             flipud: bool = True,
-            flipz: bool = True,
+            flipz: bool = False,
             ) -> None:
 
         options = []
@@ -128,16 +130,8 @@ class TransformSequences:
             options.append((Lazy(), FlipZ()))
 
         assert len(options) > 0
-        sequence = product(options)
-        #sequence = product(
-        #    (Lazy(), Transpose()),
-        #    (Lazy(), FlipLR()), 
-        #    (Lazy(), FlipUD()),
-        #    (Lazy(), FlipZ()), 
-        #    # (Lazy(), Rotate(k=1)),
-        #    # (Lazy(), Rotate(k=2)),
-        #)
-        self.transform_sequences = [x for x in sequence]
+        self.transform_sequences = [x for x in product(*options)]
+        assert len(self.transform_sequences) == 8
         print(f'get {len(self.transform_sequences)} transformation sequences.')
         
     def forward(self, arr: np.ndarray):
@@ -150,7 +144,7 @@ class TransformSequences:
 
         return transformed_arrays
     
-    def backward(self, transformed_arrays: List):
+    def backward(self, transformed_arrays: List[np.ndarray]):
         assert len(transformed_arrays) == len(self.transform_sequences)
         inversed_arrays = []
         for idx, transform_sequence in enumerate(self.transform_sequences):
