@@ -1,6 +1,8 @@
 import sys
 from typing import Union
 import logging
+logging.basicConfig()
+
 from functools import update_wrapper, wraps
 
 import click
