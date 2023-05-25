@@ -234,15 +234,15 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
 
             if 'empty' in mode:
                 if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
-                    logging.info(f'file {file_name} do not exist or is empty, skip this task.')
+                    print(f'file {file_name} do not exist or is empty, skip this task.')
                     task = None
             elif 'missing' in mode:
                 if not os.path.exists(file_name):
-                    logging.info(f'the file {file_name} is missing, skip this task')
+                    print(f'the file {file_name} is missing, skip this task')
                     task = None
             elif 'exist' in mode:
                 if os.path.exists(file_name):
-                    logging.info(f'the file {file_name} already exist, skip this task')
+                    print(f'the file {file_name} already exist, skip this task')
                     task = None
             
         yield task

@@ -366,6 +366,17 @@ class BoundingBox():
             self.stop.inverse
         )
 
+    def __add__(self, other: Cartesian | Number):
+        start = self.start + other
+        stop = self.stop + other
+        return BoundingBox(start, stop)
+
+    def __iadd__(self, other: Cartesian | Number):
+        start = self.start + other
+        stop = self.stop + other
+        return BoundingBox(start, stop)
+
+
     def clone(self):
         return BoundingBox(self.start, self.stop)
 
