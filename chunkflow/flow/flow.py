@@ -40,6 +40,7 @@ from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
 from .mesh import MeshOperator
 from .mesh_manifest import MeshManifestOperator
+from .napari import NapariOperator
 from .neuroglancer import NeuroglancerOperator
 from .plugin import Plugin
 from .load_pngs import load_png_images
@@ -2096,6 +2097,26 @@ def download_mesh(tasks, volume_path: str, input: str, start_rank: int,
                 raise ValueError('only support ply and obj for now.')
             with open(fname, 'wb') as f:
                 f.write(mesh)
+
+
+@main.command('napari')
+@click.option('--name', type=str, default='napari',
+              help='name of this operator')
+@click.option('--voxel-size', '-v',
+              nargs=3, type=click.INT, default=None, callback=default_none,
+              help='voxel size of chunk')
+@click.option('--inputs', '-i', type=str, default='chunk', 
+              help='a list of chunk names separated by comma.')
+@operator
+def napari(tasks, name, voxel_size, inputs):
+    """Visualize the chunk using neuroglancer."""
+    operator = NapariOperator(
+        name=name, voxel_size=voxel_size)
+    for task in tasks:
+        if task is not None:
+            operator(task, selected=inputs)
+        yield task
+
 
 @main.command('neuroglancer')
 @click.option('--name', type=str, default='neuroglancer',
