@@ -18,7 +18,7 @@ def test_test_time_augmentation():
                     input_size=input_size,
                     mask_output_chunk=False,
                     framework='identity', 
-                    test_time_augmentation=True,
+                    augment=True,
                     dtype='float32') as inferencer:
         output = inferencer(image)
     
