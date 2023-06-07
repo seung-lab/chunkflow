@@ -950,7 +950,7 @@ def load_pngs(tasks: dict, path_prefix: str,
 @click.option('--name', type=str, default='load-tif',
               help='read tif file from local disk.')
 @click.option('--file-name', '-f', required=True,
-              type=click.Path(exists=True, dir_okay=False),
+              type=click.Path(exists=True, dir_okay=True),
               help='read chunk from TIFF file.')
 @click.option('--voxel-offset', '-v', type=click.INT, nargs=3, callback=default_none,
               help='global offset of this chunk')

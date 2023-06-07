@@ -258,12 +258,14 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                     self._append_point_annotation_layer(viewer_state, name, data)
                 elif isinstance(data, Chunk):
                     if data.layer_type is None:
-                        if data.is_image or data.is_affinity_map:
+                        if data.is_image:
                             self._append_image_layer(viewer_state, name, data)
                         elif data.is_segmentation:
                             self._append_segmentation_layer(viewer_state, name, data)
                         elif data.is_probability_map:
                             self._append_probability_map_layer(viewer_state, name, data)
+                        elif data.is_affinity_map:
+                            raise ValueError('affinity map is not working yet. To-Do.')
                         else:
                             raise ValueError('unsupported data type.')
                     if data.layer_type == 'segmentation':
@@ -274,7 +276,6 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                         self._append_image_layer(viewer_state, name, data)
                     else: 
                         raise ValueError('only support image, affinity map, probability_map, and segmentation for now.')
-
                 else:
                     breakpoint()
                     raise ValueError(f'do not support this type: {type(data)}')

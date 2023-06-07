@@ -2,8 +2,10 @@ from __future__ import annotations
 import logging
 from typing import Union, Optional
 import os
+import glob
 from numbers import Number
 
+from tqdm import tqdm
 import h5py
 import numpy as np
 import nrrd
@@ -227,10 +229,26 @@ class Chunk(NDArrayOperatorsMixin):
     @classmethod
     def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
             voxel_size: tuple=None):
-        arr = tifffile.imread(file_name)
+        assert os.path.exists(file_name)
+        if os.path.isfile(file_name):
+            arr = tifffile.imread(file_name)
+            if dtype:
+                arr = arr.astype(dtype)
+        elif os.path.isdir(file_name):
+            fnames = glob.glob(f'{file_name}/*.tif')
+            section = tifffile.imread(fnames[0])
+            if dtype is None:
+                dtype = section.dtype
+            arr = np.empty(
+                (len(fnames), *section.shape[-2:]), 
+                dtype=dtype)
+            arr[0,:,:] = section
+            for idx, fname in tqdm(
+                    enumerate(fnames[1:]), 
+                    desc='loading tif files: '):
+                section = tifffile.imread(fname)
+                arr[idx+1, :, :] = section
 
-        if dtype:
-            arr = arr.astype(dtype)
         logging.info(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
         return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
     
