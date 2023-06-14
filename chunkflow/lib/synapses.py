@@ -13,6 +13,7 @@ from scipy.spatial import KDTree
 import chunkflow
 from chunkflow.chunk import Chunk
 from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox
+from ..point_cloud import PointCloud
 
 
 class Synapses():
@@ -543,7 +544,15 @@ class Synapses():
         bbox = self.pre_bounding_box
         bbox.union(self.post_bounding_box)
         return bbox
+
+    @property
+    def pre_point_cloud(self) -> PointCloud:
+        return PointCloud(self.pre, self.resolution)
     
+    @property
+    def post_point_cloud(self) -> PointCloud:
+        return PointCloud(self.post, self.resolution)
+
     @property
     def pre_with_physical_coordinate(self) -> np.ndarray:
         if self.resolution is not None:

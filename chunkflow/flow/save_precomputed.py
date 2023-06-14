@@ -23,6 +23,7 @@ class SavePrecomputedOperator(OperatorBase):
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
                  fill_missing: bool = False,
+                 parallel: int = 1,
                  name: str = 'save-precomputed'):
         super().__init__(name=name)
         
@@ -44,8 +45,8 @@ class SavePrecomputedOperator(OperatorBase):
             cache=False,
             green_threads=True,
             delete_black_uploads=True,
+            parallel=parallel,
             progress=True)
-            #parallel=True,
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')

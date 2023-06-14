@@ -20,12 +20,10 @@ def execute(synapses: Synapses, seg: Chunk):
     # if seg.bbox.to_filename() == '0-1024_5120-6144_3072-4096':
     #     breakpoint()
 
-    # breakpoint()
     tbars = tbars.astype(np.int64)
     voxel_offset = np.asarray(seg.voxel_offset, np.int64)
     tbars -= voxel_offset
     
-    # breakpoint()
     assert np.all(tbars >= 0)
 
     # eliminate the tbars 
@@ -35,7 +33,6 @@ def execute(synapses: Synapses, seg: Chunk):
     tbars = tbars[mask, :]
 
     objects = seg.array[tbars[:, 0], tbars[:, 1], tbars[:, 2]]
-    # breakpoint()
     assert len(objects) == tbars.shape[0]
 
     fname = os.path.join(file_path, f'{seg.bbox.to_filename()}.h5')

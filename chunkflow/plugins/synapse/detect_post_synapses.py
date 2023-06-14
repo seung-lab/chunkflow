@@ -48,7 +48,6 @@ class PatchInferencer:
         else:
             device = torch.device('cpu')
         checkpoint = torch.load(model_weight_file, map_location=device)
-        # breakpoint() 
         model.load_state_dict(checkpoint['state_dict'])
         model.eval() 
         if torch.cuda.is_available():

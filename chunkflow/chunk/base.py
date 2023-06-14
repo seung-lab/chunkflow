@@ -335,7 +335,7 @@ class Chunk(NDArrayOperatorsMixin):
                     layer_type = f.attrs['layer_type']
                     # type = str(f['type'])
                     assert layer_type_is_valid(layer_type)
-            
+
             if cutout_start is None:
                 cutout_start = voxel_offset
             if cutout_size is None:
@@ -351,7 +351,8 @@ class Chunk(NDArrayOperatorsMixin):
                 cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
 
             for c, v in zip(cutout_start, voxel_offset):
-                assert c >= v, "can only cutout after the global voxel offset."
+                assert c >= v, \
+                    f'can only cutout after the global voxel offset, cutout start: {cutout_start}, but get {voxel_offset}. \n file name: {file_name}'
             
             assert len(cutout_start) == 3
             assert len(cutout_stop) == 3

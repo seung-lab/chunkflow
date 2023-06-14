@@ -385,12 +385,14 @@ class BoundingBox():
             logging.warn('adjusting bounding box size is None!')
             return self
 
-        if not isinstance(size, int):
-            assert len(size)==3 
-            size = Vec(*size)
+        if isinstance(size, int):
+            size = (-size, -size, -size, size, size, size)
+        elif len(size) == 3:
+            size = tuple(-size[0], -size[1], -size[2], size[0], size[1], size[2])
         else:
-            size = Cartesian(size, size, size)
-        start = self.minpt - size[:3]
+            assert len(size) == 6
+
+        start = self.minpt + size[:3]
         stop  = self.maxpt + size[-3:]
         return BoundingBox(start, stop)
 

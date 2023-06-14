@@ -76,8 +76,10 @@ void main() {
             ),
         )
 
+
+
         self._append_point_annotation_layer(
-            viewer_state, name + '_pre', pre_synapses)
+            viewer_state, name + '_pre', synapses.pre_point_cloud)
 
 
 
@@ -86,7 +88,7 @@ void main() {
             name: str, points: PointCloud, 
             color: str = '#ff0', size: int = 8):
         annotations = []
-        
+
         for sid in range(points.point_num):
             # we would like to show line first and then the presynapse point
             # so, we have distinct color to show T-bar
@@ -245,6 +247,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
         with viewer.txn() as viewer_state:
             for name in selected:
                 data = datas[name]
+                
                 if data is None:
                     continue
                 elif isinstance(data, PointCloud):

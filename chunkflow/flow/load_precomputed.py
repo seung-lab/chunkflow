@@ -15,8 +15,6 @@ class LoadPrecomputedOperator(OperatorBase):
     def __init__(self,
                  volume_path: str,
                  mip: int = 0,
-                 expand_margin_size: Cartesian=Cartesian(0, 0, 0),
-                 expand_direction: int = None,
                  fill_missing: bool = False,
                  validate_mip: int = None,
                  blackout_sections: bool = None,
@@ -30,18 +28,7 @@ class LoadPrecomputedOperator(OperatorBase):
         self.validate_mip = validate_mip
         self.blackout_sections = blackout_sections
         self.dry_run = dry_run
-
-        if isinstance(expand_margin_size, tuple):
-            expand_margin_size = Cartesian.from_collection(expand_margin_size)
-
-        if expand_direction == 1:
-            expand_margin_size = (0, 0, 0, *expand_margin_size)
-        elif expand_direction == -1:
-            expand_margin_size = (*expand_margin_size, 0, 0, 0)
-        else: 
-            assert expand_direction is None
-        self.expand_margin_size = expand_margin_size
-        
+       
         if blackout_sections:
             stor = CloudFiles(volume_path)
             self.blackout_section_ids = stor.get_json(
@@ -59,20 +46,18 @@ class LoadPrecomputedOperator(OperatorBase):
             green_threads=True)
             #parallel=True,
         
-    def __call__(self, output_bbox: BoundingBox):
+    def __call__(self, bbox: BoundingBox):
         # if we do not clone this bounding box, 
         # the bounding box in task will be modified!
-        assert isinstance(output_bbox, BoundingBox)
-        output_bbox = output_bbox.clone()
-        output_bbox = output_bbox.adjust(self.expand_margin_size)
-        chunk_slices = output_bbox.slices
+        assert isinstance(bbox, BoundingBox)
+        chunk_slices = bbox.slices
         
         if self.dry_run:
             # input_bbox = BoundingBox.from_slices(chunk_slices)
             # we can not use pattern=zero since it might got skipped by 
             # the operator of skip-all-zero
             return Chunk.from_bbox(
-                output_bbox,
+                bbox,
                 pattern='random',
                 dtype=self.vol.dtype,
                 voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]),
@@ -101,7 +86,7 @@ class LoadPrecomputedOperator(OperatorBase):
         
         chunk = Chunk(
             chunk, 
-            voxel_offset=output_bbox.start,
+            voxel_offset=bbox.start,
             voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]),
             layer_type=self.vol.layer_type)
 

@@ -278,7 +278,7 @@ def mark_complete(tasks, prefix: str, suffix: str):
     type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--prefix', '-p', type=str, default=None, 
     help = 'pre-path of a file. we would like to keep a trace that this task was executed.')
-@click.option('--suffix', '-s', type=str, default=".h5",
+@click.option('--suffix', '-s', type=str, default=None,
     help='post-path of a file. normally include the extention of result file.')
 @click.option('--adjust-size', '-a', type=click.INT, default=None,
     help='change the bounding box of chunk if it do not match with final result file name.')
@@ -1010,8 +1010,9 @@ def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compressi
 @click.option('--dtype', '-e',
               type=click.Choice(['float32', 'float64', 'uint16', 'uint32', 'uint64', 'uint8']),
               default=None, help='transform data type.')
-@click.option('--voxel-offset', '-v', type=click.INT, nargs=3, default=None,
-              callback=default_none, help='voxel offset of the dataset in hdf5 file.')
+@click.option('--voxel-offset', '-v', 
+    type=click.INT, nargs=3, default=None, callback=default_none, 
+    help='voxel offset of the dataset in hdf5 file.')
 @click.option('--voxel-size', '-x', type=click.INT, nargs=3, 
     default=None, callback=default_none, 
     help='physical size of voxels. The unit is assumed to be nm.')
@@ -1023,6 +1024,8 @@ def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compressi
                help='cutout size of the chunk.')
 @click.option('--set-bbox/--no-set-bbox', default=False, 
     help='set up bounding box in the task or not')
+@click.option('--remove-empty/--do-not-remove', default=False, 
+    help='remove empty file or not')
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME,
               help='chunk name in the global state')
@@ -1031,7 +1034,7 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
             dtype: str, voxel_offset: tuple, voxel_size: tuple, 
             cutout_start: tuple, cutout_stop: tuple, 
             cutout_size: tuple, set_bbox: bool,
-            output_chunk_name: str):
+            remove_empty: bool, output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
         if task is not None:
@@ -1044,14 +1047,15 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_size_tmp = cutout_stop_tmp - cutout_start_tmp
 
                 if not file_name.endswith('.h5'):
-                    file_name = f'{file_name}{bbox.string}.h5'
+                    file_name_tmp = f'{file_name}{bbox.string}.h5'
             else:
                 cutout_start_tmp = cutout_start
                 cutout_stop_tmp = cutout_stop
                 cutout_size_tmp = cutout_size
+                file_name_tmp = file_name
 
             chunk = Chunk.from_h5(
-                file_name,
+                file_name_tmp,
                 dataset_path=dataset_path,
                 voxel_offset=voxel_offset,
                 voxel_size=voxel_size,
@@ -1060,8 +1064,15 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_stop=cutout_stop_tmp,
                 dtype=dtype,
             )
+            if remove_empty and np.all(chunk==0):
+                print(f'remove {file_name}')
+                os.remove(file_name)
+
+            # if len(chunk.array) == 0:
+            #     breakpoint()
             if chunk is not None and dtype is not None:
                 chunk = chunk.astype(dtype)
+
             task[output_chunk_name] = chunk
             # make a bounding box for others operators to follow
             if set_bbox and chunk is not None:
@@ -1207,12 +1218,8 @@ def delete_var(tasks, var_names: str):
 @click.option('--mip', '-m',
               type=click.INT, default=None, help='mip level of the cutout.')
 @click.option('--expand-margin-size', '-e',
-              type=click.INT, nargs=3, default=(0, 0, 0),
+              type=click.INT, nargs=6, default=None,
               help='include surrounding regions of output bounding box.')
-@click.option('--expand-direction', '-d',
-    type=click.Choice(['-1', '1'],), default=None,
-    help="""if it is -1, only expand at -z,-y,-x direction. 
-    if it is None[default], expand at both directions.""")
 @click.option('--chunk-start', '-s',
               type=click.INT, nargs=3, default=None, callback=default_none,
               help='chunk offset in volume.')
@@ -1239,7 +1246,7 @@ def delete_var(tasks, var_names: str):
 @operator
 def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         chunk_start: tuple, chunk_size: tuple,
-        expand_margin_size: tuple, expand_direction: str,
+        expand_margin_size: tuple,
         fill_missing: bool, validate_mip: int, blackout_sections: bool,
         use_https: bool, output_chunk_name: str):
     """Cutout chunk from volume."""
@@ -1247,15 +1254,9 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         mip = state['mip']
     assert mip >= 0
 
-    if expand_direction is not None:
-        # only -1 or 1
-        expand_direction = int(expand_direction)
-    
     operator = LoadPrecomputedOperator(
         volume_path,
         mip=mip,
-        expand_margin_size=expand_margin_size,
-        expand_direction=expand_direction,
         fill_missing=fill_missing,
         validate_mip=validate_mip,
         blackout_sections=blackout_sections,
@@ -1280,6 +1281,9 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
                 else:
                     chunk_size = Vec(*chunk_size)
                 bbox = BoundingBox.from_delta(chunk_start, chunk_size)
+
+            if expand_margin_size is not None:
+                bbox = bbox.adjust(expand_margin_size)
 
             start = time()
             # assert output_chunk_name not in task
@@ -1392,18 +1396,18 @@ def save_zarr(tasks, store: str, shape: tuple, input_chunk_name: str):
     type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name.')
 @click.option('--output-chunk-name', '-o',
     type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name.')
+@click.option('--start-id', '-s', type=click.INT, default=0,
+    help='starting object id')
 @operator
-def remap_segmentation(tasks, input_chunk_name, output_chunk_name):
+def remap_segmentation(tasks, input_chunk_name, output_chunk_name, start_id):
     """Renumber a serials of chunks."""
-    # state['remap_start_id'] = 0
-    start_id = 0
     for task in tasks:
         if task is not None:
             seg = task[input_chunk_name]
             assert seg.is_segmentation
             if not isinstance(seg, Segmentation):
                 seg = Segmentation.from_chunk(seg)
-
+            
             seg, start_id = seg.remap(start_id)
             task[output_chunk_name] = seg
         yield task
@@ -2174,12 +2178,16 @@ def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
     default=None, type=click.FLOAT,
     help='do not save anything if all voxel intensity is below threshold.'
 )
+@click.option('--parallel', '-p',
+    default=1, type=click.INT, 
+    help='number of processes. default is 1 and is serial.')
 @click.option('--fill-missing/--no-fill', default=False,
     help='save blocks with all zeros or not. Default is not.')
 @operator
 def save_precomputed(tasks, name: str, volume_path: str, 
         input_chunk_name: str, mip: int, upload_log: bool, 
         create_thumbnail: bool, intensity_threshold: float,
+        parallel: int,
         fill_missing: bool):
     """Save chunk to volume."""
     if mip is None:
@@ -2191,6 +2199,7 @@ def save_precomputed(tasks, name: str, volume_path: str,
         upload_log=upload_log,
         create_thumbnail=create_thumbnail,
         name=name,
+        parallel=parallel,
         fill_missing=fill_missing,
     )
 

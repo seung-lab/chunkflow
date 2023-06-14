@@ -52,5 +52,4 @@ def execute(bbox: Bbox, args: str= config_str ):
     # print('cutout volume: \n', subvol)
     chunk = Chunk(subvol, voxel_offset=bbox.minpt)
     
-    #breakpoint()
     return [chunk]
