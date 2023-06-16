@@ -76,8 +76,6 @@ void main() {
             ),
         )
 
-
-
         self._append_point_annotation_layer(
             viewer_state, name + '_pre', synapses.pre_point_cloud)
 
