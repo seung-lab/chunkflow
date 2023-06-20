@@ -525,7 +525,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         props = dict()
         if self.voxel_offset is not None or self.voxel_offset != Cartesian(0, 0, 0):
             props['voxel_offset'] = self.voxel_offset
-        if self.voxel_size is not None or self.voxel_size != Cartesian(1, 1, 1):
+        if self.voxel_size is not None and self.voxel_size != Cartesian(1, 1, 1):
             props['voxel_size'] = self.voxel_size
         if self.layer_type is not None:
             props['layer_type'] = self.layer_type
@@ -540,7 +540,6 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             self.voxel_size = properties['voxel_size']
         
         if 'layer_type' in properties:
-
             self.layer_type = properties['layer_type']
 
     @properties.setter
@@ -617,12 +616,14 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     def astype(self, dtype: Union[np.dtype, str]):
         if dtype is None:
             new_array = self.array
-        elif dtype != self.array.dtype:
+        if dtype != self.array.dtype:
             new_array = self.array.astype(dtype)
+            chk = Chunk(new_array)
+            chk.properties = self.properties
+            return chk
         else:
-            new_array = self.array
-        return Chunk(new_array, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
-
+            return self
+        
     def ascontiguousarray(self):
         new_array = np.ascontiguousarray(self.array)
         return Chunk(new_array, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)

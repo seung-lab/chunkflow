@@ -1010,6 +1010,9 @@ def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compressi
 @click.option('--dtype', '-e',
               type=click.Choice(['float32', 'float64', 'uint16', 'uint32', 'uint64', 'uint8']),
               default=None, help='transform data type.')
+@click.option('--layer-type', '-l',
+    type=click.Choice(['image', 'segmentation']), default=None,
+    help='the layer type in neuroglancer for visualization.')
 @click.option('--voxel-offset', '-v', 
     type=click.INT, nargs=3, default=None, callback=default_none, 
     help='voxel offset of the dataset in hdf5 file.')
@@ -1031,9 +1034,9 @@ def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compressi
               help='chunk name in the global state')
 @operator
 def load_h5(tasks, name: str, file_name: str, dataset_path: str,
-            dtype: str, voxel_offset: tuple, voxel_size: tuple, 
-            cutout_start: tuple, cutout_stop: tuple, 
-            cutout_size: tuple, set_bbox: bool,
+            dtype: str, layer_type: str, voxel_offset: tuple, 
+            voxel_size: tuple, cutout_start: tuple, 
+            cutout_stop: tuple, cutout_size: tuple, set_bbox: bool,
             remove_empty: bool, output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
@@ -1064,6 +1067,10 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_stop=cutout_stop_tmp,
                 dtype=dtype,
             )
+            
+            if layer_type is not None:
+                chunk.layer_type = layer_type
+
             if remove_empty and np.all(chunk==0):
                 print(f'remove {file_name}')
                 os.remove(file_name)
@@ -1910,7 +1917,7 @@ def mask(tasks, name, input_names: str, output_names: str, volume_path: str,
 @click.option('--dust-size-threshold', '-d', type=click.INT, default=None,
               help='eliminate small objects with voxel number less than threshold.')
 @click.option('--selected-obj-ids', '-s', type=str, default=None,
-               help="""a list of segment ids to mesh. This is for sparse meshing. 
+               help="""a list of segment ids to keep. This is for sparse meshing. 
                The ids should be separated by comma without space, such as "34,56,78,90"
                it can also be a json file contains a list of ids. The json file path should
                contain protocols, such as "gs://bucket/my/json/file/path.""")

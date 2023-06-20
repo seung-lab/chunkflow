@@ -101,9 +101,9 @@ def test_inference_pipeline():
     print('cutout image chunk...')
     cutout_operator = LoadPrecomputedOperator(
         input_volume_path,
-        mip=mip,
-        expand_margin_size=cropping_margin_size)
-    chunk = cutout_operator(output_bbox)
+        mip=mip)
+    cutout_bbox = output_bbox.adjust(cropping_margin_size) 
+    chunk = cutout_operator(cutout_bbox)
 
     print('mask input...')
     mask_input_operator = MaskOperator(input_mask_volume_path,

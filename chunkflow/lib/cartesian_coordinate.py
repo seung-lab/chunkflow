@@ -388,7 +388,7 @@ class BoundingBox():
         if isinstance(size, int):
             size = (-size, -size, -size, size, size, size)
         elif len(size) == 3:
-            size = tuple(-size[0], -size[1], -size[2], size[0], size[1], size[2])
+            size = (-size[0], -size[1], -size[2], size[0], size[1], size[2])
         else:
             assert len(size) == 6
 
