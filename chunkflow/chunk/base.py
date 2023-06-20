@@ -35,9 +35,8 @@ class Chunk(NDArrayOperatorsMixin):
         """chunk of a volume
     
         a chunk of big array with offset
-        implementation using numpy `dispatch<
-        https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
-        and `examples<https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
+        implementation using numpy `dispatch <https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
+        and `examples <https://docs.scipy.org/doc/numpy/user/basics.dispatch.html#module-numpy.doc.dispatch>`_.
 
         Args:
             array (np.ndarray): the data

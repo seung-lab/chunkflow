@@ -170,9 +170,9 @@ You can also apply a threshold to get a segmentation of the cleft map::
 
 You should see segmentation overlayed with image:
 
-|cleft_target|
+|cleft_label|
 
-.. |cleft_target| image:: _static/image/cleft_target.png
+.. |cleft_label| image:: _static/image/cleft_label.png
 
 Of course, you can add a writing operator, such as ``save-tif``, before the ``neuroglancer`` operator to save the segmentation.
 
