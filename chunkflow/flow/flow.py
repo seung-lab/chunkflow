@@ -1042,6 +1042,8 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
     for task in tasks:
         if task is not None:
             start = time()
+            
+            file_name_tmp = file_name
             if 'bbox' in task and cutout_start is None:
                 bbox = task['bbox']
                 logging.info(f'bbox: {bbox}')
@@ -1055,8 +1057,8 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_start_tmp = cutout_start
                 cutout_stop_tmp = cutout_stop
                 cutout_size_tmp = cutout_size
-                file_name_tmp = file_name
 
+            print(f'loading {file_name_tmp}')
             chunk = Chunk.from_h5(
                 file_name_tmp,
                 dataset_path=dataset_path,

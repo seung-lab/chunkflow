@@ -134,31 +134,50 @@ void main() {
 
     def _append_image_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
         voxel_size = self._get_voxel_size(chunk)
-        dimensions = ng.CoordinateSpace(
-            scales=voxel_size,
-            units=['nm', 'nm', 'nm'],
+        if chunk.ndim == 3:
+            arr = chunk.array
             names=['z', 'y', 'x']
-        )
-        shader="""#uicontrol invlerp normalized
+            # units=['nm', 'nm', 'nm']
+            voxel_offset = chunk.voxel_offset
+            voxel_size = chunk.voxel_size
+            shader="""#uicontrol invlerp normalized
 void main() {
   emitGrayscale(normalized());
 }"""
-#         shader="""#uicontrol int channel slider(min=0, max=4)
-# #uicontrol vec3 color color(default="white")
-# #uicontrol float brightness slider(min=-1, max=1)
-# #uicontrol float contrast slider(min=-3, max=3, step=0.01)
-# void main() {
-#   emitRGB(color *
-#           (toNormalized(getDataValue(channel)) + brightness) *
-#           exp(contrast));
-# }"""
+        elif chunk.ndim == 4:
+            arr = chunk.array.transpose()
+            names=['x', 'y', 'z', 'c']
+            # units=['', 'nm', 'nm', 'nm']
+            voxel_offset = (
+                chunk.voxel_offset.x, 
+                chunk.voxel_offset.y, 
+                chunk.voxel_offset.z,
+                0,
+            )
+            voxel_size = (*chunk.voxel_size[::-1], 1)
+            shader="""#uicontrol int channel slider(min=0, max=4)
+#uicontrol vec3 color color(default="white")
+#uicontrol float brightness slider(min=-1, max=1)
+#uicontrol float contrast slider(min=-3, max=3, step=0.01)
+void main() {
+  emitRGB(color *
+          (toNormalized(getDataValue(channel)) + brightness) *
+          exp(contrast));
+}"""
+        else:
+            raise ValueError(f'we only support 3/4 D, but got {chunk.ndim}')
+
+        dimensions = ng.CoordinateSpace(
+            scales=voxel_size,
+            units='nm',
+            names=names
+        )
         viewer_state.layers.append(
             name=chunk_name,
             layer=ng.LocalVolume(
-                data=chunk,
+                data=arr,
                 dimensions=dimensions,
-                # offset is in nm, not voxels
-                voxel_offset=chunk.voxel_offset,
+                voxel_offset=voxel_offset,
             ),
             shader=shader
         )
@@ -180,9 +199,6 @@ void main() {
             layer=ng.LocalVolume(
                 data=chunk,
                 dimensions=dimensions,
-                # offset is in nm, not voxels
-                # chunkflow use C order with zyx, 
-                # while neuroglancer use F order with xyz
                 voxel_offset=chunk.voxel_offset,
             )
         ) 

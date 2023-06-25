@@ -28,7 +28,7 @@ def execute(bbox: BoundingBox, syns: Synapses, seg: Chunk, args: str = None):
     pres = syns.pre[posts[:, 0], :]
     # save the result
     # to_be_removed = np.asarray(to_be_removed, dtype=np.int32)
-    fname = f'{OUT_DIR}/zyx_{bbox.to_filename()}.npz'
+    fname = f'{OUT_DIR}/zyx_{bbox.string}.npz'
     posts = posts[:, 1:]
     np.savez(fname, pres, posts)
 
