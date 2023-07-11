@@ -1771,6 +1771,8 @@ def copy_var(tasks, from_name: str, to_name: str, deep_copy: bool):
               default=None, callback=default_none, help='margin size of output chunk cropping.')
 @click.option('--patch-num', '-n', default=None, callback=default_none,
               type=click.INT, nargs=3, help='patch number in z,y,x.')
+@click.option('--num-input-channels', 
+              type=click.INT, default=1, help='number of input channels')
 @click.option('--num-output-channels', '-c',
               type=click.INT, default=3, help='number of output channels')
 @click.option('--dtype', '-d', type=click.Choice(['float32', 'float16']),
@@ -1797,8 +1799,9 @@ def copy_var(tasks, from_name: str, to_name: str, deep_copy: bool):
 @operator
 def inference(
     tasks, name: str, convnet_model: str, convnet_weight_path: str,
-    input_patch_size: tuple, output_patch_size: tuple, output_patch_overlap: tuple, output_crop_margin: tuple, patch_num: int, num_output_channels: int, 
-    dtype: str, framework: str, batch_size: int, bump: str, mask_output_chunk: bool,
+    input_patch_size: tuple, output_patch_size: tuple, output_patch_overlap: tuple, output_crop_margin: tuple, patch_num: int, num_input_channels: int,
+    num_output_channels: int, dtype: str, framework: str, batch_size: int, 
+    bump: str, mask_output_chunk: bool,
               mask_myelin_threshold: float, augment: bool,
               input_chunk_name, output_chunk_name):
     """Perform convolutional network inference for chunks."""
@@ -1807,6 +1810,7 @@ def inference(
         convnet_weight_path,
         input_patch_size=input_patch_size,
         output_patch_size=output_patch_size,
+        num_input_channels=num_input_channels,
         num_output_channels=num_output_channels,
         output_patch_overlap=output_patch_overlap,
         output_crop_margin=output_crop_margin,

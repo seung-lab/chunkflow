@@ -754,7 +754,7 @@ class Synapses():
         distances = self.distances_from_pre_to_post
 
         duplicated_indices = set()
-        def find_segid(seg: Chunk, coord: np.ndarray):
+        def find_objid(seg: Chunk, coord: np.ndarray):
             if coord[0] >= seg.shape[0] or coord[1] >= seg.shape[1] or coord[2] >= seg.shape[2]:
                 return None
             else:
@@ -765,8 +765,8 @@ class Synapses():
                 ]
 
         for idx0, idx1 in pairs:
-            sid0 = find_segid(seg, post_coord[idx0, :])
-            sid1 = find_segid(seg, post_coord[idx1, :])
+            sid0 = find_objid(seg, post_coord[idx0, :])
+            sid1 = find_objid(seg, post_coord[idx1, :])
             if sid0 is not None and sid1 is not None and sid0 == sid1 and sid0 > 0:
                 if distances[idx0] > distances[idx1]:
                     duplicated_indices.add(idx0)

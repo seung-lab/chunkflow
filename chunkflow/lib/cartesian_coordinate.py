@@ -265,6 +265,10 @@ class BoundingBox():
         return cls(start, stop)
 
     @cached_property
+    def dvid_roi(self):
+        return [self.start.tuple, self.stop.tuple]
+
+    @cached_property
     def string(self):
         bbox = Bbox(self.start, self.stop)
         return bbox.to_filename()

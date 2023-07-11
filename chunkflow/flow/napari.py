@@ -1,7 +1,7 @@
 try:
     import napari
 except:
-    print('napari not installed and could not be used.')
+    print('napari not installed and related operators could not be used. This does not impact other operators.')
 
 import numpy as np
 from .base import OperatorBase

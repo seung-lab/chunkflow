@@ -39,6 +39,7 @@ class Inferencer(object):
             input_patch_size: Union[tuple, list, Cartesian],
             output_patch_size: Union[tuple, list, Cartesian] = None,
             patch_num: Union[tuple, list, Cartesian] = None,
+            num_input_channels: int = 1,
             num_output_channels: int = 3,
             output_patch_overlap: Union[tuple, list, Cartesian] = None,
             output_crop_margin: Union[tuple, list, Cartesian] = None,
@@ -145,7 +146,8 @@ class Inferencer(object):
             # we can handle arbitrary input and output size
             self.input_size = None 
             self.output_size = None
-
+        
+        self.num_input_channels = num_input_channels
         self.num_output_channels = num_output_channels
         self.mask_output_chunk = mask_output_chunk
         self.output_chunk_mask = None
@@ -155,7 +157,7 @@ class Inferencer(object):
         
         # allocate a buffer to avoid redundant memory allocation
         self.input_patch_buffer = np.zeros(
-            (batch_size, 1, *input_patch_size), dtype=dtype)
+            (batch_size, self.num_input_channels, *input_patch_size), dtype=dtype)
         # self.output_patch_buffer = np.zeros(
         #     (batch_size, num_output_channels, *output_patch_size), 
         #     dtype=dtype)
@@ -201,7 +203,8 @@ class Inferencer(object):
 
             self.output_size = tuple(
                 isz-2*ocso for isz, ocso in 
-                zip(self.input_size, self.output_offset))
+                zip(self.input_size[-3:], self.output_offset))
+            self.output_size = (self.num_output_channels,) + self.output_size
         
         self.output_patch_stride = tuple(s-o for s, o in zip(
             self.output_patch_size, self.output_patch_overlap))
@@ -271,30 +274,30 @@ class Inferencer(object):
         input_patch_stride = self.input_patch_stride 
 
         logging.info('Construct patch slices list...')
-        for iz in range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]):
-            if iz + input_patch_size[0] > self.input_size[0]:
-                iz = self.input_size[0] - input_patch_size[0]
+        for iz in range(0, self.input_size[-3] - input_patch_overlap[-3], input_patch_stride[-3]):
+            if iz + input_patch_size[-3] > self.input_size[-3]:
+                iz = self.input_size[-3] - input_patch_size[-3]
                 assert iz >= 0
             iz += input_chunk_offset[-3]
             oz = iz + self.output_patch_crop_margin[0]
-            for iy in range(0, self.input_size[1] - input_patch_overlap[1], input_patch_stride[1]):
-                if iy + input_patch_size[1] > self.input_size[1]:
-                    iy = self.input_size[1] - input_patch_size[1]
+            for iy in range(0, self.input_size[-2] - input_patch_overlap[-2], input_patch_stride[-2]):
+                if iy + input_patch_size[-2] > self.input_size[-2]:
+                    iy = self.input_size[-2] - input_patch_size[-2]
                     assert iy >= 0
                 iy += input_chunk_offset[-2]
-                oy = iy + self.output_patch_crop_margin[1]
-                for ix in range(0, self.input_size[2] - input_patch_overlap[2], input_patch_stride[2]):
-                    if ix + input_patch_size[2] > self.input_size[2]:
-                        ix = self.input_size[2] - input_patch_size[2]
+                oy = iy + self.output_patch_crop_margin[-2]
+                for ix in range(0, self.input_size[-1] - input_patch_overlap[-1], input_patch_stride[-1]):
+                    if ix + input_patch_size[-1] > self.input_size[-1]:
+                        ix = self.input_size[-1] - input_patch_size[-1]
                         assert ix >= 0
                     ix += input_chunk_offset[-1]
                     ox = ix + self.output_patch_crop_margin[2]
-                    input_patch_slice =  (slice(iz, iz + input_patch_size[0]),
-                                          slice(iy, iy + input_patch_size[1]),
-                                          slice(ix, ix + input_patch_size[2]))
-                    output_patch_slice = (slice(oz, oz + output_patch_size[0]),
-                                          slice(oy, oy + output_patch_size[1]),
-                                          slice(ox, ox + output_patch_size[2]))
+                    input_patch_slice =  (slice(iz, iz + input_patch_size[-3]),
+                                          slice(iy, iy + input_patch_size[-2]),
+                                          slice(ix, ix + input_patch_size[-1]))
+                    output_patch_slice = (slice(oz, oz + output_patch_size[-3]),
+                                          slice(oy, oy + output_patch_size[-2]),
+                                          slice(ox, ox + output_patch_size[-1]))
                     self.patch_slices_list.append((input_patch_slice, output_patch_slice))
 
     def _construct_output_chunk_mask(self, input_chunk):
@@ -312,7 +315,7 @@ class Inferencer(object):
             #output_mask_array = np.memmap(output_mask_mmap_file, 
             #                                   dtype=self.dtype, mode='w+', 
             #                                   shape=self.output_size)
-            output_mask_array = np.zeros(self.output_size, self.dtype)
+            output_mask_array = np.zeros(self.output_size[-3:], self.dtype)
         else:
             output_mask_array = self.output_chunk_mask.array
             output_mask_array.fill(0)
@@ -339,7 +342,8 @@ class Inferencer(object):
         self.output_chunk_mask.array = 1.0 / self.output_chunk_mask.array
     
     def _get_output_buffer(self, input_chunk: Chunk):
-        output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
+        # output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
+        output_buffer_size = self.output_size
         #if self.mask_myelin_threshold is None:
         # a random temporal file. will be removed later.
         #output_buffer_mmap_file = mktemp(suffix='.dat')
@@ -414,7 +418,7 @@ class Inferencer(object):
             batch_slices = self.patch_slices_list[i:i + self.batch_size]
             for batch_idx, slices in enumerate(batch_slices):
                 self.input_patch_buffer[
-                    batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0]).array
+                    batch_idx, ...] = input_chunk.cutout(slices[0]).array
 
             end = time.time()
             logging.debug(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
@@ -459,7 +463,6 @@ class Inferencer(object):
                 #    print('save patch: ', output_chunk.bbox)
                 #    output_chunk.to_tif()
                 #    #input_chunk.cutout(slices[0]).to_tif()
-
                 output_buffer.blend(output_patch_chunk)
 
             end = time.time()
