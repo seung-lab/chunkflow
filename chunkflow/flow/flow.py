@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 from time import time
-
+import sqlite3
 from typing import Generator, List
 
 from copy import deepcopy
@@ -250,25 +250,21 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
 
 
 @main.command('mark-complete')
-@click.option('--prefix', '-p', type=str, default=None,
-    help='pre-path of a file.')
-@click.option('--suffix', '-s', type=str, default=None,
-    help='suffix of the flag file.')
+@click.option('--database-file', '-d', 
+    type=click.Path(dir_okay=False, file_okay=True, writable=True, resolve_path=True), 
+    required=True, help='sqlite3 database file.')
 @operator
-def mark_complete(tasks, prefix: str, suffix: str):
-    """mark completion of a task as an empty file.
-
-    Args:
-        tasks (stream): the tasks stream
-        prefix (str): prefix of the mark file
-        suffix (str): suffix of the mark file
-
-    Yields:
-        None
-    """
+def mark_complete(tasks, database_file: str):
+    """mark completion of a task as an empty file."""
+    if not os.path.exists(database_file):
+        # create a new database
+        
     for task in tasks:
         if task is not None:
+            con = sqlite3.connect(database_file)
+
             bbox = task['bbox']
+
             fname = f'{prefix}{bbox.string}{suffix}'
             Path(fname).touch()
         yield task
