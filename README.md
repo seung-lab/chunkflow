@@ -96,7 +96,8 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | remap-segmentation | Renumber a serials of segmentation chunks |
 | setup-env       | Prepare storage infor files and produce tasks |
 | skeletonize     | Create centerlines of objects in a segmentation chunk |
-| skip-task  	  | If a result file already exists, skip this task |
+| skip-task-by-file | If a result/flag file already exists, skip this task |
+| skip-task-by-blocks-in-volume	| If all the blocks already exists in volume, skip this task |
 | skip-all-zero   | If a chunk has all zero, skip this task |	
 | skip-none       | If an item in task is None, skip this task |	
 | threshold       | Use a threshold to segment the probability map |
