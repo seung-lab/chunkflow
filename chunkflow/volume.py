@@ -213,6 +213,21 @@ class PrecomputedVolume(AbstractVolume):
         arr = np.transpose(chunk.array)
         self[chunk.slices[::-1]] = arr
 
+    def has_all_blocks(self, bbox: BoundingBox) -> bool:
+        """the volume has all the blocks inside a bounding box or not
+
+        Args:
+            bbox (BoundingBox): region of interest
+
+        Returns:
+            result (bool): result
+        """
+        assert bbox.is_aligned_with(self.vol.chunk_size)
+        block_list = self.vol.exists(bbox.cloud_volume_bbox)
+        block_nums = bbox // self.vol.chunk_size
+        return np.prod(block_nums) == len(block_list)
+
+
 
 # class ZarrVolume(AbstractVolume):
 

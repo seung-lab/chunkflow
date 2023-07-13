@@ -459,16 +459,20 @@ class BoundingBox():
                     bbox = BoundingBox.from_delta(Cartesian(z,y,x), block_size)
                     bboxes.append(bbox)
         return bboxes
+    
+    @cached_property
+    def slices(self):
+        return tuple(slice(x0, x1) for x0, x1 in zip(self.start, self.stop))
+
+    @cached_property
+    def cloud_volume_bbox(self):
+        return Bbox.from_slices(self.slices)
 
     @cached_property
     def shape(self):
         return self.stop - self.start
 
-    @property
-    def slices(self):
-        return tuple(slice(x0, x1) for x0, x1 in zip(self.start, self.stop))
-
-    @property
+    @cached_property
     def left_neighbors(self):
         sz = self.size3()
 
@@ -484,6 +488,19 @@ class BoundingBox():
         minpt[2] -= sz[2]
         bbox_x = self.from_delta(minpt, sz)
         return bbox_z, bbox_y, bbox_x
+    
+    def is_aligned_with(self, block_shape: Union[tuple, Cartesian]) -> bool:
+        """whether the bounding box is aligned with block size or not
+
+        Args:
+            block_shape (Union[tuple, Cartesian]): size or shape of a volume block
+
+        Returns:
+            is_aligned (bool): whether it is aligned or not
+        """
+        is_start_aligned = (self.start % block_shape == Cartesian(0,0,0))
+        is_stop_aligned = (self.stop % block_shape == Cartesian(0,0,0))
+        return is_start_aligned and is_stop_aligned
 
     
 class BoundingBoxes(UserList):

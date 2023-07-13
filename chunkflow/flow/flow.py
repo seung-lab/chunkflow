@@ -30,6 +30,7 @@ from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from chunkflow.point_cloud import PointCloud
+from chunkflow.volume import PrecomputedVolume
 
 # import operator functions
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
@@ -211,7 +212,7 @@ def adjust_bbox(tasks, corner_offset: tuple):
         yield task
 
 
-@main.command('skip-task')
+@main.command('skip-task-by-file')
 @click.option('--prefix', '-p', required=True, type=str,
     help='the pre part of result file path')
 @click.option('--suffix', '-s', required=True, type=str,
@@ -222,7 +223,7 @@ def adjust_bbox(tasks, corner_offset: tuple):
 @click.option('--adjust-size', '-a', default=None, type=click.INT, callback=default_none,
     help='expand or shrink the bounding box. Currently, cloud-volume Bbox only support symetric grow.')
 @operator
-def skip_task(tasks: Generator, prefix: str, suffix: str, 
+def skip_task_by_file(tasks: Generator, prefix: str, suffix: str, 
         mode: str, adjust_size: int):
     """if a result file already exists, skip this task."""
     for task in tasks:
@@ -246,6 +247,25 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
                     print(f'the file {file_name} already exist, skip this task')
                     task = None
             
+        yield task
+
+
+@main.command('skip-task-by-blocks-in-volume')
+@click.option('--volum-path', '-v', type=str,
+    required=True, help='precomputed volume path')
+@click.option('--mip', '-m', type=click.INT, default=0,
+    help='mip level of the volume')
+@click.option('--use-https/--use-credential', default=False,
+    help='if we read from a public dataset in cloud storage, it is required to use https.')
+@operator
+def skip_task_by_blocks_in_volume(tasks, volume_path: str, mip: int, use_https: bool):
+    """If all blocks in bounding box exist in volume, skip this task."""
+    vol = PrecomputedVolume(volume_path)
+    for task in tasks:
+        if task is not None:
+            bbox = task['bbox']
+            if vol.has_all_blocks(bbox):
+                task = None
         yield task
 
 
