@@ -1,5 +1,7 @@
 import sys
+import os
 from typing import Union
+import sqlite3
 import logging
 logging.basicConfig()
 
@@ -22,6 +24,7 @@ CartesianParam = CartesianParamType()
 state = {'operators': {}}
 DEFAULT_CHUNK_NAME = 'chunk'
 DEFAULT_SYNAPSES_NAME = 'syns'
+DEFAULT_DATABASE_CURSOR_NAME='database_cursor'
 
 
 def get_initial_task():
@@ -44,20 +47,25 @@ def default_none(ctx, _, value):
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 @click.group(chain=True)
 @click.option('--log-level', '-l',
-              type=click.Choice(['debug', 'info', 'warning', 'error', 'critical']), 
-              default='info',
-              help='print informations level. default is level 1.')
+    type=click.Choice(['debug', 'info', 'warning', 'error', 'critical']), 
+    default='info',
+    help='print informations level. default is level 1.')
 @click.option('--log-file', '-f',
     type=click.Path(exists=False), default=None,
     help='log file path.')
 @click.option('--mip', '-m',
-              type=click.INT, default=0,
-              help='default mip level of chunks.')
+    type=click.INT, default=0,
+    help='default mip level of chunks.')
+@click.option('--database-file', '-d',
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True),
+    default = None,
+    help='sqlite3 database file path with extenstion of .db')
 @click.option('--dry-run/--real-run', default=False,
-              help='dry run or real run. default is real run.')
+    help='dry run or real run. default is real run.')
 @click.option('--verbose/--quiet', default=False, 
     help='show more information or not. default is False.')
-def main(log_level, log_file, mip, dry_run, verbose):
+def main(log_level: str, log_file: str, mip: int, 
+        database_file: str, dry_run: bool, verbose: bool):
     """Compose operators and create your own pipeline."""
     str2level = {
         'debug'     : logging.DEBUG,
@@ -81,6 +89,13 @@ def main(log_level, log_file, mip, dry_run, verbose):
         fileHandler.setFormatter(formatter)
         logging.getLogger().addHandler(fileHandler)
 
+    if database_file is not None:
+        assert database_file.endswith('.db')
+        assert os.path.exists(database_file)
+        con = sqlite3.connect(database_file)
+        cursor = con.cursor()
+        state[DEFAULT_DATABASE_CURSOR_NAME] = cursor
+        
     state['mip'] = mip
     state['dry_run'] = dry_run
     state['verbose'] = verbose
@@ -89,7 +104,7 @@ def main(log_level, log_file, mip, dry_run, verbose):
 
 
 @main.result_callback()
-def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
+def process_commands(operators, log_level, log_file, mip, database_file, dry_run, verbose):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
     returns a function we can chain them together to feed one 

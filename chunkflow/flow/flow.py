@@ -255,7 +255,7 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
     required=True, help='sqlite3 database file.')
 @operator
 def mark_complete(tasks, database_file: str):
-    """mark completion of a task as an empty file."""
+    """mark completion of a task in the database."""
     if not os.path.exists(database_file):
         # create a new database
         
