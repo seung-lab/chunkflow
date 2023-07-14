@@ -34,7 +34,6 @@ from chunkflow.volume import PrecomputedVolume
 
 # import operator functions
 from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
-from .cloud_watch import CloudWatchOperator
 from .load_precomputed import LoadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
@@ -421,25 +420,6 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
             task['bbox'] = bbox
             task['log']['bbox'] = bbox.string
             yield task
-
-
-@main.command('cloud-watch')
-@click.option('--name',
-              type=str,
-              default='cloud-watch',
-              help='name of this operator')
-@click.option('--log-name',
-              type=str,
-              default='chunkflow',
-              help='name of the speedometer')
-@operator
-def cloud_watch(tasks, name, log_name):
-    """Real time speedometer in AWS CloudWatch."""
-    operator = CloudWatchOperator(log_name=log_name, name=name)
-    for task in tasks:
-        if task is not None:
-            operator(task['log'])
-        yield task
 
 
 @main.command('cleanup')
