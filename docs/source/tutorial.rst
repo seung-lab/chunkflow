@@ -280,14 +280,14 @@ Here is more complex example with mask and skip operations in production run of 
 
    export QUEUE_NAME="chunkflow"
    export VISIBILITY_TIMEOUT="1800"
-   export IMAGE_LAYER_PATH="gs://bucket/my/image/layer/path"
-   export IMAGE_MASK_LAYER_PATH="gs://bucket/my/image/mask/layer/path"
+   export IMAGE_volume_path="gs://bucket/my/image/layer/path"
+   export IMAGE_MASK_volume_path="gs://bucket/my/image/mask/layer/path"
    export CONVNET_MODEL_FILE="model1000000.py"
    export CONVNET_WEIGHT_FILE="model1000000.chkpt"
-   export OUTPUT_LAYER_PATH="gs://bucket/my/output/layer/path"
-   export OUTPUT_MASK_LAYER_PATH="gs://bucket/my/output/mask/layer/path"
+   export OUTPUT_volume_path="gs://bucket/my/output/layer/path"
+   export OUTPUT_MASK_volume_path="gs://bucket/my/output/mask/layer/path"
    export CUDA_VISIBLE_DEVICES="3"
-   chunkflow --mip 1 fetch-task -r 20 --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT load-precomputed --volume-path="$IMAGE_LAYER_PATH" --expand-margin-size 10 128 128 --fill-missing mask --name='check-all-zero-and-skip-to-save' --check-all-zero --volume-path="$IMAGE_MASK_LAYER_PATH" --mip 8 --skip-to='save-precomputed' --fill-missing --inverse normalize-section-contrast -p "gs://bucket/my/histogram/path/levels/1" -l 0.0023 -u 0.01 inference --convnet-model="$CONVNET_MODEL_FILE" --convnet-weight-path="${CONVNET_WEIGHT_FILE}" --input-patch-size 20 256 256 --output-patch-size 16 192 192 --output-patch-overlap 2 32 32 --output-crop-margin 8 96 96 --num-output-channels 4 --framework='pytorch' --batch-size 6 --patch-num 14 9 9 mask --name='mask-aff' --volume-path="$OUTPUT_MASK_LAYER_PATH" --mip 8 --fill-missing --inverse save-precomputed --volume-path="$OUTPUT_LAYER_PATH" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
+   chunkflow --mip 1 fetch-task -r 20 --queue-name="$QUEUE_NAME" --visibility-timeout=$VISIBILITY_TIMEOUT load-precomputed --volume-path="$IMAGE_volume_path" --expand-margin-size 10 128 128 --fill-missing mask --name='check-all-zero-and-skip-to-save' --check-all-zero --volume-path="$IMAGE_MASK_volume_path" --mip 8 --skip-to='save-precomputed' --fill-missing --inverse normalize-section-contrast -p "gs://bucket/my/histogram/path/levels/1" -l 0.0023 -u 0.01 inference --convnet-model="$CONVNET_MODEL_FILE" --convnet-weight-path="${CONVNET_WEIGHT_FILE}" --input-patch-size 20 256 256 --output-patch-size 16 192 192 --output-patch-overlap 2 32 32 --output-crop-margin 8 96 96 --num-output-channels 4 --framework='pytorch' --batch-size 6 --patch-num 14 9 9 mask --name='mask-aff' --volume-path="$OUTPUT_MASK_volume_path" --mip 8 --fill-missing --inverse save-precomputed --volume-path="$OUTPUT_volume_path" --upload-log --nproc 0 --create-thumbnail cloud-watch delete-task-in-queue
 
 .. note:: The chunk size should also be divisible by the corresponding high mip level mask. For example, the chunk with size `24 x 24 x 24` can only be masked out with mip level no larger than 3. Because the maximum diviser of 24 with exponential of 2 is 8 (8=2^3). As a result, mask in high mip level will limit the chunk size choice!
 

@@ -96,7 +96,7 @@ def get_optimized_block_size(
     return block_size, output_chunk_size, factor
 
 
-def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_path, 
+def setup_environment(dry_run, volume_start, volume_stop, volume_size, volume_path, 
               max_ram_size, output_patch_size, 
               input_patch_size, channel_num, dtype, 
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
@@ -145,9 +145,9 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     )
 
     if not dry_run:
-        storage = CloudFiles(layer_path)
-        thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
-        thumbnail_storage = CloudFiles(thumbnail_layer_path)
+        storage = CloudFiles(volume_path)
+        thumbnail_volume_path = os.path.join(volume_path, 'thumbnail')
+        thumbnail_storage = CloudFiles(thumbnail_volume_path)
 
         if not overwrite_info:
             logging.info('\ncheck that we are not overwriting existing info file.')
@@ -155,7 +155,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
             assert thumbnail_storage.exists('info')
 
         if overwrite_info:
-            logging.info(f'create and upload info file to {layer_path}')
+            logging.info(f'create and upload info file to {volume_path}')
             # Note that cloudvolume use fortran order rather than C order
             info = CloudVolume.create_new_info(channel_num, layer_type='image',
                                             data_type=dtype,
@@ -165,7 +165,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
                                             volume_size=volume_size[::-1],
                                             chunk_size=block_size[::-1],
                                             max_mip=mip)
-            vol = CloudVolume(layer_path, info=info)
+            vol = CloudVolume(volume_path, info=info)
             vol.commit_info()
       
         if overwrite_info:
@@ -183,7 +183,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
                 volume_size=volume_size[::-1],
                 chunk_size=thumbnail_block_size[::-1],
                 max_mip=thumbnail_mip)
-            thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
+            thumbnail_vol = CloudVolume(thumbnail_volume_path, info=thumbnail_info)
             thumbnail_vol.commit_info()
        
     logging.info('create a list of bounding boxes...')

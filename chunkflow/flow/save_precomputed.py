@@ -62,7 +62,7 @@ class SavePrecomputedOperator(OperatorBase):
 
     def __call__(self, chunk: Chunk, log=None):
         assert isinstance(chunk, Chunk)
-        logging.info('save chunk.')
+        print(f'save chunk {chunk.bbox.string} to {self.volume_path}')
         
         start = time.time()
         chunk = self._auto_convert_dtype(chunk, self.volume)
@@ -104,9 +104,9 @@ class SavePrecomputedOperator(OperatorBase):
     def _create_thumbnail(self, chunk):
         logging.info('creating thumbnail...')
 
-        thumbnail_layer_path = os.path.join(self.volume_path, 'thumbnail')
+        thumbnail_volume_path = os.path.join(self.volume_path, 'thumbnail')
         thumbnail_volume = CloudVolume(
-            thumbnail_layer_path,
+            thumbnail_volume_path,
             compress='gzip',
             fill_missing=True,
             bounded=False,
