@@ -1,5 +1,8 @@
 import os
-import boto3
+try:
+    import boto3
+except:
+    print('did not found aws lib boto3.')
 import hashlib
 from time import sleep
 from cloudvolume.secrets import aws_credentials

@@ -31,6 +31,11 @@ class AggregateSkeletonFragmentsOperator(OperatorBase):
         self.output_storage = CloudFiles(output_path)
    
     def __call__(self, prefix: str):
+        """To-do: convert it to a plugin
+
+        Args:
+            prefix (str): _description_
+        """
         logging.info(f'aggregate skeletons with prefix of {prefix}')
         
         id2filenames = defaultdict(list)

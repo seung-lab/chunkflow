@@ -2,13 +2,9 @@ __doc__ = """Image chunk class"""
 import os
 import json
 from typing import Union
-
 import logging
-import multiprocessing
 
 import numpy as np
-
-import kimimaro
 import fastremap
 
 from cloudfiles import CloudFiles
@@ -107,11 +103,3 @@ class Segmentation(Chunk):
         
         self.array = fastremap.mask_except(self.array, list(selected_obj_ids))
 
-
-    def skeletonize(self, voxel_size):
-        skels = kimimaro.skeletonize(
-            self.array,
-            anisotropy=voxel_size,
-            parallel=multiprocessing.cpu_count() // 2
-        )
-        return skels
