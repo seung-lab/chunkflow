@@ -39,14 +39,11 @@ class Plugin(OperatorBase):
         """
         super().__init__(name=name)
 
-
         if not plugin_file_name.endswith('.py'):
             plugin_file_name += '.py'
 
         plugin_dir = path.join(path.dirname(path.realpath(__file__)), '../plugins')
-        plugin_dir1 =path.join(
-                    plugin_dir, 
-                    'chunkflow-plugins/chunkflowplugins')
+        plugin_dir1 =path.join(plugin_dir, 'chunkflow-plugins/chunkflowplugins')
 
         plugin_dirs = ['./', plugin_dir, plugin_dir1]
         if 'CHUNKFLOW_PLUGIN_DIR' in os.environ:

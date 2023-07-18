@@ -1,8 +1,10 @@
 #!/usr/bin/env python
+
 import os
 from pathlib import Path
 from time import time
 
+# ping = time()
 from typing import Generator, List
 
 from copy import deepcopy
@@ -33,8 +35,6 @@ from chunkflow.point_cloud import PointCloud
 from chunkflow.volume import PrecomputedVolume
 
 # import operator functions
-from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
-from .cloud_watch import CloudWatchOperator
 from .load_precomputed import LoadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
@@ -48,8 +48,9 @@ from .load_pngs import load_png_images
 from .save_precomputed import SavePrecomputedOperator
 from .save_pngs import SavePNGsOperator
 from .setup_env import setup_environment
-from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
+
+# print(f'importing modules takes {time() - ping} seconds.')
 
 @main.command('create-bbox')
 @click.option('--start', '-s', 
@@ -422,25 +423,6 @@ def setup_env(volume_start, volume_stop, volume_size, volume_path,
             task['bbox'] = bbox
             task['log']['bbox'] = bbox.string
             yield task
-
-
-@main.command('cloud-watch')
-@click.option('--name',
-              type=str,
-              default='cloud-watch',
-              help='name of this operator')
-@click.option('--log-name',
-              type=str,
-              default='chunkflow',
-              help='name of the speedometer')
-@operator
-def cloud_watch(tasks, name, log_name):
-    """Real time speedometer in AWS CloudWatch."""
-    operator = CloudWatchOperator(log_name=log_name, name=name)
-    for task in tasks:
-        if task is not None:
-            operator(task['log'])
-        yield task
 
 
 @main.command('cleanup')
@@ -870,36 +852,6 @@ def read_json(tasks, name: str, file_path: str, output_name: str):
         yield task
 
 
-@main.command('load-nrrd')
-@click.option('--name', type=str, default='load-nrrd',
-              help='read nrrd file from local disk.')
-@click.option('--file-name', '-f', required=True,
-              type=click.Path(exists=True, dir_okay=False),
-              help='read chunk from NRRD file')
-@click.option('--voxel-offset', '-v', type=click.INT, nargs=3, default=None, callback=default_none,
-              help='global offset of this chunk')
-@click.option('--voxel-size', '-s', type=click.INT, nargs=3, default=None, callback=default_none,
-              help='physical size of voxels. The unit is assumed to be nm.')
-@click.option('--dtype', '-d',
-              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
-              help='convert to data type')
-@click.option('--output-chunk-name', '-o', type=str, default='chunk',
-              help='chunk name in the global state')
-@operator
-def read_nrrd(tasks, name: str, file_name: str, voxel_offset: tuple,
-             voxel_size: tuple, dtype: str, output_chunk_name: str):
-    """Read NRRD file."""
-    for task in tasks:
-        if task is not None:
-            start = time()
-            task[output_chunk_name] = Chunk.from_nrrd(
-                file_name,
-                dtype=dtype,
-                voxel_offset=voxel_offset,
-                voxel_size=voxel_size)
-            task['log']['timer'][name] = time() - start
-        yield task
-
 
 @main.command('save-nrrd')
 @click.option('--name', type=str, default='save-nrrd', help='name of operator')
@@ -1183,28 +1135,6 @@ def save_pngs(tasks, name, input_chunk_name, dtype, output_path):
     for task in tasks:
         if task is not None:
             operator(task[input_chunk_name])
-        yield task
-
-
-@main.command('skeletonize')
-@click.option('--name', '-n', type=str, default='skeletonize',
-              help='create centerlines of objects in a segmentation chunk.')
-@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
-              help='input chunk name.')
-@click.option('--output-name', '-o', type=str, default='skeletons')
-@click.option('--voxel-size', type=click.INT, nargs=3, required=True,
-              help='voxel size of segmentation chunk (zyx order)')
-@click.option('--output-path', type=str, required=True,
-              help='output path with protocols, such as file:///bucket/my/path')
-@operator
-def skeletonize(tasks, name, input_chunk_name, output_name, voxel_size, output_path):
-    """Skeletonize the neurons/objects in a segmentation chunk"""
-    operator = SkeletonizeOperator(output_path, name=name)
-    for task in tasks:
-        if task is not None:
-            seg = task[input_chunk_name]
-            skels = operator(seg, voxel_size)
-            task[output_name] = skels
         yield task
 
 

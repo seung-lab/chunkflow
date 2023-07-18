@@ -8,7 +8,6 @@ from numbers import Number
 from tqdm import tqdm
 import h5py
 import numpy as np
-import nrrd
 from numpy.core.numerictypes import issubdtype
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
@@ -206,25 +205,7 @@ class Chunk(NDArrayOperatorsMixin):
             voxel_offset=self.voxel_offset, 
             voxel_size=self.voxel_size
         )
-
-    @classmethod
-    def from_nrrd(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
-            voxel_size: tuple=None):
-        arr, _ = nrrd.read(file_name)
-
-        if dtype:
-            arr = arr.astype(dtype)
-        return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
     
-    def to_nrrd(self, file_name: str=None):
-        if file_name is None:
-            file_name = f'{self.bbox.string}.nrrd'
-        elif not file_name.endswith('.nrrd'):
-            file_name += f'_{self.bbox.string}.nrrd'
-
-        logging.info(f'write chunk to file: {file_name}')
-        nrrd.write(file_name, self.array)
-
     @classmethod
     def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
             voxel_size: tuple=None):
