@@ -120,7 +120,7 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         elif isinstance(d, Cartesian):
             return Cartesian.from_collection([x%y for x, y in zip(self, d)])
         else:
-            raise TypeError('only support int or Cartesian for now.')
+            raise TypeError(f'only support int or Cartesian for now, but got {type(d)}')
     
     def __imod__(self, other: Union[Cartesian, int]):
         return self % other
@@ -465,8 +465,8 @@ class BoundingBox():
         return tuple(slice(x0, x1) for x0, x1 in zip(self.start, self.stop))
 
     @cached_property
-    def cloud_volume_bbox(self):
-        return Bbox.from_slices(self.slices)
+    def cloud_volume_bbox_xyz(self):
+        return Bbox.from_slices(self.slices[::-1])
 
     @cached_property
     def shape(self):
@@ -504,11 +504,6 @@ class BoundingBox():
 
     
 class BoundingBoxes(UserList):
-    # def __init__(self, iterable) -> None:
-    #     super().__init__(
-    #         item for item in iterable if isinstance(item, BoundingBox)
-    #     )
-
     @classmethod
     def from_manual_setup(cls,
             chunk_size:Union[Vec, tuple], 
@@ -520,12 +515,12 @@ class BoundingBoxes(UserList):
             respect_chunk_size: bool = True,
             aligned_block_size: Union[Vec, tuple, Cartesian]=None,
             bounded: bool = False,
-            layer_path: str = None,
+            volume_path: str = None,
             mip: int = 0,
             use_https: bool = False,
             ):
 
-        if not layer_path:
+        if not volume_path:
             if grid_size is None and roi_size is None and roi_stop is None:
                 grid_size = Cartesian(1, 1, 1)
 
@@ -537,9 +532,9 @@ class BoundingBoxes(UserList):
                 roi_size = Cartesian.from_collection(chunk_size)
             roi_stop = roi_start + roi_size
         else:
-            if layer_path.endswith('.h5'):
-                assert os.path.exists(layer_path)
-                with h5py.File(layer_path, mode='r') as file:
+            if volume_path.endswith('.h5'):
+                assert os.path.exists(volume_path)
+                with h5py.File(volume_path, mode='r') as file:
                     for key in file.keys():
                         if 'offset' in key:
                             roi_start = Cartesian(*(file[key]))
@@ -553,7 +548,7 @@ class BoundingBoxes(UserList):
 
                 roi_stop = roi_start + roi_size
             else:
-                vol = CloudVolume(layer_path, mip=mip, use_https=use_https)
+                vol = CloudVolume(volume_path, mip=mip, use_https=use_https)
                 # dataset shape as z,y,x
                 dataset_size = vol.mip_shape(mip)[:3][::-1]
                 dataset_offset = vol.mip_voxel_offset(mip)[::-1]

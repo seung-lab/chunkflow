@@ -72,7 +72,7 @@ def create_bbox(start: tuple, stop: tuple, size: tuple):
 
 
 @main.command('generate-tasks')
-@click.option('--layer-path', '-l',
+@click.option('--volume-path', '-v',
               type=str, default=None,
               help='dataset layer path to fetch dataset information.')
 @click.option('--mip', '-m',
@@ -115,7 +115,7 @@ make the chunk size consistent or cut off at the stopping boundary.""")
     help='if we read from a public dataset in cloud storage, it is required to use https.')
 @generator
 def generate_tasks(
-        layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple, 
+        volume_path: str, mip: int, roi_start: tuple, roi_stop: tuple, 
         roi_size: tuple, chunk_size: tuple, bounding_box:str,
         grid_size: tuple, file_path: str, queue_name: str, 
         respect_chunk_size: bool, aligned_block_size: tuple, 
@@ -134,7 +134,7 @@ def generate_tasks(
             assert chunk_size == bboxes[0].shape
     else:
         bboxes = BoundingBoxes.from_manual_setup(
-            chunk_size, layer_path=layer_path,
+            chunk_size, volume_path=volume_path,
             roi_start=roi_start, roi_stop=roi_stop, 
             roi_size=roi_size, mip=mip, grid_size=grid_size,
             respect_chunk_size=respect_chunk_size,
@@ -250,7 +250,7 @@ def skip_task_by_file(tasks: Generator, prefix: str, suffix: str,
 
 
 @main.command('skip-task-by-blocks-in-volume')
-@click.option('--volum-path', '-v', type=str,
+@click.option('--volume-path', '-v', type=str,
     required=True, help='precomputed volume path')
 @click.option('--mip', '-m', type=click.INT, default=0,
     help='mip level of the volume')
@@ -259,7 +259,8 @@ def skip_task_by_file(tasks: Generator, prefix: str, suffix: str,
 @operator
 def skip_task_by_blocks_in_volume(tasks, volume_path: str, mip: int, use_https: bool):
     """If all blocks in bounding box exist in volume, skip this task."""
-    vol = PrecomputedVolume(volume_path)
+    vol = PrecomputedVolume.from_cloudvolume_path(
+        volume_path, mip=mip, use_https=use_https, bounded=True)
     for task in tasks:
         if task is not None:
             bbox = task['bbox']
@@ -399,14 +400,14 @@ def skip_none(tasks: dict, input_name: str, touch: bool, prefix: str, suffix: st
 @click.option('--overwrite-info/--no-overwrite-info', default=False,
               help='normally we should avoid overwriting info file to avoid errors.')
 @generator
-def setup_env(volume_start, volume_stop, volume_size, layer_path, 
+def setup_env(volume_start, volume_stop, volume_size, volume_path, 
               max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
               queue_name, visibility_timeout, thumbnail, encoding, voxel_size, 
               overwrite_info):
     """Setup convolutional net inference environment."""
     bboxes = setup_environment(
-        state['dry_run'], volume_start, volume_stop, volume_size, layer_path, 
+        state['dry_run'], volume_start, volume_stop, volume_size, volume_path, 
         max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
         output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
         thumbnail, encoding, voxel_size, overwrite_info)
@@ -491,7 +492,7 @@ def cleanup(dir: str, mode: str, suffix: str):
               type=click.INT, default=0, 
               help = 'maximum mip level.')
 @operator
-def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num: int, 
+def create_info(tasks,input_chunk_name: str, output_volume_path: str, channel_num: int, 
                 layer_type: str, data_type: str, encoding: str, voxel_size: tuple, 
                 voxel_offset: tuple, volume_size: tuple, block_size: tuple, factor: tuple, max_mip: int):
     """Create attrsdata for Neuroglancer Precomputed volume."""
@@ -546,7 +547,7 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
                 compressed_segmentation_block_size=(8, 8, 8),
                 mesh = mesh,
                 )
-            vol = CloudVolume(output_layer_path, info=info)
+            vol = CloudVolume(output_volume_path, info=info)
             vol.commit_info()
         yield task
 
