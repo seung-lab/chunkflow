@@ -222,9 +222,12 @@ class PrecomputedVolume(AbstractVolume):
         Returns:
             result (bool): result
         """
-        assert bbox.is_aligned_with(self.vol.chunk_size)
-        block_list = self.vol.exists(bbox.cloud_volume_bbox)
-        block_nums = bbox // self.vol.chunk_size
+        block_size = Cartesian.from_collection(self.vol.chunk_size)
+        assert bbox.is_aligned_with(block_size)
+        # crop the out size range
+        bbox = bbox.intersection( self.bounding_box )
+        block_list = self.vol.exists(bbox.cloud_volume_bbox_xyz)
+        block_nums = bbox // block_size
         return np.prod(block_nums) == len(block_list)
 
 

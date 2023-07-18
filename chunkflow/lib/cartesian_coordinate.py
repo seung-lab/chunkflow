@@ -120,7 +120,7 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         elif isinstance(d, Cartesian):
             return Cartesian.from_collection([x%y for x, y in zip(self, d)])
         else:
-            raise TypeError('only support int or Cartesian for now.')
+            raise TypeError(f'only support int or Cartesian for now, but got {type(d)}')
     
     def __imod__(self, other: Union[Cartesian, int]):
         return self % other
@@ -465,8 +465,8 @@ class BoundingBox():
         return tuple(slice(x0, x1) for x0, x1 in zip(self.start, self.stop))
 
     @cached_property
-    def cloud_volume_bbox(self):
-        return Bbox.from_slices(self.slices)
+    def cloud_volume_bbox_xyz(self):
+        return Bbox.from_slices(self.slices[::-1])
 
     @cached_property
     def shape(self):
@@ -504,11 +504,6 @@ class BoundingBox():
 
     
 class BoundingBoxes(UserList):
-    # def __init__(self, iterable) -> None:
-    #     super().__init__(
-    #         item for item in iterable if isinstance(item, BoundingBox)
-    #     )
-
     @classmethod
     def from_manual_setup(cls,
             chunk_size:Union[Vec, tuple], 

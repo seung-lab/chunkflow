@@ -251,7 +251,7 @@ def skip_task_by_file(tasks: Generator, prefix: str, suffix: str,
 
 
 @main.command('skip-task-by-blocks-in-volume')
-@click.option('--volum-path', '-v', type=str,
+@click.option('--volume-path', '-v', type=str,
     required=True, help='precomputed volume path')
 @click.option('--mip', '-m', type=click.INT, default=0,
     help='mip level of the volume')
@@ -260,7 +260,8 @@ def skip_task_by_file(tasks: Generator, prefix: str, suffix: str,
 @operator
 def skip_task_by_blocks_in_volume(tasks, volume_path: str, mip: int, use_https: bool):
     """If all blocks in bounding box exist in volume, skip this task."""
-    vol = PrecomputedVolume(volume_path)
+    vol = PrecomputedVolume.from_cloudvolume_path(
+        volume_path, mip=mip, use_https=use_https, bounded=True)
     for task in tasks:
         if task is not None:
             bbox = task['bbox']
