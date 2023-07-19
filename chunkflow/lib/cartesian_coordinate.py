@@ -312,13 +312,20 @@ class BoundingBox():
         return self.stop - self.start
 
     def get_aligned_block_bounding_boxes(self, 
-            block_size: Cartesian) -> BoundingBoxes:
+            block_size: Cartesian, bounded: bool=True) -> BoundingBoxes:
         bboxes = BoundingBoxes()
-        for z in range(self.start.z, self.stop.z-block_size.z, block_size.z):
-            for y in range(self.start.y, self.stop.y-block_size.y, block_size.y):
-                for x in range(self.start.x, self.stop.x-block_size.x, block_size.x):
-                    bbox = BoundingBox.from_delta(Cartesian(z,y,x), block_size)
-                    bboxes.append(bbox)
+        if bounded:
+            for z in range(self.start.z, self.stop.z, block_size.z):
+                for y in range(self.start.y, self.stop.y, block_size.y):
+                    for x in range(self.start.x, self.stop.x, block_size.x):
+                        bbox = BoundingBox.from_delta(Cartesian(z,y,x), block_size)
+                        bboxes.append(bbox)
+        else:
+            for z in range(self.start.z, self.stop.z+block_size.z-1, block_size.z):
+                for y in range(self.start.y, self.stop.y+block_size.y-1, block_size.y):
+                    for x in range(self.start.x, self.stop.x+block_size.x-1, block_size.x):
+                        bbox = BoundingBox.from_delta(Cartesian(z,y,x), block_size)
+                        bboxes.append(bbox)
         return bboxes
     
     def get_unaligned_block_bounding_boxes(self, 

@@ -1309,6 +1309,7 @@ def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tupl
                     chunk_size = bbox.shape
                 else:
                     raise ValueError(f'bounding box not defined.')
+
                 arr_start = bbox.start - volume_offset
                 arr_bbox = BoundingBox.from_delta(arr_start, bbox.shape)
                 arr = z[arr_bbox.slices]
