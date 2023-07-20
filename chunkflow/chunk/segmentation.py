@@ -2,7 +2,6 @@ __doc__ = """Image chunk class"""
 import os
 import json
 from typing import Union
-import logging
 
 import numpy as np
 import fastremap
@@ -19,11 +18,8 @@ class Segmentation(Chunk):
     """
     a chunk of segmentation volume.
     """
-    def __init__(self, array: np.ndarray, 
-            voxel_offset: Cartesian=None, 
-            voxel_size:Cartesian=None):
-        super().__init__(array, voxel_offset=voxel_offset, 
-            voxel_size=voxel_size)
+    def __init__(self, array: np.ndarray, **kwargs ):
+        super().__init__(array, **kwargs)
         assert array.ndim == 3
         assert np.issubdtype(array.dtype, np.integer)
 
@@ -70,23 +66,31 @@ class Segmentation(Chunk):
         ret['edit_distance'] = edit_distance
         return ret
 
-    def remap(self, start_id: int = 0):
+    def remap(self, base_id: int = 0):
+        """renumber the object ID 
+
+        Args:
+            base_id (int, optional): the maximum object ID in previous chunk. Defaults to 0.
+
+        Returns:
+            new_base_id (int): the maximum object ID in this chunk as the new base ID.
+        """
         fastremap.renumber(self.array, preserve_zero=True, in_place=True)
-        seg = self.astype(np.uint64)
-        if start_id > 0:
-            seg.array[seg.array>0] += start_id
-        start_id = seg.max()
-        return seg, start_id
+        # seg = self.astype(np.uint64)
+        if base_id > 0:
+            self.array[self.array>0] += base_id
+        new_base_id = self.max()
+        return new_base_id
 
     def mask_fragments(self, voxel_num_threshold: int):
         uniq, counts = fastremap.unique(self.array, return_counts=True)
         fragment_ids = uniq[counts <= voxel_num_threshold]
-        logging.info(f'masking out {len(fragment_ids)} fragments in {len(uniq)} with a percentage of {len(fragment_ids)/len(uniq)}')
+        print(f'masking out {len(fragment_ids)} fragments in {len(uniq)} with a percentage of {len(fragment_ids)/len(uniq)}')
         self.array = fastremap.mask(self.array, fragment_ids)
 
     def mask_except(self, selected_obj_ids: Union[str, list, set]):
         if selected_obj_ids is None:
-            logging.warning('we have not selected any objects to mask out.')
+            print('we have not selected any objects to mask out.')
             return
 
         if isinstance(selected_obj_ids, str) and selected_obj_ids.endswith('.json'):
@@ -95,7 +99,7 @@ class Segmentation(Chunk):
             ids_str = json_storage.get(os.path.basename(selected_obj_ids))
             selected_obj_ids = set(json.loads(ids_str))
             assert len(selected_obj_ids) > 0
-            logging.info(f'number of selected objects: {len(selected_obj_ids)}')
+            print(f'number of selected objects: {len(selected_obj_ids)}')
         elif isinstance(selected_obj_ids, str):
             # a simple string, like "34,45,56,23"
             # this is used for small object numbers

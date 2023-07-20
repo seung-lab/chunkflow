@@ -1,4 +1,4 @@
-import logging
+
 from cloudvolume import CloudVolume
 import tinybrain
 import numpy as np
@@ -24,6 +24,7 @@ class DownsampleUploadOperator(OperatorBase):
                  start_mip: int = None,
                  stop_mip: int = 5,
                  fill_missing: bool = True,
+                 verbose=False,
                  name='downsample-upload'):
         """
         volume_path: (str) path of volume
@@ -38,7 +39,6 @@ class DownsampleUploadOperator(OperatorBase):
         if start_mip is None:
             start_mip = chunk_mip + 1
 
-        verbose = (logging.getLogger().getEffectiveLevel() <= 30)
         vols = dict()
         for mip in range(start_mip, stop_mip):
             vols[mip] = CloudVolume(volume_path,

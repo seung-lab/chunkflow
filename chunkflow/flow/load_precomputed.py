@@ -1,4 +1,4 @@
-import logging
+
 
 import numpy as np
 from cloudvolume import CloudVolume
@@ -20,6 +20,7 @@ class LoadPrecomputedOperator(OperatorBase):
                  blackout_sections: bool = None,
                  use_https: bool = False,
                  dry_run: bool = False,
+                 verbose: bool = False,
                  name: str = 'cutout'):
         super().__init__(name=name)
         self.volume_path = volume_path
@@ -34,7 +35,6 @@ class LoadPrecomputedOperator(OperatorBase):
             self.blackout_section_ids = stor.get_json(
                 'blackout_section_ids.json')['section_ids']
 
-        verbose = (logging.getLogger().getEffectiveLevel() <= 30)
         self.vol = CloudVolume(
             self.volume_path,
             bounded=False,
@@ -63,7 +63,7 @@ class LoadPrecomputedOperator(OperatorBase):
                 voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]),
             )
 
-        logging.info('cutout {} from {}'.format(chunk_slices[::-1],
+        print('cutout {} from {}'.format(chunk_slices[::-1],
                                              self.volume_path))
 
         # always reverse the indexes since cloudvolume use x,y,z indexing
@@ -133,7 +133,7 @@ class LoadPrecomputedOperator(OperatorBase):
 
 
         chunk_mip = self.mip
-        logging.info('validate chunk in mip {}'.format(self.validate_mip))
+        print('validate chunk in mip {}'.format(self.validate_mip))
         assert self.validate_mip >= chunk_mip
         # only use the region corresponds to higher mip level
         # clamp the surrounding regions in XY plane

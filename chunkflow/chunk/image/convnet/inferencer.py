@@ -3,7 +3,7 @@ __doc__ = """
 ConvNet Inference of an image chunk
 """
 import os
-import logging
+
 import time
 from warnings import warn
 from typing import Union
@@ -74,11 +74,6 @@ class Inferencer(object):
             dry_run (bool, optional): only compute parameters and setup, do not perform any real computation. Defaults to False.
         """
         assert input_size is None or patch_num is None 
-         
-        if logging.getLogger().getEffectiveLevel() <= 30:
-            self.verbose = True
-        else:
-            self.verbose = False
 
         input_patch_size = to_cartesian(input_patch_size)
         patch_num = to_cartesian(patch_num)
@@ -191,7 +186,7 @@ class Inferencer(object):
         patch offset list and output chunk mask. Otherwise, recompute them.
         """
         if np.array_equal(self.input_size, input_chunk.shape):
-            logging.info('reusing output chunk mask.')
+            print('reusing output chunk mask.')
             assert self.patch_slices_list is not None
         else:
             if self.input_size is not None:
@@ -259,7 +254,7 @@ class Inferencer(object):
         # the patches should aligned with input size in case
         # we will not mask the output chunk
         assert np.all(is_align)
-        logging.info('great! patches aligns in chunk.')
+        print('great! patches aligns in chunk.')
 
     def _construct_patch_slices_list(self, input_chunk_offset):
         """
@@ -273,7 +268,7 @@ class Inferencer(object):
         input_patch_overlap = self.input_patch_overlap 
         input_patch_stride = self.input_patch_stride 
 
-        logging.info('Construct patch slices list...')
+        print('Construct patch slices list...')
         for iz in range(0, self.input_size[-3] - input_patch_overlap[-3], input_patch_stride[-3]):
             if iz + input_patch_size[-3] > self.input_size[-3]:
                 iz = self.input_size[-3] - input_patch_size[-3]
@@ -304,7 +299,7 @@ class Inferencer(object):
         if not self.mask_output_chunk:
             return
 
-        logging.info('creating output chunk mask...')
+        print('creating output chunk mask...')
         
         if self.output_chunk_mask is None or not np.array_equal(
                 input_chunk.shape, self.output_chunk_mask.shape):
@@ -379,7 +374,7 @@ class Inferencer(object):
             self._check_alignment()
          
         if self.dry_run:
-            logging.info('dry run, return a special artifical chunk.')
+            print('dry run, return a special artifical chunk.')
             size=output_buffer.shape
             
             if self.mask_myelin_threshold:
@@ -394,7 +389,7 @@ class Inferencer(object):
             )
        
         if np.all(input_chunk == 0):
-            logging.info('input is all zero, return zero buffer directly')
+            print('input is all zero, return zero buffer directly')
             if self.mask_myelin_threshold:
                 assert output_buffer.shape[0] == 4
                 return output_buffer[:-1, ...]
@@ -421,7 +416,7 @@ class Inferencer(object):
                     batch_idx, ...] = input_chunk.cutout(slices[0]).array
 
             end = time.time()
-            logging.debug(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
+            print(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
             start = end
 
             # the input and output patch is a 5d numpy array with
@@ -441,7 +436,7 @@ class Inferencer(object):
                 output_patch = sum(output_patches) / len(output_patches)
 
             end = time.time()
-            logging.debug(f'run inference for {self.batch_size:d} patch takes {end-start:.3f} sec')
+            print(f'run inference for {self.batch_size:d} patch takes {end-start:.3f} sec')
             start = end
 
             for batch_idx, slices in enumerate(batch_slices):
@@ -466,8 +461,8 @@ class Inferencer(object):
                 output_buffer.blend(output_patch_chunk)
 
             end = time.time()
-            logging.debug('blend patch takes {:.3f} sec'.format(end - start))
-            logging.debug("Inference of whole chunk takes {:.3f} sec".format(
+            print('blend patch takes {:.3f} sec'.format(end - start))
+            print("Inference of whole chunk takes {:.3f} sec".format(
                 time.time() - chunk_time_start))
         
         if self.mask_output_chunk:

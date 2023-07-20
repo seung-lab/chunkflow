@@ -5,7 +5,7 @@ import multiprocessing
 import itertools as it
 import collections as coll
 from functools import partial
-import logging
+
 import h5py
 import scipy.ndimage as nd
 import scipy.sparse as sparse
@@ -1332,15 +1332,15 @@ def reduce_vi(fn_pattern='testing/%i/flat-single-channel-tr%i-%i-%.2f.lzf.h5',
             try:
                 f = h5py.File(current_fn, 'r')
             except IOError:
-                logging.warning('IOError: could not open file %s' % current_fn)
+                print('IOError: could not open file %s' % current_fn)
             else:
                 try:
                     current_vi = np.array(f['vi'])[:, 0]
                 except IOError:
-                    logging.warning('IOError: could not open file %s'
+                    print('IOError: could not open file %s'
                         % current_fn)
                 except KeyError:
-                    logging.warning('KeyError: could not find vi in file %s'
+                    print('KeyError: could not find vi in file %s'
                         % current_fn)
                 finally:
                     f.close()

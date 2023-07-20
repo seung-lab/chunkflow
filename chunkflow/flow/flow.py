@@ -150,13 +150,13 @@ def generate_tasks(
             # task_index_stop = task_index_start + 1
             task_index_stop = len(bboxes)
         bboxes = [*bboxes[task_index_start:task_index_stop]]
-        logging.info(f'selected task indexes from {task_index_start} to {task_index_stop}')
+        print(f'selected task indexes from {task_index_start} to {task_index_stop}')
     elif disbatch:
         assert 'DISBATCH_REPEAT_INDEX' in os.environ
         disbatch_index = int(os.environ['DISBATCH_REPEAT_INDEX'])
         assert disbatch_index < len(bboxes), f'DISBATCH_REPEAT_INDEX is larger than the task number!'
         bboxes = [bboxes[disbatch_index],]
-        logging.info(f'selected a task with disBatch index {disbatch_index}')
+        print(f'selected a task with disBatch index {disbatch_index}')
         
     # write out as a file
     # this could be used for iteration in slurm cluster.
@@ -167,7 +167,7 @@ def generate_tasks(
 
     # if state['verbose']:
     bbox_num = len(bboxes)
-    logging.info(f'total number of tasks: {bbox_num}') 
+    print(f'total number of tasks: {bbox_num}') 
     print(f'total number of tasks: {bbox_num}') 
 
     if queue_name is not None:
@@ -179,7 +179,7 @@ def generate_tasks(
                 assert len(bboxes) == 1
                 bbox_index = disbatch_index
             print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.string}')
-            logging.info(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.string}')
+            print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.string}')
             task = get_initial_task()
             task['bbox'] = bbox
             task['bbox_index'] = bbox_index
@@ -208,7 +208,7 @@ def adjust_bbox(tasks, corner_offset: tuple):
         if task is not None:
             bbox = task['bbox']
             bbox = bbox.adjust_corner(corner_offset)
-            logging.info(f'after bounding box adjustment: {bbox.string}')
+            print(f'after bounding box adjustment: {bbox.string}')
             task['bbox'] = bbox
         yield task
 
@@ -313,7 +313,7 @@ def skip_all_zero(tasks, input_chunk_name: str, prefix: str, suffix: str, adjust
         if task is not None:
             chunk = task[input_chunk_name]
             if not np.any(chunk):
-                logging.info('all zero chunk, skip this task')
+                print('all zero chunk, skip this task')
                 if prefix is not None or suffix is not None:
                     if chunk_bbox:
                         bbox = chunk.bbox.clone()
@@ -323,7 +323,7 @@ def skip_all_zero(tasks, input_chunk_name: str, prefix: str, suffix: str, adjust
                         bbox = bbox.adjust(adjust_size)
                     fname = f'{prefix}{bbox.string}{suffix}'
                     if not os.path.exists(fname):
-                        logging.info(f'create an empty file as mark: {fname}')
+                        print(f'create an empty file as mark: {fname}')
                         Path(fname).touch()
                 # target task as None and task will be skipped
                 task = None
@@ -456,7 +456,7 @@ def cleanup(dir: str, mode: str, suffix: str):
         else:
             raise ValueError(f'unsupported mode: {mode}')
 
-    logging.info(f'there are {len(os.listdir(dir))} files remaining.')
+    print(f'there are {len(os.listdir(dir))} files remaining.')
     yield None
 
 
@@ -611,7 +611,7 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
             return
         num -= 1
         
-        logging.info(f'get task: {bbox_str}')
+        print(f'get task: {bbox_str}')
         bbox = BoundingBox.from_filename(bbox_str)
         
         # record the task handle to delete after the processing
@@ -670,7 +670,7 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
 @operator
 def create_chunk(tasks, size, dtype, pattern, voxel_offset, voxel_size, output_chunk_name):
     """Create a fake chunk for easy test."""
-    logging.info(f'creating chunk: {output_chunk_name}')
+    print(f'creating chunk: {output_chunk_name}')
     for task in tasks:
         if task is not None:
             task[output_chunk_name] = Chunk.create(
@@ -743,7 +743,7 @@ def load_synapses(tasks, name: str, file_path: str, suffix: str,
                 if remove_outside:
                     bbox = task['bbox']
                     syns.remove_synapses_outside_bounding_box(bbox)
-                logging.info(f'loaded synapses with {syns.pre_num} presynapses and {syns.post_num} post synapses.')
+                print(f'loaded synapses with {syns.pre_num} presynapses and {syns.post_num} post synapses.')
                 if syns.pre_num == 0:
                     syns = None
                 task[output_name] = syns
@@ -1019,7 +1019,7 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
             file_name_tmp = file_name
             if 'bbox' in task and cutout_start is None:
                 bbox = task['bbox']
-                logging.info(f'bbox: {bbox}')
+                print(f'bbox: {bbox}')
                 cutout_start_tmp = bbox.minpt
                 cutout_stop_tmp = bbox.maxpt
                 cutout_size_tmp = cutout_stop_tmp - cutout_start_tmp
@@ -1147,12 +1147,12 @@ def delete_task_in_queue(tasks, name):
     for task in tasks:
         if task is not None:
             if state['dry_run']:
-                logging.info('skip deleting task in queue!')
+                print('skip deleting task in queue!')
             else:
                 queue = task['queue']
                 task_handle = task['task_handle']
                 queue.delete(task_handle)
-                logging.info(f'deleted task {task_handle} in queue: {queue.queue_name}')
+                print(f'deleted task {task_handle} in queue: {queue.queue_name}')
         yield task
 
 
@@ -1164,7 +1164,7 @@ def delete_var(tasks, var_names: str):
     """Delete a Chunk in task to release RAM"""
     for task in tasks:
         if task is not None:
-            logging.info(f'delete data: {var_names}')
+            print(f'delete data: {var_names}')
             for var_name in var_names.split(','):
                 del task[var_name]
         yield task
@@ -1357,19 +1357,16 @@ def save_zarr(tasks, store: str, shape: tuple, input_chunk_name: str):
     type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name.')
 @click.option('--output-chunk-name', '-o',
     type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name.')
-@click.option('--start-id', '-s', type=click.INT, default=0,
-    help='starting object id')
+@click.option('--base-id', '-s', type=click.INT, default=0,
+    help='the maximum object ID in previous chunk as the base object id of current chunk.')
 @operator
-def remap_segmentation(tasks, input_chunk_name, output_chunk_name, start_id):
+def remap_segmentation(tasks, input_chunk_name, output_chunk_name, base_id):
     """Renumber a serials of chunks."""
     for task in tasks:
         if task is not None:
             seg = task[input_chunk_name]
             assert seg.is_segmentation
-            if not isinstance(seg, Segmentation):
-                seg = Segmentation.from_chunk(seg)
-            
-            seg, start_id = seg.remap(start_id)
+            base_id = seg.remap(base_id)
             task[output_chunk_name] = seg
         yield task
 
@@ -1889,7 +1886,7 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
         ids_str = json_storage.get_file(os.path.basename(selected_obj_ids))
         selected_obj_ids = set(json.loads(ids_str))
         assert len(selected_obj_ids) > 0
-        logging.info(f'number of selected objects: {len(selected_obj_ids)}')
+        print(f'number of selected objects: {len(selected_obj_ids)}')
 
     for task in tasks:
         if task is not None:
@@ -2054,7 +2051,7 @@ def download_mesh(tasks, volume_path: str, input: str, start_rank: int,
                     input = file.read()
             ids = input.replace(' ', '')
             ids = [int(x) for x in ids.split(',')]
-        logging.info('downloading meshes...')
+        print('downloading meshes...')
         meshes = vol.mesh.get(ids, fuse=False)
         for obj_id, mesh in tqdm(meshes.items(), desc='writing meshes...'):
             fname = f'{out_pre}{obj_id}.{out_format}'
@@ -2200,7 +2197,7 @@ def threshold(tasks, name, input_chunk_name, output_chunk_name,
     for task in tasks:
         if task is not None:
             start = time()
-            logging.info('Segment probability map using a threshold...')
+            print('Segment probability map using a threshold...')
             task[output_chunk_name] = task[input_chunk_name].threshold(threshold)
             task['log']['timer'][name] = time() - start
         yield task

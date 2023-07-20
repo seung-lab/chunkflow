@@ -1,7 +1,5 @@
 import sys
 from typing import Union
-import logging
-logging.basicConfig()
 
 from functools import update_wrapper, wraps
 
@@ -43,13 +41,6 @@ def default_none(ctx, _, value):
 # the code design is based on:
 # https://github.com/pallets/click/blob/master/examples/imagepipe/imagepipe.py
 @click.group(chain=True)
-@click.option('--log-level', '-l',
-              type=click.Choice(['debug', 'info', 'warning', 'error', 'critical']), 
-              default='info',
-              help='print informations level. default is level 1.')
-@click.option('--log-file', '-f',
-    type=click.Path(exists=False), default=None,
-    help='log file path.')
 @click.option('--mip', '-m',
               type=click.INT, default=0,
               help='default mip level of chunks.')
@@ -57,39 +48,19 @@ def default_none(ctx, _, value):
               help='dry run or real run. default is real run.')
 @click.option('--verbose/--quiet', default=False, 
     help='show more information or not. default is False.')
-def main(log_level, log_file, mip, dry_run, verbose):
+def main(mip, dry_run, verbose):
     """Compose operators and create your own pipeline."""
-    str2level = {
-        'debug'     : logging.DEBUG,
-        'info'      : logging.INFO,
-        'warning'   : logging.WARNING,
-        'error'     : logging.ERROR,
-        'critical'  : logging.CRITICAL
-    }
-    log_level = str2level[log_level]
 
-    console = logging.StreamHandler(sys.stdout)
-    console.setLevel(log_level)
-    formater = logging.Formatter('%(name)-13s: %(levelname)-8s %(message)s')
-    console.setFormatter(formater)
-    logging.getLogger().addHandler(console)
-
-    if log_file is not None and len(log_file)>0:
-        fileHandler = logging.FileHandler(filename=log_file)
-        fileHandler.setLevel(log_level)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        fileHandler.setFormatter(formatter)
-        logging.getLogger().addHandler(fileHandler)
-
+    
     state['mip'] = mip
     state['dry_run'] = dry_run
     state['verbose'] = verbose
     if dry_run:
-        logging.warning('\nYou are using dry-run mode, will not do the work!')
+        print('\nYou are using dry-run mode, will not do the work!')
 
 
 @main.result_callback()
-def process_commands(operators, log_level, log_file, mip, dry_run, verbose):
+def process_commands(operators, mip, dry_run, verbose):
     """This result callback is invoked with an iterable of all 
     the chained subcommands. As in this example each subcommand 
     returns a function we can chain them together to feed one 

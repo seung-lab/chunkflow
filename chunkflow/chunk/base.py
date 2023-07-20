@@ -1,5 +1,4 @@
 from __future__ import annotations
-import logging
 from typing import Union, Optional
 import os
 import glob
@@ -229,13 +228,13 @@ class Chunk(NDArrayOperatorsMixin):
                 section = tifffile.imread(fname)
                 arr[idx+1, :, :] = section
 
-        logging.info(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
+        print(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
         return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
     
     def to_tif(self, file_name: str=None, compression: str = 'zlib'):
         if file_name is None:
             file_name = f'{self.bbox.string}.tif'
-        logging.info(f'write chunk to file: {file_name}')
+        print(f'write chunk to file: {file_name}')
 
         if self.array.dtype==np.float32:
             # visualization in float32 is not working correctly in ImageJ
@@ -286,14 +285,14 @@ class Chunk(NDArrayOperatorsMixin):
             if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
                 # fill with zero
                 assert dtype is not None
-                logging.info(f'{file_name} do not exist or is empty, will return None.')
+                print(f'{file_name} do not exist or is empty, will return None.')
                 # return cls.from_bbox(bbox, dtype=dtype, voxel_size=voxel_size, all_zero=True)
                 return None
 
         with h5py.File(file_name, 'r') as f:
             if dataset_path is None:
                 for key in f.keys():
-                    if 'offset' not in key and 'unique' not in key:
+                    if 'global' not in key and 'offset' not in key and 'unique' not in key:
                         # the first name without offset inside
                         dataset_path = key
                         break
@@ -343,7 +342,7 @@ class Chunk(NDArrayOperatorsMixin):
             ]
                     
         
-        logging.info(f"""read from HDF5 file: {file_name} and start with {cutout_start}, \
+        print(f"""read from HDF5 file: {file_name} and start with {cutout_start}, \
 ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         arr = np.asarray(dset)
         if arr.dtype == np.dtype('<f4'):
@@ -351,7 +350,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         elif arr.dtype == np.dtype('<f8'):
             arr = arr.astype('float64') 
 
-        logging.info(f'new chunk voxel offset: {cutout_start}')
+        print(f'new chunk voxel offset: {cutout_start}')
 
         return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size, layer_type=layer_type)
 
@@ -374,7 +373,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         if not file_name.endswith('.h5'):
             file_name += self.bbox.string + '.h5'
 
-        logging.info(f'write chunk to file: {file_name}')
+        print(f'write chunk to file: {file_name}')
         if os.path.exists(file_name):
             print(yellow(f'deleting existing file: {file_name}'))
             os.remove(file_name)
@@ -708,7 +707,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
                 o + m for o, m in zip(self.voxel_offset, margin_size))
             return Chunk(new_array, voxel_offset=voxel_offset, voxel_size=self.voxel_size)
         else:
-            logging.info('automatically crop the chunk to output bounding box.')
+            print('automatically crop the chunk to output bounding box.')
             assert output_bbox is not None
             return self.cutout(output_bbox.slices)
     

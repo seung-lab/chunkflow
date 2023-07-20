@@ -1,4 +1,4 @@
-import logging
+
 import os
 import re
 from collections import defaultdict
@@ -36,7 +36,7 @@ class AggregateSkeletonFragmentsOperator(OperatorBase):
         Args:
             prefix (str): _description_
         """
-        logging.info(f'aggregate skeletons with prefix of {prefix}')
+        print(f'aggregate skeletons with prefix of {prefix}')
         
         id2filenames = defaultdict(list)
         for filename in self.fragments_storage.list_files(prefix=prefix):
@@ -52,7 +52,7 @@ class AggregateSkeletonFragmentsOperator(OperatorBase):
             id2filenames[skl_id].append(filename)
 
         for skl_id, filenames in id2filenames.items():
-            logging.info(f'skeleton id: {skl_id}')
+            print(f'skeleton id: {skl_id}')
             frags = self.fragments_storage.get(filenames)
             frags = [PrecomputedSkeleton.from_precomputed(x['content']) for x in frags]
             skel = PrecomputedSkeleton.simple_merge(frags).consolidate()

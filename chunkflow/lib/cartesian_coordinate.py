@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import random
-import logging
+
 import os
 from collections import UserList, namedtuple
 from math import ceil, floor
@@ -393,7 +393,7 @@ class BoundingBox():
 
     def adjust(self, size: Union[Cartesian, int, tuple, list, Vec]):
         if size is None:
-            logging.warn('adjusting bounding box size is None!')
+            print('adjusting bounding box size is None!')
             return self
 
         if isinstance(size, int):
@@ -617,17 +617,15 @@ class BoundingBoxes(UserList):
                 assert s > 0
 
         final_output_stop = roi_start + (grid_size-1) * stride + chunk_size
-        logging.info(f'\nroi start: {roi_start}')
-        logging.info(f'stride: {stride}')
-        logging.info(f'grid size: {grid_size}')
-        logging.info(f'final output stop: {final_output_stop}')
+        print(f'\nroi start: {roi_start}')
+        print(f'stride: {stride}')
+        print(f'grid size: {grid_size}')
+        print(f'final output stop: {final_output_stop}')
         center_index = grid_size.z // 2 * (grid_size.y*grid_size.x) + \
             grid_size.y // 2 * grid_size.x + \
                 grid_size.x // 2
-        logging.info(f'center chunk index: {center_index}')
-        print(f'center chunk index: {center_index}')
 
-        logging.info(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
+        print(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
 
         bboxes = []
         for (gz, gy, gx) in itertools.product(
@@ -641,7 +639,8 @@ class BoundingBoxes(UserList):
             if not bounded or np.all(tuple(m < p for m, p in zip(bbox.maxpt, roi_stop))):
                 bboxes.append( bbox )
 
-        logging.info(f'get {len(bboxes)} bounding boxes as tasks.')
+        print(f'get {len(bboxes)} bounding boxes as tasks.')
+        print(f'center chunk index: {center_index} with bounding box: {bboxes[center_index].string}')
         return cls(bboxes)
 
     @classmethod

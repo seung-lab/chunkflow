@@ -1,5 +1,5 @@
 from typing import FrozenSet
-import logging
+
 import os
 import pickle
 import numpy as np
@@ -137,10 +137,10 @@ class MeshOperator(OperatorBase):
         # use ndarray after getting the bounding box
         seg = seg.array
 
-        logging.info('computing meshes from segmentation...')
+        print('computing meshes from segmentation...')
         self.mesher.mesh(seg)
 
-        logging.info('write mesh to storage...')
+        print('write mesh to storage...')
         if self.shard:
             assert 'precomputed' in self.output_format
             meshes = []

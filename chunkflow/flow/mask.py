@@ -1,4 +1,4 @@
-import logging
+
 import numpy as np
 
 from cloudvolume import CloudVolume
@@ -29,7 +29,7 @@ class MaskOperator(OperatorBase):
                                     parallel=1,
                                     mip=mask_mip)
 
-        logging.info(f'build mask operator based on {volume_path} at mip {mask_mip}')
+        print(f'build mask operator based on {volume_path} at mip {mask_mip}')
     
     def __call__(self, chunks: list):
         """ Make part of chunk to be black according to a mask chunk.
@@ -60,12 +60,12 @@ class MaskOperator(OperatorBase):
         mask_in_high_mip = self._read_mask_in_high_mip(chunks[0].bbox, factor)
 
         if np.alltrue(mask_in_high_mip == 0):
-            logging.warning('the mask is all black, mask all the voxels directly')
+            print('the mask is all black, mask all the voxels directly')
             for chunk in chunks:
                 np.multiply(chunk, 0, out=chunk)
             return chunks
         if np.all(mask_in_high_mip):
-            logging.warning("mask elements are all positive, return directly")
+            print("mask elements are all positive, return directly")
             return chunks
 
         assert np.any(mask_in_high_mip)

@@ -1,4 +1,4 @@
-import logging
+
 import time
 import os
 import json
@@ -102,7 +102,7 @@ class SavePrecomputedOperator(OperatorBase):
             return chunk
 
     def _create_thumbnail(self, chunk):
-        logging.info('creating thumbnail...')
+        print('creating thumbnail...')
 
         thumbnail_volume_path = os.path.join(self.volume_path, 'thumbnail')
         thumbnail_volume = CloudVolume(
@@ -142,7 +142,7 @@ class SavePrecomputedOperator(OperatorBase):
         assert log
         assert isinstance(output_bbox, BoundingBox)
 
-        logging.info(f'uploaded log: {log}')
+        print(f'uploaded log: {log}')
 
         # write to google cloud storage
         self.log_storage.put_json(output_bbox.string +

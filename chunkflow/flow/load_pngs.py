@@ -1,5 +1,5 @@
 import os
-import logging
+
 
 import numpy as np
 
@@ -61,6 +61,6 @@ def load_png_images(
             img = img.astype(dtype=dtype)
             chunk.array[z_offset, :, :] = img
         else:
-            logging.warning(f'image file do not exist: {file_name}')
+            print(f'image file do not exist: {file_name}')
     
     return chunk

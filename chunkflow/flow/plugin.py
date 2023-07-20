@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging
+
 import os
 import os.path as path
 from typing import Union
@@ -52,7 +52,7 @@ class Plugin(OperatorBase):
         for plugin_dir in plugin_dirs:
             fname = path.join(plugin_dir, plugin_file_name)
             if path.exists(fname):
-                logging.info(f'loading plugin {fname}')
+                print(f'loading plugin {fname}')
                 program = load_source(fname)
                 # assuming this is a func / static functor for now, maybe make it a class?
                 self.execute = program.execute
