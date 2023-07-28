@@ -50,7 +50,6 @@ def default_none(ctx, _, value):
     help='show more information or not. default is False.')
 def main(mip, dry_run, verbose):
     """Compose operators and create your own pipeline."""
-
     
     state['mip'] = mip
     state['dry_run'] = dry_run

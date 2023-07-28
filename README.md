@@ -90,7 +90,6 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | load-precomputed| Cutout chunk from a local/cloud storage volume |
 | load-tif        | Read TIFF files |
 | load-zarr    	  | Read Zarr files |
-| remap-segmentation | Renumber a serials of segmentation chunks |
 | setup-env       | Prepare storage infor files and produce tasks |
 | skip-task-by-file | If a result/flag file already exists, skip this task |
 | skip-task-by-blocks-in-volume	| If all the blocks already exists in volume, skip this task |

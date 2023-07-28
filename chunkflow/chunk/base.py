@@ -214,7 +214,8 @@ class Chunk(NDArrayOperatorsMixin):
             if dtype:
                 arr = arr.astype(dtype)
         elif os.path.isdir(file_name):
-            fnames = glob.glob(f'{file_name}/*.tif')
+            fnames = glob.glob(f'{file_name}/*.tif*')
+            fnames = sorted(fnames)
             section = tifffile.imread(fnames[0])
             if dtype is None:
                 dtype = section.dtype

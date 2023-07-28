@@ -184,7 +184,7 @@ void main() {
 
     def _append_segmentation_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
 
-        if np.issubdtype(chunk.dtype, np.bool):
+        if np.issubdtype(chunk.dtype, bool):
             # neuroglancer do not recognize bool type as segmentation
             chunk = chunk.astype(np.uint8)
 

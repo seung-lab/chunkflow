@@ -1,6 +1,6 @@
 import json
 from cloudvolume.lib import Bbox
-from neuclease import dvid
+import pydvid
 
 from chunkflow.chunk import Chunk
 
@@ -45,7 +45,7 @@ def execute(bbox: Bbox, args: str= config_str ):
     
     print('bounding box: ', bbox)
     box = [tuple(bbox.minpt), tuple(bbox.maxpt)]
-    subvol = dvid.fetch_labelmap_voxels(
+    subvol = pydvid.fetch_labelmap_voxels(
         server, uuid, instance, box,
         scale=0, 
         supervoxels=supervoxels)

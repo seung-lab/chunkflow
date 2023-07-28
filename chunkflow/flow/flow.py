@@ -168,7 +168,6 @@ def generate_tasks(
     # if state['verbose']:
     bbox_num = len(bboxes)
     print(f'total number of tasks: {bbox_num}') 
-    print(f'total number of tasks: {bbox_num}') 
 
     if queue_name is not None:
         queue = SQSQueue(queue_name)
@@ -178,7 +177,6 @@ def generate_tasks(
             if disbatch:
                 assert len(bboxes) == 1
                 bbox_index = disbatch_index
-            print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.string}')
             print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.string}')
             task = get_initial_task()
             task['bbox'] = bbox
@@ -1350,26 +1348,6 @@ def save_zarr(tasks, store: str, shape: tuple, input_chunk_name: str):
                 else:
                     raise ValueError(f'only support 3D and 4D array for now, but get {chunk.ndim}')
         yield task
-
-
-@main.command('remap-segmentation')
-@click.option('--input-chunk-name', '-i',
-    type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name.')
-@click.option('--output-chunk-name', '-o',
-    type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name.')
-@click.option('--base-id', '-s', type=click.INT, default=0,
-    help='the maximum object ID in previous chunk as the base object id of current chunk.')
-@operator
-def remap_segmentation(tasks, input_chunk_name, output_chunk_name, base_id):
-    """Renumber a serials of chunks."""
-    for task in tasks:
-        if task is not None:
-            seg = task[input_chunk_name]
-            assert seg.is_segmentation
-            base_id = seg.remap(base_id)
-            task[output_chunk_name] = seg
-        yield task
-
 
 @main.command('evaluate-segmentation')
 @click.option("--segmentation-chunk-name",
