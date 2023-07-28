@@ -11,12 +11,14 @@ from chunkflow.lib.cartesian_coordinate import BoundingBox
 
 app = FastAPI()
 
-class Task(BaseModel):
-    bbox: 
+maxid = 85409058
 
-class Tasks(BaseModel):
-    task_queue: queue
+@app.get("/objids/{id_num}")
+def get_base_id(id_num: int):
+    global maxid
+    base_id = maxid
 
-@app.get("/task")
-def get_task():
+    maxid += id_num
+    print(f'updated maxid to {maxid}')
+    return base_id
 
