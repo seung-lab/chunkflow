@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys
-import logging
+
 import os
 
 import numpy as np
@@ -54,11 +54,11 @@ def get_optimized_block_size(
                 cost = current_cost
                 patch_num = (pnz, pnxy, pnxy)
     
-    logging.info(f'\n--input-patch-size {tuple2string(input_patch_size)}')
-    logging.info(f'--output-patch-size {tuple2string(output_patch_size)}')
-    logging.info(f'--output-patch-overlap {tuple2string(output_patch_overlap)}')
-    logging.info(f'--output-patch-stride {tuple2string(patch_stride)}')
-    logging.info(f'--patch-num {patch_num}')
+    print(f'\n--input-patch-size {tuple2string(input_patch_size)}')
+    print(f'--output-patch-size {tuple2string(output_patch_size)}')
+    print(f'--output-patch-overlap {tuple2string(output_patch_overlap)}')
+    print(f'--output-patch-stride {tuple2string(patch_stride)}')
+    print(f'--patch-num {patch_num}')
 
     assert mip>=0
     block_mip = (mip + thumbnail_mip) // 2
@@ -81,22 +81,22 @@ def get_optimized_block_size(
                 output_chunk_size[1]//block_factor,
                 output_chunk_size[2]//block_factor)
 
-    logging.info('\n--input-chunk-size ' + tuple2string(input_chunk_size))
-    logging.info('--input-volume-start ' + tuple2string(input_chunk_start))
-    logging.info('--output-chunk-size ' + tuple2string(output_chunk_size))
-    logging.info('cutout expand margin size ' + tuple2string(expand_margin_size))
+    print('\n--input-chunk-size ' + tuple2string(input_chunk_size))
+    print('--input-volume-start ' + tuple2string(input_chunk_start))
+    print('--output-chunk-size ' + tuple2string(output_chunk_size))
+    print('cutout expand margin size ' + tuple2string(expand_margin_size))
 
-    logging.info('output volume start: ' + tuple2string(volume_start))
-    logging.info('block size ' + tuple2string(block_size))
-    logging.info(f'size of each block (uncompressed, uint8, 1 channel): {np.prod(block_size)/1e6} MB')
-    logging.info(f'RAM size of each block: {np.prod(output_chunk_size)/1024/1024/1024*4*channel_num} GB')
+    print('output volume start: ' + tuple2string(volume_start))
+    print('block size ' + tuple2string(block_size))
+    print(f'size of each block (uncompressed, uint8, 1 channel): {np.prod(block_size)/1e6} MB')
+    print(f'RAM size of each block: {np.prod(output_chunk_size)/1024/1024/1024*4*channel_num} GB')
     voxel_utilization = np.prod(output_chunk_size)/np.prod(patch_num)/np.prod(output_patch_size)
-    logging.info('voxel utilization: {:.2f}'.format(voxel_utilization))
+    print('voxel utilization: {:.2f}'.format(voxel_utilization))
 
     return block_size, output_chunk_size, factor
 
 
-def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_path, 
+def setup_environment(dry_run, volume_start, volume_stop, volume_size, volume_path, 
               max_ram_size, output_patch_size, 
               input_patch_size, channel_num, dtype, 
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
@@ -120,9 +120,9 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
         volume_stop = volume_start + volume_size
     else:
         volume_size = volume_stop - volume_start
-    logging.info('\noutput volume start: ' + tuple2string(volume_start))
-    logging.info('output volume stop: ' + tuple2string(volume_stop))
-    logging.info('output volume size: ' + tuple2string(volume_size))
+    print('\noutput volume start: ' + tuple2string(volume_start))
+    print('output volume stop: ' + tuple2string(volume_stop))
+    print('output volume size: ' + tuple2string(volume_size))
     
     if output_patch_overlap is None:
         # use 50% patch overlap in default
@@ -132,7 +132,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     if crop_chunk_margin is None:
         crop_chunk_margin = output_patch_overlap
     assert crop_chunk_margin[1] == crop_chunk_margin[2]
-    logging.info('margin size: ' + tuple2string(crop_chunk_margin))
+    print('margin size: ' + tuple2string(crop_chunk_margin))
     
     if thumbnail:
         # thumnail requires maximum mip level of 5
@@ -145,17 +145,17 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     )
 
     if not dry_run:
-        storage = CloudFiles(layer_path)
-        thumbnail_layer_path = os.path.join(layer_path, 'thumbnail')
-        thumbnail_storage = CloudFiles(thumbnail_layer_path)
+        storage = CloudFiles(volume_path)
+        thumbnail_volume_path = os.path.join(volume_path, 'thumbnail')
+        thumbnail_storage = CloudFiles(thumbnail_volume_path)
 
         if not overwrite_info:
-            logging.info('\ncheck that we are not overwriting existing info file.')
+            print('\ncheck that we are not overwriting existing info file.')
             assert storage.exists('info')
             assert thumbnail_storage.exists('info')
 
         if overwrite_info:
-            logging.info(f'create and upload info file to {layer_path}')
+            print(f'create and upload info file to {volume_path}')
             # Note that cloudvolume use fortran order rather than C order
             info = CloudVolume.create_new_info(channel_num, layer_type='image',
                                             data_type=dtype,
@@ -165,7 +165,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
                                             volume_size=volume_size[::-1],
                                             chunk_size=block_size[::-1],
                                             max_mip=mip)
-            vol = CloudVolume(layer_path, info=info)
+            vol = CloudVolume(volume_path, info=info)
             vol.commit_info()
       
         if overwrite_info:
@@ -173,7 +173,7 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
             thumbnail_block_size = (output_chunk_size[0]//factor,
                                     output_chunk_size[1]//thumbnail_factor,
                                     output_chunk_size[2]//thumbnail_factor)
-            logging.info('thumbnail block size: ' + tuple2string(thumbnail_block_size))
+            print('thumbnail block size: ' + tuple2string(thumbnail_block_size))
             thumbnail_info = CloudVolume.create_new_info(
                 1, layer_type='image', 
                 data_type='uint8',
@@ -183,10 +183,10 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
                 volume_size=volume_size[::-1],
                 chunk_size=thumbnail_block_size[::-1],
                 max_mip=thumbnail_mip)
-            thumbnail_vol = CloudVolume(thumbnail_layer_path, info=thumbnail_info)
+            thumbnail_vol = CloudVolume(thumbnail_volume_path, info=thumbnail_info)
             thumbnail_vol.commit_info()
        
-    logging.info('create a list of bounding boxes...')
+    print('create a list of bounding boxes...')
     roi_start = (volume_start[0],
                  volume_start[1]//factor,
                  volume_start[2]//factor)
@@ -199,9 +199,9 @@ def setup_environment(dry_run, volume_start, volume_stop, volume_size, layer_pat
     bboxes = BoundingBoxes.from_manual_setup(
             output_chunk_size,
             roi_start=roi_start, roi_stop=roi_stop)
-    logging.info(f'total number of tasks: {len(bboxes)}')
+    print(f'total number of tasks: {len(bboxes)}')
     
-    logging.debug(f'bounding boxes: {bboxes}')
+    print(f'bounding boxes: {bboxes}')
     
     print(yellow(
         'Note that you should reuse the printed out parameters in the production run.' + 

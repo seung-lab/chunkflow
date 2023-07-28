@@ -60,3 +60,9 @@ class CloudWatch:
         # submit the metric data
         self.client.put_metric_data(Namespace=self.log_name,
                                     MetricData=metric_data)
+
+
+def execute(log: dict, log_name: str):
+    cw = CloudWatch(log_name=log_name)
+    cw.put_metric_data(log)
+    print(f'log submitted to cloud watch: {log}')

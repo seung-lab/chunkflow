@@ -1,15 +1,17 @@
 # support the class method with parameter type of itself
 from __future__ import annotations
 
-import logging
+import random
+
 import os
 from collections import UserList, namedtuple
 from math import ceil, floor
-from typing import Union
+from typing import Union, List
 from numbers import Number
 import itertools
+from functools import cached_property
 import re
-
+from dataclasses import dataclass
 from copy import deepcopy
 
 import numpy as np
@@ -33,6 +35,7 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
 
     @classmethod
     def from_collection(cls, col: Union[tuple, list, Vec]):
+        assert len(col) == 3
         return cls(*col)
 
     @property
@@ -42,7 +45,7 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     @property
     def floor(self):
         return Cartesian(floor(self.z), floor(self.y), floor(self.x))
-
+    
     def __hash__(self):
         return hash((self.z, self.y, self.x))
 
@@ -117,7 +120,7 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         elif isinstance(d, Cartesian):
             return Cartesian.from_collection([x%y for x, y in zip(self, d)])
         else:
-            raise TypeError('only support int or Cartesian for now.')
+            raise TypeError(f'only support int or Cartesian for now, but got {type(d)}')
     
     def __imod__(self, other: Union[Cartesian, int]):
         return self % other
@@ -172,23 +175,36 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     @property
     def tuple(self):
         return (self.z, self.y, self.x)
+    
+    @property
+    def list(self):
+        return [self.z, self.y, self.x]
+
+    @property
+    def inverse(self):
+        return Cartesian(self.x, self.y, self.z)
 
 
-class BoundingBox(Bbox):
-    def __init__(self, 
-            minpt: Union[list, Cartesian],
-            maxpt: Union[list, Cartesian],
-            dtype: np.dtype =None):
-        if isinstance(minpt, Cartesian):
-            minpt = minpt.vec
+@dataclass(frozen=True)
+class BoundingBox():
+    start: Cartesian
+    stop: Cartesian
+    # def __post_init__(self, start, stop) -> BoundingBox:
+    #     if not isinstance(start, Cartesian):
+    #         assert len(start) == 3
+    #         start = Cartesian.from_collection(start)
+    #     if not isinstance(stop, Cartesian):
+    #         assert len(stop) == 3
+    #         stop = Cartesian.from_collection(stop)
+    #     self.__setattr__('start', start)
+    #     self.__setattr__('stop', stop)
         
-        if isinstance(maxpt, Cartesian):
-            maxpt = maxpt.vec
-        super().__init__(minpt, maxpt, dtype=dtype)
-
     @classmethod
     def from_bbox(cls, bbox: Bbox):
-        return cls(bbox.minpt, bbox.maxpt)
+        assert isinstance(bbox, Bbox)
+        start = Cartesian.from_collection(bbox.minpt)
+        stop  = Cartesian.from_collection(bbox.maxpt)
+        return cls(start, stop)
     
     @classmethod
     def from_string(cls, string: str):
@@ -205,21 +221,20 @@ class BoundingBox(Bbox):
 
     @classmethod
     def from_delta(cls, 
-            minpt: Union[list, tuple, Cartesian, np.ndarray], 
+            start: Union[list, tuple, Cartesian, np.ndarray], 
             plus: Union[list, tuple, Cartesian, np.ndarray]):
-        bbox = super().from_delta(minpt, plus)
-        return cls.from_bbox(bbox)
+        if not isinstance(start, Cartesian):
+            start = Cartesian.from_collection(start)
+        if not isinstance(plus, Cartesian):
+            plus = Cartesian.from_collection(plus)
+        stop = start + plus
+        return cls(start, stop)
 
     @classmethod
     def from_list(cls, lst: list):
-        bbox = Bbox.from_list(lst)
-        return cls.from_bbox(bbox)
-
-    @classmethod
-    def from_vec(cls, arr: np.ndarray):
-        assert len(arr) == 3
-        bbox = Bbox.from_vec(arr)
-        return cls.from_bbox(bbox)
+        start = Cartesian.from_collection(lst[:3])
+        stop  = Cartesian.from_collection(lst[-3:])
+        return cls(start, stop)
 
     @classmethod
     def from_points(cls, arr: np.ndarray):
@@ -241,59 +256,165 @@ class BoundingBox(Bbox):
             extent (int): the range to extent, like radius
             even_size (bool): produce even size or odd size including the center.
         """
-        minpt = center - extent
+        start = center - extent
         # the maxpt is not inclusive, so we need +1
-        maxpt = center + extent
+        stop = center + extent
         if not even_size:
             # this will make the size to be odd
-            maxpt += 1
-        return cls(minpt, maxpt)
+            stop += 1
+        return cls(start, stop)
 
-    @property
+    @cached_property
+    def dvid_roi(self):
+        return [self.start.tuple, self.stop.tuple]
+
+    @cached_property
     def string(self):
-        return self.to_filename()
+        bbox = Bbox(self.start, self.stop)
+        return bbox.to_filename()
+    
+    # @property
+    # def center(self) -> Cartesian:
+    #     ct = (self.minpt + self.maxpt) // 2
+    #     ct = Cartesian.from_collection(ct)
+    #     return ct
 
     @property
-    def start(self):
-        return Cartesian.from_collection(self.minpt)
+    def minpt(self) -> Cartesian:
+        return self.start
     
     @property
-    def stop(self):
-        return Cartesian.from_collection(self.maxpt)
+    def maxpt(self) -> Cartesian:
+        return self.stop
+
+    @cached_property
+    def slices(self):
+        return (
+            slice(self.start.z, self.stop.z),
+            slice(self.start.y, self.stop.y),
+            slice(self.start.x, self.stop.x),
+        )
 
     @property
+    def random_coordinate(self) -> Cartesian:
+        """find a random coordinate inside this bounding box
+
+        Returns:
+            Cartesian: the coordinate inside this bounding box
+        """
+        z = random.randrange(self.start.z, self.stop.z)
+        y = random.randrange(self.start.y, self.stop.y)
+        x = random.randrange(self.start.x, self.stop.x)
+        return Cartesian(z, y, x)
+
+    @cached_property
     def shape(self):
         return self.stop - self.start
-        
+
+    def get_aligned_block_bounding_boxes(self, 
+            block_size: Cartesian, bounded: bool=True) -> BoundingBoxes:
+        bboxes = BoundingBoxes()
+        if bounded:
+            for z in range(self.start.z, self.stop.z, block_size.z):
+                for y in range(self.start.y, self.stop.y, block_size.y):
+                    for x in range(self.start.x, self.stop.x, block_size.x):
+                        bbox = BoundingBox.from_delta(Cartesian(z,y,x), block_size)
+                        bboxes.append(bbox)
+        else:
+            for z in range(self.start.z, self.stop.z+block_size.z-1, block_size.z):
+                for y in range(self.start.y, self.stop.y+block_size.y-1, block_size.y):
+                    for x in range(self.start.x, self.stop.x+block_size.x-1, block_size.x):
+                        bbox = BoundingBox.from_delta(Cartesian(z,y,x), block_size)
+                        bboxes.append(bbox)
+        return bboxes
+    
+    def get_unaligned_block_bounding_boxes(self, 
+            block_size: Cartesian) -> BoundingBoxes:
+        bboxes = BoundingBoxes()
+        for z in range(self.start.z, self.stop.z, block_size.z):
+            for y in range(self.start.y, self.stop.y, block_size.y):
+                for x in range(self.start.x, self.stop.x, block_size.x):
+                    block_start = Cartesian(z,y,x)
+                    block_stop = block_start + block_size
+                    # the block stop can not exceed the boundary of volume
+                    block_stop = block_stop.intersection(
+                        BoundingBox(block_start, self.stop)
+                    )
+                    bbox = BoundingBox(block_start, block_stop)
+                    bboxes.append(bbox)
+        return bboxes
+       
     def __repr__(self):
-        return f'BoundingBox({self.minpt}, {self.maxpt}, dtype={self.dtype}'
+        return f'BoundingBox({self.start}, {self.stop}'
+
+    def __mul__(self, operand: Cartesian | int):
+        assert isinstance(operand, int) or isinstance(operand, Cartesian)
+        start = self.start * operand
+        stop = self.stop * operand
+        return BoundingBox(start, stop)
+
+    def __floordiv__(self, other: int | Cartesian | BoundingBox) -> BoundingBox:
+        if isinstance(other, int) or isinstance(other, Cartesian):
+            minpt = self.minpt // other
+            maxpt = self.maxpt // other
+        elif isinstance(other, BoundingBox):
+            minpt = self.minpt // other.minpt
+            maxpt = self.maxpt // other.maxpt
+        elif isinstance(other, np.ndarray):
+            other  = Cartesian.from_collection(other)
+            minpt = self.start // other
+            maxpt = self.stop // other
+        else:
+            raise ValueError(f'unsupported type of operand: {type(other)}')
+        return BoundingBox(minpt, maxpt)
+         
+    def __ifloordiv__(self, other: BoundingBox | int | Cartesian):
+        return self // other
+
+    def inverse_order(self):
+        return BoundingBox(
+            self.start.inverse, 
+            self.stop.inverse
+        )
+
+    def __add__(self, other: Cartesian | Number):
+        start = self.start + other
+        stop = self.stop + other
+        return BoundingBox(start, stop)
+
+    def __iadd__(self, other: Cartesian | Number):
+        start = self.start + other
+        stop = self.stop + other
+        return BoundingBox(start, stop)
+
 
     def clone(self):
-        bbox = Bbox(self.minpt, self.maxpt, dtype=self.dtype)
-        bbox = bbox.clone()
-        return BoundingBox.from_bbox(bbox)
+        return BoundingBox(self.start, self.stop)
 
     def adjust(self, size: Union[Cartesian, int, tuple, list, Vec]):
         if size is None:
-            logging.warn('adjusting bounding box size is None!')
+            print('adjusting bounding box size is None!')
             return self
 
-        if not isinstance(size, int):
-            assert len(size)==3 or len(size)==6
-            size = Vec(*size)
+        if isinstance(size, int):
+            size = (-size, -size, -size, size, size, size)
+        elif len(size) == 3:
+            size = (-size[0], -size[1], -size[2], size[0], size[1], size[2])
         else:
-            size = Cartesian(size, size, size)
-        self.minpt -= size[:3]
-        self.maxpt += size[-3:]
-        return self
+            assert len(size) == 6
+
+        start = self.minpt + size[:3]
+        stop  = self.maxpt + size[-3:]
+        return BoundingBox(start, stop)
 
     def adjust_corner(self, corner_offset: Union[tuple, list]):
-        if corner_offset is not None:
-            assert len(corner_offset) == 6
-            self.minpt += Cartesian.from_collection(corner_offset[:3])
-            self.maxpt += Cartesian.from_collection(corner_offset[-3:])
+        assert corner_offset is not None
+        assert len(corner_offset) == 6
+        start = self.start + Cartesian.from_collection(corner_offset[:3])
+        stop  = self.stop + Cartesian.from_collection(corner_offset[-3:])
+        return BoundingBox(start, stop)
 
-    def union(self, bbox2):
+    def union(self, bbox2: BoundingBox):
         """Merge another bounding box
 
         Args:
@@ -302,10 +423,18 @@ class BoundingBox(Bbox):
         Returns:
             BoundingBox: bounding box after merging
         """
+        minpt = np.minimum(self.minpt, bbox2.minpt)
+        maxpt = np.maximum(self.maxpt, bbox2.maxpt)
+        start = Cartesian.from_collection(minpt)
+        stop  = Cartesian.from_collection(maxpt)
+        return BoundingBox(start, stop)
 
-        self.minpt = np.minimum(self.minpt, bbox2.minpt)
-        self.maxpt = np.maximum(self.maxpt, bbox2.maxpt)
-        return self
+    def intersection(self, bbox2: BoundingBox):
+        minpt = np.maximum(self.minpt, bbox2.minpt)
+        maxpt = np.minimum(self.maxpt, bbox2.maxpt)
+        start = Cartesian.from_collection(minpt)
+        stop  = Cartesian.from_collection(maxpt)
+        return BoundingBox(start, stop)
 
     def contains(self, point: Union[tuple, Vec, list]):
         assert 3 == len(point)
@@ -313,11 +442,44 @@ class BoundingBox(Bbox):
             (self.maxpt >= Vec(*point)))) and np.all(
                 np.asarray((self.minpt <= Vec(*point)))) 
 
-    @property
-    def shape(self):
-        return Cartesian(*(self.maxpt - self.minpt))
+    def decompose(self, block_size: Cartesian, 
+            ignore_unaligned: bool = True) -> BoundingBoxes:
+        """decompose the bounding box to a list of bounding boxes
+        If there exist some space that can not fit in a whole block, it will be 
+        ignored! 
 
-    @property
+        Args:
+            block_size (Cartesian): the decomposed block size.
+
+        Returns:
+            BoundingBoxes: a list of bounding boxes
+        """
+        assert ignore_unaligned 
+        if not isinstance(block_size, Cartesian):
+            block_size = Cartesian.from_collection(block_size)
+        
+        bboxes = BoundingBoxes()
+
+        for z in range(self.start.z, self.stop.z-block_size.z, block_size.z):
+            for y in range(self.start.y, self.stop.y-block_size.y, block_size.y):
+                for x in range(self.start.x, self.stop.x-block_size.x, block_size.x):
+                    bbox = BoundingBox.from_delta(Cartesian(z,y,x), block_size)
+                    bboxes.append(bbox)
+        return bboxes
+    
+    @cached_property
+    def slices(self):
+        return tuple(slice(x0, x1) for x0, x1 in zip(self.start, self.stop))
+
+    @cached_property
+    def cloud_volume_bbox_xyz(self):
+        return Bbox.from_slices(self.slices[::-1])
+
+    @cached_property
+    def shape(self):
+        return self.stop - self.start
+
+    @cached_property
     def left_neighbors(self):
         sz = self.size3()
 
@@ -333,13 +495,22 @@ class BoundingBox(Bbox):
         minpt[2] -= sz[2]
         bbox_x = self.from_delta(minpt, sz)
         return bbox_z, bbox_y, bbox_x
+    
+    def is_aligned_with(self, block_shape: Union[tuple, Cartesian]) -> bool:
+        """whether the bounding box is aligned with block size or not
+
+        Args:
+            block_shape (Union[tuple, Cartesian]): size or shape of a volume block
+
+        Returns:
+            is_aligned (bool): whether it is aligned or not
+        """
+        is_start_aligned = (self.start % block_shape == Cartesian(0,0,0))
+        is_stop_aligned = (self.stop % block_shape == Cartesian(0,0,0))
+        return is_start_aligned and is_stop_aligned
 
     
 class BoundingBoxes(UserList):
-    def __init__(self, bboxes: list) -> None:
-        super().__init__()
-        self.data = bboxes
-
     @classmethod
     def from_manual_setup(cls,
             chunk_size:Union[Vec, tuple], 
@@ -351,10 +522,12 @@ class BoundingBoxes(UserList):
             respect_chunk_size: bool = True,
             aligned_block_size: Union[Vec, tuple, Cartesian]=None,
             bounded: bool = False,
-            layer_path: str = None,
-            mip: int = 0):
+            volume_path: str = None,
+            mip: int = 0,
+            use_https: bool = False,
+            ):
 
-        if not layer_path:
+        if not volume_path:
             if grid_size is None and roi_size is None and roi_stop is None:
                 grid_size = Cartesian(1, 1, 1)
 
@@ -366,9 +539,9 @@ class BoundingBoxes(UserList):
                 roi_size = Cartesian.from_collection(chunk_size)
             roi_stop = roi_start + roi_size
         else:
-            if layer_path.endswith('.h5'):
-                assert os.path.exists(layer_path)
-                with h5py.File(layer_path, mode='r') as file:
+            if volume_path.endswith('.h5'):
+                assert os.path.exists(volume_path)
+                with h5py.File(volume_path, mode='r') as file:
                     for key in file.keys():
                         if 'offset' in key:
                             roi_start = Cartesian(*(file[key]))
@@ -382,7 +555,7 @@ class BoundingBoxes(UserList):
 
                 roi_stop = roi_start + roi_size
             else:
-                vol = CloudVolume(layer_path, mip=mip)
+                vol = CloudVolume(volume_path, mip=mip, use_https=use_https)
                 # dataset shape as z,y,x
                 dataset_size = vol.mip_shape(mip)[:3][::-1]
                 dataset_offset = vol.mip_voxel_offset(mip)[::-1]
@@ -444,17 +617,15 @@ class BoundingBoxes(UserList):
                 assert s > 0
 
         final_output_stop = roi_start + (grid_size-1) * stride + chunk_size
-        logging.info(f'\nroi start: {roi_start}')
-        logging.info(f'stride: {stride}')
-        logging.info(f'grid size: {grid_size}')
-        logging.info(f'final output stop: {final_output_stop}')
+        print(f'\nroi start: {roi_start}')
+        print(f'stride: {stride}')
+        print(f'grid size: {grid_size}')
+        print(f'final output stop: {final_output_stop}')
         center_index = grid_size.z // 2 * (grid_size.y*grid_size.x) + \
             grid_size.y // 2 * grid_size.x + \
                 grid_size.x // 2
-        logging.info(f'center chunk index: {center_index}')
-        print(f'center chunk index: {center_index}')
 
-        logging.info(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
+        print(f'grid size: {grid_size} with {np.product(grid_size)} candidate bounding boxes.')
 
         bboxes = []
         for (gz, gy, gx) in itertools.product(
@@ -468,7 +639,8 @@ class BoundingBoxes(UserList):
             if not bounded or np.all(tuple(m < p for m, p in zip(bbox.maxpt, roi_stop))):
                 bboxes.append( bbox )
 
-        logging.info(f'get {len(bboxes)} bounding boxes as tasks.')
+        print(f'get {len(bboxes)} bounding boxes as tasks.')
+        print(f'center chunk index: {center_index} with bounding box: {bboxes[center_index].string}')
         return cls(bboxes)
 
     @classmethod
@@ -493,7 +665,8 @@ class BoundingBoxes(UserList):
             arr = np.loadtxt(file_path, dtype=int, delimiter=',')
         return cls.from_array(arr, is_zyx=is_zyx)
 
-    def as_array(self) -> np.ndarray:
+    @property
+    def array(self) -> np.ndarray:
         task_num = len(self.data)
 
         arr = np.zeros((task_num, 6), dtype=int)
@@ -504,9 +677,39 @@ class BoundingBoxes(UserList):
 
     def to_file(self, file_name: str) -> None:
         if file_name.endswith('.npy'):
-            np.save(file_name, self.as_array())
+            np.save(file_name, self.array)
         else:
             raise ValueError('only support npy format now.')
 
     def __len__(self):
         return len(self.data)
+
+
+@dataclass(frozen=True)
+class PhysicalBoudingBox(BoundingBox):
+    voxel_size: Cartesian
+   
+    @classmethod
+    def from_bounding_box(cls, bbox: BoundingBox, 
+            voxel_size: Cartesian) -> PhysicalBoudingBox:
+        return cls(bbox.start, bbox.stop, 
+            voxel_size)
+        
+    @cached_property
+    def voxel_bounding_box(self) -> BoundingBox:
+        return BoundingBox(self.start, self.stop)
+    
+    def to_other_voxel_size(self, voxel_size2: Cartesian) -> PhysicalBoudingBox:
+        assert voxel_size2 != self.voxel_size
+        
+        if voxel_size2 >= self.voxel_size:
+
+            factors = voxel_size2 // self.voxel_size
+            start = self.start // factors
+            stop = self.stop // factors
+        else:
+            factors = self.voxel_size // voxel_size2
+            start = self.start * factors
+            stop = self.stop * factors
+        return PhysicalBoudingBox(start, stop, voxel_size2)
+

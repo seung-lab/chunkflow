@@ -1,21 +1,23 @@
 #!/usr/bin/env python
+
 import os
 from pathlib import Path
 from time import time
 
+# ping = time()
 from typing import Generator, List
 
 from copy import deepcopy
-from matplotlib import use
 
 import numpy as np
 import click
 import json
 from tqdm import tqdm
-from traitlets import default 
+
+import zarr
+import tinybrain
 
 from chunkflow.lib.flow import *
-
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec
 from cloudfiles import CloudFiles
@@ -25,33 +27,54 @@ from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox, BoundingB
 from chunkflow.lib.synapses import Synapses
 
 from chunkflow.chunk import Chunk
+from chunkflow.chunk.image import Image
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
+from chunkflow.point_cloud import PointCloud
+from chunkflow.volume import PrecomputedVolume
 
 # import operator functions
-from .aggregate_skeleton_fragments import AggregateSkeletonFragmentsOperator
-from .cloud_watch import CloudWatchOperator
-from .load_precomputed import ReadPrecomputedOperator
+from .load_precomputed import LoadPrecomputedOperator
 from .downsample_upload import DownsampleUploadOperator
 from .log_summary import load_log, print_log_statistics
 from .mask import MaskOperator
 from .mesh import MeshOperator
 from .mesh_manifest import MeshManifestOperator
+from .napari import NapariOperator
 from .neuroglancer import NeuroglancerOperator
-from .normalize_section_contrast import NormalizeSectionContrastOperator
-from .normalize_section_shang import NormalizeSectionShangOperator
 from .plugin import Plugin
 from .load_pngs import load_png_images
 from .save_precomputed import SavePrecomputedOperator
 from .save_pngs import SavePNGsOperator
 from .setup_env import setup_environment
-from .skeletonize import SkeletonizeOperator
 from .view import ViewOperator
+
+# print(f'importing modules takes {time() - ping} seconds.')
+
+@main.command('create-bbox')
+@click.option('--start', '-s', 
+    type=click.INT, required=True, nargs=3,
+    help = 'voxel offset or start of the bounding box.')
+@click.option('--stop', '-p',
+    type=click.INT, default=None, nargs=3, callback=default_none,
+    help='voxel stop or end of bounding box.')
+@click.option('--size', '-z', 
+    type=click.INT, default=None, nargs=3, callback=default_none,
+    help='volume size or dimension.')
+@generator
+def create_bbox(start: tuple, stop: tuple, size: tuple):
+    assert stop is not None or size is not None
+    if stop is None:
+        stop = Cartesian.from_collection(start) + Cartesian.from_collection(size)
+    bbox = BoundingBox(start, stop)
+    task = get_initial_task()
+    task['bbox'] = bbox
+    yield task
 
 
 @main.command('generate-tasks')
-@click.option('--layer-path', '-l',
+@click.option('--volume-path', '-v',
               type=str, default=None,
               help='dataset layer path to fetch dataset information.')
 @click.option('--mip', '-m',
@@ -90,13 +113,16 @@ make the chunk size consistent or cut off at the stopping boundary.""")
               type=click.INT, default=None, help='stop index of task list.')
 @click.option('--disbatch/--no-disbatch', '-d',
               default=False, help='use disBatch environment variable or not')
+@click.option('--use-https/--use-credential', default=False,
+    help='if we read from a public dataset in cloud storage, it is required to use https.')
 @generator
 def generate_tasks(
-        layer_path: str, mip: int, roi_start: tuple, roi_stop: tuple, 
+        volume_path: str, mip: int, roi_start: tuple, roi_stop: tuple, 
         roi_size: tuple, chunk_size: tuple, bounding_box:str,
         grid_size: tuple, file_path: str, queue_name: str, 
         respect_chunk_size: bool, aligned_block_size: tuple, 
-        task_index_start: tuple, task_index_stop: tuple, disbatch: bool ):
+        task_index_start: tuple, task_index_stop: tuple, 
+        disbatch: bool, use_https: bool):
     """Generate a batch of tasks."""
     if mip is None:
         mip = state['mip']
@@ -110,11 +136,12 @@ def generate_tasks(
             assert chunk_size == bboxes[0].shape
     else:
         bboxes = BoundingBoxes.from_manual_setup(
-            chunk_size, layer_path=layer_path,
+            chunk_size, volume_path=volume_path,
             roi_start=roi_start, roi_stop=roi_stop, 
             roi_size=roi_size, mip=mip, grid_size=grid_size,
             respect_chunk_size=respect_chunk_size,
-            aligned_block_size=aligned_block_size
+            aligned_block_size=aligned_block_size,
+            use_https=use_https
         )
     print(f'number of all the candidate tasks: {len(bboxes)}')
     
@@ -123,12 +150,13 @@ def generate_tasks(
             # task_index_stop = task_index_start + 1
             task_index_stop = len(bboxes)
         bboxes = [*bboxes[task_index_start:task_index_stop]]
-        logging.info(f'selected task indexes from {task_index_start} to {task_index_stop}')
+        print(f'selected task indexes from {task_index_start} to {task_index_stop}')
     elif disbatch:
         assert 'DISBATCH_REPEAT_INDEX' in os.environ
         disbatch_index = int(os.environ['DISBATCH_REPEAT_INDEX'])
+        assert disbatch_index < len(bboxes), f'DISBATCH_REPEAT_INDEX is larger than the task number!'
         bboxes = [bboxes[disbatch_index],]
-        logging.info(f'selected a task with disBatch index {disbatch_index}')
+        print(f'selected a task with disBatch index {disbatch_index}')
         
     # write out as a file
     # this could be used for iteration in slurm cluster.
@@ -139,7 +167,6 @@ def generate_tasks(
 
     # if state['verbose']:
     bbox_num = len(bboxes)
-    logging.info(f'total number of tasks: {bbox_num}') 
     print(f'total number of tasks: {bbox_num}') 
 
     if queue_name is not None:
@@ -150,14 +177,23 @@ def generate_tasks(
             if disbatch:
                 assert len(bboxes) == 1
                 bbox_index = disbatch_index
-            print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.to_filename()}')
-            logging.info(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.to_filename()}')
+            print(f'executing task {bbox_index+task_index_start} in {bbox_num+task_index_start} with bounding box: {bbox.string}')
             task = get_initial_task()
             task['bbox'] = bbox
             task['bbox_index'] = bbox_index
             task['bbox_num'] = bbox_num
-            task['log']['bbox'] = bbox.to_filename()
+            task['log']['bbox'] = bbox.string
             yield task
+
+
+@main.command('debug')
+@operator
+def debug(tasks):
+    for task in tasks:
+        if task is not None:
+            print(f'task: {task}')
+            breakpoint()
+        yield task
 
 
 @main.command('adjust-bbox')
@@ -169,13 +205,13 @@ def adjust_bbox(tasks, corner_offset: tuple):
     for task in tasks:
         if task is not None:
             bbox = task['bbox']
-            bbox.adjust_corner(corner_offset)
-            logging.info(f'after bounding box adjustment: {bbox.string}')
+            bbox = bbox.adjust_corner(corner_offset)
+            print(f'after bounding box adjustment: {bbox.string}')
             task['bbox'] = bbox
         yield task
 
 
-@main.command('skip-task')
+@main.command('skip-task-by-file')
 @click.option('--prefix', '-p', required=True, type=str,
     help='the pre part of result file path')
 @click.option('--suffix', '-s', required=True, type=str,
@@ -186,7 +222,7 @@ def adjust_bbox(tasks, corner_offset: tuple):
 @click.option('--adjust-size', '-a', default=None, type=click.INT, callback=default_none,
     help='expand or shrink the bounding box. Currently, cloud-volume Bbox only support symetric grow.')
 @operator
-def skip_task(tasks: Generator, prefix: str, suffix: str, 
+def skip_task_by_file(tasks: Generator, prefix: str, suffix: str, 
         mode: str, adjust_size: int):
     """if a result file already exists, skip this task."""
     for task in tasks:
@@ -194,22 +230,42 @@ def skip_task(tasks: Generator, prefix: str, suffix: str,
             bbox = task['bbox']
             if adjust_size is not None:
                 bbox = bbox.clone()
-                bbox.adjust(adjust_size)
-            file_name = prefix + bbox.to_filename() + suffix
+                bbox = bbox.adjust(adjust_size)
+            file_name = prefix + bbox.string + suffix
 
             if 'empty' in mode:
                 if not os.path.exists(file_name) or os.path.getsize(file_name)==0:
-                    logging.info(f'file {file_name} do not exist or is empty, skip this task.')
+                    print(f'file {file_name} do not exist or is empty, skip this task.')
                     task = None
             elif 'missing' in mode:
                 if not os.path.exists(file_name):
-                    logging.info(f'the file {file_name} is missing, skip this task')
+                    print(f'the file {file_name} is missing, skip this task')
                     task = None
             elif 'exist' in mode:
                 if os.path.exists(file_name):
-                    logging.info(f'the file {file_name} already exist, skip this task')
+                    print(f'the file {file_name} already exist, skip this task')
                     task = None
             
+        yield task
+
+
+@main.command('skip-task-by-blocks-in-volume')
+@click.option('--volume-path', '-v', type=str,
+    required=True, help='precomputed volume path')
+@click.option('--mip', '-m', type=click.INT, default=0,
+    help='mip level of the volume')
+@click.option('--use-https/--use-credential', default=False,
+    help='if we read from a public dataset in cloud storage, it is required to use https.')
+@operator
+def skip_task_by_blocks_in_volume(tasks, volume_path: str, mip: int, use_https: bool):
+    """If all blocks in bounding box exist in volume, skip this task."""
+    vol = PrecomputedVolume.from_cloudvolume_path(
+        volume_path, mip=mip, use_https=use_https, bounded=True)
+    for task in tasks:
+        if task is not None:
+            bbox = task['bbox']
+            if vol.has_all_blocks(bbox):
+                task = None
         yield task
 
 
@@ -233,7 +289,7 @@ def mark_complete(tasks, prefix: str, suffix: str):
     for task in tasks:
         if task is not None:
             bbox = task['bbox']
-            fname = f'{prefix}{bbox.to_filename()}{suffix}'
+            fname = f'{prefix}{bbox.string}{suffix}'
             Path(fname).touch()
         yield task
 
@@ -255,16 +311,17 @@ def skip_all_zero(tasks, input_chunk_name: str, prefix: str, suffix: str, adjust
         if task is not None:
             chunk = task[input_chunk_name]
             if not np.any(chunk):
-                logging.info('all zero chunk, skip this task')
+                print('all zero chunk, skip this task')
                 if prefix is not None or suffix is not None:
                     if chunk_bbox:
                         bbox = chunk.bbox.clone()
                     else:
                         bbox = task['bbox']
-                    bbox.adjust(adjust_size)
-                    fname = f'{prefix}{bbox.to_filename()}{suffix}'
+                    if adjust_size is not None:
+                        bbox = bbox.adjust(adjust_size)
+                    fname = f'{prefix}{bbox.string}{suffix}'
                     if not os.path.exists(fname):
-                        logging.info(f'create an empty file as mark: {fname}')
+                        print(f'create an empty file as mark: {fname}')
                         Path(fname).touch()
                 # target task as None and task will be skipped
                 task = None
@@ -290,7 +347,7 @@ def skip_none(tasks: dict, input_name: str, touch: bool, prefix: str, suffix: st
                     assert prefix is not None
                     assert suffix is not None
                     bbox = task['bbox']
-                    fname = f'{prefix}{bbox.to_filename()}{suffix}'
+                    fname = f'{prefix}{bbox.string}{suffix}'
                     Path(fname).touch()
         yield task
 
@@ -343,14 +400,14 @@ def skip_none(tasks: dict, input_name: str, touch: bool, prefix: str, suffix: st
 @click.option('--overwrite-info/--no-overwrite-info', default=False,
               help='normally we should avoid overwriting info file to avoid errors.')
 @generator
-def setup_env(volume_start, volume_stop, volume_size, layer_path, 
+def setup_env(volume_start, volume_stop, volume_size, volume_path, 
               max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
               output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
               queue_name, visibility_timeout, thumbnail, encoding, voxel_size, 
               overwrite_info):
     """Setup convolutional net inference environment."""
     bboxes = setup_environment(
-        state['dry_run'], volume_start, volume_stop, volume_size, layer_path, 
+        state['dry_run'], volume_start, volume_stop, volume_size, volume_path, 
         max_ram_size, output_patch_size, input_patch_size, channel_num, dtype, 
         output_patch_overlap, crop_chunk_margin, mip, thumbnail_mip, max_mip,
         thumbnail, encoding, voxel_size, overwrite_info)
@@ -362,27 +419,8 @@ def setup_env(volume_start, volume_stop, volume_size, layer_path,
         for bbox in bboxes:
             task = get_initial_task()
             task['bbox'] = bbox
-            task['log']['bbox'] = bbox.to_filename()
+            task['log']['bbox'] = bbox.string
             yield task
-
-
-@main.command('cloud-watch')
-@click.option('--name',
-              type=str,
-              default='cloud-watch',
-              help='name of this operator')
-@click.option('--log-name',
-              type=str,
-              default='chunkflow',
-              help='name of the speedometer')
-@operator
-def cloud_watch(tasks, name, log_name):
-    """Real time speedometer in AWS CloudWatch."""
-    operator = CloudWatchOperator(log_name=log_name, name=name)
-    for task in tasks:
-        if task is not None:
-            operator(task['log'])
-        yield task
 
 
 @main.command('cleanup')
@@ -416,7 +454,7 @@ def cleanup(dir: str, mode: str, suffix: str):
         else:
             raise ValueError(f'unsupported mode: {mode}')
 
-    logging.info(f'there are {len(os.listdir(dir))} files remaining.')
+    print(f'there are {len(os.listdir(dir))} files remaining.')
     yield None
 
 
@@ -454,10 +492,10 @@ def cleanup(dir: str, mode: str, suffix: str):
               type=click.INT, default=0, 
               help = 'maximum mip level.')
 @operator
-def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num: int, 
+def create_info(tasks,input_chunk_name: str, output_volume_path: str, channel_num: int, 
                 layer_type: str, data_type: str, encoding: str, voxel_size: tuple, 
                 voxel_offset: tuple, volume_size: tuple, block_size: tuple, factor: tuple, max_mip: int):
-    """Create metadata for Neuroglancer Precomputed volume."""
+    """Create attrsdata for Neuroglancer Precomputed volume."""
     
     for task in tasks:
         if task is not None:
@@ -509,7 +547,7 @@ def create_info(tasks,input_chunk_name: str, output_layer_path: str, channel_num
                 compressed_segmentation_block_size=(8, 8, 8),
                 mesh = mesh,
                 )
-            vol = CloudVolume(output_layer_path, info=info)
+            vol = CloudVolume(output_volume_path, info=info)
             vol.commit_info()
         yield task
 
@@ -571,7 +609,7 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
             return
         num -= 1
         
-        logging.info(f'get task: {bbox_str}')
+        print(f'get task: {bbox_str}')
         bbox = BoundingBox.from_filename(bbox_str)
         
         # record the task handle to delete after the processing
@@ -579,7 +617,7 @@ def fetch_task_from_sqs(queue_name, visibility_timeout, num, retry_times):
         task['queue'] = queue
         task['task_handle'] = task_handle
         task['bbox'] = bbox
-        task['log']['bbox'] = bbox.to_filename()
+        task['log']['bbox'] = bbox.string
         yield task
 
 
@@ -630,7 +668,7 @@ def aggregate_skeleton_fragments(tasks, name, input_name, prefix, fragments_path
 @operator
 def create_chunk(tasks, size, dtype, pattern, voxel_offset, voxel_size, output_chunk_name):
     """Create a fake chunk for easy test."""
-    logging.info(f'creating chunk: {output_chunk_name}')
+    print(f'creating chunk: {output_chunk_name}')
     for task in tasks:
         if task is not None:
             task[output_chunk_name] = Chunk.create(
@@ -674,15 +712,15 @@ def load_synapses(tasks, name: str, file_path: str, suffix: str,
             elif os.path.isdir(file_path):
                 bbox = task['bbox']
                 if suffix is not None:
-                    fname = os.path.join(file_path, f'{bbox.to_filename()}{suffix}')
+                    fname = os.path.join(file_path, f'{bbox.string}{suffix}')
                 else:
-                    fname = os.path.join(file_path, f'{bbox.to_filename()}')
+                    fname = os.path.join(file_path, f'{bbox.string}')
                     if not os.path.exists(fname) and '.' not in fname:
                         fname += '.h5'
                         
             elif not os.path.exists(file_path):
                 bbox = task['bbox']
-                fname = f'{file_path}{bbox.to_filename()}{suffix}'
+                fname = f'{file_path}{bbox.string}{suffix}'
             else:
                 fname = file_path
             assert os.path.isfile(fname), f'can not find file: {fname}'
@@ -703,7 +741,7 @@ def load_synapses(tasks, name: str, file_path: str, suffix: str,
                 if remove_outside:
                     bbox = task['bbox']
                     syns.remove_synapses_outside_bounding_box(bbox)
-                logging.info(f'loaded synapses with {syns.pre_num} presynapses and {syns.post_num} post synapses.')
+                print(f'loaded synapses with {syns.pre_num} presynapses and {syns.post_num} post synapses.')
                 if syns.pre_num == 0:
                     syns = None
                 task[output_name] = syns
@@ -711,6 +749,22 @@ def load_synapses(tasks, name: str, file_path: str, suffix: str,
         yield task
 
 
+@main.command('save-points')
+@click.option('--input-name', '-i', type=str, default='point_cloud')
+@click.option('--file-path', '-f',
+    type=click.Path(file_okay=True, dir_okay=True, resolve_path=True),
+    required=True, help='HDF5 file path.')
+@operator
+def save_points(tasks, input_name: str, file_path: str):
+    """Save synapses as HDF5 file."""
+    for task in tasks:
+        if task is not None:
+            points = task[input_name]
+            assert isinstance(points, PointCloud)
+            points.to_h5(file_path)
+        yield task
+
+ 
 @main.command('save-synapses')
 @click.option('--input-name', '-i', type=str, default=DEFAULT_SYNAPSES_NAME)
 @click.option('--file-path', '-f',
@@ -722,18 +776,23 @@ def save_synapses(tasks, input_name: str, file_path: str):
     for task in tasks:
         if task is not None:
             syns = task[input_name]
-            if not file_path.endswith('.h5'):
-                if 'bbox' in task:
-                    bbox = task['bbox']
-                    if os.path.isdir(file_path):
-                        file_path = os.path.join(file_path, bbox.string)
-                    else:
-                        file_path += bbox.string
-                file_path += '.h5'
-            if syns is None:
-                Path(file_path).touch()
+            if file_path.endswith('.json'):
+                data = syns.json_dict
+                with open(file_path, 'w') as file:
+                    json.dump(data, file)
             else:
-                syns.to_h5(file_path)
+                if not file_path.endswith('.h5'):
+                    if 'bbox' in task:
+                        bbox = task['bbox']
+                        if os.path.isdir(file_path):
+                            file_path = os.path.join(file_path, bbox.string)
+                        else:
+                            file_path += bbox.string
+                    file_path += '.h5'
+                if syns is None:
+                    Path(file_path).touch()
+                else:
+                    syns.to_h5(file_path)
         yield task
 
 @main.command('load-npy')
@@ -752,9 +811,9 @@ def read_npy(tasks, name: str, file_path: str, resolution: tuple, output_name: s
             if not file_path.endswith('.npy'):
                 bbox = task['bbox']
                 if os.path.isdir(file_path):
-                    file_path = os.path.join(file_path, f'{bbox.to_filename()}.npy')
+                    file_path = os.path.join(file_path, f'{bbox.string}.npy')
                 else:
-                    file_path = f'{file_path}{bbox.to_filename()}.npy'
+                    file_path = f'{file_path}{bbox.string}.npy'
             assert os.path.exists(file_path)
             if 0 == os.path.getsize(file_path):
                 task[output_name] = None
@@ -781,45 +840,15 @@ def read_json(tasks, name: str, file_path: str, output_name: str):
             if not file_path.endswith('.json'):
                 bbox = task['bbox']
                 if os.path.isdir(file_path):
-                    file_path = os.path.join(file_path, f'{bbox.to_filename()}.json')
+                    file_path = os.path.join(file_path, f'{bbox.string}.json')
                 else:
-                    file_path = f'{file_path}{bbox.to_filename()}.json'
+                    file_path = f'{file_path}{bbox.string}.json'
             assert os.path.exists(file_path)
             with open(file_path, 'r') as file:
                 task[output_name] = json.load(file)
             task['log']['timer'][name] = time() - start
         yield task
 
-
-@main.command('load-nrrd')
-@click.option('--name', type=str, default='load-nrrd',
-              help='read nrrd file from local disk.')
-@click.option('--file-name', '-f', required=True,
-              type=click.Path(exists=True, dir_okay=False),
-              help='read chunk from NRRD file')
-@click.option('--voxel-offset', '-v', type=click.INT, nargs=3, default=None, callback=default_none,
-              help='global offset of this chunk')
-@click.option('--voxel-size', '-s', type=click.INT, nargs=3, default=None, callback=default_none,
-              help='physical size of voxels. The unit is assumed to be nm.')
-@click.option('--dtype', '-d',
-              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
-              help='convert to data type')
-@click.option('--output-chunk-name', '-o', type=str, default='chunk',
-              help='chunk name in the global state')
-@operator
-def read_nrrd(tasks, name: str, file_name: str, voxel_offset: tuple,
-             voxel_size: tuple, dtype: str, output_chunk_name: str):
-    """Read NRRD file."""
-    for task in tasks:
-        if task is not None:
-            start = time()
-            task[output_chunk_name] = Chunk.from_nrrd(
-                file_name,
-                dtype=dtype,
-                voxel_offset=voxel_offset,
-                voxel_size=voxel_size)
-            task['log']['timer'][name] = time() - start
-        yield task
 
 
 @main.command('save-nrrd')
@@ -892,14 +921,14 @@ def load_pngs(tasks: dict, path_prefix: str,
 @click.option('--name', type=str, default='load-tif',
               help='read tif file from local disk.')
 @click.option('--file-name', '-f', required=True,
-              type=click.Path(exists=True, dir_okay=False),
+              type=click.Path(exists=True, dir_okay=True),
               help='read chunk from TIFF file.')
 @click.option('--voxel-offset', '-v', type=click.INT, nargs=3, callback=default_none,
               help='global offset of this chunk')
 @click.option('--voxel-size', '-s', type=click.INT, nargs=3, default=None, callback=default_none,
               help='physical size of voxels. The unit is assumed to be nm.')
 @click.option('--dtype', '-d',
-              type=click.Choice(['uint8', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
+              type=click.Choice(['uint8', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
               help='convert to data type')
 @click.option('--output-chunk-name', '-o', type=str, default='chunk',
               help='chunk name in the global state')
@@ -952,8 +981,12 @@ def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compressi
 @click.option('--dtype', '-e',
               type=click.Choice(['float32', 'float64', 'uint16', 'uint32', 'uint64', 'uint8']),
               default=None, help='transform data type.')
-@click.option('--voxel-offset', '-v', type=click.INT, nargs=3, default=None,
-              callback=default_none, help='voxel offset of the dataset in hdf5 file.')
+@click.option('--layer-type', '-l',
+    type=click.Choice(['image', 'segmentation']), default=None,
+    help='the layer type in neuroglancer for visualization.')
+@click.option('--voxel-offset', '-v', 
+    type=click.INT, nargs=3, default=None, callback=default_none, 
+    help='voxel offset of the dataset in hdf5 file.')
 @click.option('--voxel-size', '-x', type=click.INT, nargs=3, 
     default=None, callback=default_none, 
     help='physical size of voxels. The unit is assumed to be nm.')
@@ -965,35 +998,40 @@ def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compressi
                help='cutout size of the chunk.')
 @click.option('--set-bbox/--no-set-bbox', default=False, 
     help='set up bounding box in the task or not')
+@click.option('--remove-empty/--do-not-remove', default=False, 
+    help='remove empty file or not')
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME,
               help='chunk name in the global state')
 @operator
-def read_h5(tasks, name: str, file_name: str, dataset_path: str,
-            dtype: str, voxel_offset: tuple, voxel_size: tuple, 
-            cutout_start: tuple, cutout_stop: tuple, 
-            cutout_size: tuple, set_bbox: bool,
-            output_chunk_name: str):
+def load_h5(tasks, name: str, file_name: str, dataset_path: str,
+            dtype: str, layer_type: str, voxel_offset: tuple, 
+            voxel_size: tuple, cutout_start: tuple, 
+            cutout_stop: tuple, cutout_size: tuple, set_bbox: bool,
+            remove_empty: bool, output_chunk_name: str):
     """Read HDF5 files."""
     for task in tasks:
         if task is not None:
             start = time()
+            
+            file_name_tmp = file_name
             if 'bbox' in task and cutout_start is None:
                 bbox = task['bbox']
-                logging.info(f'bbox: {bbox}')
+                print(f'bbox: {bbox}')
                 cutout_start_tmp = bbox.minpt
                 cutout_stop_tmp = bbox.maxpt
                 cutout_size_tmp = cutout_stop_tmp - cutout_start_tmp
 
                 if not file_name.endswith('.h5'):
-                    file_name = f'{file_name}{bbox.to_filename()}.h5'
+                    file_name_tmp = f'{file_name}{bbox.string}.h5'
             else:
                 cutout_start_tmp = cutout_start
                 cutout_stop_tmp = cutout_stop
                 cutout_size_tmp = cutout_size
 
+            print(f'loading {file_name_tmp}')
             chunk = Chunk.from_h5(
-                file_name,
+                file_name_tmp,
                 dataset_path=dataset_path,
                 voxel_offset=voxel_offset,
                 voxel_size=voxel_size,
@@ -1002,8 +1040,19 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
                 cutout_stop=cutout_stop_tmp,
                 dtype=dtype,
             )
+            
+            if layer_type is not None:
+                chunk.layer_type = layer_type
+
+            if remove_empty and np.all(chunk==0):
+                print(f'remove {file_name}')
+                os.remove(file_name)
+
+            # if len(chunk.array) == 0:
+            #     breakpoint()
             if chunk is not None and dtype is not None:
                 chunk = chunk.astype(dtype)
+
             task[output_chunk_name] = chunk
             # make a bounding box for others operators to follow
             if set_bbox and chunk is not None:
@@ -1030,19 +1079,24 @@ def read_h5(tasks, name: str, file_name: str, dataset_path: str,
     default=None, type=click.INT, callback=default_none, nargs=3,
     help='voxel size of this chunk.'
 )
+@click.option('--dtype', '-d', default=None, type=str, 
+    help='data type conversion.')
 @click.option('--touch/--no-touch', default=True, 
 help = 'create an empty file if the input is None.'
 )
 @operator
-def save_h5(tasks, input_name, file_name, chunk_size, compression, with_offset, voxel_size, touch):
+def save_h5(tasks, input_name: str, file_name: str, chunk_size: tuple, 
+        compression: str, with_offset: bool, voxel_size: tuple, dtype: str, touch: bool):
     """Save chunk to HDF5 file."""
     for task in tasks:
         if task is not None:
             data = task[input_name]
             if isinstance(data, Chunk):
                 if not file_name.endswith('.h5'):
-                    file_name = f'{file_name}{data.bbox.to_filename()}.h5'
+                    file_name = f'{file_name}{data.bbox.string}.h5'
 
+                if dtype is not None:
+                    data = data.astype(dtype)
                 data.to_h5(
                     file_name, with_offset, 
                     chunk_size=chunk_size, 
@@ -1054,7 +1108,7 @@ def save_h5(tasks, input_name, file_name, chunk_size, compression, with_offset, 
                 if touch:
                     if not file_name.endswith('.h5'):
                         bbox = task['bbox']
-                        file_name = f'{file_name}{bbox.to_filename()}.h5'
+                        file_name = f'{file_name}{bbox.string}.h5'
                     Path(file_name).touch()
             else:
                 raise ValueError(f'unsuported type of input data: {data}')
@@ -1082,28 +1136,6 @@ def save_pngs(tasks, name, input_chunk_name, dtype, output_path):
         yield task
 
 
-@main.command('skeletonize')
-@click.option('--name', '-n', type=str, default='skeletonize',
-              help='create centerlines of objects in a segmentation chunk.')
-@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
-              help='input chunk name.')
-@click.option('--output-name', '-o', type=str, default='skeletons')
-@click.option('--voxel-size', type=click.INT, nargs=3, required=True,
-              help='voxel size of segmentation chunk (zyx order)')
-@click.option('--output-path', type=str, required=True,
-              help='output path with protocols, such as file:///bucket/my/path')
-@operator
-def skeletonize(tasks, name, input_chunk_name, output_name, voxel_size, output_path):
-    """Skeletonize the neurons/objects in a segmentation chunk"""
-    operator = SkeletonizeOperator(output_path, name=name)
-    for task in tasks:
-        if task is not None:
-            seg = task[input_chunk_name]
-            skels = operator(seg, voxel_size)
-            task[output_name] = skels
-        yield task
-
-
 @main.command('delete-task-in-queue')
 @click.option('--name', type=str, default='delete-task-in-queue',
               help='name of this operator')
@@ -1113,12 +1145,12 @@ def delete_task_in_queue(tasks, name):
     for task in tasks:
         if task is not None:
             if state['dry_run']:
-                logging.info('skip deleting task in queue!')
+                print('skip deleting task in queue!')
             else:
                 queue = task['queue']
                 task_handle = task['task_handle']
                 queue.delete(task_handle)
-                logging.info(f'deleted task {task_handle} in queue: {queue.queue_name}')
+                print(f'deleted task {task_handle} in queue: {queue.queue_name}')
         yield task
 
 
@@ -1130,7 +1162,7 @@ def delete_var(tasks, var_names: str):
     """Delete a Chunk in task to release RAM"""
     for task in tasks:
         if task is not None:
-            logging.info(f'delete data: {var_names}')
+            print(f'delete data: {var_names}')
             for var_name in var_names.split(','):
                 del task[var_name]
         yield task
@@ -1144,12 +1176,8 @@ def delete_var(tasks, var_names: str):
 @click.option('--mip', '-m',
               type=click.INT, default=None, help='mip level of the cutout.')
 @click.option('--expand-margin-size', '-e',
-              type=click.INT, nargs=3, default=(0, 0, 0),
+              type=click.INT, nargs=6, default=None,
               help='include surrounding regions of output bounding box.')
-@click.option('--expand-direction', '-d',
-    type=click.Choice(['-1', '1'],), default=None,
-    help="""if it is -1, only expand at -z,-y,-x direction. 
-    if it is None[default], expand at both directions.""")
 @click.option('--chunk-start', '-s',
               type=click.INT, nargs=3, default=None, callback=default_none,
               help='chunk offset in volume.')
@@ -1176,7 +1204,7 @@ def delete_var(tasks, var_names: str):
 @operator
 def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         chunk_start: tuple, chunk_size: tuple,
-        expand_margin_size: tuple, expand_direction: str,
+        expand_margin_size: tuple,
         fill_missing: bool, validate_mip: int, blackout_sections: bool,
         use_https: bool, output_chunk_name: str):
     """Cutout chunk from volume."""
@@ -1184,15 +1212,9 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         mip = state['mip']
     assert mip >= 0
 
-    if expand_direction is not None:
-        # only -1 or 1
-        expand_direction = int(expand_direction)
-    
-    operator = ReadPrecomputedOperator(
+    operator = LoadPrecomputedOperator(
         volume_path,
         mip=mip,
-        expand_margin_size=expand_margin_size,
-        expand_direction=expand_direction,
         fill_missing=fill_missing,
         validate_mip=validate_mip,
         blackout_sections=blackout_sections,
@@ -1218,6 +1240,9 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
                     chunk_size = Vec(*chunk_size)
                 bbox = BoundingBox.from_delta(chunk_start, chunk_size)
 
+            if expand_margin_size is not None:
+                bbox = bbox.adjust(expand_margin_size)
+
             start = time()
             # assert output_chunk_name not in task
             task[output_chunk_name] = operator(bbox)
@@ -1226,27 +1251,103 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         yield task
 
 
-@main.command('remap-segmentation')
-@click.option('--input-chunk-name', '-i',
-    type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name.')
-@click.option('--output-chunk-name', '-o',
-    type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name.')
+@main.command('load-zarr')
+@click.option('--store', '-f', type=str, required=True,
+    help='Zarr store path')
+@click.option('--path', '-p', type=str, default = None,
+    help = 'Zarr path in the store')
+@click.option('--chunk-start', '-s', type=click.INT, nargs=3, default=None,
+    help='voxel offset or start')
+@click.option('--chunk-size', '-z', type=click.INT, nargs=3, default=None,
+    help='chunk size')
+@click.option('--voxel-size', '-v', type=click.FLOAT, nargs=3, default=None)
+@click.option('--backend', '-b', type=str, default='NestedDirectoryStore',
+    help='the storage backend.')
+@click.option('--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
+    help='output chunk name.')
 @operator
-def remap_segmentation(tasks, input_chunk_name, output_chunk_name):
-    """Renumber a serials of chunks."""
-    # state['remap_start_id'] = 0
-    start_id = 0
+def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tuple, 
+        chunk_size: tuple, backend: str, output_chunk_name: str):
+    """Load Zarr arrays."""
+    if backend == 'NestedDirectoryStore':
+        store = zarr.NestedDirectoryStore(store)
+    z = zarr.open(store, mode='r', path=path)
+    attrs = z.attrs.asdict()
+    
+    # Note that this is the physical
+    if 'offset' in attrs:
+        physical_volume_offset = Cartesian.from_collection(attrs['offset'])
+        volume_offset = physical_volume_offset / voxel_size
+    elif 'voxel_offset' in attrs:
+        volume_offset = Cartesian.from_collection(attrs['voxel_offset'])
+    else:
+        print('no voxel offset, set default value: 0x0x0')
+        volume_offset = Cartesian(0, 0, 0)
+
+    if voxel_size is None:
+        if 'resolution' in attrs:
+            voxel_size = Cartesian.from_collection(attrs['resolution'])
+        elif 'voxel_size' in attrs:
+            voxel_size = Cartesian.from_collection(attrs['voxel_size'])
+        else:
+            print('no voxel size, set default value: 1x1x1')
+            voxel_size = Cartesian(1, 1, 1)
+            # raise ValueError(f'no voxel size attribute!')
     for task in tasks:
         if task is not None:
-            seg = task[input_chunk_name]
-            assert seg.is_segmentation
-            if not isinstance(seg, Segmentation):
-                seg = Segmentation.from_chunk(seg)
+            if chunk_size is None and chunk_start is None and 'bbox' not in task:
+                arr = z[:]
+                voxel_offset = volume_offset
+            else:
+                if chunk_start is not None and chunk_size is not None:
+                    bbox = BoundingBox.from_delta(chunk_start, chunk_size)
+                elif 'bbox' in task:
+                    bbox = task['bbox']
+                    chunk_start = bbox.start
+                    chunk_size = bbox.shape
+                else:
+                    raise ValueError(f'bounding box not defined.')
 
-            seg, start_id = seg.remap(start_id)
-            task[output_chunk_name] = seg
+                arr_start = bbox.start - volume_offset
+                arr_bbox = BoundingBox.from_delta(arr_start, bbox.shape)
+                arr = z[arr_bbox.slices]
+                voxel_offset = chunk_start
+            chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size) 
+            task[output_chunk_name] = chunk
         yield task
 
+
+@main.command('save-zarr')
+@click.option('--store', '-s', type=str, required=True,
+    help = 'Zarr store path')
+@click.option('--shape', '-s', type=click.INT, nargs=3,
+    default=None, callback=default_none,
+    help='shape of the whole volume.')
+@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
+    help='input chunk name.')
+@operator
+def save_zarr(tasks, store: str, shape: tuple, input_chunk_name: str):
+    """Load Zarr arrays."""
+    
+    if os.path.exists(store):
+        zarr_store = zarr.open(store, mode='w')
+    else:
+        assert shape is not None
+        zarr_store = zarr.open(store, mode='w', shape=shape,)
+    for task in tasks:
+        if task is not None:
+            chunk = task[input_chunk_name]
+            if not os.path.exists(store):
+                # create it and store the whole array here.
+                za[:] = chunk.array
+            else:
+                if chunk.ndim == 4: 
+                    za[(slice(None),) + chunk.slices] = chunk.array
+                elif chunk.ndim == 3:
+                    za[chunk.slices] = chunk.array
+                else:
+                    raise ValueError(f'only support 3D and 4D array for now, but get {chunk.ndim}')
+        yield task
 
 @main.command('evaluate-segmentation')
 @click.option("--segmentation-chunk-name",
@@ -1273,6 +1374,36 @@ def evaluate_segmenation(tasks, segmentation_chunk_name,
             task[output] = seg.evaluate(groundtruth)
         yield task
 
+
+@main.command('downsample')
+@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
+    help = 'input chunk name')
+@click.option('--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
+    help='output chunk name')
+@click.option('--factor', '-f', type=click.INT, nargs=3, default=(2,2,2),
+    help='downsample factor in zyx. The default is 2x2x2.')
+@operator
+def downsample(tasks, input_chunk_name: str, output_chunk_name: str, factor: tuple):
+    for task in tasks:
+        if task is not None:
+            chunk = task[input_chunk_name]
+            if chunk.is_image:
+                arr = tinybrain.downsample_with_averaging(chunk.array, factor)[0]
+            elif chunk.is_segmentation:
+                arr = tinybrain.downsample_segmentation(chunk.array, factor)[0]
+            else:
+                raise TypeError(f'only support image or segmentation, but got: {chunk.dtype}')
+                
+            factor = Cartesian.from_collection(factor)
+            voxel_offset = chunk.voxel_offset // factor
+            voxel_size = chunk.voxel_size * factor
+
+            output_chunk = Chunk(arr, 
+                voxel_offset=voxel_offset,
+                voxel_size=voxel_size,
+                layer_type=chunk.layer_type)
+            task[output_chunk_name] = output_chunk
+        yield task
 
 @main.command('downsample-upload')
 @click.option('--name',
@@ -1371,15 +1502,13 @@ def normalize_intensity(tasks, name, input_chunk_name, output_chunk_name):
         yield task
 
 
-@main.command('normalize-contrast-nkem')
+@main.command('normalize-contrast')
 @click.option('--name', type=str, default='normalize-contrast-nkem',
               help='name of operator.')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME, help='output chunk name')
-@click.option('--levels-path', '-p', type=str, required=True,
-              help='the path of section histograms.')
 @click.option('--lower-clip-fraction', '-l', type=click.FLOAT, default=0.01, 
               help='lower intensity fraction to clip out.')
 @click.option('--upper-clip-fraction', '-u', type=click.FLOAT, default=0.01, 
@@ -1388,22 +1517,28 @@ def normalize_intensity(tasks, name, input_chunk_name, output_chunk_name):
               help='the minimum intensity of transformed chunk.')
 @click.option('--maxval', type=click.INT, default=255,
               help='the maximum intensity of transformed chunk.')
+@click.option('--per-section/--whole', default=True, 
+help='per section normalization or normalize the whole chunk.')
 @operator
-def normalize_contrast_nkem(tasks, name, input_chunk_name, output_chunk_name, 
-                                levels_path, lower_clip_fraction,
-                                upper_clip_fraction, minval, maxval):
+def normalize_contrast(tasks, 
+        name: str, input_chunk_name: str, output_chunk_name: str, 
+        lower_clip_fraction: float, upper_clip_fraction: float, 
+        minval: int, maxval: int, per_section: bool):
     """Normalize the section contrast using precomputed histograms."""
     
-    operator = NormalizeSectionContrastOperator(
-        levels_path,
-        lower_clip_fraction=lower_clip_fraction,
-        upper_clip_fraction=upper_clip_fraction,
-        minval=minval, maxval=maxval, name=name)
-
     for task in tasks:
         if task is not None:
             start = time()
-            task[output_chunk_name] = operator(task[input_chunk_name])
+            chunk = task[input_chunk_name]
+            chunk = chunk.clone()
+            chunk = Image.from_chunk(chunk)
+            chunk.normalize_contrast(
+                lower_clip_fraction=lower_clip_fraction,
+                upper_clip_fraction=upper_clip_fraction,
+                minval=minval,
+                maxval=maxval,
+                per_section=per_section) 
+            task[output_chunk_name] = chunk
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -1436,16 +1571,12 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
     The transformed chunk has floating point values.
     """
 
-    operator = NormalizeSectionShangOperator(
-        nominalmin=nominalmin,
-        nominalmax=nominalmax,
-        clipvalues=clipvalues,
-        name=name)
-
     for task in tasks:
         if task is not None:
             start = time()
-            task[output_chunk_name] = operator(task[input_chunk_name])
+            chunk = task[input_chunk_name]
+            chunk = chunk.normalize_section_shang(nominalmin, nominalmax, clipvalues)
+            task[output_chunk_name] = chunk
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -1478,7 +1609,12 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
             start = time()
             if input_names is not None:
                 input_name_list = input_names.split(',')
-                inputs = [task[i] for i in input_name_list]
+                inputs = []
+                for input_name in input_name_list:
+                    if input_name == 'None':
+                        inputs.append(None)
+                    else:
+                        inputs.append(task[input_name])
             else:
                 inputs = []
             outputs = operator(inputs, args=args)
@@ -1562,6 +1698,8 @@ def copy_var(tasks, from_name: str, to_name: str, deep_copy: bool):
               default=None, callback=default_none, help='margin size of output chunk cropping.')
 @click.option('--patch-num', '-n', default=None, callback=default_none,
               type=click.INT, nargs=3, help='patch number in z,y,x.')
+@click.option('--num-input-channels', 
+              type=click.INT, default=1, help='number of input channels')
 @click.option('--num-output-channels', '-c',
               type=click.INT, default=3, help='number of output channels')
 @click.option('--dtype', '-d', type=click.Choice(['float32', 'float16']),
@@ -1579,21 +1717,27 @@ def copy_var(tasks, from_name: str, to_name: str, deep_copy: bool):
               + 'This will also work with non-aligned chunk size.')
 @click.option('--mask-myelin-threshold', '-y', default=None, type=click.FLOAT,
               help='mask myelin if netoutput have myelin channel.')
+@click.option('--augment/--no-augment',
+    default=True, help='transform the input patch and transform back the output patch')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--output-chunk-name', '-o',
               type=str, default='chunk', help='output chunk name')
 @operator
-def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
-              output_patch_size, output_patch_overlap, output_crop_margin, patch_num,
-              num_output_channels, dtype, framework, batch_size, bump, mask_output_chunk,
-              mask_myelin_threshold, input_chunk_name, output_chunk_name):
+def inference(
+    tasks, name: str, convnet_model: str, convnet_weight_path: str,
+    input_patch_size: tuple, output_patch_size: tuple, output_patch_overlap: tuple, output_crop_margin: tuple, patch_num: int, num_input_channels: int,
+    num_output_channels: int, dtype: str, framework: str, batch_size: int, 
+    bump: str, mask_output_chunk: bool,
+              mask_myelin_threshold: float, augment: bool,
+              input_chunk_name, output_chunk_name):
     """Perform convolutional network inference for chunks."""
     with Inferencer(
         convnet_model,
         convnet_weight_path,
         input_patch_size=input_patch_size,
         output_patch_size=output_patch_size,
+        num_input_channels=num_input_channels,
         num_output_channels=num_output_channels,
         output_patch_overlap=output_patch_overlap,
         output_crop_margin=output_crop_margin,
@@ -1602,6 +1746,7 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
         dtype=dtype,
         batch_size=batch_size,
         bump=bump,
+        augment=augment,
         mask_output_chunk=mask_output_chunk,
         mask_myelin_threshold=mask_myelin_threshold,
         dry_run=state['dry_run']) as inferencer:
@@ -1628,15 +1773,16 @@ def inference(tasks, name, convnet_model, convnet_weight_path, input_patch_size,
 @operator
 def multiply(tasks, input_names: str, output_names: str, multiplier_name: str):
     """Multiply chunks with another chunk"""
+    input_names = input_names.split(',')
     if output_names is None:
         output_names = input_names
+    else:
+        output_names = output_names.split(',')
+        assert len(input_names)==len(output_names), \
+            'the number of input and output chunks should be the same'
 
     for task in tasks:
         if task is not None:
-            input_names = input_names.split(',')
-            output_names = output_names.split(',')
-            assert len(input_names)==len(output_names), \
-                'the number of input and output chunks should be the same'
             for input_name, output_name in zip(input_names, output_names):
                 task[output_name] = task[input_name] * task[multiplier_name]
         
@@ -1704,7 +1850,7 @@ def mask(tasks, name, input_names: str, output_names: str, volume_path: str,
 @click.option('--dust-size-threshold', '-d', type=click.INT, default=None,
               help='eliminate small objects with voxel number less than threshold.')
 @click.option('--selected-obj-ids', '-s', type=str, default=None,
-               help="""a list of segment ids to mesh. This is for sparse meshing. 
+               help="""a list of segment ids to keep. This is for sparse meshing. 
                The ids should be separated by comma without space, such as "34,56,78,90"
                it can also be a json file contains a list of ids. The json file path should
                contain protocols, such as "gs://bucket/my/json/file/path.""")
@@ -1718,7 +1864,7 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
         ids_str = json_storage.get_file(os.path.basename(selected_obj_ids))
         selected_obj_ids = set(json.loads(ids_str))
         assert len(selected_obj_ids) > 0
-        logging.info(f'number of selected objects: {len(selected_obj_ids)}')
+        print(f'number of selected objects: {len(selected_obj_ids)}')
 
     for task in tasks:
         if task is not None:
@@ -1740,10 +1886,10 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
 @click.option('--name', type=str, default='crop-margin',
     help='name of this operator')
 @click.option('--margin-size', '-m',
-    type=click.INT, nargs=3, default=None, callback=default_none,
+    type=click.INT, nargs=6, default=None, callback=default_none,
     help='crop the chunk margin. ' +
             'The default is None and will use the bbox as croping range.')
-@click.option('--crop-bbox/--no-crop-bbox', default=True,
+@click.option('--crop-bbox/--no-crop-bbox', default=False,
     help='adjust the bounding box or not.')
 @click.option('--input-chunk-name', '-i',
     type=str, default='chunk', help='input chunk name.')
@@ -1763,11 +1909,11 @@ def crop_margin(tasks, name: str, margin_size: tuple, crop_bbox: bool,
                 if crop_bbox and 'bbox' in task:
                     bbox = task['bbox']
                     assert isinstance(bbox, BoundingBox)
-                    bbox.adjust(-Cartesian.from_collection(margin_size))
+                    bbox = bbox.adjust(-Cartesian.from_collection(margin_size))
             else:
                 # use the output bbox for croping 
                 task[output_chunk_name] = task[
-                    input_chunk_name].cutout(task['bbox'].to_slices())
+                    input_chunk_name].cutout(task['bbox'].slices)
             task['log']['timer'][name] = time() - start
         yield task
 
@@ -1883,7 +2029,7 @@ def download_mesh(tasks, volume_path: str, input: str, start_rank: int,
                     input = file.read()
             ids = input.replace(' ', '')
             ids = [int(x) for x in ids.split(',')]
-        logging.info('downloading meshes...')
+        print('downloading meshes...')
         meshes = vol.mesh.get(ids, fuse=False)
         for obj_id, mesh in tqdm(meshes.items(), desc='writing meshes...'):
             fname = f'{out_pre}{obj_id}.{out_format}'
@@ -1895,6 +2041,26 @@ def download_mesh(tasks, volume_path: str, input: str, start_rank: int,
                 raise ValueError('only support ply and obj for now.')
             with open(fname, 'wb') as f:
                 f.write(mesh)
+
+
+@main.command('napari')
+@click.option('--name', type=str, default='napari',
+              help='name of this operator')
+@click.option('--voxel-size', '-v',
+              nargs=3, type=click.INT, default=None, callback=default_none,
+              help='voxel size of chunk')
+@click.option('--inputs', '-i', type=str, default='chunk', 
+              help='a list of chunk names separated by comma.')
+@operator
+def napari(tasks, name, voxel_size, inputs):
+    """Visualize the chunk using neuroglancer."""
+    operator = NapariOperator(
+        name=name, voxel_size=voxel_size)
+    for task in tasks:
+        if task is not None:
+            operator(task, selected=inputs)
+        yield task
+
 
 @main.command('neuroglancer')
 @click.option('--name', type=str, default='neuroglancer',
@@ -1952,10 +2118,17 @@ def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
     default=None, type=click.FLOAT,
     help='do not save anything if all voxel intensity is below threshold.'
 )
+@click.option('--parallel', '-p',
+    default=1, type=click.INT, 
+    help='number of processes. default is 1 and is serial.')
+@click.option('--fill-missing/--no-fill', default=False,
+    help='save blocks with all zeros or not. Default is not.')
 @operator
 def save_precomputed(tasks, name: str, volume_path: str, 
         input_chunk_name: str, mip: int, upload_log: bool, 
-        create_thumbnail: bool, intensity_threshold: float):
+        create_thumbnail: bool, intensity_threshold: float,
+        parallel: int,
+        fill_missing: bool):
     """Save chunk to volume."""
     if mip is None:
         mip = state['mip']
@@ -1965,7 +2138,9 @@ def save_precomputed(tasks, name: str, volume_path: str,
         mip,
         upload_log=upload_log,
         create_thumbnail=create_thumbnail,
-        name=name
+        name=name,
+        parallel=parallel,
+        fill_missing=fill_missing,
     )
 
     for task in tasks:
@@ -1973,6 +2148,7 @@ def save_precomputed(tasks, name: str, volume_path: str,
             # the time elapsed was recorded internally
             chunk = task[input_chunk_name]
             if intensity_threshold is not None and np.all(chunk.array < intensity_threshold):
+                print(f'average intensity lower than threshold, skip this task.')
                 pass
             else:
                 operator(chunk, log=task.get('log', {'timer': {}}))
@@ -1999,18 +2175,17 @@ def threshold(tasks, name, input_chunk_name, output_chunk_name,
     for task in tasks:
         if task is not None:
             start = time()
-            logging.info('Segment probability map using a threshold...')
+            print('Segment probability map using a threshold...')
             task[output_chunk_name] = task[input_chunk_name].threshold(threshold)
             task['log']['timer'][name] = time() - start
         yield task
 
 
 @main.command('channel-voting')
-@click.option('--name', type=str, default='channel-voting', help='name of operator')
-@click.option('--input-chunk-name', type=str, default=DEFAULT_CHUNK_NAME)
-@click.option('--output-chunk-name', type=str, default=DEFAULT_CHUNK_NAME)
+@click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME)
+@click.option('--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME)
 @operator
-def channel_voting(tasks, name, input_chunk_name, output_chunk_name):
+def channel_voting(tasks, input_chunk_name, output_chunk_name):
     """all channels vote to get a uint8 volume. The channel with max intensity wins."""
     for task in tasks:
         task[output_chunk_name] = task[input_chunk_name].channel_voting() 

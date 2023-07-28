@@ -4,7 +4,7 @@ import numpy as np
 
 from cloudvolume.lib import generate_random_string
 from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
-from chunkflow.volume import Volume
+from chunkflow.volume import PrecomputedVolume
 
 
 def test_volume():
@@ -19,7 +19,7 @@ def test_volume():
     volume_path = 'file:///tmp/test/volume/' + \
         generate_random_string()
     
-    vol = Volume.from_numpy(
+    vol = PrecomputedVolume.from_numpy(
         img,
         volume_path
     )

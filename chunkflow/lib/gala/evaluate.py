@@ -5,7 +5,7 @@ import multiprocessing
 import itertools as it
 import collections as coll
 from functools import partial
-import logging
+
 import h5py
 import scipy.ndimage as nd
 import scipy.sparse as sparse
@@ -619,48 +619,6 @@ def special_points_evaluate(eval_fct, coords, flatten=True, coord_format=True):
         sy = y.ravel()[coords2]
         return eval_fct(sx, sy, *args, **kwargs)
     return special_eval_fct
-
-
-def make_synaptic_functions(fn, fcts):
-    """Make evaluation functions that only evaluate at synaptic sites.
-
-    Parameters
-    ----------
-    fn : string
-        Filename containing synapse coordinates, in Raveler format. [1]
-    fcts : function, or iterable of functions
-        Functions to be converted to synaptic evaluation.
-
-    Returns
-    -------
-    syn_fcts : function or iterable of functions
-        Evaluation functions that will evaluate only at synaptic sites.
-
-    Raises
-    ------
-    ImportError : if the `syngeo` package [2, 3] is not installed.
-
-    References
-    ----------
-    [1] https://wiki.janelia.org/wiki/display/flyem/synapse+annotation+file+format
-    [2] https://github.com/janelia-flyem/synapse-geometry
-    [3] https://github.com/jni/synapse-geometry
-    """
-    from syngeo import io as synio
-    synapse_coords = \
-        synio.raveler_synapse_annotations_to_coords(fn, 'arrays')
-    synapse_coords = np.array(list(it.chain(*synapse_coords)))
-    make_function = partial(special_points_evaluate, coords=synapse_coords)
-    if not isinstance(fcts, coll.Iterable):
-        return make_function(fcts)
-    else:
-        return list(map(make_function, fcts))
-
-
-def make_synaptic_vi(fn):
-    """Shortcut for `make_synaptic_functions(fn, split_vi)`."""
-    return make_synaptic_functions(fn, split_vi)
-
 
 def vi(x, y=None, weights=np.ones(2), ignore_x=[0], ignore_y=[0]):
     """Return the variation of information metric. [1]
@@ -1374,15 +1332,15 @@ def reduce_vi(fn_pattern='testing/%i/flat-single-channel-tr%i-%i-%.2f.lzf.h5',
             try:
                 f = h5py.File(current_fn, 'r')
             except IOError:
-                logging.warning('IOError: could not open file %s' % current_fn)
+                print('IOError: could not open file %s' % current_fn)
             else:
                 try:
                     current_vi = np.array(f['vi'])[:, 0]
                 except IOError:
-                    logging.warning('IOError: could not open file %s'
+                    print('IOError: could not open file %s'
                         % current_fn)
                 except KeyError:
-                    logging.warning('KeyError: could not find vi in file %s'
+                    print('KeyError: could not find vi in file %s'
                         % current_fn)
                 finally:
                     f.close()

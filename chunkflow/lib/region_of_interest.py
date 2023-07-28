@@ -67,7 +67,7 @@ class RegionOfInterest(BoundingBox):
             self.maxpt, self.voxel_size, voxel_size
         ))
         bbox = BoundingBox(minpt, maxpt)
-        return bbox.to_slices()
+        return bbox.slices
 
 
 class ROITree:

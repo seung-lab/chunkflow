@@ -3,7 +3,7 @@ __doc__ = """
 ConvNet Inference of an image chunk
 """
 import os
-import logging
+
 import time
 from warnings import warn
 from typing import Union
@@ -15,7 +15,7 @@ from chunkflow.lib.cartesian_coordinate import Cartesian, to_cartesian
 
 from .patch.base import PatchInferencerBase
 from chunkflow.chunk import Chunk
-# from chunkflow.chunk.affinity_map import AffinityMap
+from .transform import TransformSequences
 
 
 class Inferencer(object):
@@ -34,23 +34,24 @@ class Inferencer(object):
     large chunk size.
     """
     def __init__(self,
-                 convnet_model: Union[str, PatchInferencerBase],
-                 convnet_weight_path: str,
-                 input_patch_size: Union[tuple, list, Cartesian],
-                 output_patch_size: Union[tuple, list, Cartesian] = None,
-                 patch_num: Union[tuple, list, Cartesian] = None,
-                 num_output_channels: int = 3,
-                 output_patch_overlap: Union[tuple, list, Cartesian] = None,
-                 output_crop_margin: Union[tuple, list, Cartesian] = None,
-                 dtype = 'float32',
-                 framework: str = 'universal',
-                 batch_size: int = 1,
-                 bump: str = 'wu',
-                 input_size: Union[tuple, list, Cartesian] = None,
-                 mask_output_chunk: bool = True,
-                 mask_myelin_threshold = None,
-                 test_time_augmentation: bool = False,
-                 dry_run: bool = False):
+            convnet_model: Union[str, PatchInferencerBase],
+            convnet_weight_path: str,
+            input_patch_size: Union[tuple, list, Cartesian],
+            output_patch_size: Union[tuple, list, Cartesian] = None,
+            patch_num: Union[tuple, list, Cartesian] = None,
+            num_input_channels: int = 1,
+            num_output_channels: int = 3,
+            output_patch_overlap: Union[tuple, list, Cartesian] = None,
+            output_crop_margin: Union[tuple, list, Cartesian] = None,
+            dtype = 'float32',
+            framework: str = 'universal',
+            batch_size: int = 1,
+            bump: str = 'wu',
+            input_size: Union[tuple, list, Cartesian] = None,
+            mask_output_chunk: bool = True,
+            mask_myelin_threshold = None,
+            augment: bool = False,
+            dry_run: bool = False):
         """convnet inference patch by patch in a chunk
 
         Args:
@@ -73,11 +74,6 @@ class Inferencer(object):
             dry_run (bool, optional): only compute parameters and setup, do not perform any real computation. Defaults to False.
         """
         assert input_size is None or patch_num is None 
-         
-        if logging.getLogger().getEffectiveLevel() <= 30:
-            self.verbose = True
-        else:
-            self.verbose = False
 
         input_patch_size = to_cartesian(input_patch_size)
         patch_num = to_cartesian(patch_num)
@@ -145,7 +141,8 @@ class Inferencer(object):
             # we can handle arbitrary input and output size
             self.input_size = None 
             self.output_size = None
-
+        
+        self.num_input_channels = num_input_channels
         self.num_output_channels = num_output_channels
         self.mask_output_chunk = mask_output_chunk
         self.output_chunk_mask = None
@@ -154,8 +151,11 @@ class Inferencer(object):
         self.dry_run = dry_run
         
         # allocate a buffer to avoid redundant memory allocation
-        self.input_patch_buffer = np.zeros((batch_size, 1, *input_patch_size),
-                                           dtype=dtype)
+        self.input_patch_buffer = np.zeros(
+            (batch_size, self.num_input_channels, *input_patch_size), dtype=dtype)
+        # self.output_patch_buffer = np.zeros(
+        #     (batch_size, num_output_channels, *output_patch_size), 
+        #     dtype=dtype)
 
         self.patch_slices_list = []
         
@@ -165,7 +165,10 @@ class Inferencer(object):
             convnet_weight_path = os.path.expanduser(convnet_weight_path)
         self._prepare_patch_inferencer(framework, convnet_model, convnet_weight_path, bump)
 
-        self.test_time_augmentation = test_time_augmentation
+        if augment:
+            self.transform_sequences = TransformSequences()
+        else:
+            self.transform_sequences = None
    
     @property
     def compute_device(self):
@@ -183,7 +186,7 @@ class Inferencer(object):
         patch offset list and output chunk mask. Otherwise, recompute them.
         """
         if np.array_equal(self.input_size, input_chunk.shape):
-            logging.info('reusing output chunk mask.')
+            print('reusing output chunk mask.')
             assert self.patch_slices_list is not None
         else:
             if self.input_size is not None:
@@ -195,7 +198,8 @@ class Inferencer(object):
 
             self.output_size = tuple(
                 isz-2*ocso for isz, ocso in 
-                zip(self.input_size, self.output_offset))
+                zip(self.input_size[-3:], self.output_offset))
+            self.output_size = (self.num_output_channels,) + self.output_size
         
         self.output_patch_stride = tuple(s-o for s, o in zip(
             self.output_patch_size, self.output_patch_overlap))
@@ -250,7 +254,7 @@ class Inferencer(object):
         # the patches should aligned with input size in case
         # we will not mask the output chunk
         assert np.all(is_align)
-        logging.info('great! patches aligns in chunk.')
+        print('great! patches aligns in chunk.')
 
     def _construct_patch_slices_list(self, input_chunk_offset):
         """
@@ -264,38 +268,38 @@ class Inferencer(object):
         input_patch_overlap = self.input_patch_overlap 
         input_patch_stride = self.input_patch_stride 
 
-        logging.info('Construct patch slices list...')
-        for iz in range(0, self.input_size[0] - input_patch_overlap[0], input_patch_stride[0]):
-            if iz + input_patch_size[0] > self.input_size[0]:
-                iz = self.input_size[0] - input_patch_size[0]
+        print('Construct patch slices list...')
+        for iz in range(0, self.input_size[-3] - input_patch_overlap[-3], input_patch_stride[-3]):
+            if iz + input_patch_size[-3] > self.input_size[-3]:
+                iz = self.input_size[-3] - input_patch_size[-3]
                 assert iz >= 0
             iz += input_chunk_offset[-3]
             oz = iz + self.output_patch_crop_margin[0]
-            for iy in range(0, self.input_size[1] - input_patch_overlap[1], input_patch_stride[1]):
-                if iy + input_patch_size[1] > self.input_size[1]:
-                    iy = self.input_size[1] - input_patch_size[1]
+            for iy in range(0, self.input_size[-2] - input_patch_overlap[-2], input_patch_stride[-2]):
+                if iy + input_patch_size[-2] > self.input_size[-2]:
+                    iy = self.input_size[-2] - input_patch_size[-2]
                     assert iy >= 0
                 iy += input_chunk_offset[-2]
-                oy = iy + self.output_patch_crop_margin[1]
-                for ix in range(0, self.input_size[2] - input_patch_overlap[2], input_patch_stride[2]):
-                    if ix + input_patch_size[2] > self.input_size[2]:
-                        ix = self.input_size[2] - input_patch_size[2]
+                oy = iy + self.output_patch_crop_margin[-2]
+                for ix in range(0, self.input_size[-1] - input_patch_overlap[-1], input_patch_stride[-1]):
+                    if ix + input_patch_size[-1] > self.input_size[-1]:
+                        ix = self.input_size[-1] - input_patch_size[-1]
                         assert ix >= 0
                     ix += input_chunk_offset[-1]
                     ox = ix + self.output_patch_crop_margin[2]
-                    input_patch_slice =  (slice(iz, iz + input_patch_size[0]),
-                                          slice(iy, iy + input_patch_size[1]),
-                                          slice(ix, ix + input_patch_size[2]))
-                    output_patch_slice = (slice(oz, oz + output_patch_size[0]),
-                                          slice(oy, oy + output_patch_size[1]),
-                                          slice(ox, ox + output_patch_size[2]))
+                    input_patch_slice =  (slice(iz, iz + input_patch_size[-3]),
+                                          slice(iy, iy + input_patch_size[-2]),
+                                          slice(ix, ix + input_patch_size[-1]))
+                    output_patch_slice = (slice(oz, oz + output_patch_size[-3]),
+                                          slice(oy, oy + output_patch_size[-2]),
+                                          slice(ox, ox + output_patch_size[-1]))
                     self.patch_slices_list.append((input_patch_slice, output_patch_slice))
 
     def _construct_output_chunk_mask(self, input_chunk):
         if not self.mask_output_chunk:
             return
 
-        logging.info('creating output chunk mask...')
+        print('creating output chunk mask...')
         
         if self.output_chunk_mask is None or not np.array_equal(
                 input_chunk.shape, self.output_chunk_mask.shape):
@@ -306,7 +310,7 @@ class Inferencer(object):
             #output_mask_array = np.memmap(output_mask_mmap_file, 
             #                                   dtype=self.dtype, mode='w+', 
             #                                   shape=self.output_size)
-            output_mask_array = np.zeros(self.output_size, self.dtype)
+            output_mask_array = np.zeros(self.output_size[-3:], self.dtype)
         else:
             output_mask_array = self.output_chunk_mask.array
             output_mask_array.fill(0)
@@ -333,7 +337,8 @@ class Inferencer(object):
         self.output_chunk_mask.array = 1.0 / self.output_chunk_mask.array
     
     def _get_output_buffer(self, input_chunk: Chunk):
-        output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
+        # output_buffer_size = (self.patch_inferencer.num_output_channels, ) + self.output_size
+        output_buffer_size = self.output_size
         #if self.mask_myelin_threshold is None:
         # a random temporal file. will be removed later.
         #output_buffer_mmap_file = mktemp(suffix='.dat')
@@ -369,7 +374,7 @@ class Inferencer(object):
             self._check_alignment()
          
         if self.dry_run:
-            logging.info('dry run, return a special artifical chunk.')
+            print('dry run, return a special artifical chunk.')
             size=output_buffer.shape
             
             if self.mask_myelin_threshold:
@@ -384,7 +389,7 @@ class Inferencer(object):
             )
        
         if np.all(input_chunk == 0):
-            logging.info('input is all zero, return zero buffer directly')
+            print('input is all zero, return zero buffer directly')
             if self.mask_myelin_threshold:
                 assert output_buffer.shape[0] == 4
                 return output_buffer[:-1, ...]
@@ -408,23 +413,30 @@ class Inferencer(object):
             batch_slices = self.patch_slices_list[i:i + self.batch_size]
             for batch_idx, slices in enumerate(batch_slices):
                 self.input_patch_buffer[
-                    batch_idx, 0, :, :, :] = input_chunk.cutout(slices[0]).array
+                    batch_idx, ...] = input_chunk.cutout(slices[0]).array
 
             end = time.time()
-            logging.debug(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
+            print(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
             start = end
 
             # the input and output patch is a 5d numpy array with
             # datatype of float32, the dimensions are batch/channel/z/y/x.
             # the input image should be normalized to [0,1]
-            if not self.test_time_augmentation:
+            if self.transform_sequences is None:
                 output_patch = self.patch_inferencer(self.input_patch_buffer)
             else:
                 # test time augmentation
-                pass
+                input_patches = self.transform_sequences.forward(self.input_patch_buffer)
+                output_patches = []
+                for input_patch in input_patches:
+                    output_patch = self.patch_inferencer(input_patch)
+                    output_patches.append(output_patch)
+                output_patches = self.transform_sequences.backward(output_patches)
+                # average 
+                output_patch = sum(output_patches) / len(output_patches)
 
             end = time.time()
-            logging.debug(f'run inference for {self.batch_size:d} patch takes {end-start:.3f} sec')
+            print(f'run inference for {self.batch_size:d} patch takes {end-start:.3f} sec')
             start = end
 
             for batch_idx, slices in enumerate(batch_slices):
@@ -446,12 +458,11 @@ class Inferencer(object):
                 #    print('save patch: ', output_chunk.bbox)
                 #    output_chunk.to_tif()
                 #    #input_chunk.cutout(slices[0]).to_tif()
-
                 output_buffer.blend(output_patch_chunk)
 
             end = time.time()
-            logging.debug('blend patch takes {:.3f} sec'.format(end - start))
-            logging.debug("Inference of whole chunk takes {:.3f} sec".format(
+            print('blend patch takes {:.3f} sec'.format(end - start))
+            print("Inference of whole chunk takes {:.3f} sec".format(
                 time.time() - chunk_time_start))
         
         if self.mask_output_chunk:

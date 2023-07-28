@@ -1,4 +1,4 @@
-import logging
+
 import time
 import os
 import json
@@ -22,14 +22,14 @@ class SavePrecomputedOperator(OperatorBase):
                  mip: int,
                  upload_log: bool = True,
                  create_thumbnail: bool = False,
-                intensity_threshold: int = None,
+                 fill_missing: bool = False,
+                 parallel: int = 1,
                  name: str = 'save-precomputed'):
         super().__init__(name=name)
         
         self.upload_log = upload_log
         self.create_thumbnail = create_thumbnail
         self.mip = mip
-        self.intensity_threshold = intensity_threshold
 
         # if not volume_path.startswith('precomputed://'):
         #     volume_path += 'precomputed://'
@@ -38,15 +38,15 @@ class SavePrecomputedOperator(OperatorBase):
         # gevent.monkey.patch_all(thread=False)
         self.volume = CloudVolume(
             self.volume_path,
-            fill_missing=True,
+            fill_missing=fill_missing,
             bounded=False,
             autocrop=True,
             mip=self.mip,
             cache=False,
             green_threads=True,
             delete_black_uploads=True,
+            parallel=parallel,
             progress=True)
-            #parallel=True,
 
         if upload_log:
             log_path = os.path.join(volume_path, 'log')
@@ -60,16 +60,11 @@ class SavePrecomputedOperator(OperatorBase):
         chunk = Chunk(arr, voxel_offset=(0, *bbox.minpt))
         return chunk
 
-    def __call__(self, chunk, log=None):
+    def __call__(self, chunk: Chunk, log=None):
         assert isinstance(chunk, Chunk)
-        logging.info('save chunk.')
+        print(f'save chunk {chunk.bbox.string} to {self.volume_path}')
         
         start = time.time()
-        
-        if self.intensity_threshold is not None and np.all(chunk.array < self.intensity_threshold):
-            print('the voxel intensity in this chunk are all below intensity threshold, return directly without saving anything.')
-            return 
-
         chunk = self._auto_convert_dtype(chunk, self.volume)
         
         # transpose czyx to xyzc order
@@ -107,11 +102,11 @@ class SavePrecomputedOperator(OperatorBase):
             return chunk
 
     def _create_thumbnail(self, chunk):
-        logging.info('creating thumbnail...')
+        print('creating thumbnail...')
 
-        thumbnail_layer_path = os.path.join(self.volume_path, 'thumbnail')
+        thumbnail_volume_path = os.path.join(self.volume_path, 'thumbnail')
         thumbnail_volume = CloudVolume(
-            thumbnail_layer_path,
+            thumbnail_volume_path,
             compress='gzip',
             fill_missing=True,
             bounded=False,
@@ -147,9 +142,9 @@ class SavePrecomputedOperator(OperatorBase):
         assert log
         assert isinstance(output_bbox, BoundingBox)
 
-        logging.info(f'uploaded log: {log}')
+        print(f'uploaded log: {log}')
 
         # write to google cloud storage
-        self.log_storage.put_json(output_bbox.to_filename() +
+        self.log_storage.put_json(output_bbox.string +
                                   '.json',
                                   content=json.dumps(log))

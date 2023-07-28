@@ -49,15 +49,14 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | Operator Name   | Function |
 | --------------- | -------- |
 | adjust-bbox 	  | adjust the corner offset of bounding box |
-| aggregate-skeleton-fragments| Merge skeleton fragments from chunks |
 | channel-voting  | Vote across channels of semantic map |
 | cleanup         | remove empty files to clean up storage |
-| cloud-watch     | Realtime speedometer in AWS CloudWatch |
 | connected-components | Threshold the boundary map to get a segmentation |
 | copy-var        | Copy a variable to a new name |
 | create-chunk    | Create a fake chunk for easy test |
 | create-info     | Create info file of Neuroglancer Precomputed volume |
 | crop-margin     | Crop the margin of a chunk |
+| debug 		  | Add breakpoint to debug the task content |
 | delete-chunk    | Delete chunk in task to reduce RAM requirement |
 | delete-task-in-queue | Delete the task in AWS SQS queue |
 | downsample-upload | Downsample the chunk hierarchically and upload to volume |
@@ -70,6 +69,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | inference       | Convolutional net inference |
 | load-synapses   | Load synapses from a file |
 | save-synapses   | Save synapses as a HDF5 file. |
+| save-points     | Save point cloud as a HDF5 file. |
 | log-summary     | Summary of logs |
 | mark-complete   | mark task completion as an empty file | 
 | mask            | Black out the chunk based on another mask chunk |
@@ -89,11 +89,10 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | load-pngs       | Read png files |
 | load-precomputed| Cutout chunk from a local/cloud storage volume |
 | load-tif        | Read TIFF files |
-| load-nrrd       | Read NRRD files |
-| remap-segmentation | Renumber a serials of segmentation chunks |
+| load-zarr    	  | Read Zarr files |
 | setup-env       | Prepare storage infor files and produce tasks |
-| skeletonize     | Create centerlines of objects in a segmentation chunk |
-| skip-task  	  | If a result file already exists, skip this task |
+| skip-task-by-file | If a result/flag file already exists, skip this task |
+| skip-task-by-blocks-in-volume	| If all the blocks already exists in volume, skip this task |
 | skip-all-zero   | If a chunk has all zero, skip this task |	
 | skip-none       | If an item in task is None, skip this task |	
 | threshold       | Use a threshold to segment the probability map |
@@ -102,7 +101,6 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | save-pngs      | Save chunk as a serials of png files |
 | save-precomputed| Save chunk to local/cloud storage volume |
 | save-tif       | Save chunk as TIFF file |
-| save-nrrd      | Save chunk as NRRD file |
 
 ## Affiliation
 This package is developed at Princeton University and Flatiron Institute.

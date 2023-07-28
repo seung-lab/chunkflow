@@ -1,4 +1,4 @@
-import logging
+
 from cloudvolume import CloudVolume
 import tinybrain
 import numpy as np
@@ -24,6 +24,7 @@ class DownsampleUploadOperator(OperatorBase):
                  start_mip: int = None,
                  stop_mip: int = 5,
                  fill_missing: bool = True,
+                 verbose=False,
                  name='downsample-upload'):
         """
         volume_path: (str) path of volume
@@ -38,7 +39,6 @@ class DownsampleUploadOperator(OperatorBase):
         if start_mip is None:
             start_mip = chunk_mip + 1
 
-        verbose = (logging.getLogger().getEffectiveLevel() <= 30)
         vols = dict()
         for mip in range(start_mip, stop_mip):
             vols[mip] = CloudVolume(volume_path,
@@ -61,14 +61,14 @@ class DownsampleUploadOperator(OperatorBase):
         assert start_mip > chunk_mip
 
     def __call__(self, chunk):
-        assert 3 == chunk.ndim 
         voxel_offset = chunk.voxel_offset
 
         num_mips = self.stop_mip - self.chunk_mip
         # tinybrain use F order and require 4D array!
         chunk2 = np.transpose(chunk)
         # chunk2 = np.reshape(chunk2, (*chunk2.shape, 1))
-        chunk2 = np.expand_dims(chunk2, 3)
+        if chunk2.ndim == 3:
+            chunk2 = np.expand_dims(chunk2, 3)
 
         if np.issubdtype(chunk.dtype, np.floating) or chunk.dtype == np.uint8:
             pyramid = tinybrain.downsample_with_averaging(chunk2,

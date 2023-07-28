@@ -1,4 +1,3 @@
-import logging
 import numpy as np
 
 from skimage.feature import match_template
@@ -19,10 +18,10 @@ def validate_by_template_matching(img: np.ndarray):
     img:
         3D image volume.
     """
-    logging.info("validation by template matching...")
+    print("validation by template matching...")
 
     if np.issubdtype(img.dtype, np.floating):
-        logging.warning(
+        print(
             'do not support image with floating data type, will skip the validation.'
         )
         return True

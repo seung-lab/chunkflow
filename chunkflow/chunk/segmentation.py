@@ -1,33 +1,25 @@
 __doc__ = """Image chunk class"""
 import os
 import json
-
-import logging
-import multiprocessing
 from typing import Union
 
 import numpy as np
-from .base import Chunk
-
-# from ...lib.gala import evaluate
-from chunkflow.lib.gala import evaluate
-from chunkflow.lib.cartesian_coordinate import Cartesian
-
-import kimimaro
 import fastremap
 
 from cloudfiles import CloudFiles
+
+# from ...lib.gala import evaluate
+from .base import Chunk
+from chunkflow.lib.gala import evaluate
+from chunkflow.lib.cartesian_coordinate import Cartesian
 
 
 class Segmentation(Chunk):
     """
     a chunk of segmentation volume.
     """
-    def __init__(self, array: np.ndarray, 
-            voxel_offset: Cartesian=None, 
-            voxel_size:Cartesian=None):
-        super().__init__(array, voxel_offset=voxel_offset, 
-            voxel_size=voxel_size)
+    def __init__(self, array: np.ndarray, **kwargs ):
+        super().__init__(array, **kwargs)
         assert array.ndim == 3
         assert np.issubdtype(array.dtype, np.integer)
 
@@ -60,11 +52,11 @@ class Segmentation(Chunk):
         variation_of_information = evaluate.vi(this.array, groundtruth)
         fowlkes_mallows_index = evaluate.fm_index(this.array, groundtruth)
         edit_distance = evaluate.edit_distance(this.array, groundtruth, size_threshold=size_threshold)
-        print('rand index: ', rand_index)
-        print('adjusted rand index: ', adjusted_rand_index)
-        print('variation of information: ', variation_of_information)
-        print('edit distance: ', edit_distance)
-        print('Fowlkes Mallows Index: ', fowlkes_mallows_index)
+        print(f'rand index: {rand_index: .3f}')
+        print(f'adjusted rand index: {adjusted_rand_index: .3f}')
+        print(f'variation of information: {variation_of_information: .3f}')
+        print(f'edit distance: {edit_distance}')
+        print(f'Fowlkes Mallows Index: {fowlkes_mallows_index: .3f}')
 
         ret = {}
         ret['rand_index'] = rand_index
@@ -74,22 +66,31 @@ class Segmentation(Chunk):
         ret['edit_distance'] = edit_distance
         return ret
 
-    def remap(self, start_id: int):
+    def remap(self, base_id: int = 0):
+        """renumber the object ID 
+
+        Args:
+            base_id (int, optional): the maximum object ID in previous chunk. Defaults to 0.
+
+        Returns:
+            new_base_id (int): the maximum object ID in this chunk as the new base ID.
+        """
         fastremap.renumber(self.array, preserve_zero=True, in_place=True)
-        seg = self.astype(np.uint64)
-        seg.array[seg.array>0] += start_id
-        start_id = seg.max()
-        return seg, start_id
+        # seg = self.astype(np.uint64)
+        if base_id > 0:
+            self.array[self.array>0] += base_id
+        new_base_id = self.max()
+        return new_base_id
 
     def mask_fragments(self, voxel_num_threshold: int):
         uniq, counts = fastremap.unique(self.array, return_counts=True)
         fragment_ids = uniq[counts <= voxel_num_threshold]
-        logging.info(f'masking out {len(fragment_ids)} fragments in {len(uniq)} with a percentage of {len(fragment_ids)/len(uniq)}')
+        print(f'masking out {len(fragment_ids)} fragments in {len(uniq)} with a percentage of {len(fragment_ids)/len(uniq)}')
         self.array = fastremap.mask(self.array, fragment_ids)
 
     def mask_except(self, selected_obj_ids: Union[str, list, set]):
         if selected_obj_ids is None:
-            logging.warning('we have not selected any objects to mask out.')
+            print('we have not selected any objects to mask out.')
             return
 
         if isinstance(selected_obj_ids, str) and selected_obj_ids.endswith('.json'):
@@ -98,20 +99,11 @@ class Segmentation(Chunk):
             ids_str = json_storage.get(os.path.basename(selected_obj_ids))
             selected_obj_ids = set(json.loads(ids_str))
             assert len(selected_obj_ids) > 0
-            logging.info(f'number of selected objects: {len(selected_obj_ids)}')
+            print(f'number of selected objects: {len(selected_obj_ids)}')
         elif isinstance(selected_obj_ids, str):
             # a simple string, like "34,45,56,23"
             # this is used for small object numbers
             selected_obj_ids = set([int(id) for id in selected_obj_ids.split(',')])
         
         self.array = fastremap.mask_except(self.array, list(selected_obj_ids))
-
-
-    def skeletonize(self, voxel_size):
-        skels = kimimaro.skeletonize(
-            self.array,
-            anisotropy=voxel_size,
-            parallel=multiprocessing.cpu_count() // 2
-        )
-        return skels
 

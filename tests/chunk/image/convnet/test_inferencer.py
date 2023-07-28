@@ -3,6 +3,33 @@ import numpy as np
 from chunkflow.chunk.image.convnet.inferencer import Inferencer
 from chunkflow.chunk import Chunk
 
+def test_test_time_augmentation():
+    print('\ntest block inference with aligned input size...')
+    # compute parameters
+    input_size = (18, 224, 224)
+    patch_overlap = (2, 32, 32)
+    input_patch_size = (10, 128, 128)
+
+    image = Chunk.create(size=input_size, dtype='uint8')
+    with Inferencer(None, None,
+                    input_patch_size,
+                    num_output_channels=3,
+                    output_patch_overlap=patch_overlap,
+                    input_size=input_size,
+                    mask_output_chunk=False,
+                    framework='identity', 
+                    augment=True,
+                    dtype='float32') as inferencer:
+        output = inferencer(image)
+    
+    # ignore the cropping region
+    output = output[0, :, :, :]
+    image = image[2:-2, 32:-32, 32:-32]
+
+    output = output * 255
+    output.astype(np.uint8)
+    
+    assert np.alltrue(np.isclose(image, output, atol=1))
 
 def test_aligned_input_size():
     print('\ntest block inference with aligned input size...')
@@ -80,8 +107,9 @@ def test_aligned_input_chunk_with_croped_patch():
     input_size = (2*14+6, 2*160+96, 2*160+96)
     num_output_channels = 1
      
+    # numpy randint stop is exclusive
     image = np.random.randint(
-        1, 255,
+        1, 256,
         size=input_size, 
         dtype=np.uint8)
     

@@ -1,5 +1,5 @@
 from typing import FrozenSet
-import logging
+
 import os
 import pickle
 import numpy as np
@@ -109,8 +109,8 @@ class MeshOperator(OperatorBase):
     def _get_file_name(self, bbox, obj_id):
         if self.output_format == 'precomputed':
             # bbox is in z,y,x order, should transform to x,y,z order 
-            bbox2 = Bbox.from_slices(bbox.to_slices()[::-1])
-            return '{}:0:{}'.format(obj_id, bbox2.to_filename())
+            bbox2 = Bbox.from_slices(bbox.slices[::-1])
+            return '{}:0:{}'.format(obj_id, bbox2.string)
         elif self.output_format == 'ply':
             return '{}.ply'.format(obj_id)
         elif self.output_format == 'obj':
@@ -137,10 +137,10 @@ class MeshOperator(OperatorBase):
         # use ndarray after getting the bounding box
         seg = seg.array
 
-        logging.info('computing meshes from segmentation...')
+        print('computing meshes from segmentation...')
         self.mesher.mesh(seg)
 
-        logging.info('write mesh to storage...')
+        print('write mesh to storage...')
         if self.shard:
             assert 'precomputed' in self.output_format
             meshes = []
@@ -152,14 +152,14 @@ class MeshOperator(OperatorBase):
 
             # use shared format in default!
             self.storage.put(
-                f"{self.mesh_path}/{bbox.to_filename()}.frags",
+                f"{self.mesh_path}/{bbox.string}.frags",
                 content=pickle.dumps(meshes),
                 compress='gzip',
                 content_type="application/python-pickle",
                 cache_control=False,
             )
             self.storage.put_json(
-                f"{self.mesh_path}/{bbox.to_filename()}.spatial",
+                f"{self.mesh_path}/{bbox.string}.spatial",
                 mesh_bboxes,
                 compress='gzip',
                 cache_control=False,

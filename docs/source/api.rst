@@ -32,7 +32,7 @@ Operators
 .. autoclass:: chunkflow.flow.cloud_watch.CloudWatchOperator
    :members:
 
-.. autoclass:: chunkflow.flow.load_precomputed.ReadPrecomputedOperator
+.. autoclass:: chunkflow.flow.load_precomputed.LoadPrecomputedOperator
    :members:
 
 .. autoclass:: chunkflow.flow.downsample_upload.DownsampleUploadOperator
@@ -45,12 +45,6 @@ Operators
    :members:
 
 .. autoclass:: chunkflow.flow.neuroglancer.NeuroglancerOperator
-   :members:
-
-.. autoclass:: chunkflow.flow.normalize_section_contrast.NormalizeSectionContrastOperator
-   :members:
-
-.. autoclass:: chunkflow.flow.normalize_section_shang.NormalizeSectionShangOperator
    :members:
 
 .. autoclass:: chunkflow.flow.save_precomputed.SavePrecomputedOperator

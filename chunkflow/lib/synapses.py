@@ -4,12 +4,16 @@ import os
 import json
 import time
 from copy import deepcopy
+from typing import List
 
 import numpy as np
 import h5py
+from scipy.spatial import KDTree
 
 import chunkflow
+from chunkflow.chunk import Chunk
 from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox
+from ..point_cloud import PointCloud
 
 
 class Synapses():
@@ -340,6 +344,23 @@ class Synapses():
             if self.post_users is not None:
                 hf['post_users'] = self.post_users
 
+    @property
+    def json_dict(self):
+        """to JSON file
+        """
+        data = {}
+        data['pre'] = self.pre.tolist()
+        if self.post is not None:
+            data['post'] = self.post.tolist()
+        
+        if self.pre_confidence is not None:
+            data['pre_confidence'] = self.pre_confidence.tolist()
+        
+        if self.post_confidence is not None:
+            data['post_confidence'] = self.post_confidence.tolist()
+        
+        return data
+
     def to_dvid_list_of_dict(self, 
             user: str = 'chunkflow',
             comment: str = 'ingested using chunkflow'):
@@ -509,13 +530,13 @@ class Synapses():
     def pre_bounding_box(self) -> BoundingBox:
         bbox = BoundingBox.from_points(self.pre)
         # the end point is exclusive
-        bbox.adjust((0,0,0, 1,1,1))
+        bbox = bbox.adjust((0,0,0, 1,1,1))
         return bbox
 
     def post_bounding_box(self) -> BoundingBox:
         bbox = BoundingBox.from_points(self.post_coordinates)
         # the right direction is exclusive
-        bbox.adjust((0,0,0, 1,1,1))
+        bbox = bbox.adjust((0,0,0, 1,1,1))
         return bbox
     
     @property
@@ -523,7 +544,15 @@ class Synapses():
         bbox = self.pre_bounding_box
         bbox.union(self.post_bounding_box)
         return bbox
+
+    @property
+    def pre_point_cloud(self) -> PointCloud:
+        return PointCloud(self.pre, self.resolution)
     
+    @property
+    def post_point_cloud(self) -> PointCloud:
+        return PointCloud(self.post, self.resolution)
+
     @property
     def pre_with_physical_coordinate(self) -> np.ndarray:
         if self.resolution is not None:
@@ -725,7 +754,7 @@ class Synapses():
         distances = self.distances_from_pre_to_post
 
         duplicated_indices = set()
-        def find_segid(seg: Chunk, coord: np.ndarray):
+        def find_objid(seg: Chunk, coord: np.ndarray):
             if coord[0] >= seg.shape[0] or coord[1] >= seg.shape[1] or coord[2] >= seg.shape[2]:
                 return None
             else:
@@ -736,8 +765,8 @@ class Synapses():
                 ]
 
         for idx0, idx1 in pairs:
-            sid0 = find_segid(seg, post_coord[idx0, :])
-            sid1 = find_segid(seg, post_coord[idx1, :])
+            sid0 = find_objid(seg, post_coord[idx0, :])
+            sid1 = find_objid(seg, post_coord[idx1, :])
             if sid0 is not None and sid1 is not None and sid0 == sid1 and sid0 > 0:
                 if distances[idx0] > distances[idx1]:
                     duplicated_indices.add(idx0)

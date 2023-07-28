@@ -60,7 +60,7 @@ release = verstr
 #release = chunkflow.__release__
 
 # -- General configuration ---------------------------------------------------
-autodoc_mock_imports = ["waterz", "libchunkflow"]
+autodoc_mock_imports = []
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
