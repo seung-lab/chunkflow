@@ -132,7 +132,7 @@ class Chunk(NDArrayOperatorsMixin):
             seg = self.threshold(threshold)
             seg = seg.array
         else:
-            seg = self.array 
+            seg = self.array
         seg = cc3d.connected_components(seg, connectivity=connectivity)
         return Chunk(seg, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
@@ -393,8 +393,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
             if with_unique and self.is_segmentation:
                 unique = np.unique(self.array)
-                if unique[0]:
+                if unique[0] == 0:
                     unique = unique[1:]
+                assert np.all(unique > 0)
                 f.create_dataset('/unique_nonzeros', data = unique)
         return file_name
 

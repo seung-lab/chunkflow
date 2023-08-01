@@ -2,7 +2,7 @@
 
 *.pyc
 *.chkpt
-*__pycache__/*
+*__pycache__*
 *.swp
 *.dat
 *.sh
