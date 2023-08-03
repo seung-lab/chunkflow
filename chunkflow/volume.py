@@ -227,7 +227,7 @@ class PrecomputedVolume(AbstractVolume):
         # crop the out size range
         bbox = bbox.intersection( self.bounding_box )
         block_list = self.vol.exists(bbox.cloud_volume_bbox_xyz)
-        block_nums = bbox // block_size
+        block_nums = (bbox // block_size).shape
         return np.prod(block_nums) == len(block_list)
 
 

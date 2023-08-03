@@ -406,7 +406,6 @@ class Inferencer(object):
 
         # iterate the offset list
         for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
-                      disable=(self.verbose <= 0),
                       desc='ConvNet inference for patches: '):
             start = time.time()
 
@@ -416,7 +415,7 @@ class Inferencer(object):
                     batch_idx, ...] = input_chunk.cutout(slices[0]).array
 
             end = time.time()
-            print(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
+            # print(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
             start = end
 
             # the input and output patch is a 5d numpy array with

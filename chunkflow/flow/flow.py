@@ -265,6 +265,7 @@ def skip_task_by_blocks_in_volume(tasks, volume_path: str, mip: int, use_https: 
         if task is not None:
             bbox = task['bbox']
             if vol.has_all_blocks(bbox):
+                print(f'all the blocks exists in the volume: {volume_path}')
                 task = None
         yield task
 
@@ -1176,7 +1177,7 @@ def delete_var(tasks, var_names: str):
 @click.option('--mip', '-m',
               type=click.INT, default=None, help='mip level of the cutout.')
 @click.option('--expand-margin-size', '-e',
-              type=click.INT, nargs=6, default=None,
+              type=click.INT, nargs=3, default=None,
               help='include surrounding regions of output bounding box.')
 @click.option('--chunk-start', '-s',
               type=click.INT, nargs=3, default=None, callback=default_none,
