@@ -5,7 +5,7 @@ from itertools import product
 import matplotlib.pyplot as plt
 
 from chunkflow.chunk import Chunk
-from chunkflow.chunk.image.convnet.transform import TransformSequences
+from chunkflow.flow.divid_conquer.transform import TransformSequences
 
 # img = np.zeros(shape=(4, 128, 128), dtype=np.uint8)
 # img[:, 60:68, :] = 255

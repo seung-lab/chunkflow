@@ -30,7 +30,7 @@ from chunkflow.chunk import Chunk
 from chunkflow.chunk.image import Image
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
-from chunkflow.chunk.image.convnet.inferencer import Inferencer
+from chunkflow.flow.divid_conquer.inferencer import Inferencer
 from chunkflow.point_cloud import PointCloud
 from chunkflow.volume import PrecomputedVolume
 

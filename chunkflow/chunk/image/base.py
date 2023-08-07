@@ -3,9 +3,9 @@ __doc__ = """Image chunk class"""
 from tqdm import tqdm
 import numpy as np
 
-from chunkflow.chunk import Chunk
 from .adjust_grey import normalize_section_shang
-from .convnet.inferencer import Inferencer
+from chunkflow.chunk import Chunk
+from chunkflow.flow.divid_conquer.inferencer import Inferencer
 
 
 class Image(Chunk):

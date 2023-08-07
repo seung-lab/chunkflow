@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from chunkflow.chunk.image.convnet.inferencer import Inferencer
+from chunkflow.flow.divid_conquer.inferencer import Inferencer
 from chunkflow.chunk import Chunk
 
 def test_test_time_augmentation():
