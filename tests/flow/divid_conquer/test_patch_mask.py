@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from scipy.stats import describe
 
-from chunkflow.chunk.image.convnet.patch.patch_mask \
+from chunkflow.flow.divid_conquer.patch.patch_mask \
     import make_bump_map, PatchMask
 
 

@@ -185,21 +185,17 @@ class Inferencer(object):
         if the input size is consistent with old one, reuse the
         patch offset list and output chunk mask. Otherwise, recompute them.
         """
-        if np.array_equal(self.input_size, input_chunk.shape):
-            print('reusing output chunk mask.')
-            assert self.patch_slices_list is not None
-        else:
-            if self.input_size is not None:
-                warn('the input size has changed, using new intput size.')
-            self.input_size = input_chunk.shape
-            
-            if not self.mask_output_chunk: 
-                self._check_alignment()
+        if self.input_size is not None:
+            warn('the input size has changed, using new intput size.')
+        self.input_size = input_chunk.shape
+        
+        if not self.mask_output_chunk: 
+            self._check_alignment()
 
-            self.output_size = tuple(
-                isz-2*ocso for isz, ocso in 
-                zip(self.input_size[-3:], self.output_offset))
-            self.output_size = (self.num_output_channels,) + self.output_size
+        self.output_size = tuple(
+            isz-2*ocso for isz, ocso in 
+            zip(self.input_size[-3:], self.output_offset))
+        self.output_size = (self.num_output_channels,) + self.output_size
         
         self.output_patch_stride = tuple(s-o for s, o in zip(
             self.output_patch_size, self.output_patch_overlap))
@@ -406,7 +402,6 @@ class Inferencer(object):
 
         # iterate the offset list
         for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
-                      disable=(self.verbose <= 0),
                       desc='ConvNet inference for patches: '):
             start = time.time()
 
@@ -416,7 +411,7 @@ class Inferencer(object):
                     batch_idx, ...] = input_chunk.cutout(slices[0]).array
 
             end = time.time()
-            print(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
+            # print(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
             start = end
 
             # the input and output patch is a 5d numpy array with
