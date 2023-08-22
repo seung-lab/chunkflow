@@ -1330,10 +1330,10 @@ def save_zarr(tasks, store: str, shape: tuple, input_chunk_name: str):
     """Load Zarr arrays."""
     
     if os.path.exists(store):
-        zarr_store = zarr.open(store, mode='w')
+        za = zarr.open(store, mode='w')
     else:
         assert shape is not None
-        zarr_store = zarr.open(store, mode='w', shape=shape,)
+        za = zarr.open(store, mode='w', shape=shape,)
     for task in tasks:
         if task is not None:
             chunk = task[input_chunk_name]
@@ -1648,8 +1648,9 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
               type=click.Choice(['6', '18', '26']),
               default='6', help='number of neighboring voxels used. Default is 6.')
 @operator
-def connected_components(tasks, name: str, input_chunk_name: str, output_chunk_name: str, 
-                         threshold: float, connectivity: str):
+def connected_components(tasks, name: str, 
+        input_chunk_name: str, output_chunk_name: str, 
+        threshold: float, connectivity: str):
     """Threshold the probability map to get a segmentation."""
     connectivity = int(connectivity)
     for task in tasks:
@@ -2093,12 +2094,13 @@ def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
     """Transorm the last channel to uint8."""
     for task in tasks:
         if task is not None:
-            aff = task[input_chunk_name]
-            properties = aff.properties
-            aff = AffinityMap(aff)
-            aff.set_properties(properties)
-            assert isinstance(aff, AffinityMap)
-            quantized_image = aff.quantize(mode=mode)
+            chk = task[input_chunk_name]
+            if chk.is_affinity_map:
+                chk = AffinityMap(chk)
+                quantized_image = chk.quantize(mode=mode)
+            elif chk.is_probability_map:
+                quantized_image = (chk * 255.)
+                quantized_image = quantized_image.astype(np.uint8)
             task[output_chunk_name] = quantized_image
         yield task
 

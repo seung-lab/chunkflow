@@ -498,7 +498,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     
     @property
     def is_probability_map(self) -> bool:
-        return self.array.ndim == 4 and self.array.dtype == np.float32
+        return (self.array.dtype == np.float32) and \
+            (np.max(self.array) <= 1.) and \
+            (np.min(self.array) >= 0.)
 
     @property
     def properties(self) -> dict:
