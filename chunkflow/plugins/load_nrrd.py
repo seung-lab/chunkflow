@@ -1,15 +1,17 @@
+import numpy as np
 
 from chunkflow.chunk import Chunk
 import nrrd
 
 
-def load_nrrd(file_name: str=None, voxel_offset: tuple=None,
+def execute(file_name: str=None, voxel_offset: tuple=None,
         voxel_size: tuple=None, dtype: str=None, layer_type: str=None):
     """Read NRRD file."""
     arr, _ = nrrd.read(file_name)
     
     if dtype:
         arr = arr.astype(dtype)
-    return Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
-
-   
+    
+    chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
+    breakpoint()
+    return chunk

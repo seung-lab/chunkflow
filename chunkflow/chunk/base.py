@@ -132,7 +132,7 @@ class Chunk(NDArrayOperatorsMixin):
             seg = self.threshold(threshold)
             seg = seg.array
         else:
-            seg = self.array 
+            seg = self.array
         seg = cc3d.connected_components(seg, connectivity=connectivity)
         return Chunk(seg, voxel_offset=self.voxel_offset, voxel_size=self.voxel_size)
 
@@ -329,7 +329,7 @@ class Chunk(NDArrayOperatorsMixin):
                 cutout_size = Cartesian.from_collection(cutout_size)
             if cutout_stop is None:
                 cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
-
+            
             for c, v in zip(cutout_start, voxel_offset):
                 assert c >= v, \
                     f'can only cutout after the global voxel offset, cutout start: {cutout_start}, but get {voxel_offset}. \n file name: {file_name}'
@@ -393,8 +393,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
             if with_unique and self.is_segmentation:
                 unique = np.unique(self.array)
-                if unique[0]:
+                if unique[0] == 0:
                     unique = unique[1:]
+                assert np.all(unique > 0)
                 f.create_dataset('/unique_nonzeros', data = unique)
         return file_name
 
@@ -498,7 +499,9 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
     
     @property
     def is_probability_map(self) -> bool:
-        return self.array.ndim == 4 and self.array.dtype == np.float32
+        return (self.array.dtype == np.float32) and \
+            (np.max(self.array) <= 1.) and \
+            (np.min(self.array) >= 0.)
 
     @property
     def properties(self) -> dict:

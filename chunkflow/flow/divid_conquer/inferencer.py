@@ -185,21 +185,17 @@ class Inferencer(object):
         if the input size is consistent with old one, reuse the
         patch offset list and output chunk mask. Otherwise, recompute them.
         """
-        if np.array_equal(self.input_size, input_chunk.shape):
-            print('reusing output chunk mask.')
-            assert self.patch_slices_list is not None
-        else:
-            if self.input_size is not None:
-                warn('the input size has changed, using new intput size.')
-            self.input_size = input_chunk.shape
-            
-            if not self.mask_output_chunk: 
-                self._check_alignment()
+        if self.input_size is not None:
+            warn('the input size has changed, using new intput size.')
+        self.input_size = input_chunk.shape
+        
+        if not self.mask_output_chunk: 
+            self._check_alignment()
 
-            self.output_size = tuple(
-                isz-2*ocso for isz, ocso in 
-                zip(self.input_size[-3:], self.output_offset))
-            self.output_size = (self.num_output_channels,) + self.output_size
+        self.output_size = tuple(
+            isz-2*ocso for isz, ocso in 
+            zip(self.input_size[-3:], self.output_offset))
+        self.output_size = (self.num_output_channels,) + self.output_size
         
         self.output_patch_stride = tuple(s-o for s, o in zip(
             self.output_patch_size, self.output_patch_overlap))
@@ -406,7 +402,6 @@ class Inferencer(object):
 
         # iterate the offset list
         for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
-                      disable=(self.verbose <= 0),
                       desc='ConvNet inference for patches: '):
             start = time.time()
 
@@ -416,7 +411,7 @@ class Inferencer(object):
                     batch_idx, ...] = input_chunk.cutout(slices[0]).array
 
             end = time.time()
-            print(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
+            # print(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
             start = end
 
             # the input and output patch is a 5d numpy array with
@@ -436,7 +431,6 @@ class Inferencer(object):
                 output_patch = sum(output_patches) / len(output_patches)
 
             end = time.time()
-            print(f'run inference for {self.batch_size:d} patch takes {end-start:.3f} sec')
             start = end
 
             for batch_idx, slices in enumerate(batch_slices):
@@ -461,9 +455,7 @@ class Inferencer(object):
                 output_buffer.blend(output_patch_chunk)
 
             end = time.time()
-            print('blend patch takes {:.3f} sec'.format(end - start))
-            print("Inference of whole chunk takes {:.3f} sec".format(
-                time.time() - chunk_time_start))
+            # print('blend patch takes {:.3f} sec'.format(end - start))
         
         if self.mask_output_chunk:
             output_buffer *= self.output_chunk_mask

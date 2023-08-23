@@ -30,7 +30,7 @@ from chunkflow.chunk import Chunk
 from chunkflow.chunk.image import Image
 from chunkflow.chunk.affinity_map import AffinityMap
 from chunkflow.chunk.segmentation import Segmentation
-from chunkflow.chunk.image.convnet.inferencer import Inferencer
+from chunkflow.flow.divid_conquer.inferencer import Inferencer
 from chunkflow.point_cloud import PointCloud
 from chunkflow.volume import PrecomputedVolume
 
@@ -265,6 +265,7 @@ def skip_task_by_blocks_in_volume(tasks, volume_path: str, mip: int, use_https: 
         if task is not None:
             bbox = task['bbox']
             if vol.has_all_blocks(bbox):
+                print(f'all the blocks exists in the volume: {volume_path}')
                 task = None
         yield task
 
@@ -1176,7 +1177,7 @@ def delete_var(tasks, var_names: str):
 @click.option('--mip', '-m',
               type=click.INT, default=None, help='mip level of the cutout.')
 @click.option('--expand-margin-size', '-e',
-              type=click.INT, nargs=6, default=None,
+              type=click.INT, nargs=3, default=None,
               help='include surrounding regions of output bounding box.')
 @click.option('--chunk-start', '-s',
               type=click.INT, nargs=3, default=None, callback=default_none,
@@ -1330,10 +1331,10 @@ def save_zarr(tasks, store: str, shape: tuple, input_chunk_name: str):
     """Load Zarr arrays."""
     
     if os.path.exists(store):
-        zarr_store = zarr.open(store, mode='w')
+        za = zarr.open(store, mode='w')
     else:
         assert shape is not None
-        zarr_store = zarr.open(store, mode='w', shape=shape,)
+        za = zarr.open(store, mode='w', shape=shape,)
     for task in tasks:
         if task is not None:
             chunk = task[input_chunk_name]
@@ -1648,8 +1649,9 @@ def plugin(tasks, name: str, input_names: str, output_names: str, file: str, arg
               type=click.Choice(['6', '18', '26']),
               default='6', help='number of neighboring voxels used. Default is 6.')
 @operator
-def connected_components(tasks, name: str, input_chunk_name: str, output_chunk_name: str, 
-                         threshold: float, connectivity: str):
+def connected_components(tasks, name: str, 
+        input_chunk_name: str, output_chunk_name: str, 
+        threshold: float, connectivity: str):
     """Threshold the probability map to get a segmentation."""
     connectivity = int(connectivity)
     for task in tasks:
@@ -1718,7 +1720,7 @@ def copy_var(tasks, from_name: str, to_name: str, deep_copy: bool):
 @click.option('--mask-myelin-threshold', '-y', default=None, type=click.FLOAT,
               help='mask myelin if netoutput have myelin channel.')
 @click.option('--augment/--no-augment',
-    default=True, help='transform the input patch and transform back the output patch')
+    default=False, help='transform the input patch and transform back the output patch')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--output-chunk-name', '-o',
@@ -2093,12 +2095,13 @@ def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
     """Transorm the last channel to uint8."""
     for task in tasks:
         if task is not None:
-            aff = task[input_chunk_name]
-            properties = aff.properties
-            aff = AffinityMap(aff)
-            aff.set_properties(properties)
-            assert isinstance(aff, AffinityMap)
-            quantized_image = aff.quantize(mode=mode)
+            chk = task[input_chunk_name]
+            if chk.is_affinity_map:
+                chk = AffinityMap(chk)
+                quantized_image = chk.quantize(mode=mode)
+            elif chk.is_probability_map:
+                quantized_image = (chk * 255.)
+                quantized_image = quantized_image.astype(np.uint8)
             task[output_chunk_name] = quantized_image
         yield task
 

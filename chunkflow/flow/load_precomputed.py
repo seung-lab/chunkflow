@@ -63,8 +63,7 @@ class LoadPrecomputedOperator(OperatorBase):
                 voxel_size=Cartesian.from_collection(self.vol.resolution[::-1]),
             )
 
-        print('cutout {} from {}'.format(chunk_slices[::-1],
-                                             self.volume_path))
+        print(f'cutout ZYX_{chunk_slices} from {self.volume_path}')
 
         # always reverse the indexes since cloudvolume use x,y,z indexing
         chunk = self.vol[chunk_slices[::-1]]
