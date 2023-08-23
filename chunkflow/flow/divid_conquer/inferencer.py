@@ -431,7 +431,6 @@ class Inferencer(object):
                 output_patch = sum(output_patches) / len(output_patches)
 
             end = time.time()
-            print(f'run inference for {self.batch_size:d} patch takes {end-start:.3f} sec')
             start = end
 
             for batch_idx, slices in enumerate(batch_slices):
@@ -456,9 +455,7 @@ class Inferencer(object):
                 output_buffer.blend(output_patch_chunk)
 
             end = time.time()
-            print('blend patch takes {:.3f} sec'.format(end - start))
-            print("Inference of whole chunk takes {:.3f} sec".format(
-                time.time() - chunk_time_start))
+            # print('blend patch takes {:.3f} sec'.format(end - start))
         
         if self.mask_output_chunk:
             output_buffer *= self.output_chunk_mask

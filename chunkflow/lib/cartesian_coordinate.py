@@ -570,9 +570,10 @@ class BoundingBoxes(UserList):
                     # note that we normally start from -overlap to keep the chunks aligned!
                     roi_start = dataset_offset - chunk_overlap
         assert roi_start is not None
-
+        assert chunk_size is not None
+        
         if not isinstance(chunk_size, Cartesian):
-            chunk_size = Cartesian(*chunk_size)
+            chunk_size = Cartesian.from_collection(chunk_size)
         if not isinstance(chunk_overlap, Cartesian):
             chunk_overlap = Cartesian(*chunk_overlap)
         if not isinstance(roi_start, Cartesian):

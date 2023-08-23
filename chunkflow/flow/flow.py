@@ -1720,7 +1720,7 @@ def copy_var(tasks, from_name: str, to_name: str, deep_copy: bool):
 @click.option('--mask-myelin-threshold', '-y', default=None, type=click.FLOAT,
               help='mask myelin if netoutput have myelin channel.')
 @click.option('--augment/--no-augment',
-    default=True, help='transform the input patch and transform back the output patch')
+    default=False, help='transform the input patch and transform back the output patch')
 @click.option('--input-chunk-name', '-i',
               type=str, default='chunk', help='input chunk name')
 @click.option('--output-chunk-name', '-o',

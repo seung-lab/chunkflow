@@ -329,7 +329,7 @@ class Chunk(NDArrayOperatorsMixin):
                 cutout_size = Cartesian.from_collection(cutout_size)
             if cutout_stop is None:
                 cutout_stop = tuple(t+s for t, s in zip(cutout_start, cutout_size))
-
+            
             for c, v in zip(cutout_start, voxel_offset):
                 assert c >= v, \
                     f'can only cutout after the global voxel offset, cutout start: {cutout_start}, but get {voxel_offset}. \n file name: {file_name}'

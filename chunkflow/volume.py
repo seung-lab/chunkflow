@@ -129,41 +129,7 @@ class PrecomputedVolume(AbstractVolume):
 
     #     return nnz_bboxes
 
-    def get_nonzero_block_bounding_boxes_with_different_voxel_size(
-            self, voxel_size_low: Cartesian) -> BoundingBoxes:
-        """get nonzero block bounding boxes with different voxel size.
-        This is normally used to get a list of block bounding boxes for image that are 
-        totally nonzero in a mask volume with higher mip level.
-
-        Args:
-            voxel_size_low (Cartesian): voxel size in lower mip level. The resolution is higher and voxel size is smaller.
-
-        Returns:
-            BoundingBoxes: bounding boxes that in a lower mip level with mask all nonzero.
-        """
-        # we only support lower mip levels for now
-        assert voxel_size_low < self.voxel_size, f'expecting new voxel size smaller than current one: {voxel_size_low}<{self.voxel_size}'
-        nonzero_bboxes_low = BoundingBoxes()
-        for bbox_high in tqdm(
-                self.block_bounding_boxes, 
-                desc='iterate mask blocks...'):
-            block_high = self.cutout(bbox_high)
-            # one block in high mip level represents several blocks in lower mip level
-            # we assume that the block size is consistent across mip levels which might not
-            # be true in some cases!
-            pbbox_low = block_high.physical_bounding_box.to_other_voxel_size(
-                voxel_size_low
-            )
-            for bbox_low in pbbox_low.decompose(self.block_size):
-                pbbox_low = PhysicalBoudingBox(
-                    bbox_low.start, bbox_low.stop, voxel_size_low)
-                pbbox_high = pbbox_low.to_other_voxel_size(self.voxel_size)
-                chunk_high = block_high.cutout(pbbox_high)
-                
-                if np.all(chunk_high > 0):
-                    nonzero_bboxes_low.append(pbbox_low)
-
-        return nonzero_bboxes_low
+    
    
     @cached_property
     def shape(self):
@@ -276,3 +242,45 @@ def load_chunk_or_volume(file_path: str, *arg, **kwargs):
     else:
         raise ValueError(f'only .h5 and .npy files are supported, but got {file_path}')
     
+
+def get_candidate_block_bounding_boxes_with_different_voxel_size(
+        chunk: Union[Chunk, AbstractVolume], 
+        voxel_size_low: Cartesian, 
+        block_size_low: Cartesian = None) -> BoundingBoxes:
+    """get candidate block bounding boxes with different voxel size.
+    This is normally used to get a list of block bounding boxes for image that contains nonzero in a mask volume with higher mip level.
+
+    Args:
+        voxel_size_low (Cartesian): voxel size in lower mip level. The resolution is higher and voxel size is smaller.
+        block_size_low (Cartesian): block size in low mip level.
+
+    Returns:
+        BoundingBoxes: bounding boxes that in a lower mip level with mask all nonzero.
+    """
+    # we only support lower mip levels for now
+    assert voxel_size_low <= chunk.voxel_size, \
+        f'expecting new voxel size smaller than current one: {voxel_size_low}<={chunk.voxel_size}'
+    # assume that the block size is the same
+    if block_size_low is None:
+        assert isinstance(chunk, AbstractVolume)
+        block_size_low = chunk.block_size
+    nonzero_bboxes_low = BoundingBoxes()
+    for bbox_high in tqdm(
+            chunk.block_bounding_boxes, 
+            desc='iterate mask blocks...'):
+        block_high = chunk.cutout(bbox_high)
+        if np.all(block_high == 0):
+            continue
+        pbbox_low = block_high.physical_bounding_box.to_other_voxel_size(
+            voxel_size_low
+        )
+        for bbox_low in pbbox_low.decompose(block_size_low):
+            pbbox_low = PhysicalBoudingBox(
+                bbox_low.start, bbox_low.stop, voxel_size_low)
+            pbbox_high = pbbox_low.to_other_voxel_size(chunk.voxel_size)
+            chunk_high = block_high.cutout(pbbox_high)
+            
+            if np.any(chunk_high > 0):
+                nonzero_bboxes_low.append(pbbox_low)
+
+    return nonzero_bboxes_low
