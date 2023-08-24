@@ -177,7 +177,7 @@ class PrecomputedVolume(AbstractVolume):
         
         # transpose czyx to xyzc order
         arr = np.transpose(chunk.array)
-        self[chunk.slices[::-1]] = arr
+        self.vol[chunk.slices[::-1]] = arr
 
     def has_all_blocks(self, bbox: BoundingBox) -> bool:
         """the volume has all the blocks inside a bounding box or not
