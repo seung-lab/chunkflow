@@ -75,7 +75,8 @@ class Segmentation(Chunk):
         Returns:
             new_base_id (int): the maximum object ID in this chunk as the new base ID.
         """
-        fastremap.renumber(self.array, preserve_zero=True, in_place=True)
+        fastremap.renumber(self.array, 
+            preserve_zero=True, in_place=True)
         self.array = self.array.astype(np.uint64)
         if base_id > 0:
             self.array[self.array>0] += base_id
