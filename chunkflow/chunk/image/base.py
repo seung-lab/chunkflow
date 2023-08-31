@@ -90,7 +90,6 @@ class Image(Chunk):
             lookup_table = lookup_table.astype( np.uint8 ) 
             return lookup_table
 
-
     def normalize_contrast(self, 
             lower_clip_fraction: float = 0.01, 
             upper_clip_fraction: float = 0.01,

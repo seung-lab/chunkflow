@@ -11,7 +11,7 @@ from chunkflow.lib.cartesian_coordinate import BoundingBox
 
 app = FastAPI()
 
-maxid = 86002891
+maxid = 115015938 
 
 @app.get("/objids/{id_num}")
 def get_base_id(id_num: int):

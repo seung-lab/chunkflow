@@ -86,6 +86,10 @@ class PrecomputedVolume(AbstractVolume):
         return bbox
     
     @cached_property
+    def bbox(self):
+        return self.bounding_box
+    
+    @cached_property
     def start(self) -> Cartesian:
         return self.bounding_box.start
 
