@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Union
+from typing import Union, List
 from abc import ABC, abstractmethod, abstractproperty
 from functools import cached_property
 from dataclasses import dataclass
@@ -46,10 +46,13 @@ class PrecomputedVolume(AbstractVolume):
         CloudVolume (class): the cloud-volume class
     """
     vol: CloudVolume
+    filters: List[str]
     
     @classmethod
     def from_cloudvolume_path(cls, path: str, *arg, 
-            fill_missing: bool=True, **kwargs) -> PrecomputedVolume:
+            fill_missing: bool=True, 
+            filters: List[str] = None,
+            **kwargs) -> PrecomputedVolume:
         """load from a cloud volume path
         This path could be encoded with keywords.
         For example: precomputed://file:///volume/path#preload=True;cache='/tmp/'
@@ -60,17 +63,11 @@ class PrecomputedVolume(AbstractVolume):
         Returns:
             PrecomputedVolume: the Volume instance
         """
-        if '#' in path:
-            secs = path.split('#')
-            assert len(secs) == 2
-            path = secs[0]
-            specified_keywords = str_to_dict(secs[1])
-            if 'preload' in specified_keywords:
-                del specified_keywords['preload']
-            kwargs.update(specified_keywords)
+        if isinstance(filters, str):
+            filters = filters.split(',')
 
         vol = CloudVolume(path, *arg, fill_missing=fill_missing, **kwargs)
-        return cls(vol)
+        return cls(vol, filters)
 
     @classmethod
     def from_numpy(cls, arr: np.ndarray, vol_path: str) -> PrecomputedVolume:
@@ -155,6 +152,16 @@ class PrecomputedVolume(AbstractVolume):
         if arr.ndim == 4 and arr.shape[0] == 1:
             arr = np.squeeze(arr, axis=0)
         chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=self.voxel_size) 
+
+        if self.filters is not None:
+            for filter in self.filters:
+                if 'uint8tofloat' in filter:
+                    assert np.issubdtype(chunk.dtype, np.uint8)
+                    chunk = chunk.astype(np.float32)
+                    chunk.array /= 255.
+                else:
+                    raise ValueError(f'invalid filter name: {filter}')
+
         return chunk
 
     def _auto_convert_dtype(self, chunk: Chunk):
@@ -236,7 +243,14 @@ def load_chunk_or_volume(file_path: str, *arg, **kwargs):
         else:
             preload = False
         
-        vol = PrecomputedVolume.from_cloudvolume_path(file_path, *arg, **kwargs)
+        if 'filters' in kwargs:
+            filters = kwargs['filters']
+            filters = filters.split(',')
+            del kwargs['filters']
+        else:
+            filters = None        
+        
+        vol = PrecomputedVolume.from_cloudvolume_path(file_path, *arg, filters = filters, **kwargs)
         if not preload:
             return vol
         else:
