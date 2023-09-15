@@ -2102,6 +2102,9 @@ def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
             elif chk.is_probability_map:
                 quantized_image = (chk * 255.)
                 quantized_image = quantized_image.astype(np.uint8)
+                if quantized_image.ndim == 4:
+                    assert quantized_image.shape[0] == 1
+                    quantized_image.array = np.squeeze(quantized_image.array, axis=0)
             task[output_chunk_name] = quantized_image
         yield task
 
