@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 from typing import Union, List
 from abc import ABC, abstractmethod, abstractproperty
 from functools import cached_property
@@ -221,12 +222,14 @@ def load_chunk_or_volume(file_path: str, *arg, **kwargs):
         file_path (str): the file path of chunk or volume. 
     
     Returns:
-        Union[Chunk, AbstractVolume]: loaded chunk or volume
+        Union[Chunk, AbstractVolume]: loaded chunk or volume. return None if file does not exist.
     """
     if kwargs is None:
         kwargs = dict()
 
-    if file_path.endswith('.h5'):
+    if not os.path.exists(file_path):
+        return None
+    elif file_path.endswith('.h5'):
         return Chunk.from_h5(file_path)
     elif file_path.endswith('.npy'):
         arr = np.loads(file_path)

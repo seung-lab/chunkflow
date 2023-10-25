@@ -1178,7 +1178,7 @@ def delete_var(tasks, var_names: str):
               type=click.INT, default=None, help='mip level of the cutout.')
 @click.option('--expand-margin-size', '-e',
               type=click.INT, nargs=3, default=None,
-              help='include surrounding regions of output bounding box.')
+              help='include surrounding regions of output bounding box. It should have 3 values. If it is 1,1,1, the chunk size will be expanded with 2x2x2.')
 @click.option('--chunk-start', '-s',
               type=click.INT, nargs=3, default=None, callback=default_none,
               help='chunk offset in volume.')
@@ -1889,8 +1889,7 @@ def mask_out_objects(tasks, input_chunk_name, output_chunk_name,
     help='name of this operator')
 @click.option('--margin-size', '-m',
     type=click.INT, nargs=6, default=None, callback=default_none,
-    help='crop the chunk margin. ' +
-            'The default is None and will use the bbox as croping range.')
+    help='crop the chunk margin. The default is None and will use the bbox as croping range. It should have 6 values. If it is 1,1,1,1,1,1, the chunk will shrink by 2x2x2 in each direction.')
 @click.option('--crop-bbox/--no-crop-bbox', default=False,
     help='adjust the bounding box or not.')
 @click.option('--input-chunk-name', '-i',
@@ -1905,8 +1904,7 @@ def crop_margin(tasks, name: str, margin_size: tuple, crop_bbox: bool,
         if task is not None:
             start = time()
             if margin_size:
-                task[output_chunk_name] = task[
-                    input_chunk_name].crop_margin(
+                task[output_chunk_name] = task[input_chunk_name].crop_margin(
                     margin_size=margin_size)
                 if crop_bbox and 'bbox' in task:
                     bbox = task['bbox']
