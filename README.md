@@ -67,9 +67,6 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | generate-tasks  | Generate tasks one by one |
 | gaussian-filter | 2D Gaussian blurring operated in-place |
 | inference       | Convolutional net inference |
-| load-synapses   | Load synapses from a file |
-| save-synapses   | Save synapses as a HDF5 file. |
-| save-points     | Save point cloud as a HDF5 file. |
 | log-summary     | Summary of logs |
 | mark-complete   | mark task completion as an empty file | 
 | mask            | Black out the chunk based on another mask chunk |
@@ -89,6 +86,8 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | load-pngs       | Read png files |
 | load-precomputed| Cutout chunk from a local/cloud storage volume |
 | load-tif        | Read TIFF files |
+| load-skeleton   | Load skeletons |
+| load-synapses   | Load synapses from a file |
 | load-zarr    	  | Read Zarr files |
 | setup-env       | Prepare storage infor files and produce tasks |
 | skip-task-by-file | If a result/flag file already exists, skip this task |
@@ -98,9 +97,11 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | threshold       | Use a threshold to segment the probability map |
 | view            | Another chunk viewer in browser using CloudVolume |
 | save-h5        | Save chunk as HDF5 file |
+| save-points     | Save point cloud as a HDF5 file. |
 | save-pngs      | Save chunk as a serials of png files |
 | save-precomputed| Save chunk to local/cloud storage volume |
 | save-tif       | Save chunk as TIFF file |
+| save-synapses   | Save synapses as a HDF5 file. |
 
 ## Affiliation
 This package is developed at Princeton University and Flatiron Institute.

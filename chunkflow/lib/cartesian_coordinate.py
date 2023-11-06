@@ -49,40 +49,40 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     def __hash__(self):
         return hash((self.z, self.y, self.x))
 
-    def __eq__(self, other: Union[int, tuple, Cartesian]) -> bool:
-        if isinstance(other, int):
+    def __eq__(self, other: Union[Number, tuple, Cartesian]) -> bool:
+        if isinstance(other, Number):
             return np.all([x==other for x in self])
         elif isinstance(other, Cartesian) or isinstance(other, tuple):
             return np.all([x==y for x, y in zip(self, other)])
         else:
-            raise TypeError(f'only support int, tuple or Cartesian for now, but get {type(other)}')
+            raise TypeError(f'only support Number , tuple or Cartesian for now, but get {type(other)}')
     
     def __sub__(self, offset: Union[Cartesian, Number]):
         """subtract to another voxel coordinate
 
         Args:
-            offset (Cartesian, int): another voxel coordinate
+            offset (Cartesian, Number): another voxel coordinate
         """
         if isinstance(offset, Number):
             return Cartesian.from_collection([x-offset for x in self])
         else:
             return Cartesian.from_collection([x-o for x, o in zip(self, offset)])
     
-    def __isub__(self, other:Union[int, Cartesian]):
+    def __isub__(self, other:Union[Number, Cartesian]):
         return self - other
 
-    def __add__(self, offset: Union[Cartesian, tuple, int]):
+    def __add__(self, offset: Union[Cartesian, tuple, Number ]):
         """add another coordinate
 
         Args:
-            offset (Cartesian, int): offset
+            offset (Cartesian, Number): offset
         """
-        if isinstance(offset, int):
+        if isinstance(offset, Number):
             return Cartesian(*[x+offset for x in self])
         else:
             return Cartesian(*[x+o for x, o in zip(self, offset)])
     
-    def __iadd__(self, other: Union[Cartesian, int]):
+    def __iadd__(self, other: Union[Cartesian, Number]):
         return self + other
 
     def __mul__(self, m: Union[Number, Cartesian]) -> Cartesian:
@@ -93,16 +93,16 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         else:
             raise TypeError('only support number and Cartesian type.')
 
-    def __imul__(self, other: Union[Cartesian, int]):
+    def __imul__(self, other: Union[Cartesian, Number]):
         return self * other
 
-    def __floordiv__(self, d: Union[int, Cartesian]):
+    def __floordiv__(self, d: Union[Number, Cartesian]):
         if isinstance(d, Number):
             return Cartesian(*[x // d for x in self])
         else:
             return Cartesian.from_collection([x//d for x, d in zip(self, d)])
 
-    def __ifloordiv__(self, other: Union[Cartesian, int]):
+    def __ifloordiv__(self, other: Union[Cartesian, Number]):
         return self // other
 
     def __truediv__(self, other: Union[Number, Cartesian]):
@@ -111,18 +111,18 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
         else:
             return Cartesian.from_collection([x/d for x, d in zip(self, other)])
 
-    def __itruediv__(self, other: Union[Cartesian, int]):
+    def __itruediv__(self, other: Union[Cartesian, Number]):
         return self / other
 
-    def __mod__(self, d: Union[int, Cartesian]) -> Cartesian:
-        if isinstance(d, int):
+    def __mod__(self, d: Union[Number, Cartesian]) -> Cartesian:
+        if isinstance(d, Number):
             return Cartesian(*[x%d for x in self])
         elif isinstance(d, Cartesian):
             return Cartesian.from_collection([x%y for x, y in zip(self, d)])
         else:
-            raise TypeError(f'only support int or Cartesian for now, but got {type(d)}')
+            raise TypeError(f'only support Number or Cartesian for now, but got {type(d)}')
     
-    def __imod__(self, other: Union[Cartesian, int]):
+    def __imod__(self, other: Union[Cartesian, Number]):
         return self % other
 
     def __lt__(self, other: Cartesian) -> bool:
@@ -247,13 +247,13 @@ class BoundingBox():
         return cls.from_bbox(bbox)
 
     @classmethod
-    def from_center(cls, center: Cartesian, extent: int,
+    def from_center(cls, center: Cartesian, extent: Number,
             even_size: bool = True):
         """Create bounding box from center and extent
 
         Args:
             center (Cartesian): center coordinate
-            extent (int): the range to extent, like radius
+            extent (Number): the range to extent, like radius
             even_size (bool): produce even size or odd size including the center.
         """
         start = center - extent
@@ -347,14 +347,14 @@ class BoundingBox():
     def __repr__(self):
         return f'BoundingBox({self.start}, {self.stop}'
 
-    def __mul__(self, operand: Cartesian | int):
-        assert isinstance(operand, int) or isinstance(operand, Cartesian)
+    def __mul__(self, operand: Cartesian | Number):
+        assert isinstance(operand, Number) or isinstance(operand, Cartesian)
         start = self.start * operand
         stop = self.stop * operand
         return BoundingBox(start, stop)
 
-    def __floordiv__(self, other: int | Cartesian | BoundingBox) -> BoundingBox:
-        if isinstance(other, int) or isinstance(other, Cartesian):
+    def __floordiv__(self, other: Number | Cartesian | BoundingBox) -> BoundingBox:
+        if isinstance(other, Number) or isinstance(other, Cartesian):
             minpt = self.minpt // other
             maxpt = self.maxpt // other
         elif isinstance(other, BoundingBox):
@@ -368,7 +368,7 @@ class BoundingBox():
             raise ValueError(f'unsupported type of operand: {type(other)}')
         return BoundingBox(minpt, maxpt)
          
-    def __ifloordiv__(self, other: BoundingBox | int | Cartesian):
+    def __ifloordiv__(self, other: BoundingBox | Number | Cartesian):
         return self // other
 
     def inverse_order(self):
@@ -391,12 +391,12 @@ class BoundingBox():
     def clone(self):
         return BoundingBox(self.start, self.stop)
 
-    def adjust(self, size: Union[Cartesian, int, tuple, list, Vec]):
+    def adjust(self, size: Union[Cartesian, Number, tuple, list, Vec]):
         if size is None:
             print('adjusting bounding box size is None!')
             return self
 
-        if isinstance(size, int):
+        if isinstance(size, Number):
             size = (-size, -size, -size, size, size, size)
         elif len(size) == 3:
             size = (-size[0], -size[1], -size[2], size[0], size[1], size[2])
