@@ -73,7 +73,7 @@ class PrecomputedVolume(AbstractVolume):
     @classmethod
     def from_numpy(cls, arr: np.ndarray, vol_path: str) -> PrecomputedVolume:
         vol = CloudVolume.from_numpy(np.transpose(arr), vol_path=vol_path)
-        return cls(vol)
+        return cls(vol, filters=None)
 
     @cached_property
     def bounding_box(self):
