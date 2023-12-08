@@ -3,10 +3,8 @@
 import os
 from pathlib import Path
 from time import time
-
-# ping = time()
-from typing import Generator, List
-
+from typing import Generator, List, Tuple
+from collections import defaultdict
 from copy import deepcopy
 
 import numpy as np
@@ -20,6 +18,7 @@ import tinybrain
 from chunkflow.lib.flow import *
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec
+from cloudvolume import Skeleton 
 from cloudfiles import CloudFiles
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
@@ -214,7 +213,7 @@ def adjust_bbox(tasks, corner_offset: tuple):
 @main.command('skip-task-by-file')
 @click.option('--prefix', '-p', required=True, type=str,
     help='the pre part of result file path')
-@click.option('--suffix', '-s', required=True, type=str,
+@click.option('--suffix', '-s', default='', type=str,
     help='the post part of result file path. Normally include file extention.')
 @click.option('--mode', '-m', 
     type=click.Choice(['missing', 'empty', 'exist']), default='exist',
@@ -271,9 +270,9 @@ def skip_task_by_blocks_in_volume(tasks, volume_path: str, mip: int, use_https: 
 
 
 @main.command('mark-complete')
-@click.option('--prefix', '-p', type=str, default=None,
+@click.option('--prefix', '-p', type=str, required=True,
     help='pre-path of a file.')
-@click.option('--suffix', '-s', type=str, default=None,
+@click.option('--suffix', '-s', type=str, default='',
     help='suffix of the flag file.')
 @operator
 def mark_complete(tasks, prefix: str, suffix: str):
@@ -299,7 +298,7 @@ def mark_complete(tasks, prefix: str, suffix: str):
     type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--prefix', '-p', type=str, default=None, 
     help = 'pre-path of a file. we would like to keep a trace that this task was executed.')
-@click.option('--suffix', '-s', type=str, default=None,
+@click.option('--suffix', '-s', type=str, default='',
     help='post-path of a file. normally include the extention of result file.')
 @click.option('--adjust-size', '-a', type=click.INT, default=None,
     help='change the bounding box of chunk if it do not match with final result file name.')
@@ -313,7 +312,7 @@ def skip_all_zero(tasks, input_chunk_name: str, prefix: str, suffix: str, adjust
             chunk = task[input_chunk_name]
             if not np.any(chunk):
                 print('all zero chunk, skip this task')
-                if prefix is not None or suffix is not None:
+                if prefix is not None:
                     if chunk_bbox:
                         bbox = chunk.bbox.clone()
                     else:
@@ -1252,9 +1251,108 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
         yield task
 
 
+@main.command('load-skeleton')
+@click.option('--fname', '-f', type=click.Path(
+    exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
+    required=True, help='the path of skeleton file')
+@click.option('--offset', '-o', type=click.FLOAT, nargs=3, default=None,
+    help='physical coordinate offset. Normally, the unit is nanometer.')
+@click.option('--voxel-offset', '-t', type=click.INT, nargs=3, default=None,
+    help='voxel offset for easier usage. This will be translated to physical coordinate using voxel size.')
+@click.option('--voxel-size', '-s', type=click.FLOAT, nargs=3, default=None,
+    help='voxel size for translating voxel offset to physical coordinate offset. We do not set default 1x1x1 in case it is not set with voxel_offset together.')
+@click.option('--output-name', '-o', type=str, default=DEFAULT_SKELETON_NAME, \
+    help='output name of oid2skel. Note that it is a dict to map object ID to skeleton.')
+@operator
+def load_skeleton(tasks, fname: str, offset: Tuple, voxel_offset: Tuple, voxel_size: Tuple, output_name: str):
+    if offset is None and voxel_offset is not None:
+        assert voxel_size is not None
+        voxel_offset = Cartesian.from_collection(voxel_offset)
+        voxel_size = Cartesian.from_collection(voxel_size)
+        offset = voxel_offset * voxel_size
+    if offset is None:
+        offset = Cartesian(0, 0, 0)
+    elif not isinstance(offset, Cartesian):
+        offset = Cartesian.from_collection(offset)
+
+    for task in tasks:
+        if task is not None:
+            oid2skel = defaultdict(list)
+            if fname.endswith('.mb'):
+                from mapbuffer import MapBuffer
+                with open(fname, 'rb') as f:
+                    binary = f.read()
+                
+                mb = MapBuffer(binary)
+                for oid, binary in mb.items():
+                    skel = Skeleton.from_precomputed(binary)
+                    # center the voxels by +0.5
+                    # https://github.com/seung-lab/igneous/blob/master/igneous/tasks/skeleton.py#L134
+                    # adjust the offset of each chunk. 
+                    # To-Do: This should be done in the chunk-wise skeletonization step.
+                    oid2skel[oid].append(skel)
+            elif fname.endswith('.swc'):
+                # remove the .swc 
+                oid = int(os.path.basename(fname)[:-4])
+                with open(fname, 'r') as f:
+                    swcstr = f.read()
+                    skel = Skeleton.from_swc(swcstr)
+                oid2skel[ oid ] = skel
+
+            for oid, skels in oid2skel.items():
+                skel = Skeleton.simple_merge(skels).consolidate()
+                if offset is not None:
+                    skel.vertices[:] += np.asarray(offset)[::-1]
+                oid2skel[oid] = skel 
+            task[output_name] = oid2skel
+        yield task
+
+
+@main.command('save-swc')
+@click.option('--input-name', '-i', type=str, default=DEFAULT_SKELETON_NAME, \
+    help='input name in task')
+@click.option('--output-prefix', '-p', type=str, default='./', \
+    help='prefix of output file name.')
+@operator
+def save_swc(tasks, input_name: str, output_prefix: str):
+    for task in tasks:
+        if task is not None:
+            if os.path.isdir(output_prefix) and not output_prefix.endswith('/'):
+                output_prefix += '/'
+
+            skels = task[input_name]
+            for sid, skel in skels.items():
+                fname = f'{output_prefix}{sid}.swc'
+                with open(fname, 'w') as file:
+                    file.write(skel.to_swc())
+        yield task
+
+@main.command('load-npy')
+@click.option('--file-name', '-f', 
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True), required=True, help='file name path')
+@click.option('--voxel-offset', '-t', type=int, nargs=3, default=(0,0,0), 
+    help='voxel offset')
+@click.option('--voxel-size', '-s', type=click.FLOAT, nargs=3, 
+    default=(1,1,1), help='voxel size')
+@click.option('--output-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
+    help='output name in the task dictionary.')
+@operator
+def load_npy(tasks, file_name: str, voxel_offset: Tuple, voxel_size: Tuple,
+        output_name: str):
+    for task in tasks:
+        if task is not None:
+            assert file_name.endswith('.npy')
+            arr = np.load(file_name)
+            voxel_offset = Cartesian.from_collection(voxel_offset)
+            voxel_size = Cartesian.from_collection(voxel_size)
+            chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
+            task[output_name] = chunk
+        yield task
+            
+
 @main.command('load-zarr')
 @click.option('--store', '-f', type=str, required=True,
-    help='Zarr store path')
+    help='Zarr store path: n5, local, precomputed')
 @click.option('--path', '-p', type=str, default = None,
     help = 'Zarr path in the store')
 @click.option('--chunk-start', '-s', type=click.INT, nargs=3, default=None,
@@ -1262,18 +1360,23 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
 @click.option('--chunk-size', '-z', type=click.INT, nargs=3, default=None,
     help='chunk size')
 @click.option('--voxel-size', '-v', type=click.FLOAT, nargs=3, default=None)
-@click.option('--backend', '-b', type=str, default='NestedDirectoryStore',
+@click.option('--driver', '-b', type=click.Choice(['n5', 'local']), default='NestedDirectoryStore',
     help='the storage backend.')
 @click.option('--output-chunk-name', '-o', type=str, default=DEFAULT_CHUNK_NAME,
     help='output chunk name.')
 @operator
 def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tuple, 
-        chunk_size: tuple, backend: str, output_chunk_name: str):
+        chunk_size: tuple, driver: str, output_chunk_name: str):
     """Load Zarr arrays."""
-    if backend == 'NestedDirectoryStore':
+    if driver in ['NestedDirectoryStore', 'local'] :
         store = zarr.NestedDirectoryStore(store)
-    z = zarr.open(store, mode='r', path=path)
-    attrs = z.attrs.asdict()
+    elif driver in ['n5', 'N5FSStore']:
+        store = zarr.N5FSStore(store, anon=True)
+    else:
+        raise ValueError(f'invalide store type, we only support local and n5, but got {store}')
+    
+    zdata = zarr.convenience.open(store, mode='r', path=path)
+    attrs = zdata.attrs.asdict()
     
     # Note that this is the physical
     if 'offset' in attrs:
@@ -1297,7 +1400,7 @@ def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tupl
     for task in tasks:
         if task is not None:
             if chunk_size is None and chunk_start is None and 'bbox' not in task:
-                arr = z[:]
+                arr = zdata[:]
                 voxel_offset = volume_offset
             else:
                 if chunk_start is not None and chunk_size is not None:
@@ -1311,7 +1414,7 @@ def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tupl
 
                 arr_start = bbox.start - volume_offset
                 arr_bbox = BoundingBox.from_delta(arr_start, bbox.shape)
-                arr = z[arr_bbox.slices]
+                arr = zdata[arr_bbox.slices]
                 voxel_offset = chunk_start
             chunk = Chunk(arr, voxel_offset=voxel_offset, voxel_size=voxel_size) 
             task[output_chunk_name] = chunk
