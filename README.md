@@ -102,6 +102,7 @@ After installation, You can simply type `chunkflow` and it will list all the ope
 | save-precomputed| Save chunk to local/cloud storage volume |
 | save-tif       | Save chunk as TIFF file |
 | save-synapses   | Save synapses as a HDF5 file. |
+| save-swc | Save skeletons as a SWC file. |
 
 ## Affiliation
 This package is developed at Princeton University and Flatiron Institute.

@@ -2,9 +2,12 @@
 TO-DO:
 add probability map layer for T-bar or cleft detection and other semantic prediction
 """
+from typing import Tuple
+from collections import defaultdict
 
 import neuroglancer as ng
 import numpy as np
+from tqdm import tqdm
 
 from chunkflow.chunk import Chunk
 from chunkflow.lib.synapses import Synapses
@@ -13,11 +16,28 @@ from chunkflow.point_cloud import PointCloud
 from .base import OperatorBase
 
 
+class SkeletonSource(ng.skeleton.SkeletonSource):
+    def __init__(self, oid2skel: dict, scales: Tuple = (1, 1, 1), voxel_offset=None):
+
+        dimensions = ng.CoordinateSpace(
+            names=["x", "y", "z"],
+            units="nm",
+            scales=scales,
+        )
+        super().__init__(dimensions, voxel_offset)
+        self.oid2skel = oid2skel
+    
+    def get_skeleton(self, oid: int):
+        skel = self.oid2skel[oid]
+        skel = ng.skeleton.Skeleton(skel.vertices, skel.edges)
+        return skel
+
+
 class NeuroglancerOperator(OperatorBase):
     def __init__(self,
                  name: str = 'neuroglancer',
                  port: int = None,
-                 voxel_size: tuple = None):
+                 voxel_size: Tuple = None):
         super().__init__(name=name)
         self.port = port
         self.voxel_size = voxel_size
@@ -31,7 +51,56 @@ class NeuroglancerOperator(OperatorBase):
             voxel_size = (1, 1, 1)
         return voxel_size
 
-    def _append_synapse_annotation_layer(self, viewer_state: ng.viewer_state.ViewerState, name: str, synapses: Synapses):
+    def _append_skeleton_layer(self, 
+            viewer_state: ng.viewer_state.ViewerState, 
+            name: str, 
+            oid2skel: defaultdict):
+
+        annotations = []
+        for oid, skel in tqdm(oid2skel.items(), desc='make skeleton line segments'):
+            for p1, p2 in skel.edges:
+                ann = ng.viewer_state.LineAnnotation(
+                    id = oid,
+                    point_a = skel.vertices[p1, :],
+                    point_b = skel.vertices[p2, :],
+                )
+                annotations.append(ann)
+        print(f'number of annotations: {len(annotations)}')
+
+        viewer_state.layers.append(
+            name = name,
+            layer = ng.viewer_state.LocalAnnotationLayer(
+                dimensions=ng.CoordinateSpace(
+                    names=['x', 'y', 'z'],
+                    units='nm',
+                    scales=(1,1,1),
+                ),
+                annotation_properties=[
+                    ng.viewer_state.AnnotationPropertySpec(
+                        id='color',
+                        type='rgb',
+                        default='red',
+                    ),
+                    ng.viewer_state.AnnotationPropertySpec(
+                        id='size',
+                        type='float32',
+                        default=2,
+                    ),
+                ],
+                annotations=annotations,
+                shader='''
+void main() {
+setColor(prop_color());
+setPointMarkerSize(prop_size());
+}
+'''
+            )
+        )
+
+    def _append_synapse_annotation_layer(self, 
+            viewer_state: ng.viewer_state.ViewerState, 
+            name: str, 
+            synapses: Synapses):
         annotations = []
         
         pre_synapses = synapses.pre_with_physical_coordinate
@@ -44,8 +113,8 @@ class NeuroglancerOperator(OperatorBase):
                 post_coordinate = post_synapses[post_idx, 1:]
                 post_annotation = ng.LineAnnotation(
                         id=str(post_idx),
-                        pointA=pre_coordinate,
-                        pointB=post_coordinate,
+                        pointA=pre_coordinate[::-1],
+                        pointB=post_coordinate[::-1],
                         props=['#0ff', 5]
                     )
                 annotations.append(post_annotation) 
@@ -53,7 +122,11 @@ class NeuroglancerOperator(OperatorBase):
         viewer_state.layers.append(
             name=name,
             layer=ng.LocalAnnotationLayer(
-                dimensions=ng.CoordinateSpace(names=['z', 'y', 'x'], units="nm", scales=(1,1,1)),
+                dimensions=ng.CoordinateSpace(
+                    names=['x', 'y', 'z'], 
+                    units="nm", 
+                    scales=(1,1,1)
+                ),
                 annotation_properties=[
                     ng.AnnotationPropertySpec(
                         id='color',
@@ -79,8 +152,6 @@ void main() {
         self._append_point_annotation_layer(
             viewer_state, name + '_pre', synapses.pre_point_cloud)
 
-
-
     def _append_point_annotation_layer(self, 
             viewer_state: ng.viewer_state.ViewerState, 
             name: str, points: PointCloud, 
@@ -92,7 +163,7 @@ void main() {
             # so, we have distinct color to show T-bar
             pre_annotation = ng.PointAnnotation(
                 id=str(sid),
-                point=points.points[sid, :].tolist(),
+                point=points.points[sid, :].tolist()[::-1],
                 props=[color, size]
             )
             annotations.append(pre_annotation)
@@ -101,13 +172,12 @@ void main() {
             name=name,
             layer=ng.LocalAnnotationLayer(
                 dimensions=ng.CoordinateSpace(
-                    names=['z', 'y', 'x'], 
+                    names=['x', 'y', 'z'], 
                     units="nm", 
-                    #scales=(1, 1, 1)
                     scales=(
-                        points.voxel_size.z, 
-                        points.voxel_size.y, 
                         points.voxel_size.x, 
+                        points.voxel_size.y, 
+                        points.voxel_size.z, 
                     )
                 ),
                 annotation_properties=[
@@ -135,11 +205,11 @@ void main() {
     def _append_image_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
         voxel_size = self._get_voxel_size(chunk)
         if chunk.ndim == 3:
-            arr = chunk.array
-            names=['z', 'y', 'x']
+            arr = chunk.array.transpose()
+            names=['x', 'y', 'z']
             # units=['nm', 'nm', 'nm']
-            voxel_offset = chunk.voxel_offset
-            voxel_size = chunk.voxel_size
+            voxel_offset = chunk.voxel_offset[::-1]
+            voxel_size = chunk.voxel_size[::-1]
             shader="""#uicontrol invlerp normalized
 void main() {
   emitGrayscale(normalized());
@@ -177,7 +247,7 @@ void main() {
             layer=ng.LocalVolume(
                 data=arr,
                 dimensions=dimensions,
-                voxel_offset=voxel_offset,
+                voxel_offset=voxel_offset[::-1],
             ),
             shader=shader
         )
@@ -197,14 +267,14 @@ void main() {
         dimensions = ng.CoordinateSpace(
             scales=voxel_size,
             units=['nm', 'nm', 'nm'],
-            names=['z', 'y', 'x']
+            names=['x', 'y', 'z']
         )       
         viewer_state.layers.append(
             name=chunk_name,
             layer=ng.LocalVolume(
-                data=chunk,
+                data=chunk.transpose(),
                 dimensions=dimensions,
-                voxel_offset=chunk.voxel_offset,
+                voxel_offset=chunk.voxel_offset[::-1],
             )
         ) 
 
@@ -234,17 +304,17 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
 }
 """
         dimensions = ng.CoordinateSpace(
-            scales=(1, ) + voxel_size,
-            units=['', 'nm', 'nm', 'nm'],
-            names=['c^', 'z', 'y', 'x']
+            scales= voxel_size[::-1] + (1, ) ,
+            units=['nm', 'nm', 'nm', ''],
+            names=[ 'x', 'y', 'z', 'c^']
         )
         viewer_state.layers.append(
             name=chunk_name,
             layer=ng.LocalVolume(
-                data=chunk.array,
+                data=chunk.array.transpose(),
                 dimensions=dimensions,
                 # offset is in nm, not voxels
-                voxel_offset=(0, *chunk.voxel_offset),
+                voxel_offset=(*chunk.voxel_offset[::-1], 0),
             ),
             shader=shader
         )
@@ -275,6 +345,9 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 elif isinstance(data, Synapses):
                     # this could be synapses
                     self._append_synapse_annotation_layer(viewer_state, name, data)
+                elif (isinstance(data, defaultdict) or isinstance(data, dict)) \
+                        and len(data)>0:
+                    self._append_skeleton_layer(viewer_state, name, data)
                 elif isinstance(data, np.ndarray) and 2 == data.ndim and 3 == data.shape[1]:
                     # points
                     self._append_point_annotation_layer(viewer_state, name, data)

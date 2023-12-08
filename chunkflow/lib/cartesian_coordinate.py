@@ -392,6 +392,14 @@ class BoundingBox():
         return BoundingBox(self.start, self.stop)
 
     def adjust(self, size: Union[Cartesian, Number, tuple, list, Vec]):
+        """adjust the range of bounding box
+
+        Args:
+            size (Union[Cartesian, Number, tuple, list, Vec]): adjust size
+
+        Returns:
+            BoundingBox: adjusted bounding box
+        """
         if size is None:
             print('adjusting bounding box size is None!')
             return self

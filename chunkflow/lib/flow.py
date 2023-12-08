@@ -20,6 +20,7 @@ CartesianParam = CartesianParamType()
 state = {'operators': {}}
 DEFAULT_CHUNK_NAME = 'chunk'
 DEFAULT_SYNAPSES_NAME = 'syns'
+DEFAULT_SKELETON_NAME = 'skels'
 
 
 def get_initial_task():
