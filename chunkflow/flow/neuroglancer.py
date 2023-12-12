@@ -49,6 +49,7 @@ class NeuroglancerOperator(OperatorBase):
             voxel_size = chunk.voxel_size
         else:
             voxel_size = (1, 1, 1)
+        
         return voxel_size
 
     def _append_skeleton_layer(self, 
@@ -203,11 +204,10 @@ void main() {
         )
 
     def _append_image_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
-        voxel_size = self._get_voxel_size(chunk)
         if chunk.ndim == 3:
             arr = chunk.array.transpose()
             names=['x', 'y', 'z']
-            # units=['nm', 'nm', 'nm']
+            units=['nm', 'nm', 'nm']
             voxel_offset = chunk.voxel_offset[::-1]
             voxel_size = chunk.voxel_size[::-1]
             shader="""#uicontrol invlerp normalized
@@ -217,7 +217,7 @@ void main() {
         elif chunk.ndim == 4:
             arr = chunk.array.transpose()
             names=['x', 'y', 'z', 'c']
-            # units=['', 'nm', 'nm', 'nm']
+            units=['nm', 'nm', 'nm', '']
             voxel_offset = (
                 chunk.voxel_offset.x, 
                 chunk.voxel_offset.y, 
@@ -239,7 +239,7 @@ void main() {
 
         dimensions = ng.CoordinateSpace(
             scales=voxel_size,
-            units='nm',
+            units=units,
             names=names
         )
         viewer_state.layers.append(
@@ -247,7 +247,7 @@ void main() {
             layer=ng.LocalVolume(
                 data=arr,
                 dimensions=dimensions,
-                voxel_offset=voxel_offset[::-1],
+                voxel_offset=voxel_offset,
             ),
             shader=shader
         )
@@ -265,7 +265,7 @@ void main() {
             chunk = chunk.astype(np.uint32)
         voxel_size = self._get_voxel_size(chunk)
         dimensions = ng.CoordinateSpace(
-            scales=voxel_size,
+            scales=voxel_size[::-1],
             units=['nm', 'nm', 'nm'],
             names=['x', 'y', 'z']
         )       
@@ -336,6 +336,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
         with viewer.txn() as viewer_state:
             for name in selected:
                 data = datas[name]
+                # breakpoint()
                 
                 if data is None:
                     continue

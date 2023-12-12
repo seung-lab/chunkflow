@@ -50,10 +50,10 @@ chunkflow create-chunk save-h5 --file-name="/tmp/img.h5" connected-components --
 if test -f /tmp/img.h5 ; then echo -e "File found"; else exit 1; fi
 chunkflow load-h5 --file-name=/tmp/img.h5
 
-echo -e "\nwrite and read nrrd file."
-chunkflow create-chunk save-nrrd -f "/tmp/img.nrrd";
-chunkflow load-nrrd -f "/tmp/img.nrrd"; 
-rm /tmp/img.nrrd;
+#echo -e "\nwrite and read nrrd file."
+#chunkflow create-chunk save-nrrd -f "/tmp/img.nrrd";
+#chunkflow load-nrrd -f "/tmp/img.nrrd"; 
+#rm /tmp/img.nrrd;
 
 echo -e "\nwrite and read tif file."
 chunkflow create-chunk save-tif -f "/tmp/img.tif";
@@ -103,8 +103,8 @@ chunkflow create-chunk --pattern zero --size 36 448 448 \
     inference --input-patch-size 20 256 256 --patch-num 2 2 2 \
         --framework identity --batch-size 3 
 
-echo -e "\nmask out objects and skeletonize."
-chunkflow \
-    create-chunk --size 36 448 448 --dtype "uint32" \
-	connected-components mask-out-objects -d 50 -s "2,3,4"\
-	skeletonize --voxel-size 1 1 1 --output-path "file:///tmp/test/skeleton"
+#echo -e "\nmask out objects and skeletonize."
+#chunkflow \
+#    create-chunk --size 36 448 448 --dtype "uint32" \
+#	connected-components mask-out-objects -d 50 -s "2,3,4"\
+#	skeletonize --voxel-size 1 1 1 --output-path "file:///tmp/test/skeleton"
