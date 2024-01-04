@@ -398,21 +398,21 @@ class Inferencer(object):
             input_chunk = input_chunk.astype(self.dtype)
             input_chunk /= dtype_max
 
-        chunk_time_start = time.time()
+        # chunk_time_start = time.time()
 
         # iterate the offset list
         for i in tqdm(range(0, len(self.patch_slices_list), self.batch_size),
                       desc='ConvNet inference for patches: '):
-            start = time.time()
+            # start = time.time()
 
             batch_slices = self.patch_slices_list[i:i + self.batch_size]
             for batch_idx, slices in enumerate(batch_slices):
                 self.input_patch_buffer[
                     batch_idx, ...] = input_chunk.cutout(slices[0]).array
 
-            end = time.time()
+            # end = time.time()
             # print(f'prepare {self.batch_size:d} input patches takes {end-start:.3f} sec')
-            start = end
+            # start = end
 
             # the input and output patch is a 5d numpy array with
             # datatype of float32, the dimensions are batch/channel/z/y/x.
@@ -430,8 +430,8 @@ class Inferencer(object):
                 # average 
                 output_patch = sum(output_patches) / len(output_patches)
 
-            end = time.time()
-            start = end
+            # end = time.time()
+            # start = end
 
             for batch_idx, slices in enumerate(batch_slices):
                 # only use the required number of channels
@@ -454,7 +454,7 @@ class Inferencer(object):
                 #    #input_chunk.cutout(slices[0]).to_tif()
                 output_buffer.blend(output_patch_chunk)
 
-            end = time.time()
+            # end = time.time()
             # print('blend patch takes {:.3f} sec'.format(end - start))
         
         if self.mask_output_chunk:

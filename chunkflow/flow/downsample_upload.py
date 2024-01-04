@@ -62,7 +62,6 @@ class DownsampleUploadOperator(OperatorBase):
 
     def __call__(self, chunk):
         voxel_offset = chunk.voxel_offset
-
         num_mips = self.stop_mip - self.chunk_mip
         # tinybrain use F order and require 4D array!
         chunk2 = np.transpose(chunk)
@@ -78,7 +77,8 @@ class DownsampleUploadOperator(OperatorBase):
             pyramid = tinybrain.downsample_segmentation(chunk2,
                                                         factor=self.factor[::-1],
                                                         num_mips=num_mips)
-
+        
+        #print(f'upload image pyramid...')
         for mip in range(self.start_mip, self.stop_mip):
             # the first chunk in pyramid is already downsampled!
             downsampled_chunk = pyramid[mip - self.chunk_mip - 1]

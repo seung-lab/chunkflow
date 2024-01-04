@@ -94,7 +94,6 @@ class LoadPrecomputedOperator(OperatorBase):
 
         if self.validate_mip:
             self._validate_chunk(chunk)
-        
         return chunk
 
     def _blackout_sections(self, chunk):

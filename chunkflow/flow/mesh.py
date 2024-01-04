@@ -13,6 +13,7 @@ from cloudvolume.lib import Bbox
 from cloudfiles import CloudFiles
 
 from chunkflow.chunk import Chunk
+from chunkflow.lib.cartesian_coordinate import BoundingBox
 from .base import OperatorBase
 
 
@@ -100,7 +101,7 @@ class MeshOperator(OperatorBase):
         else:
             raise NotImplementedError
 
-        mesh_bounds = Bbox(
+        mesh_bounds = BoundingBox(
             np.amin(mesh.vertices, axis=0),
             np.amax(mesh.vertices, axis=0)
         )
@@ -109,7 +110,7 @@ class MeshOperator(OperatorBase):
     def _get_file_name(self, bbox, obj_id):
         if self.output_format == 'precomputed':
             # bbox is in z,y,x order, should transform to x,y,z order 
-            bbox2 = Bbox.from_slices(bbox.slices[::-1])
+            bbox2 = BoundingBox.from_slices(bbox.slices[::-1])
             return '{}:0:{}'.format(obj_id, bbox2.string)
         elif self.output_format == 'ply':
             return '{}.ply'.format(obj_id)

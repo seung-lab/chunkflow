@@ -462,8 +462,8 @@ def cleanup(dir: str, mode: str, suffix: str):
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME,
               help="create info for this chunk.")
-@click.option('--output-layer-path', '-l', type=str, default="file://.", 
-              help='path of output layer.')
+@click.option('--volume-path', '-v', type=str, default="file://.", 
+              help='path of output volume/layer.')
 @click.option('--channel-num', '-c', type=click.INT, default=1, help='number of channel')
 @click.option('--layer-type', '-t',
               type=click.Choice(['image', 'segmentation']),
@@ -492,7 +492,7 @@ def cleanup(dir: str, mode: str, suffix: str):
               type=click.INT, default=0, 
               help = 'maximum mip level.')
 @operator
-def create_info(tasks,input_chunk_name: str, output_volume_path: str, channel_num: int, 
+def create_info(tasks,input_chunk_name: str, volume_path: str, channel_num: int, 
                 layer_type: str, data_type: str, encoding: str, voxel_size: tuple, 
                 voxel_offset: tuple, volume_size: tuple, block_size: tuple, factor: tuple, max_mip: int):
     """Create attrsdata for Neuroglancer Precomputed volume."""
@@ -547,7 +547,7 @@ def create_info(tasks,input_chunk_name: str, output_volume_path: str, channel_nu
                 compressed_segmentation_block_size=(8, 8, 8),
                 mesh = mesh,
                 )
-            vol = CloudVolume(output_volume_path, info=info)
+            vol = CloudVolume(volume_path, info=info)
             vol.commit_info()
         yield task
 
