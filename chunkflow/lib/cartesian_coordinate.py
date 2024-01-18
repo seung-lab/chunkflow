@@ -22,12 +22,14 @@ from cloudvolume.lib import Vec, Bbox
 
 BOUNDING_BOX_RE = re.compile(r'(-?\d+)-(-?\d+)_(-?\d+)-(-?\d+)_(-?\d+)-(-?\d+)(?:\.gz|\.br|\.h5|\.json|\.npy|\.tif|\.csv|\.pkl|\.png|\.jpg)?$')
 
-def to_cartesian(x: Union[tuple, list]):
+
+def to_cartesian(x: Union[tuple, list, None]):
     if x is None:
         return None
     else:
         assert len(x) == 3
         return Cartesian.from_collection(x)
+
 
 class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     """Cartesian coordinate or offset."""
@@ -186,7 +188,7 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
 
 
 @dataclass(frozen=True)
-class BoundingBox():
+class BoundingBox:
     start: Cartesian
     stop: Cartesian
     # def __post_init__(self, start, stop) -> BoundingBox:
@@ -361,7 +363,7 @@ class BoundingBox():
             minpt = self.minpt // other.minpt
             maxpt = self.maxpt // other.maxpt
         elif isinstance(other, np.ndarray):
-            other  = Cartesian.from_collection(other)
+            other = Cartesian.from_collection(other)
             minpt = self.start // other
             maxpt = self.stop // other
         else:
@@ -386,7 +388,6 @@ class BoundingBox():
         start = self.start + other
         stop = self.stop + other
         return BoundingBox(start, stop)
-
 
     def clone(self):
         return BoundingBox(self.start, self.stop)
@@ -721,4 +722,3 @@ class PhysicalBoudingBox(BoundingBox):
             start = self.start * factors
             stop = self.stop * factors
         return PhysicalBoudingBox(start, stop, voxel_size2)
-
