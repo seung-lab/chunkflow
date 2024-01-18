@@ -8,7 +8,7 @@ from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, to_cartes
 
 
 def test_cartesian():
-    assert to_cartesian(None) == None
+    assert to_cartesian(None) is None
     ct = (1,2,3)
     assert to_cartesian(ct) == Cartesian(1,2,3)
 
@@ -47,12 +47,13 @@ def test_cartesian():
     assert Cartesian(1,2,3).tuple == (1,2,3)
     assert Cartesian(1,2,3).vec is not None
 
+
 def test_bounding_box():
     bbox = BoundingBox.from_string('3166-3766_7531-8131_2440-3040')
-    bbox == BoundingBox(Cartesian(3166, 7531, 2440), Cartesian(3766, 8131, 3040))
+    assert bbox == BoundingBox(Cartesian(3166, 7531, 2440), Cartesian(3766, 8131, 3040))
     
     bbox = BoundingBox.from_string('Sp1,3166-3766_7531-8131_2440-3040.h5')
-    bbox == BoundingBox(Cartesian(3166, 7531, 2440), Cartesian(3766, 8131, 3040))
+    assert bbox == BoundingBox(Cartesian(3166, 7531, 2440), Cartesian(3766, 8131, 3040))
 
     bbox = Bbox.from_delta((1,3,2), (64, 32, 8))
     bbox = BoundingBox.from_bbox(bbox)
@@ -65,6 +66,9 @@ def test_bounding_box():
     minpt = Cartesian(1,2,3)
     maxpt = Cartesian(2,3,4)
     bbox = BoundingBox(minpt, maxpt)
+    assert bbox.start == minpt
+    assert bbox.stop == maxpt
+    assert bbox.shape == Cartesian(1,1,1)
 
     bbox = BoundingBox.from_center(Cartesian(1,2,3), 3)
     assert bbox == BoundingBox.from_list([-2, -1, 0, 4, 5, 6])
@@ -76,6 +80,14 @@ def test_bounding_box():
     bbox2 = BoundingBox.from_list([1,2,3, 3,4,5])
     assert bbox1.union(bbox2) == BoundingBox.from_list([0,1,2, 3,4,5])
     assert bbox1.intersection(bbox2) == BoundingBox.from_list([1,2,3, 2,3,4])
+
+    minpt = Cartesian(1,2,3)
+    maxpt = Cartesian(3,4,5)
+    bbox = BoundingBox(minpt, maxpt)
+    bbox_decomp = bbox.decompose(bbox.shape // 2)
+    assert len(bbox_decomp) == 8
+    assert bbox_decomp[0].start == minpt
+    assert bbox_decomp[-1].stop == maxpt
 
 
 def test_bounding_boxes():
