@@ -15,7 +15,7 @@ import cc3d
 from scipy.ndimage import gaussian_filter
 
 from cloudvolume.lib import yellow, Bbox
-from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, PhysicalBoudingBox
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, PhysicalBoundingBox
 
 # from typing import Tuple
 # Offset = Tuple[int, int, int]
@@ -568,8 +568,8 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
         return self.bbox
 
     @property
-    def physical_bounding_box(self) -> PhysicalBoudingBox:
-        return PhysicalBoudingBox(
+    def physical_bounding_box(self) -> PhysicalBoundingBox:
+        return PhysicalBoundingBox(
             self.start, self.stop, self.voxel_size)
 
     @property

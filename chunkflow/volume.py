@@ -11,7 +11,7 @@ from tqdm import tqdm
 from cloudvolume import CloudVolume
 from chunkflow.lib.utils import str_to_dict
 from .lib.cartesian_coordinate import \
-    BoundingBox, Cartesian, BoundingBoxes, PhysicalBoudingBox
+    BoundingBox, Cartesian, BoundingBoxes, PhysicalBoundingBox
 from .chunk import Chunk
 
 
@@ -111,8 +111,8 @@ class PrecomputedVolume(AbstractVolume):
             self.vol.chunk_size[::-1])
 
     @cached_property 
-    def physical_bounding_box(self) -> PhysicalBoudingBox:
-        return PhysicalBoudingBox(
+    def physical_bounding_box(self) -> PhysicalBoundingBox:
+        return PhysicalBoundingBox(
             self.start, self.stop, self.voxel_size)
 
     @cached_property
@@ -296,7 +296,7 @@ def get_candidate_block_bounding_boxes_with_different_voxel_size(
             voxel_size_low
         )
         for bbox_low in pbbox_low.decompose(block_size_low):
-            pbbox_low = PhysicalBoudingBox(
+            pbbox_low = PhysicalBoundingBox(
                 bbox_low.start, bbox_low.stop, voxel_size_low)
             pbbox_high = pbbox_low.to_other_voxel_size(chunk.voxel_size)
             chunk_high = block_high.cutout(pbbox_high)

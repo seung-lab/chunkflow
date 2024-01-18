@@ -4,7 +4,7 @@ import numpy as np
 
 from cloudvolume.lib import Bbox, Vec
 
-from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, to_cartesian, BoundingBoxes, PhysicalBoudingBox
+from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian, to_cartesian, BoundingBoxes, PhysicalBoundingBox
 
 
 def test_cartesian():
@@ -102,7 +102,7 @@ def test_physical_bounding_box():
     start = Cartesian(0, 1, 2)
     stop  = Cartesian(2, 3, 4)
     voxel_size = Cartesian(2, 2, 2)
-    pbbox = PhysicalBoudingBox(start, stop, voxel_size)
+    pbbox = PhysicalBoundingBox(start, stop, voxel_size)
 
     pbbox2 = pbbox.to_other_voxel_size(Cartesian(1,1,1))
     assert pbbox2.start == Cartesian(0,2,4)

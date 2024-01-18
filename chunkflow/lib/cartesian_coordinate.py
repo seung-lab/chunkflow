@@ -696,12 +696,12 @@ class BoundingBoxes(UserList):
 
 
 @dataclass(frozen=True)
-class PhysicalBoudingBox(BoundingBox):
+class PhysicalBoundingBox(BoundingBox):
     voxel_size: Cartesian
    
     @classmethod
     def from_bounding_box(cls, bbox: BoundingBox, 
-            voxel_size: Cartesian) -> PhysicalBoudingBox:
+            voxel_size: Cartesian) -> PhysicalBoundingBox:
         return cls(bbox.start, bbox.stop, 
             voxel_size)
         
@@ -709,7 +709,7 @@ class PhysicalBoudingBox(BoundingBox):
     def voxel_bounding_box(self) -> BoundingBox:
         return BoundingBox(self.start, self.stop)
     
-    def to_other_voxel_size(self, voxel_size2: Cartesian) -> PhysicalBoudingBox:
+    def to_other_voxel_size(self, voxel_size2: Cartesian) -> PhysicalBoundingBox:
         assert voxel_size2 != self.voxel_size
         
         if voxel_size2 >= self.voxel_size:
@@ -721,4 +721,4 @@ class PhysicalBoudingBox(BoundingBox):
             factors = self.voxel_size // voxel_size2
             start = self.start * factors
             stop = self.stop * factors
-        return PhysicalBoudingBox(start, stop, voxel_size2)
+        return PhysicalBoundingBox(start, stop, voxel_size2)
