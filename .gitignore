@@ -15,6 +15,7 @@ jwu
 *.egg-info/
 .ipynb_checkpoints/
 .vscode/
+*.idea/
 docker/inference/build_docker.sh
 docker/inference/pytorch-emvision/
 docker/inference/pytorch-model/
