@@ -30,3 +30,4 @@ docs/source/_build/
 *.DS_Store
 *.log
 chunkflow/plugins/chunkflow-plugins
+.idea/
