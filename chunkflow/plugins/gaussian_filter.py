@@ -1,9 +1,12 @@
+import numpy as np
 from chunkflow.chunk import Chunk
 
 from scipy.ndimage import gaussian_filter
 
 
-def execute(chunk: Chunk, sigma: float=1.):
+def execute(chunk: Chunk, sigma: float=1., inplace=False):
+    if not inplace:
+        chunk = chunk.clone()
     for z in range(chunk.shape[-3]):
         if chunk.ndim == 4:
             for channel in range(chunk.shape[0]):
