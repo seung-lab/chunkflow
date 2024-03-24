@@ -32,7 +32,7 @@ class SavePrecomputedOperator(OperatorBase):
         self.mip = mip
 
         # if not volume_path.startswith('precomputed://'):
-        #     volume_path += 'precomputed://'
+        #     volume_path = 'precomputed://' + volume_path
         self.volume_path = volume_path
         
         # gevent.monkey.patch_all(thread=False)

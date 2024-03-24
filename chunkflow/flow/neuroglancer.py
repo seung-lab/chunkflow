@@ -278,14 +278,26 @@ void main() {
             )
         ) 
 
-    def _append_probability_map_layer(self, viewer_state: ng.viewer_state.ViewerState, chunk_name: str, chunk: Chunk):
+    def _append_probability_map_layer(self,
+            viewer_state: ng.viewer_state.ViewerState,
+            chunk_name: str, chunk: Chunk, color=None):
         if chunk.dtype == np.dtype('<f4') or chunk.dtype == np.dtype('float16'):
             chunk = chunk.astype(np.float32)
 
         voxel_size = self._get_voxel_size(chunk)
         # chunk = np.ascontiguousarray(chunk)
         if chunk.shape[0] == 1:
-            shader = """void main() {
+            if color is not None:
+                shader = """#uicontrol vec3 color color(default="%s")
+#uicontrol float brightness slider(min=-1, max=1)
+#uicontrol float contrast slider(min=-3, max=3, step=0.01)
+void main() {
+  emitRGB(color *
+          (toNormalized(getDataValue(0)) + brightness) * exp(contrast));
+}
+""" % color
+            else:
+                shader = """void main() {
 emitGrayscale(toNormalized(getDataValue(0)));
 }
 """ 
@@ -324,6 +336,23 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
         Parameters:
         chunks: multiple chunks
         """
+        def parse_selected_args(varname: str) -> Tuple[str, dict]:
+            kws = {}
+            if '[' in varname:
+                if not varname.endswith(']'):
+                    raise ValueError(f"Unmatched bracket in variable name: '{varname}'")
+                varname, opts = varname[:-1].split('[')
+                for arg in opts.split(','):
+                    if '=' in arg:
+                        k, v = arg.split('=')
+                        kws[k] = v
+                    else:
+                        raise ValueError("Only keyword arguments are allowed in neuroglancer variable options")
+            elif ']' in varname:
+                raise ValueError(f"Unmatched bracket in variable name: '{varname}'")
+
+            return varname, kws
+
         if selected is None:
             selected = datas.keys()
         elif isinstance(selected, str):
@@ -335,41 +364,43 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
         viewer = ng.Viewer()
         with viewer.txn() as viewer_state:
             for name in selected:
+                name, layer_kwargs = parse_selected_args(name)
                 data = datas[name]
+                layer_args = (viewer_state, name, data)
                 # breakpoint()
                 
                 if data is None:
                     continue
                 elif isinstance(data, PointCloud):
                     # points
-                    self._append_point_annotation_layer(viewer_state, name, data)
+                    self._append_point_annotation_layer(*layer_args, **layer_kwargs)
                 elif isinstance(data, Synapses):
                     # this could be synapses
-                    self._append_synapse_annotation_layer(viewer_state, name, data)
+                    self._append_synapse_annotation_layer(*layer_args, **layer_kwargs)
                 elif (isinstance(data, defaultdict) or isinstance(data, dict)) \
                         and len(data)>0:
-                    self._append_skeleton_layer(viewer_state, name, data)
+                    self._append_skeleton_layer(*layer_args, **layer_kwargs)
                 elif isinstance(data, np.ndarray) and 2 == data.ndim and 3 == data.shape[1]:
                     # points
-                    self._append_point_annotation_layer(viewer_state, name, data)
+                    self._append_point_annotation_layer(*layer_args, **layer_kwargs)
                 elif isinstance(data, Chunk):
                     if data.layer_type is None:
                         if data.is_image:
-                            self._append_image_layer(viewer_state, name, data)
+                            self._append_image_layer(*layer_args, **layer_kwargs)
                         elif data.is_segmentation:
-                            self._append_segmentation_layer(viewer_state, name, data)
+                            self._append_segmentation_layer(*layer_args, **layer_kwargs)
                         elif data.is_probability_map:
-                            self._append_probability_map_layer(viewer_state, name, data)
+                            self._append_probability_map_layer(*layer_args, **layer_kwargs)
                         elif data.is_affinity_map:
                             raise ValueError('affinity map is not working yet. To-Do.')
                         else:
                             raise ValueError('unsupported data type.')
                     if data.layer_type == 'segmentation':
-                        self._append_segmentation_layer(viewer_state, name, data)
+                        self._append_segmentation_layer(*layer_args, **layer_kwargs)
                     elif data.layer_type == 'probability_map':
-                        self._append_probability_map_layer(viewer_state, name, data)
+                        self._append_probability_map_layer(*layer_args, **layer_kwargs)
                     elif data.layer_type in set(['image', 'affinity_map']):
-                        self._append_image_layer(viewer_state, name, data)
+                        self._append_image_layer(*layer_args, **layer_kwargs)
                     else: 
                         raise ValueError('only support image, affinity map, probability_map, and segmentation for now.')
                 else:

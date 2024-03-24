@@ -22,12 +22,14 @@ from cloudvolume.lib import Vec, Bbox
 
 BOUNDING_BOX_RE = re.compile(r'(-?\d+)-(-?\d+)_(-?\d+)-(-?\d+)_(-?\d+)-(-?\d+)(?:\.gz|\.br|\.h5|\.json|\.npy|\.tif|\.csv|\.pkl|\.png|\.jpg)?$')
 
-def to_cartesian(x: Union[tuple, list]):
+
+def to_cartesian(x: Union[tuple, list, None]):
     if x is None:
         return None
     else:
         assert len(x) == 3
         return Cartesian.from_collection(x)
+
 
 class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
     """Cartesian coordinate or offset."""
@@ -186,7 +188,7 @@ class Cartesian(namedtuple('Cartesian', ['z', 'y', 'x'])):
 
 
 @dataclass(frozen=True)
-class BoundingBox():
+class BoundingBox:
     start: Cartesian
     stop: Cartesian
     # def __post_init__(self, start, stop) -> BoundingBox:
@@ -361,7 +363,7 @@ class BoundingBox():
             minpt = self.minpt // other.minpt
             maxpt = self.maxpt // other.maxpt
         elif isinstance(other, np.ndarray):
-            other  = Cartesian.from_collection(other)
+            other = Cartesian.from_collection(other)
             minpt = self.start // other
             maxpt = self.stop // other
         else:
@@ -386,7 +388,6 @@ class BoundingBox():
         start = self.start + other
         stop = self.stop + other
         return BoundingBox(start, stop)
-
 
     def clone(self):
         return BoundingBox(self.start, self.stop)
@@ -468,9 +469,9 @@ class BoundingBox():
         
         bboxes = BoundingBoxes()
 
-        for z in range(self.start.z, self.stop.z-block_size.z, block_size.z):
-            for y in range(self.start.y, self.stop.y-block_size.y, block_size.y):
-                for x in range(self.start.x, self.stop.x-block_size.x, block_size.x):
+        for z in range(self.start.z, self.stop.z-block_size.z+1, block_size.z):
+            for y in range(self.start.y, self.stop.y-block_size.y+1, block_size.y):
+                for x in range(self.start.x, self.stop.x-block_size.x+1, block_size.x):
                     bbox = BoundingBox.from_delta(Cartesian(z,y,x), block_size)
                     bboxes.append(bbox)
         return bboxes
@@ -489,7 +490,7 @@ class BoundingBox():
 
     @cached_property
     def left_neighbors(self):
-        sz = self.size3()
+        sz = self.shape
 
         minpt = deepcopy(self.minpt)
         minpt[0] -= sz[0]
@@ -695,12 +696,12 @@ class BoundingBoxes(UserList):
 
 
 @dataclass(frozen=True)
-class PhysicalBoudingBox(BoundingBox):
+class PhysicalBoundingBox(BoundingBox):
     voxel_size: Cartesian
    
     @classmethod
     def from_bounding_box(cls, bbox: BoundingBox, 
-            voxel_size: Cartesian) -> PhysicalBoudingBox:
+            voxel_size: Cartesian) -> PhysicalBoundingBox:
         return cls(bbox.start, bbox.stop, 
             voxel_size)
         
@@ -708,7 +709,7 @@ class PhysicalBoudingBox(BoundingBox):
     def voxel_bounding_box(self) -> BoundingBox:
         return BoundingBox(self.start, self.stop)
     
-    def to_other_voxel_size(self, voxel_size2: Cartesian) -> PhysicalBoudingBox:
+    def to_other_voxel_size(self, voxel_size2: Cartesian) -> PhysicalBoundingBox:
         assert voxel_size2 != self.voxel_size
         
         if voxel_size2 >= self.voxel_size:
@@ -720,5 +721,4 @@ class PhysicalBoudingBox(BoundingBox):
             factors = self.voxel_size // voxel_size2
             start = self.start * factors
             stop = self.stop * factors
-        return PhysicalBoudingBox(start, stop, voxel_size2)
-
+        return PhysicalBoundingBox(start, stop, voxel_size2)

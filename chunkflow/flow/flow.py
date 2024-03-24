@@ -492,7 +492,7 @@ def cleanup(dir: str, mode: str, suffix: str):
               type=click.INT, default=0, 
               help = 'maximum mip level.')
 @operator
-def create_info(tasks,input_chunk_name: str, volume_path: str, channel_num: int, 
+def create_info(tasks, input_chunk_name: str, volume_path: str, channel_num: int,
                 layer_type: str, data_type: str, encoding: str, voxel_size: tuple, 
                 voxel_offset: tuple, volume_size: tuple, block_size: tuple, factor: tuple, max_mip: int):
     """Create attrsdata for Neuroglancer Precomputed volume."""
@@ -506,8 +506,10 @@ def create_info(tasks,input_chunk_name: str, volume_path: str, channel_num: int,
                 chunk = task[input_chunk_name]
                 if chunk.ndim == 3:
                     channel_num = 1
+                    volume_size = chunk.shape
                 elif chunk.ndim == 4:
                     channel_num = chunk.shape[0]
+                    volume_size = chunk.shape[1:]
                 else:
                     raise ValueError('chunk dimension can only be 3 or 4')
 
@@ -516,7 +518,6 @@ def create_info(tasks,input_chunk_name: str, volume_path: str, channel_num: int,
                 if voxel_size is None:
                     voxel_size = chunk.voxel_size
 
-                volume_size = chunk.shape
                 data_type = chunk.dtype.name
 
                 if layer_type is None:

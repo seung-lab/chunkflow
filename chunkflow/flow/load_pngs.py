@@ -16,6 +16,7 @@ def load_image(file_name: str):
     # img = np.expand_dims(img, axis=0)
     return img
 
+
 def load_png_images(
         path_prefix: str, 
         bbox: BoundingBox = None, 
@@ -59,7 +60,7 @@ def load_png_images(
         if os.path.exists(file_name):
             img = load_image(file_name)
             img = img.astype(dtype=dtype)
-            chunk.array[z_offset, :, :] = img
+            chunk.array[z_offset, :, :] = img[bbox.start[1]:bbox.stop[1], bbox.start[2]:bbox.stop[2]]
         else:
             print(f'image file do not exist: {file_name}')
     
