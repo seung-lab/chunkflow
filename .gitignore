@@ -1,3 +1,4 @@
+chunkflow/plugins/chunkflow-plugins
 *.code-workspace
 
 *.pyc
@@ -29,5 +30,4 @@ docs/source/tutorial/
 docs/source/_build/
 *.DS_Store
 *.log
-chunkflow/plugins/chunkflow-plugins
 .idea/
