@@ -265,6 +265,7 @@ class Chunk(NDArrayOperatorsMixin):
                 voxel_offset: tuple=None,
                 dataset_path: str = None,
                 voxel_size: tuple = None,
+                channels: str = None,
                 cutout_start: tuple = None,
                 cutout_stop: tuple = None,
                 cutout_size: tuple = None,
@@ -336,11 +337,18 @@ class Chunk(NDArrayOperatorsMixin):
             
             assert len(cutout_start) == 3
             assert len(cutout_stop) == 3
-            dset = dset[...,
-                cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
-                cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
-                cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
-            ]
+            if channels is None:
+                dset = dset[...,
+                    cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
+                    cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
+                    cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
+                ]
+            else:
+                dset = dset[ eval(channels),
+                    cutout_start[0]-voxel_offset[0]:cutout_stop[0]-voxel_offset[0],
+                    cutout_start[1]-voxel_offset[1]:cutout_stop[1]-voxel_offset[1],
+                    cutout_start[2]-voxel_offset[2]:cutout_stop[2]-voxel_offset[2],
+                ]
                     
         
         print(f"""read from HDF5 file: {file_name} and start with {cutout_start}, \

@@ -991,6 +991,8 @@ def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compressi
 @click.option('--voxel-size', '-x', type=click.INT, nargs=3, 
     default=None, callback=default_none, 
     help='physical size of voxels. The unit is assumed to be nm.')
+@click.option('--channels', '-c', type=str, default=None,
+    help='selected channels.')
 @click.option('--cutout-start', '-t', type=click.INT, nargs=3, callback=default_none,
               help='cutout voxel offset in the array')
 @click.option('--cutout-stop', '-p', type=click.INT, nargs=3, callback=default_none,
@@ -1007,7 +1009,7 @@ def save_tif(tasks, input_chunk_name: str, file_name: str, dtype: str, compressi
 @operator
 def load_h5(tasks, name: str, file_name: str, dataset_path: str,
             dtype: str, layer_type: str, voxel_offset: tuple, 
-            voxel_size: tuple, cutout_start: tuple, 
+            voxel_size: tuple, channels: str, cutout_start: tuple, 
             cutout_stop: tuple, cutout_size: tuple, set_bbox: bool,
             remove_empty: bool, output_chunk_name: str):
     """Read HDF5 files."""
@@ -1036,6 +1038,7 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
                 dataset_path=dataset_path,
                 voxel_offset=voxel_offset,
                 voxel_size=voxel_size,
+                channels = channels,
                 cutout_start=cutout_start_tmp,
                 cutout_size=cutout_size_tmp,
                 cutout_stop=cutout_stop_tmp,
@@ -1049,8 +1052,6 @@ def load_h5(tasks, name: str, file_name: str, dataset_path: str,
                 print(f'remove {file_name}')
                 os.remove(file_name)
 
-            # if len(chunk.array) == 0:
-            #     breakpoint()
             if chunk is not None and dtype is not None:
                 chunk = chunk.astype(dtype)
 

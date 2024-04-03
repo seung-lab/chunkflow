@@ -16,6 +16,7 @@ def load_image(file_name: str):
     # img = np.expand_dims(img, axis=0)
     return img
 
+
 def load_png_images(
         path_prefix: str, 
         bbox: BoundingBox = None, 
@@ -44,7 +45,7 @@ def load_png_images(
         shape = Cartesian(len(file_names), img.shape[0], img.shape[1])
         bbox = BoundingBox.from_delta(voxel_offset, shape)
     else:
-        for z in tqdm( range(bbox.start[0], bbox.stop[0]) ):
+        for z in range(bbox.start[0], bbox.stop[0]):
             file_name = f'{path_prefix}{z:0>{digit_num}d}.png'
             file_name = os.path.expanduser(file_name)
             file_names.append(file_name)
@@ -55,11 +56,11 @@ def load_png_images(
         voxel_size=voxel_size
     )
 
-    for z_offset, file_name in enumerate(file_names):
+    for z_offset, file_name in tqdm(enumerate(file_names)):
         if os.path.exists(file_name):
             img = load_image(file_name)
             img = img.astype(dtype=dtype)
-            chunk.array[z_offset, :, :] = img
+            chunk.array[z_offset, :, :] = img[bbox.start[1]:bbox.stop[1], bbox.start[2]:bbox.stop[2]]
         else:
             print(f'image file do not exist: {file_name}')
     
