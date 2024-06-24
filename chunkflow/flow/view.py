@@ -1,6 +1,6 @@
 import numpy as np
 
-from cloudvolume import view, hyperview
+from microviewer import view, hyperview
 from .base import OperatorBase
 
 
@@ -20,4 +20,4 @@ class ViewOperator(OperatorBase):
             # this is an image
             view(chunk)
         else:
-            view(chunk, segmentation=True)
+            view(chunk, seg=True)

@@ -2200,7 +2200,7 @@ def quantize(tasks, input_chunk_name: str, output_chunk_name: str, mode: str):
         if task is not None:
             chk = task[input_chunk_name]
             if chk.is_affinity_map:
-                chk = AffinityMap(chk)
+                chk = AffinityMap.from_chunk(chk)
                 quantized_image = chk.quantize(mode=mode)
             elif chk.is_probability_map:
                 quantized_image = (chk * 255.)

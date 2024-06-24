@@ -360,7 +360,6 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
             arr = arr.astype('float64') 
 
         print(f'new chunk voxel offset: {cutout_start}')
-
         return cls(arr, voxel_offset=cutout_start, voxel_size=voxel_size, layer_type=layer_type)
 
     def to_h5(self, file_name: str, with_offset: bool=True, 

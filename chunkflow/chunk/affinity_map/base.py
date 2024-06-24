@@ -9,13 +9,26 @@ class AffinityMap(Chunk):
     """
     a chunk of affinity map. It has x,y,z three channels with single precision.
     """
-    def __init__(self, array, 
+    def __init__(self, array: np.ndarray, 
             voxel_offset: Cartesian=None, 
-            voxel_size: Cartesian=None ):
+            voxel_size: Cartesian=None,
+            layer_type: str = None):
+        assert isinstance(array, np.ndarray)
         assert array.ndim == 4
         assert np.issubdtype(array.dtype, np.float32)
         assert array.shape[0] == 3
-        super().__init__(array, voxel_offset=voxel_offset, voxel_size=voxel_size)
+        super().__init__(array, 
+            voxel_offset=voxel_offset, 
+            voxel_size=voxel_size, 
+            layer_type=layer_type)
+
+    @classmethod
+    def from_chunk(cls, chk: Chunk):
+        assert isinstance(chk, Chunk)
+        return cls(chk.array, 
+            voxel_offset = chk.voxel_offset,
+            voxel_size = chk.voxel_size,
+            layer_type = chk.layer_type)
 
     def quantize(self, mode: str='xy'):
         """transform affinity map to gray scale image
