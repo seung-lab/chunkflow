@@ -479,7 +479,7 @@ def cleanup(dir: str, mode: str, suffix: str):
               help='voxel size with unit of nm')
 @click.option('--voxel-offset', '-o', default=None, type=click.INT, nargs=3, callback=default_none,
               help='voxel offset of array')
-@click.option('--volume-size', '-v',
+@click.option('--volume-size', '-z',
               type=click.INT, nargs=3, default=None, callback=default_none,
               help='total size of the volume.')
 @click.option('--block-size', '-b',
