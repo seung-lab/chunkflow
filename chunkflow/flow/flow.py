@@ -934,7 +934,7 @@ def load_pngs(tasks: dict, path_prefix: str,
 @click.option('--output-chunk-name', '-o', type=str, default='chunk',
               help='chunk name in the global state')
 @operator
-def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
+def load_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
              voxel_size: tuple, dtype: str, output_chunk_name: str):
     """Read tiff files."""
     for task in tasks:
