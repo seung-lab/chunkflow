@@ -1426,7 +1426,7 @@ def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tupl
 @main.command('save-zarr')
 @click.option('--store', '-s', type=str, required=True,
     help = 'Zarr store path')
-@click.option('--shape', '-s', type=click.INT, nargs=3,
+@click.option('--shape', '-p', type=click.INT, nargs=3,
     default=None, callback=default_none,
     help='shape of the whole volume.')
 @click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
