@@ -1,7 +1,7 @@
 import numpy as np
 
 from chunkflow.chunk import Chunk
-from chunkflow.lib.synapses import Synapses
+from chunkflow.synapses import Synapses
 from chunkflow.lib.cartesian_coordinate import BoundingBox
 
 OUT_DIR = "/mnt/ceph/users/neuro/wasp_em/jwu/sample1/75_duplicated_post"

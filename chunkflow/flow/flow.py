@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 from time import time
 from typing import Generator, List, Tuple
-from collections import defaultdict
 from copy import deepcopy
 
 import numpy as np
@@ -18,12 +17,11 @@ import tinybrain
 from chunkflow.lib.flow import *
 from cloudvolume import CloudVolume
 from cloudvolume.lib import Vec
-from cloudvolume import Skeleton 
 from cloudfiles import CloudFiles
 
 from chunkflow.lib.aws.sqs_queue import SQSQueue
 from chunkflow.lib.cartesian_coordinate import Cartesian, BoundingBox, BoundingBoxes
-from chunkflow.lib.synapses import Synapses
+from chunkflow.synapses import Synapses
 
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.image import Image
@@ -853,14 +851,13 @@ def read_json(tasks, name: str, file_path: str, output_name: str):
 
 
 @main.command('save-nrrd')
-@click.option('--name', type=str, default='save-nrrd', help='name of operator')
 @click.option('--input-chunk-name', '-i',
               type=str, default=DEFAULT_CHUNK_NAME, help='input chunk name')
 @click.option('--file-name', '-f', default=None,
     type=click.Path(dir_okay=False, resolve_path=True), 
     help='file name of NRRD file.')
 @operator
-def save_nrrd(tasks, name, input_chunk_name, file_name):
+def save_nrrd(tasks, input_chunk_name, file_name):
     """Save chunk as a NRRD file."""
     for task in tasks:
         if task is not None:
@@ -868,10 +865,10 @@ def save_nrrd(tasks, name, input_chunk_name, file_name):
         yield task
 
 
-@main.command('load-pngs')
-@click.option('--path-prefix', '-p',
+@main.command('load-png')
+@click.option('--path', '-p',
               required=True, type=str,
-              help='directory path prefix of png files.')
+              help='directory path prefix of png files or a single PNG file.')
 @click.option('--output-chunk-name', '-o',
               type=str, default=DEFAULT_CHUNK_NAME,
               help='output chunk name')
@@ -888,10 +885,10 @@ def save_nrrd(tasks, name, input_chunk_name, file_name):
 @click.option('--chunk-size', '-s',
               type=click.INT, nargs=3, default=None, callback=default_none,
               help='cutout chunk size')
-@click.option('--dtype', type=str, default='uint8', 
+@click.option('--dtype', type=str, default=None, 
     help = 'data type of output chunk.')
 @operator
-def load_pngs(tasks: dict, path_prefix: str, 
+def load_png(tasks: dict, path: str, 
                 output_chunk_name: str, cutout_offset: tuple,
                 voxel_offset: tuple, voxel_size: tuple, 
                 digit_num: int, chunk_size: tuple, dtype: str):
@@ -910,7 +907,7 @@ def load_pngs(tasks: dict, path_prefix: str,
                 bbox = BoundingBox.from_delta(cutout_offset, chunk_size)
 
             task[output_chunk_name] = load_png_images(
-                path_prefix, bbox = bbox, 
+                path, bbox = bbox, 
                 voxel_offset=voxel_offset,
                 digit_num=digit_num,
                 voxel_size=voxel_size,
@@ -1254,8 +1251,8 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
 
 
 @main.command('load-skeleton')
-@click.option('--fname', '-f', type=click.Path(
-    exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
+@click.option('--path', '-p', type=click.Path(
+    exists=True, file_okay=True, dir_okay=True, readable=True, resolve_path=True),
     required=True, help='the path of skeleton file')
 @click.option('--offset', '-o', type=click.FLOAT, nargs=3, default=None,
     help='physical coordinate offset. Normally, the unit is nanometer.')
@@ -1266,7 +1263,7 @@ def load_precomputed(tasks, name: str, volume_path: str, mip: int,
 @click.option('--output-name', '-o', type=str, default=DEFAULT_SKELETON_NAME, \
     help='output name of oid2skel. Note that it is a dict to map object ID to skeleton.')
 @operator
-def load_skeleton(tasks, fname: str, offset: Tuple, voxel_offset: Tuple, voxel_size: Tuple, output_name: str):
+def load_skeleton(tasks, path: str, offset: Tuple, voxel_offset: Tuple, voxel_size: Tuple, output_name: str):
     if offset is None and voxel_offset is not None:
         assert voxel_size is not None
         voxel_offset = Cartesian.from_collection(voxel_offset)
@@ -1277,35 +1274,23 @@ def load_skeleton(tasks, fname: str, offset: Tuple, voxel_offset: Tuple, voxel_s
     elif not isinstance(offset, Cartesian):
         offset = Cartesian.from_collection(offset)
 
+    from chunkflow.skeleton import load_dir as load_skeleton_dir
+    from chunkflow.skeleton import load_swc, load_mapbuffer
     for task in tasks:
         if task is not None:
-            oid2skel = defaultdict(list)
-            if fname.endswith('.mb'):
-                from mapbuffer import MapBuffer
-                with open(fname, 'rb') as f:
-                    binary = f.read()
-                
-                mb = MapBuffer(binary)
-                for oid, binary in mb.items():
-                    skel = Skeleton.from_precomputed(binary)
-                    # center the voxels by +0.5
-                    # https://github.com/seung-lab/igneous/blob/master/igneous/tasks/skeleton.py#L134
-                    # adjust the offset of each chunk. 
-                    # To-Do: This should be done in the chunk-wise skeletonization step.
-                    oid2skel[oid].append(skel)
-            elif fname.endswith('.swc'):
-                # remove the .swc 
-                oid = int(os.path.basename(fname)[:-4])
-                with open(fname, 'r') as f:
-                    swcstr = f.read()
-                    skel = Skeleton.from_swc(swcstr)
-                oid2skel[ oid ] = skel
+            if os.path.isdir(path):
+                oid2skel = load_skeleton_dir(path)
+            else:
+                assert os.path.isfile(path)
 
-            for oid, skels in oid2skel.items():
-                skel = Skeleton.simple_merge(skels).consolidate()
-                if offset is not None:
-                    skel.vertices[:] += np.asarray(offset)[::-1]
-                oid2skel[oid] = skel 
+                if path.endswith('.swc'):
+                    oid, skel = load_swc(path)
+                    oid2skel = {oid: skel}
+                elif path.endswith('.mb'):
+                    oid2skel = load_mapbuffer(path)
+                else:
+                    raise ValueError(f'only support .swc and .mb, but get {path}')
+
             task[output_name] = oid2skel
         yield task
 

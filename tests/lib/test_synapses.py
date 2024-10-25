@@ -1,7 +1,7 @@
 import os
 import tempfile
 import numpy as np
-from chunkflow.lib.synapses import Synapses
+from chunkflow.synapses import Synapses
 
 
 def test_synapses():

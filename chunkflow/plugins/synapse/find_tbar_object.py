@@ -3,7 +3,7 @@ import os
 import numpy as np
 import h5py
 
-from chunkflow.lib.synapses import Synapses
+from chunkflow.synapses import Synapses
 from chunkflow.chunk import Chunk
 
 file_path = '/mnt/ceph/users/neuro/wasp_em/jwu/sample1/72_tbar/02_tbar_points'

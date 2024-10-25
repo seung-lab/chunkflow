@@ -3,7 +3,7 @@ import numpy as np
 
 from chunkflow.chunk import Chunk
 
-from chunkflow.lib.synapses import Synapses
+from chunkflow.synapses import Synapses
 
 from edt import edt
 

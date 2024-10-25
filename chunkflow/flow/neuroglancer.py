@@ -2,7 +2,7 @@
 TO-DO:
 add probability map layer for T-bar or cleft detection and other semantic prediction
 """
-from typing import Tuple
+from typing import Tuple, DefaultDict
 from collections import defaultdict
 
 import neuroglancer as ng
@@ -10,14 +10,15 @@ import numpy as np
 from tqdm import tqdm
 
 from chunkflow.chunk import Chunk
-from chunkflow.lib.synapses import Synapses
+from chunkflow.synapses import Synapses
 from chunkflow.point_cloud import PointCloud
+from cloudvolume import Skeleton
 
 from .base import OperatorBase
 
 
 class SkeletonSource(ng.skeleton.SkeletonSource):
-    def __init__(self, oid2skel: dict, scales: Tuple = (1, 1, 1), voxel_offset=None):
+    def __init__(self, oid2skel: DefaultDict[int, Skeleton], scales: Tuple = (1, 1, 1), voxel_offset=None):
 
         dimensions = ng.CoordinateSpace(
             names=["x", "y", "z"],
@@ -55,11 +56,16 @@ class NeuroglancerOperator(OperatorBase):
     def _append_skeleton_layer(self, 
             viewer_state: ng.viewer_state.ViewerState, 
             name: str, 
-            oid2skel: defaultdict):
+            oid2skel: DefaultDict):
 
         annotations = []
-        for oid, skel in tqdm(oid2skel.items(), desc='make skeleton line segments'):
+        for oid, skel in tqdm(oid2skel.items(), 
+                              desc='make skeleton line segments'):
+            # switch the X and Y to align with the image!
+            # I still do not understand why should we do this!
+            skel.vertices[:, 0], skel.vertices[:, 1] = skel.vertices[:, 1], skel.vertices[:, 0] 
             for p1, p2 in skel.edges:
+                # breakpoint()
                 ann = ng.viewer_state.LineAnnotation(
                     id = oid,
                     point_a = skel.vertices[p1, :],
@@ -401,7 +407,8 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                         self._append_probability_map_layer(*layer_args, **layer_kwargs)
                     elif data.layer_type in set(['image', 'affinity_map']):
                         self._append_image_layer(*layer_args, **layer_kwargs)
-                    else: 
+                    else:
+                        breakpoint()
                         raise ValueError('only support image, affinity map, probability_map, and segmentation for now.')
                 else:
                     breakpoint()

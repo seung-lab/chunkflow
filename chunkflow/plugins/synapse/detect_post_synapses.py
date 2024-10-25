@@ -6,7 +6,7 @@ from neutorch.model.IsoRSUNet import Model
 import numpy as np
 from chunkflow.chunk import Chunk
 from chunkflow.chunk.probability_map import ProbabilityMap
-from chunkflow.lib.synapses import Synapses
+from chunkflow.synapses import Synapses
 from chunkflow.lib.cartesian_coordinate import BoundingBox, Cartesian
 
 # import patch_inferencer

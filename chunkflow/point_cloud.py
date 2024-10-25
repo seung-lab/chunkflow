@@ -33,6 +33,11 @@ class PointCloud:
             hf['points'] = self.points
             hf['voxel_size'] = self.voxel_size
 
+    @classmethod
+    def from_swc(cls, file_path: str) -> PointCloud:
+        assert file_path.endswith('.swc')
+        
+
     @cached_property
     def bounding_box(self):
         bbox = BoundingBox.from_points(self.points)
