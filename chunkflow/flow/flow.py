@@ -477,7 +477,7 @@ def cleanup(dir: str, mode: str, suffix: str):
               help='voxel size with unit of nm')
 @click.option('--voxel-offset', '-o', default=None, type=click.INT, nargs=3, callback=default_none,
               help='voxel offset of array')
-@click.option('--volume-size', '-v',
+@click.option('--volume-size', '-z',
               type=click.INT, nargs=3, default=None, callback=default_none,
               help='total size of the volume.')
 @click.option('--block-size', '-b',
@@ -931,7 +931,7 @@ def load_png(tasks: dict, path: str,
 @click.option('--output-chunk-name', '-o', type=str, default='chunk',
               help='chunk name in the global state')
 @operator
-def read_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
+def load_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
              voxel_size: tuple, dtype: str, output_chunk_name: str):
     """Read tiff files."""
     for task in tasks:
@@ -1411,7 +1411,7 @@ def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tupl
 @main.command('save-zarr')
 @click.option('--store', '-s', type=str, required=True,
     help = 'Zarr store path')
-@click.option('--shape', '-s', type=click.INT, nargs=3,
+@click.option('--shape', '-p', type=click.INT, nargs=3,
     default=None, callback=default_none,
     help='shape of the whole volume.')
 @click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
