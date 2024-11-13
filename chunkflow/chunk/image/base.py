@@ -3,7 +3,7 @@ __doc__ = """Image chunk class"""
 from tqdm import tqdm
 import numpy as np
 
-from .adjust_grey import normalize_section_shang
+from .adjust_grey import normalize_shang
 from chunkflow.chunk import Chunk
 from chunkflow.flow.divid_conquer.inferencer import Inferencer
 
@@ -23,8 +23,8 @@ class Image(Chunk):
         """run convolutional net inference for this image chunk"""
         return inferencer(self)
 
-    def normalize_section_shang(self, nominalmin, nominalmax, clipvalues):
-        return normalize_section_shang(self.array, nominalmin, nominalmax,
+    def normalize_shang(self, nominalmin, nominalmax, clipvalues):
+        return normalize_shang(self.array, nominalmin, nominalmax,
                                        clipvalues)
 
     def _find_section_clamping_values(self, 

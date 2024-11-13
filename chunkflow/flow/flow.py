@@ -1660,7 +1660,7 @@ def normalize_contrast(tasks,
               default=False,
               help='clip transformed values to be within the target range.')
 @operator
-def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name, 
+def normalize_shang(tasks, name, input_chunk_name, output_chunk_name, 
                             nominalmin, nominalmax, clipvalues):
     """Normalize voxel values based on slice min/max within the chunk, Shang's method.
     The transformed chunk has floating point values.
@@ -1670,7 +1670,7 @@ def normalize_section_shang(tasks, name, input_chunk_name, output_chunk_name,
         if task is not None:
             start = time()
             chunk = task[input_chunk_name]
-            chunk = chunk.normalize_section_shang(nominalmin, nominalmax, clipvalues)
+            chunk = chunk.normalize_shang(nominalmin, nominalmax, clipvalues)
             task[output_chunk_name] = chunk
             task['log']['timer'][name] = time() - start
         yield task

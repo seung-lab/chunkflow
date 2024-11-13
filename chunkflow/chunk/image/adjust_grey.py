@@ -7,6 +7,31 @@
 import numpy as np
 from chunkflow.chunk import Chunk
 
+import cv2
+
+def clip_percentile(img: np.ndarray, percentile_low: float = 0.01, percentile_high: float = 0.01) -> np.ndarray:
+    assert img.dtype == np.uint8
+    hist = cv2.calcHist([img], [0], None, [256], [0, 256])
+    total_pixels = np.prod(img.shape)
+    
+    lower_bound = 0
+    accumulated_voxel_num = 0
+    while accumulated_voxel_num < (percentile_low * total_pixels):
+        accumulated_voxel_num += hist[lower_bound]
+        lower_bound += 1
+
+    upper_bound = 255
+    accumulated_voxel_num = 0
+    while accumulated_voxel_num < (percentile_high * total_pixels):
+        accumulated_voxel_num += hist[upper_bound]
+        upper_bound -= 1
+
+    alpha = 255 / (upper_bound - lower_bound)
+    beta = -lower_bound * alpha
+    adjusted_image = np.clip((img * alpha + beta), 0, 255).astype(np.uint8)
+    return adjusted_image
+
+
 
 def window_level(img, half_window, level):
     r'''
@@ -64,8 +89,6 @@ def normalize(img,
               method,
               target_scale=[-1, 1],
               min_max_invalid=[True, True],
-              invalid_values=[],
-              clip_percentile=[None, None],
               do_clipping=False,
               make_copy=True,
               debug=False):
@@ -183,7 +206,7 @@ def grey_augment(img,
     return img
 
 
-def normalize_section_shang(image: np.ndarray, nominalmin: float,
+def normalize_shang(image: np.ndarray, nominalmin: float,
                             nominalmax: float, clipvalues: bool):
     """
     Parameters
@@ -198,7 +221,8 @@ def normalize_section_shang(image: np.ndarray, nominalmin: float,
         clip values or not.
     """
     assert nominalmin < nominalmax
-    assert image.ndim == 3
+    # this function should work for any dimension!
+    # assert image.ndim == 3
     # voxel_offset = image.voxel_offset
     originaltype = image.dtype
     arr = image.astype(np.float32)

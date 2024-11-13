@@ -313,7 +313,7 @@ class BoundingBox:
     def shape(self):
         return self.stop - self.start
 
-    def get_aligned_block_bounding_boxes(self, 
+    def decompose_to_aligned_block_bounding_boxes(self, 
             block_size: Cartesian, bounded: bool=True) -> BoundingBoxes:
         bboxes = BoundingBoxes()
         if bounded:
@@ -330,7 +330,7 @@ class BoundingBox:
                         bboxes.append(bbox)
         return bboxes
     
-    def get_unaligned_block_bounding_boxes(self, 
+    def decompose_to_unaligned_block_bounding_boxes(self, 
             block_size: Cartesian) -> BoundingBoxes:
         bboxes = BoundingBoxes()
         for z in range(self.start.z, self.stop.z, block_size.z):
@@ -339,8 +339,8 @@ class BoundingBox:
                     block_start = Cartesian(z,y,x)
                     block_stop = block_start + block_size
                     # the block stop can not exceed the boundary of volume
-                    block_stop = block_stop.intersection(
-                        BoundingBox(block_start, self.stop)
+                    block_stop = Cartesian.from_collection(
+                        np.minimum(block_stop, self.stop)
                     )
                     bbox = BoundingBox(block_start, block_stop)
                     bboxes.append(bbox)
