@@ -206,7 +206,10 @@ class Chunk(NDArrayOperatorsMixin):
         )
     
     @classmethod
-    def from_tif(cls, file_name: str, voxel_offset: tuple=None, dtype: str = None,
+    def from_tif(cls, file_name: str, 
+            voxel_offset: tuple=None, 
+            dtype: str = None,
+            layer_type: str = None,
             voxel_size: tuple=None):
         assert os.path.exists(file_name)
         if os.path.isfile(file_name):
@@ -230,7 +233,7 @@ class Chunk(NDArrayOperatorsMixin):
                 arr[idx+1, :, :] = section
 
         print(f'read tif chunk with size of {arr.shape}, voxel offset: {voxel_offset}, voxel size: {voxel_size}')
-        return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size)
+        return cls(arr, voxel_offset=voxel_offset, voxel_size=voxel_size, layer_type=layer_type)
     
     def to_tif(self, file_name: str=None, compression: str = 'zlib'):
         if file_name is None:

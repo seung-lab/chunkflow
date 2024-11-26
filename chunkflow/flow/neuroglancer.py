@@ -373,7 +373,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                 name, layer_kwargs = parse_selected_args(name)
                 data = datas[name]
                 layer_args = (viewer_state, name, data)
-                # breakpoint()
+                breakpoint()
                 
                 if data is None:
                     continue
@@ -401,7 +401,7 @@ emitRGB(vec3(toNormalized(getDataValue(0)),
                             raise ValueError('affinity map is not working yet. To-Do.')
                         else:
                             raise ValueError('unsupported data type.')
-                    if data.layer_type == 'segmentation':
+                    elif data.layer_type == 'segmentation':
                         self._append_segmentation_layer(*layer_args, **layer_kwargs)
                     elif data.layer_type == 'probability_map':
                         self._append_probability_map_layer(*layer_args, **layer_kwargs)

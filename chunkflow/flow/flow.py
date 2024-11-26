@@ -925,6 +925,9 @@ def load_png(tasks: dict, path: str,
               help='global offset of this chunk')
 @click.option('--voxel-size', '-s', type=click.INT, nargs=3, default=None, callback=default_none,
               help='physical size of voxels. The unit is assumed to be nm.')
+@click.option('--layer-type', '-l',
+    type=click.Choice(['image', 'segmentation']), default=None,
+    help='the layer type in neuroglancer for visualization.')
 @click.option('--dtype', '-d',
               type=click.Choice(['uint8', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'float16']),
               help='convert to data type')
@@ -932,7 +935,7 @@ def load_png(tasks: dict, path: str,
               help='chunk name in the global state')
 @operator
 def load_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
-             voxel_size: tuple, dtype: str, output_chunk_name: str):
+             voxel_size: tuple, layer_type: str, dtype: str, output_chunk_name: str):
     """Read tiff files."""
     for task in tasks:
         if task is not None:
@@ -941,6 +944,7 @@ def load_tif(tasks, name: str, file_name: str, voxel_offset: tuple,
                 file_name,
                 dtype=dtype,
                 voxel_offset=voxel_offset,
+                layer_type=layer_type,
                 voxel_size=voxel_size)
             task['log']['timer'][name] = time() - start
         yield task

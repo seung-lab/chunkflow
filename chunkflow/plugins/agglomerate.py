@@ -5,14 +5,14 @@ from chunkflow.chunk import Chunk
 from waterz import agglomerate
 
 
-threshold: float = 0.7
-aff_threshold_low: float = 0.001
-aff_threshold_high: float = 0.9999
-scoring_function: str = 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>'
-flip_channel: bool = True
-
-
-def execute(affs: Chunk, fragments: np.ndarray = None):
+def execute(affs: Chunk, 
+        fragments: np.ndarray = None, 
+        threshold: float = 0.7,
+        aff_threshold_low: float = 0.001,
+        aff_threshold_high: float = 0.9999,
+        scoring_function: str = 'OneMinus<MeanAffinity<RegionGraphType, ScoreValue>>',
+        flip_channel: bool = True,
+    ):
     """
     Mean/max agglomeration of affinity map including watershed step.
 
