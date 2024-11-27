@@ -56,7 +56,7 @@ class DownsampleUploadOperator(OperatorBase):
         self.start_mip = start_mip
         self.stop_mip = stop_mip
         assert len(factor) == 3
-        assert np.alltrue([f>=1 for f in factor])
+        assert np.all([f>=1 for f in factor])
         assert stop_mip > start_mip
         assert start_mip > chunk_mip
 

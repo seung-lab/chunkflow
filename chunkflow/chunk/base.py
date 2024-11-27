@@ -73,7 +73,7 @@ class Chunk(NDArrayOperatorsMixin):
         self.voxel_size = voxel_size
         if voxel_size is not None:
             assert len(voxel_size) == 3
-            assert np.alltrue([vs > 0 for vs in voxel_size])
+            assert np.all([vs > 0 for vs in voxel_size])
         
         if layer_type is not None:
             self.layer_type = layer_type 

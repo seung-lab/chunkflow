@@ -179,4 +179,4 @@ class LoadPrecomputedOperator(OperatorBase):
             validate_input = np.squeeze(validate_input, axis=3)
 
         # use the validate input to check the downloaded input
-        assert np.alltrue(validate_input == clamped_input)
+        assert np.all(validate_input == clamped_input)

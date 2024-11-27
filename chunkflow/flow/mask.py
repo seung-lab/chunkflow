@@ -59,7 +59,7 @@ class MaskOperator(OperatorBase):
 
         mask_in_high_mip = self._read_mask_in_high_mip(chunks[0].bbox, factor)
 
-        if np.alltrue(mask_in_high_mip == 0):
+        if np.all(mask_in_high_mip == 0):
             print('the mask is all black, mask all the voxels directly')
             for chunk in chunks:
                 np.multiply(chunk, 0, out=chunk)
@@ -100,7 +100,7 @@ class MaskOperator(OperatorBase):
         # the slices did not contain the channel dimension
         mask = self.mask_vol[mask_slices[::-1]]
         # this is a cloudvolume VolumeCutout rather than a normal numpy array
-        # which will make np.alltrue(mask_in_high_mip == 0) to be
+        # which will make np.all(mask_in_high_mip == 0) to be
         # VolumeCutout(False) rather than False, so we need to transform it 
         # to numpy
         mask = mask.astype(bool)

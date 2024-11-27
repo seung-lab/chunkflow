@@ -29,7 +29,7 @@ def test_test_time_augmentation():
     output = output * 255
     output.astype(np.uint8)
     
-    assert np.alltrue(np.isclose(image, output, atol=1))
+    assert np.all(np.isclose(image, output, atol=1))
 
 def test_aligned_input_size():
     print('\ntest block inference with aligned input size...')
@@ -55,7 +55,7 @@ def test_aligned_input_size():
     output = output * 255
     output.astype(np.uint8)
     
-    assert np.alltrue(np.isclose(image, output, atol=1))
+    assert np.all(np.isclose(image, output, atol=1))
 
 def test_aligned_patch_num():
     print('\ntest block inference with patch number...')
