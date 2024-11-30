@@ -1415,33 +1415,105 @@ def load_zarr(tasks, store: str, path: str, chunk_start: tuple, voxel_size: tupl
 @main.command('save-zarr')
 @click.option('--store', '-s', type=str, required=True,
     help = 'Zarr store path')
-@click.option('--shape', '-p', type=click.INT, nargs=3,
+@click.option('--shape', type=click.INT, nargs=3,
     default=None, callback=default_none,
     help='shape of the whole volume.')
+@click.option('--resolution', '-r', type=click.INT, nargs=3,
+    default=None, callback=default_none,
+    help='resolution of mip 0 scale in nm.')
+@click.option('--mip', '-m',
+              type=click.INT, default=None, help='mip level.')
+@click.option('--dtype', type=str,
+    default=None, callback=default_none,
+    help='data type of the array.')
+@click.option('--infer-dtype/--no-infer-dtype', default=False,
+    help='infer the data type or not.')
+@click.option('--chunk-size', '-c', type=click.INT, nargs=3,
+    default=None, callback=default_none,
+    help='Zarr chunk size.')
+@click.option('--order', '-o', type=str, default='xyz',
+    help='order of the coordinates for the zarr array, "xyz" (Default) or "zyx".')
 @click.option('--input-chunk-name', '-i', type=str, default=DEFAULT_CHUNK_NAME,
     help='input chunk name.')
 @operator
-def save_zarr(tasks, store: str, shape: tuple, input_chunk_name: str):
-    """Load Zarr arrays."""
-    
+def save_zarr(tasks, store: str, shape: tuple, resolution: tuple, mip: int, dtype: str, infer_dtype: bool,
+        chunk_size: tuple, order: str, input_chunk_name: str):
+    """Save Zarr arrays."""
+
+    order = order.lower()
+    if order not in ('xyz', 'zyx'):
+        raise ValueError(f'invalid order: {order} (should be xyz or zyx)')
+    order_slice = slice(None, None, -1) if order == 'xyz' else slice(None)
+
+    if mip is None:
+        mip = state['mip']
+
+    if resolution is not None:
+        resolution = Cartesian.from_collection(resolution)
+        scale = resolution * (2 ** mip)
+    else:
+        scale = None
+
+    kwargs = {'mode': 'a'}
+
+    if 'DISBATCH_REPEAT_INDEX' in os.environ:
+        sync_path = f'{store}.sync'
+        sync = zarr.ProcessSynchronizer(sync_path)
+        kwargs['synchronizer'] = sync
+
     if os.path.exists(store):
-        za = zarr.open(store, mode='w')
+        za = zarr.open(store, **kwargs)
     else:
         assert shape is not None
-        za = zarr.open(store, mode='w', shape=shape,)
+        shape = shape[order_slice]
+        kwargs['shape'] = shape
+        if dtype is not None:
+            kwargs['dtype'] = dtype
+        if chunk_size is not None:
+            chunk_size = chunk_size[order_slice]
+            kwargs['chunks'] = chunk_size
+        if infer_dtype:
+            za = None
+        else:
+            os.makedirs(os.path.dirname(store), exist_ok=True)
+            za = zarr.open(store, **kwargs)
+
     for task in tasks:
         if task is not None:
             chunk = task[input_chunk_name]
-            if not os.path.exists(store):
-                # create it and store the whole array here.
-                za[:] = chunk.array
-            else:
-                if chunk.ndim == 4: 
-                    za[(slice(None),) + chunk.slices] = chunk.array
-                elif chunk.ndim == 3:
-                    za[chunk.slices] = chunk.array
+
+            if za is None:
+                if infer_dtype and chunk.dtype is not None:
+                    kwargs['dtype'] = chunk.dtype
+                os.makedirs(os.path.dirname(store), exist_ok=True)
+                za = zarr.open(store, **kwargs)
+
+            assert chunk.ndim == za.ndim, f'chunk shape {chunk.ndim} != zarr shape {za.ndim}'
+
+            if scale is not None and 'dimension_units' not in za.attrs:
+                za.attrs['dimension_units'] = [f'{int(d)} nm' for d in scale[order_slice]]
+            if '_ARRAY_DIMENSIONS' not in za.attrs:
+                za.attrs['_ARRAY_DIMENSIONS'] = list(order)
+
+            # Crop chunk array if it extends past zarr array size
+            chunk_slices = []
+            za_shape = za.shape[order_slice]
+            for i in range(chunk.ndim):
+                if (i == 0 and chunk.ndim == 4):
+                    chunk_slices.append(slice(None))
+                elif (chunk.ndoffset[i] + chunk.shape[i]) > za_shape[i]:
+                    chunk_slices.append(slice(0, za_shape[i] - chunk.ndoffset[i]))
                 else:
-                    raise ValueError(f'only support 3D and 4D array for now, but get {chunk.ndim}')
+                    chunk_slices.append(slice(None))
+
+            if chunk.ndim not in (3, 4):
+                raise ValueError(f'only support 3D and 4D array for now, but chunk is a {chunk.ndim}D array.')
+            chunk_array = chunk.array[tuple(chunk_slices)]
+            if order == 'xyz':
+                chunk_array = chunk_array.T
+            print(f'saving chunk to zarr: {chunk_array.shape} shape, {chunk.voxel_offset[order_slice]} offset')
+            za[chunk.slices[order_slice]] = chunk_array
+
         yield task
 
 @main.command('evaluate-segmentation')

@@ -604,7 +604,7 @@ ends with {cutout_stop}, size is {cutout_size}, voxel size is {voxel_size}.""")
 
     @property
     def voxel_stop(self) -> tuple:
-        return tuple(o + s for o, s in zip(self.voxel_offset, self.shape))
+        return tuple(o + s for o, s in zip(self.ndoffset, self.shape))
 
     def astype(self, dtype: Union[np.dtype, str]):
         if dtype is None:
